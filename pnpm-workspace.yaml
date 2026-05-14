@@ -1,0 +1,6 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "tests/e2e"
+  - "tests/contract"
+  - "tests/integration"

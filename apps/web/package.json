@@ -1,0 +1,16 @@
+{
+  "name": "@travel-playground/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Next.js web app placeholder for the travel booking playground.",
+  "scripts": {
+    "dev": "echo 'TODO: wire next dev'",
+    "build": "echo 'TODO: wire next build'",
+    "start": "echo 'TODO: wire next start'",
+    "lint": "echo 'TODO: wire eslint'",
+    "typecheck": "echo 'TODO: wire tsc --noEmit'",
+    "test": "echo 'TODO: wire vitest'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

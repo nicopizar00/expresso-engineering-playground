@@ -1,0 +1,11 @@
+{
+  "name": "@travel-playground/contract-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Consumer/provider contract tests (Pact) for the travel booking playground.",
+  "scripts": {
+    "test:contract": "echo 'TODO: wire pact consumer + provider verification'",
+    "lint": "echo 'TODO: wire eslint'",
+    "typecheck": "echo 'TODO: wire tsc --noEmit'"
+  }
+}

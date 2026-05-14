@@ -1,0 +1,19 @@
+{
+  "name": "@travel-playground/bff",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NestJS BFF / API placeholder for the travel booking playground.",
+  "scripts": {
+    "dev": "echo 'TODO: wire nest start --watch'",
+    "build": "echo 'TODO: wire nest build'",
+    "start": "echo 'TODO: wire node dist/main.js'",
+    "lint": "echo 'TODO: wire eslint'",
+    "typecheck": "echo 'TODO: wire tsc --noEmit'",
+    "test": "echo 'TODO: wire vitest'",
+    "test:integration": "echo 'TODO: wire integration suite for bff'",
+    "prisma:generate": "echo 'TODO: wire prisma generate'",
+    "prisma:migrate": "echo 'TODO: wire prisma migrate dev'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

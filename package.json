@@ -1,0 +1,24 @@
+{
+  "name": "expresso-engineering-playground",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Engineering playground for a fictional travel booking platform.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:contract": "turbo run test:contract",
+    "test:e2e": "turbo run test:e2e",
+    "test:perf:smoke": "echo 'TODO: invoke tests/performance/k6 smoke profile'",
+    "typecheck": "turbo run typecheck",
+    "format": "echo 'TODO: wire prettier/eslint'"
+  },
+  "devDependencies": {}
+}
