@@ -1,0 +1,11 @@
+{
+  "name": "@travel-playground/integration-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cross-module integration tests (Vitest) for the travel booking playground.",
+  "scripts": {
+    "test:integration": "echo 'TODO: wire vitest integration runner'",
+    "lint": "echo 'TODO: wire eslint'",
+    "typecheck": "echo 'TODO: wire tsc --noEmit'"
+  }
+}
