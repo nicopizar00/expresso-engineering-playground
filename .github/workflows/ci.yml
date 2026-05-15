@@ -110,4 +110,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo 'TODO: invoke tests/performance/k6 smoke scenario against the ephemeral stack'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || true
+      - name: Start BFF stack
+        run: |
+          docker compose -f infra/docker/compose.yaml up -d
+          # Poll /health on the BFF until it returns 200 or we hit the budget.
+          # 60s ceiling: image build + postgres healthcheck typically settle
+          # well inside that on hosted runners.
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3001/health >/dev/null; then
+              echo "BFF is healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "BFF did not become healthy within 60s" >&2
+          docker compose -f infra/docker/compose.yaml ps
+          docker compose -f infra/docker/compose.yaml logs --tail=200
+          exit 1
+      - name: Run k6 smoke
+        env:
+          BASE_URL: http://host.docker.internal:3001
+        run: |
+          docker compose -f infra/docker/compose.performance.yaml run --rm \
+            -e BASE_URL=$BASE_URL \
+            k6 run /scripts/scenarios/smoke/smoke.js
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f infra/docker/compose.yaml down --volumes

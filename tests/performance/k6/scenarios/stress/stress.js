@@ -1,10 +1,10 @@
-// Smoke scenario — single VU walking the full mini-commerce happy path.
+// Stress scenario — ramping VUs pushing the BFF past nominal load.
 //
 // Purpose:
-//   Catch obvious regressions before scheduling longer load/stress runs.
-//   Runs in well under a minute so it is safe to wire into per-PR CI.
+//   Find the failure mode. The expectation is degraded p95 latency, not a
+//   green run — thresholds in stressThresholds are deliberately loose.
 //
-// Coverage (mirrors `pnpm pg:smoke` exactly):
+// Coverage (same eight endpoints as smoke.js):
 //   GET  /health
 //   GET  /catalog/products
 //   GET  /catalog/products/:id
@@ -16,20 +16,25 @@
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
-import { url } from "../../config/env.js";
-import { smokeThresholds } from "../../config/thresholds.js";
+import { BASE_URL, url } from "../../config/env.js";
+import { stressThresholds } from "../../config/thresholds.js";
+
+const SCENARIO_NAME = "mini-commerce-stress";
 
 export const options = {
   scenarios: {
-    smoke: {
-      executor: "constant-vus",
-      vus: 1,
-      duration: "20s",
+    stress: {
+      executor: "ramping-vus",
+      startVUs: 0,
+      stages: [
+        { duration: "2m", target: 50 },
+        { duration: "3m", target: 50 },
+        { duration: "1m", target: 0 },
+      ],
     },
   },
-  thresholds: smokeThresholds,
-  // Single-letter tags keep output compact for CI consumers.
-  tags: { suite: "mini-commerce-smoke" },
+  thresholds: stressThresholds,
+  tags: { suite: SCENARIO_NAME },
 };
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -79,7 +84,7 @@ export default function () {
   group("checkout", () => {
     const res = http.post(
       url("/checkout"),
-      JSON.stringify({ customerName: "k6 Smoke" }),
+      JSON.stringify({ customerName: "k6 Stress" }),
       { headers: JSON_HEADERS },
     );
     check(res, { "checkout 201": (r) => r.status === 201 });
@@ -103,4 +108,8 @@ export default function () {
   });
 
   sleep(1);
+}
+
+export function teardown() {
+  console.log(`[${SCENARIO_NAME}] target=${BASE_URL}`);
 }
