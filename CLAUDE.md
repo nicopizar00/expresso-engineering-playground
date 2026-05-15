@@ -124,8 +124,10 @@ Quality gates (CI vision, `docs/quality-strategy/`): lint → unit → build →
 
 ### Phase roadmap context
 
-- **Phase 1** (current): NestJS monolith, mocked data stores, Prisma structurally planned but not wired.
-- **Phase 2**: Replace in-memory stores with Prisma + Postgres; wire OpenTelemetry SDK; add domain events via in-process queue.
+- **Phase 1** (shipped): NestJS monolith, in-memory data stores.
+- **Phase 2** (in progress): Prisma + Postgres wired for the catalog (products persist; `POST /catalog/products` supported). Orders and cart still in-memory — see `docs/next-steps/orders-persistence.md`. OpenTelemetry SDK + domain events still pending.
 - **Phase 3**: Extract modules into independent services; promote contracts package to first-class boundary; replace in-process events with a broker.
+
+Open follow-ups live in `docs/next-steps/` — also see `docs/next-steps/orchestrator.md` for the Docker-first orchestrator wire-up.
 
 The monorepo is shaped so Phase 3 extraction is mechanical: module → service, `imports` → HTTP/event calls, `exports` → published contracts.

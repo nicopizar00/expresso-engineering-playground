@@ -16,6 +16,7 @@
 # so the connection wiring lands in one PR rather than two.
 
 services:
+  # TODO(next-steps/orchestrator): add a `web` service (Next.js, port 3000) and tag every service with profiles (core/web/viz/full). Source POSTGRES_USER/PASSWORD/DB + ports from a root .env via ${VAR:-default} so one file configures the whole stack. See docs/next-steps/orchestrator.md
   postgres:
     image: postgres:16-alpine
     environment:

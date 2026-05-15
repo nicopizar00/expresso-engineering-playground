@@ -165,6 +165,7 @@ async function doctor() {
 // ---------------------------------------------------------------------------
 
 async function up() {
+  // TODO(next-steps/orchestrator): accept [target] arg (core|web|viz|full), wire `prisma migrate deploy` + `prisma db seed` after postgres healthy, detect port collisions. See docs/next-steps/orchestrator.md
   log(c.bold('\nStarting local app stack...\n'));
   // Start postgres + otel-collector + the BFF container. --wait blocks
   // until postgres and bff report healthy. The web app continues to run
@@ -318,7 +319,7 @@ async function seed() {
   log('');
   info('Catalog, cart, checkout, and orders are all mocked inside the BFF modules.');
   info('Order ord_demo is pre-seeded so /orders endpoints are usable immediately.');
-  // TODO: Wire Prisma and replace with a real seed script (prisma db seed).
+  // TODO(next-steps/orchestrator): replace this stub with `pnpm --filter @mini-commerce/bff exec prisma db seed`. Catalog seeding is already implemented in apps/bff/prisma/seed.ts. See docs/next-steps/orchestrator.md
   info('TODO: Add a real seed script once Prisma persistence lands.');
 }
 
