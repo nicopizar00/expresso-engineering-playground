@@ -1,15 +1,3 @@
-// Prisma schema placeholder for the travel booking playground.
-//
-// Intentionally empty in this iteration. The next iteration will introduce
-// minimal models per domain module, kept thin to avoid premature persistence
-// decisions:
-//   - User (users module)
-//   - Trip, TripLeg (trips module)
-//   - Booking (booking module)
-//   - Order, Payment (orders module)
-//
-// Connection URL must come from DATABASE_URL — never hardcoded.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,4 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// TODO: define models per domain module in the next iteration.
+model Product {
+  id               Int      @id @default(autoincrement())
+  productId        String   @unique
+  sku              String   @unique
+  name             String
+  description      String
+  category         String
+  priceAmountMinor Int
+  priceCurrency    String
+  inventory        Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
