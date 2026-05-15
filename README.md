@@ -179,12 +179,43 @@ The detailed strategy lives in
 
 ---
 
-## 5. How this domain supports performance testing with k6 (next iteration)
+## 5. Performance Engineering Foundation
 
-The performance engineering layer is intentionally a **separate, pluggable
-sub-tree** at [`tests/performance/k6/`](./tests/performance/k6/README.md).
-It is **not connected yet** — that is the next deliberate iteration of this
-playground.
+The performance engineering layer lives at
+[`tests/performance/k6/`](./tests/performance/k6/README.md) and is wired
+into the playground today via a minimal Docker-based smoke runner.
+
+```bash
+# Terminal 1 — start the local stack
+pnpm pg:dev
+
+# Terminal 2 — run the k6 smoke profile against the local BFF
+pnpm pg:perf:smoke
+
+# Inspect or clear generated artifacts
+pnpm pg:perf:open-report
+pnpm pg:perf:clean
+```
+
+The smoke scenario walks the same eight endpoints as `pnpm pg:smoke`
+(`/health`, `/catalog/products`, `/catalog/products/:id`, `/cart/items`,
+`/cart`, `/checkout`, `/orders/:id`, `/orders/:id/manage`) so a
+regression shows up in either suite. The runner uses
+`grafana/k6:latest` via
+[`infra/docker/compose.performance.yaml`](./infra/docker/compose.performance.yaml)
+— no local k6 install is needed.
+
+**What is pending before full performance coverage:**
+
+1. Import the existing k6 project into `tests/performance/k6/` (vendored
+   copy or `git subtree` — see the folder README for both paths).
+2. Replace the placeholder smoke scenario with the imported one and add
+   real load + stress profiles.
+3. Wire `pg:perf:smoke` into CI as a per-PR quality gate.
+4. Export k6 metrics into the OpenTelemetry collector under
+   `infra/observability/` to correlate runs with traces and logs.
+
+### How this domain supports performance testing
 
 The mini-commerce domain was chosen with k6 in mind:
 
@@ -270,7 +301,9 @@ reference — lives in [`docs/local-development.md`](./docs/local-development.md
 - The cart is single-user and in-process; it resets on BFF restart.
 - Observability is wired structurally only (`apps/bff/src/common/telemetry.ts`
   is a no-op placeholder).
-- k6 is **not yet connected**; the perf-smoke script is a placeholder.
+- k6 has a runnable smoke profile (`pnpm pg:perf:smoke`) but the broader
+  load / stress / soak scenarios are still pending — see
+  [`tests/performance/k6/README.md`](./tests/performance/k6/README.md).
 
 ---
 
