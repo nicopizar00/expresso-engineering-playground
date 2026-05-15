@@ -67,3 +67,11 @@ services:
 
 volumes:
   postgres-data:
+
+# The default network is named explicitly so it can be referenced as
+# `external: true` from infra/docker/compose.performance.yaml. The
+# generated name would otherwise depend on the project directory and be
+# unstable across machines.
+networks:
+  default:
+    name: mini_commerce_default

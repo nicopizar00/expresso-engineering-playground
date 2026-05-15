@@ -1,0 +1,14 @@
+{
+  "name": "k6-ts-docker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/tests/smoke.ts --bundle --platform=browser --target=es2015 --format=esm --external:k6 --external:'k6/*' --outfile=dist/smoke.js",
+    "docker:build": "docker compose build",
+    "test:smoke": "docker compose run --rm k6"
+  },
+  "devDependencies": {
+    "@types/k6": "^0.54.0",
+    "esbuild": "^0.25.0"
+  }
+}

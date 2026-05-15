@@ -9,10 +9,14 @@
  */
 
 import { spawnSync, execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { createConnection } from 'node:net';
+import { platform } from 'node:os';
 
 const COMPOSE_FILE = 'infra/docker/compose.yaml';
+const PERF_COMPOSE_FILE = 'infra/docker/compose.performance.yaml';
+const PERF_DIR = 'tests/performance/k6';
+const PERF_REPORTS_DIR = `${PERF_DIR}/reports`;
 const BFF_PORT = 3001;
 const WEB_PORT = 3000;
 const API_BASE = `http://localhost:${BFF_PORT}`;
@@ -37,7 +41,20 @@ const info  = (label)     => log(`  ${c.dim('→')} ${label}`);
 // Command dispatch
 // ---------------------------------------------------------------------------
 
-const COMMANDS = { doctor, up, dev, smoke, seed, reset, down, logs, open };
+const COMMANDS = {
+  doctor,
+  up,
+  dev,
+  smoke,
+  seed,
+  reset,
+  down,
+  logs,
+  open,
+  'perf:smoke': perfSmoke,
+  'perf:open-report': perfOpenReport,
+  'perf:clean': perfClean,
+};
 
 async function main() {
   const command = process.argv[2];
@@ -345,6 +362,116 @@ async function open() {
   log(`  OTLP gRPC           ${c.dim('http://localhost:4317')}  (otel-collector)`);
   log('');
   log(c.dim('See docs/local-development.md for full setup instructions.'));
+}
+
+// ---------------------------------------------------------------------------
+// perf:smoke — run the k6 smoke scenario via Docker Compose
+// ---------------------------------------------------------------------------
+
+async function perfSmoke() {
+  log(c.bold('\nPerformance smoke (k6)\n'));
+
+  // Default the in-container BASE_URL to the host gateway. Users can
+  // override on the command line (e.g. BASE_URL=https://staging.example).
+  const baseUrl = process.env.BASE_URL ?? 'http://host.docker.internal:3001';
+  const scenario = 'scenarios/smoke/smoke.js';
+  const summaryPath = '/scripts/reports/smoke-summary.json';
+
+  info(`Target  : ${baseUrl}`);
+  info(`Scenario: ${scenario}`);
+  info(`Summary : ${PERF_REPORTS_DIR}/smoke-summary.json`);
+  log('');
+
+  if (platform() === 'linux') {
+    info('Linux note: host.docker.internal is mapped via extra_hosts in compose.performance.yaml.');
+  }
+
+  // First-run hint: make sure the BFF is up before we spend Docker pull
+  // time on a guaranteed-failure run.
+  const bffUp = await portInUse(BFF_PORT);
+  if (!bffUp && (baseUrl.includes('localhost') || baseUrl.includes('host.docker.internal'))) {
+    warn(`BFF does not appear to be listening on :${BFF_PORT}. Start it with: pnpm pg:dev`);
+    log('');
+  }
+
+  const result = spawnSync(
+    'docker',
+    [
+      'compose',
+      '-f',
+      PERF_COMPOSE_FILE,
+      'run',
+      '--rm',
+      '-e',
+      `BASE_URL=${baseUrl}`,
+      'k6',
+      'run',
+      '--summary-export',
+      summaryPath,
+      `/scripts/${scenario}`,
+    ],
+    { stdio: 'inherit' },
+  );
+
+  log('');
+  if (result.status === 0) {
+    pass('k6 smoke completed.');
+    info(`Summary written to ${PERF_REPORTS_DIR}/smoke-summary.json`);
+  } else {
+    fail(`k6 smoke failed (exit code ${result.status ?? 'unknown'}).`);
+    info('Re-run with verbose output: docker compose -f infra/docker/compose.performance.yaml run --rm k6 run --verbose /scripts/scenarios/smoke/smoke.js');
+    process.exit(result.status ?? 1);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// perf:open-report — print the location of the latest k6 report
+// ---------------------------------------------------------------------------
+
+async function perfOpenReport() {
+  log(c.bold('\nLatest k6 report\n'));
+
+  if (!existsSync(PERF_REPORTS_DIR)) {
+    warn(`${PERF_REPORTS_DIR} does not exist yet — run pnpm pg:perf:smoke first.`);
+    return;
+  }
+
+  const entries = readdirSync(PERF_REPORTS_DIR).filter((f) => !f.startsWith('.'));
+  if (entries.length === 0) {
+    warn('No reports found — run pnpm pg:perf:smoke first.');
+    return;
+  }
+
+  // Today the only artifact is JSON summary(ies). Once the imported k6
+  // project produces HTML reports, the heuristic below can be tightened.
+  for (const name of entries.sort()) {
+    info(`${PERF_REPORTS_DIR}/${name}`);
+  }
+  log('');
+  log(c.dim('Tip: pipe a JSON summary through jq to inspect thresholds, e.g.:'));
+  log(c.dim(`  jq '.metrics.http_req_duration' ${PERF_REPORTS_DIR}/smoke-summary.json`));
+}
+
+// ---------------------------------------------------------------------------
+// perf:clean — remove generated performance reports
+// ---------------------------------------------------------------------------
+
+async function perfClean() {
+  log(c.bold('\nCleaning k6 reports\n'));
+
+  if (!existsSync(PERF_REPORTS_DIR)) {
+    info(`${PERF_REPORTS_DIR} does not exist — nothing to clean.`);
+    return;
+  }
+
+  let removed = 0;
+  for (const name of readdirSync(PERF_REPORTS_DIR)) {
+    if (name === '.gitkeep') continue;
+    rmSync(`${PERF_REPORTS_DIR}/${name}`, { recursive: true, force: true });
+    removed += 1;
+  }
+
+  pass(`Removed ${removed} report artifact${removed === 1 ? '' : 's'}.`);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,12 @@
+{
+  "_comment": "Static product ids that match the deterministic BFF catalog. Imported scenarios can use this to parametrize VUs. Keep in sync with apps/bff/src/modules/catalog/catalog.service.ts.",
+  "productIds": [
+    "prod_espresso",
+    "prod_latte",
+    "prod_sandwich",
+    "prod_cookie",
+    "prod_water",
+    "prod_notebook",
+    "prod_backpack"
+  ]
+}

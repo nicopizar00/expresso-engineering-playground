@@ -16,7 +16,7 @@
     "test:integration": "turbo run test:integration",
     "test:contract": "turbo run test:contract",
     "test:e2e": "turbo run test:e2e",
-    "test:perf:smoke": "echo 'TODO: invoke tests/performance/k6 smoke profile'",
+    "test:perf:smoke": "node scripts/playground.mjs perf:smoke",
     "typecheck": "turbo run typecheck",
     "format": "echo 'TODO: wire prettier/eslint'",
     "pg:doctor": "node scripts/playground.mjs doctor",
@@ -27,7 +27,10 @@
     "pg:reset": "node scripts/playground.mjs reset",
     "pg:down": "node scripts/playground.mjs down",
     "pg:logs": "node scripts/playground.mjs logs",
-    "pg:open": "node scripts/playground.mjs open"
+    "pg:open": "node scripts/playground.mjs open",
+    "pg:perf:smoke": "node scripts/playground.mjs perf:smoke",
+    "pg:perf:open-report": "node scripts/playground.mjs perf:open-report",
+    "pg:perf:clean": "node scripts/playground.mjs perf:clean"
   },
   "devDependencies": {
     "turbo": "latest"

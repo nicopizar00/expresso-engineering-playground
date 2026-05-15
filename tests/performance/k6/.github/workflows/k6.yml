@@ -1,0 +1,60 @@
+name: k6 Smoke Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Docker Compose topology
+        run: docker compose config --services
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start API
+        run: docker compose up -d --wait api
+
+      - name: Show API status
+        run: docker compose ps api
+
+      - name: Prepare reports directory
+        run: |
+          mkdir -p reports
+          chmod 777 reports
+
+      - name: Run k6 smoke test
+        run: docker compose run --rm k6
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-smoke-reports
+          path: reports/
+
+      - name: Write job summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
+          ## Smoke Test Pipeline
+
+          | Stage | Status |
+          |---|---|
+          | Build images | completed |
+          | API deployed | completed |
+          | API health | passed |
+          | k6 smoke test | passed |
+          | Reports artifact | k6-smoke-reports (smoke-report.html + smoke.json) |
+          EOF
+
+      - name: Tear down
+        if: always()
+        run: docker compose down --volumes --remove-orphans
