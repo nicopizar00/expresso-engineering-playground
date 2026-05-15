@@ -1,0 +1,37 @@
+# Performance testing profile for the mini-commerce playground.
+#
+# Kept in a separate compose file (not a profile of compose.yaml) so a
+# perf run never alters the main local stack lifecycle. The runner is the
+# official grafana/k6 image — no custom image is built or published.
+#
+# Quick start (use the wrapper command for the default invocation):
+#   pnpm pg:perf:smoke
+#
+# Direct invocation (handy when iterating on a scenario):
+#   docker compose -f infra/docker/compose.performance.yaml run --rm k6 \
+#     run /scripts/scenarios/smoke/smoke.js
+#
+# Target resolution:
+#   - BASE_URL defaults to http://host.docker.internal:3001 so the
+#     container can reach the BFF running on the host.
+#   - On Linux, host.docker.internal is not automatic — the `extra_hosts`
+#     entry below maps it to the Docker host gateway. macOS/Windows
+#     resolve it natively; the mapping is a no-op there.
+#   - To target a non-host environment, override BASE_URL on the command
+#     line, e.g. `BASE_URL=https://perf.example pnpm pg:perf:smoke`.
+
+services:
+  k6:
+    image: grafana/k6:latest
+    container_name: mini-commerce-k6
+    working_dir: /scripts
+    # The whole performance folder is mounted into the container so
+    # scenarios can import shared config and write to reports/.
+    volumes:
+      - ../../tests/performance/k6:/scripts
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
+      K6_ENV: ${K6_ENV:-local}
+      SCENARIO: ${SCENARIO:-smoke}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
