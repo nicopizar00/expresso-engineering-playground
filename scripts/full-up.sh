@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Bring up the full playground stack: app + visualizer.
+# Bring up the full playground stack: app (postgres + otel-collector + bff)
+# plus the visualizer-3d container.
+#
 # Does NOT include the k6 performance runner — that lives in a separate
 # compose file (infra/docker/compose.performance.yaml) and is invoked
 # on-demand by pnpm pg:perf:smoke.
@@ -8,15 +10,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${ROOT}/infra/docker/compose.yaml"
 
-echo "→ Starting full stack (infra + visualizer)..."
-# Explicit service list — see scripts/app-up.sh for why `bff` is excluded
-# until its Dockerfile is wired in a follow-up iteration.
-docker compose -f "${COMPOSE_FILE}" --profile visualizer up -d \
-    postgres otel-collector visualizer-3d
+echo "→ Starting full stack (app + visualizer)..."
+# postgres and bff have compose healthchecks; --wait blocks until they
+# report healthy. visualizer-3d has no healthcheck, so we poll it below.
+docker compose -f "${COMPOSE_FILE}" --profile visualizer up -d --wait \
+    postgres otel-collector bff visualizer-3d
 
-# Readiness probe for the visualizer only. Postgres has its own healthcheck
-# in compose.yaml and the BFF runs on the host (separate lifecycle), so we
-# don't poll either of them here.
 VIZ_BASE="http://localhost:3002"
 ready=0
 for _ in $(seq 1 15); do
@@ -38,5 +37,5 @@ echo ""
 echo "✓ Full stack is up."
 echo "    Postgres   :5432"
 echo "    OTLP       :4317 / :4318"
+echo "    BFF        http://localhost:3001  (health: /health)"
 echo "    Visualizer ${VIZ_BASE}"
-echo "    BFF        run on the host with: pnpm pg:dev  (→ http://localhost:3001)"

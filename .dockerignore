@@ -1,0 +1,51 @@
+# Root .dockerignore for the mini-commerce playground.
+#
+# The bff image (apps/bff/Dockerfile) uses the repo root as its build
+# context so the pnpm workspace, packages/*, and apps/bff/ are all
+# visible. Docker only consults the .dockerignore that sits next to the
+# build context, so this file — not apps/bff/.dockerignore — is what
+# governs what gets sent to the daemon.
+
+# Node / pnpm
+**/node_modules
+**/.pnpm-store
+**/.pnpm-debug.log
+**/.turbo
+
+# Build outputs
+**/dist
+**/.next
+**/coverage
+
+# Version control & editor
+.git
+.gitignore
+.gitattributes
+.editorconfig
+.vscode
+.idea
+
+# Env files — never bake into images
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+
+# Other apps not consumed by the bff image
+apps/web
+apps/visualizer-3d
+
+# Test suites the bff image does not need
+tests/e2e
+tests/contract
+tests/integration
+tests/performance
+
+# Docs and infra not consumed at build time
+docs
+infra/observability
+.github
+
+# Local Claude / agent state
+.claude
