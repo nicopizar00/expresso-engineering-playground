@@ -32,6 +32,7 @@ RUN pnpm install --frozen-lockfile
 COPY packages/ packages/
 COPY apps/bff/ apps/bff/
 
+RUN pnpm --filter @mini-commerce/bff exec prisma generate
 RUN pnpm --filter @mini-commerce/bff build
 
 # ---- runtime ----------------------------------------------------------------
@@ -47,8 +48,11 @@ COPY --from=builder /workspace/package.json /workspace/pnpm-lock.yaml /workspace
 COPY --from=builder /workspace/apps/bff/package.json apps/bff/
 COPY --from=builder /workspace/packages packages/
 COPY --from=builder /workspace/apps/bff/dist apps/bff/dist/
+# Prisma schema required for prisma generate in the runtime stage.
+COPY --from=builder /workspace/apps/bff/prisma apps/bff/prisma/
 
 RUN pnpm install --prod --frozen-lockfile --filter @mini-commerce/bff...
+RUN pnpm --filter @mini-commerce/bff exec prisma generate
 
 EXPOSE 3001
 
