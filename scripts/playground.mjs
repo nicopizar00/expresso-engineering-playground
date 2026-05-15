@@ -255,6 +255,16 @@ async function smoke() {
       }),
     ),
   );
+  results.push(
+    await check('GET  /visualization-data', async () => {
+      const body = await fetchJson(`${API_BASE}/visualization-data`, {
+        expectStatus: 200,
+      });
+      if (!Array.isArray(body?.items) || body.items.length === 0) {
+        throw new Error('Expected non-empty items array');
+      }
+    }),
+  );
 
   log('');
   const passed = results.filter(Boolean).length;

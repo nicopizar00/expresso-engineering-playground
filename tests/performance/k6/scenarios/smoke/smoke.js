@@ -13,6 +13,7 @@
 //   POST /checkout
 //   GET  /orders/:id
 //   POST /orders/:id/manage
+//   GET  /visualization-data
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
@@ -100,6 +101,20 @@ export default function () {
       { headers: JSON_HEADERS },
     );
     check(res, { "manage 202": (r) => r.status === 202 });
+  });
+
+  group("visualization data", () => {
+    const res = http.get(url("/visualization-data"));
+    check(res, {
+      "visualization 200": (r) => r.status === 200,
+      "visualization has items": (r) => {
+        try {
+          return Array.isArray(r.json("items")) && r.json("items").length > 0;
+        } catch {
+          return false;
+        }
+      },
+    });
   });
 
   sleep(1);
