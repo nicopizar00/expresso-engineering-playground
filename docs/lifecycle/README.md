@@ -1,8 +1,8 @@
 # Software Development Lifecycle
 
-This document describes how work flows through the playground — from idea
-to merged change. It is intentionally lightweight, suited to a small team
-or a single engineer iterating on a fictional product.
+This document describes how work flows through the mini-commerce playground
+— from idea to merged change. It is intentionally lightweight, suited to a
+small team or a single engineer iterating on a fictional product.
 
 ## 1. Phases
 

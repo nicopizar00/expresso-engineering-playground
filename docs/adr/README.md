@@ -22,3 +22,4 @@ This folder records significant architecture decisions and their context.
 ## Index
 
 - [0001 — Monorepo + pnpm + Turborepo](./0001-monorepo-and-tooling.md) — Accepted
+- [0002 — Adopt a mini-commerce domain for the playground](./0002-mini-commerce-domain.md) — Accepted

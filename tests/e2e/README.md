@@ -1,11 +1,11 @@
 # tests/e2e
 
-End-to-end tests for the travel booking playground, powered by
+End-to-end tests for the mini-commerce playground, powered by
 [Playwright](https://playwright.dev/).
 
 ## Scope
 
-- **Golden paths only.** Search a trip → hold a booking → confirm → see order.
+- **Golden paths only.** Load catalog → add to cart → checkout → manage order.
 - **No regression coverage here.** Unit and integration tests own that.
 - Runs against an ephemeral stack started from `infra/docker/compose.yaml`.
 
@@ -15,8 +15,8 @@ End-to-end tests for the travel booking playground, powered by
 tests/e2e/
 ├── playwright.config.ts
 ├── tests/
-│   ├── search-trip.spec.ts
-│   ├── booking-happy-path.spec.ts
+│   ├── catalog-browse.spec.ts
+│   ├── checkout-happy-path.spec.ts
 │   └── order-management.spec.ts
 └── fixtures/
 ```

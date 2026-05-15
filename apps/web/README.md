@@ -1,23 +1,30 @@
 # apps/web
 
-Placeholder for the **Next.js** web application of the fictional travel
-booking platform.
+Next.js web application for the mini-commerce engineering playground.
 
 ## Responsibility
 
-- Public-facing trip search, booking, and order management UI.
+- Simple, utilitarian playground UI for interacting with the BFF endpoints.
 - Consumes the BFF in [`apps/bff`](../bff/README.md).
-- Imports shared types from `@travel-playground/shared-types` and contract
-  definitions from `@travel-playground/contracts`.
+- Imports shared types from `@mini-commerce/shared-types` and contract
+  definitions from `@mini-commerce/contracts` (once the contracts package
+  ships types).
 
 ## Status
 
-Not implemented yet. This iteration only reserves the workspace.
+Runnable as a developer playground. Visual polish is intentionally not a
+goal; the UI prioritizes manual interaction and validation of BFF endpoints.
+
+## Run locally
+
+```bash
+pnpm pg:dev
+```
+
+Then open http://localhost:3000.
 
 ## Next iteration TODOs
 
-- [ ] Initialize Next.js (App Router) with TypeScript.
-- [ ] Wire `next.config` to honor workspace packages.
-- [ ] Add a minimal `/trips` route as a smoke target for E2E.
-- [ ] Wire OpenTelemetry browser instrumentation placeholder.
+- [ ] Wire `next.config` to honor workspace packages once contracts ship types.
 - [ ] Add `vitest` for component tests.
+- [ ] Wire OpenTelemetry browser instrumentation placeholder.

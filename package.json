@@ -1,8 +1,8 @@
 {
-  "name": "expresso-engineering-playground",
+  "name": "mini-commerce-engineering-playground",
   "version": "0.0.0",
   "private": true,
-  "description": "Engineering playground for a fictional travel booking platform.",
+  "description": "Engineering playground for a fictional mini-commerce store.",
   "license": "MIT",
   "packageManager": "pnpm@9.0.0",
   "engines": {
@@ -18,7 +18,18 @@
     "test:e2e": "turbo run test:e2e",
     "test:perf:smoke": "echo 'TODO: invoke tests/performance/k6 smoke profile'",
     "typecheck": "turbo run typecheck",
-    "format": "echo 'TODO: wire prettier/eslint'"
+    "format": "echo 'TODO: wire prettier/eslint'",
+    "pg:doctor": "node scripts/playground.mjs doctor",
+    "pg:up": "node scripts/playground.mjs up",
+    "pg:dev": "node scripts/playground.mjs dev",
+    "pg:smoke": "node scripts/playground.mjs smoke",
+    "pg:seed": "node scripts/playground.mjs seed",
+    "pg:reset": "node scripts/playground.mjs reset",
+    "pg:down": "node scripts/playground.mjs down",
+    "pg:logs": "node scripts/playground.mjs logs",
+    "pg:open": "node scripts/playground.mjs open"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "turbo": "latest"
+  }
 }

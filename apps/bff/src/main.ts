@@ -1,19 +1,55 @@
-// TODO: Bootstrap the NestJS application here.
-//
-// Expected wiring for the next iteration:
-//   1. Initialize OpenTelemetry SDK *before* importing NestFactory so HTTP and
-//      DB instrumentations attach correctly.
-//   2. Create the app from AppModule (see ./app.module.ts).
-//   3. Apply global pipes (ValidationPipe), interceptors (logging), and
-//      filters (problem+json error mapper).
-//   4. Mount Swagger at /docs sourced from packages/contracts.
-//   5. Listen on PORT (default 3001) — never hardcode a URL.
-//
-// Kept as a no-op so this file remains a typed, lint-clean placeholder.
+// Bootstrap order matters:
+//   1. initTelemetry() runs FIRST so OTel auto-instrumentations attach to
+//      HTTP/Express/Pg before NestFactory creates the app. Today this is a
+//      no-op placeholder (see common/telemetry.ts).
+//   2. NestFactory creates the AppModule.
+//   3. Global pipes / interceptors / filters are applied.
+//   4. App listens on PORT (default 3001) — never hardcode a URL.
+
+import "reflect-metadata";
+
+import { Logger, ValidationPipe } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { HttpExceptionFilter } from "./common/http-exception.filter";
+import { LoggingInterceptor } from "./common/logging.interceptor";
+import { initTelemetry } from "./common/telemetry";
+
 export async function bootstrap(): Promise<void> {
-  // Intentionally empty — see TODOs above.
+  initTelemetry();
+
+  const app = await NestFactory.create(AppModule, {
+    logger: ["log", "warn", "error", "debug"],
+  });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+  app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Allow the local web app (port 3000) to call the BFF in development.
+  // Restrict origins via CORS_ORIGIN env var when needed.
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN ?? '*',
+  });
+
+  // TODO: mount @nestjs/swagger at /docs once packages/contracts is wired.
+
+  const port = Number(process.env.PORT ?? 3001);
+  await app.listen(port);
+  new Logger("Bootstrap").log(`BFF listening on :${port}`);
 }
 
 if (require.main === module) {
-  void bootstrap();
+  void bootstrap().catch((err) => {
+    // Last-resort logger: Nest may not be up yet.
+    // eslint-disable-next-line no-console
+    console.error("Fatal bootstrap error", err);
+    process.exit(1);
+  });
 }

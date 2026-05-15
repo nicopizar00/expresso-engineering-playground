@@ -1,6 +1,6 @@
 # Architecture
 
-This folder documents the architecture of the fictional travel booking
+This folder documents the architecture of the mini-commerce engineering
 playground. The goal is to keep documentation **just ahead** of the code,
 not behind it.
 
@@ -8,9 +8,11 @@ not behind it.
 
 - `context.md`     — C4 Level 1: system context.
 - `containers.md`  — C4 Level 2: containers (web, bff, db, otel).
-- `components.md`  — C4 Level 3: modules inside the BFF.
+- `components.md`  — C4 Level 3: modules inside the BFF (catalog, cart,
+  checkout, orders, customers, notifications).
 - `data-model.md`  — high-level domain entities and relationships.
-- `events.md`      — domain events crossing module boundaries.
+- `events.md`      — domain events crossing module boundaries
+  (order.placed, order.prepared, order.cancelled).
 - `security.md`    — trust boundaries, auth model (fictional).
 
 ## Authoring rules

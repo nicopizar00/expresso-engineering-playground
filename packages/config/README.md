@@ -1,4 +1,4 @@
-# @travel-playground/config
+# @mini-commerce/config
 
 Shared, opinionated configuration consumed by every workspace package.
 

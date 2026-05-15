@@ -1,10 +1,28 @@
 # tests/performance/k6
 
-Performance engineering layer, powered by [k6](https://k6.io/).
+Performance engineering layer for the mini-commerce playground, powered by
+[k6](https://k6.io/).
 
 This folder is the **integration point** for the existing k6-based
 performance engineering solution. It is intentionally kept independent of
 `apps/*` and `packages/*` so the k6 solution can evolve on its own cadence.
+
+**Status: not yet connected.** k6 is wired in a later iteration once the
+mini-commerce endpoints have been validated by `pnpm pg:smoke`.
+
+## Target endpoints
+
+The mini-commerce BFF exposes traffic shapes that map naturally onto k6
+scenarios:
+
+| Endpoint                  | Profile fit                                    |
+| ------------------------- | ---------------------------------------------- |
+| `GET /catalog/products`   | read-heavy browse — steady-state load          |
+| `GET /catalog/products/:id` | targeted product hit                         |
+| `POST /cart/items`        | write traffic that exercises in-process state  |
+| `GET /cart`               | post-write read; validates cache hit paths     |
+| `POST /checkout`          | hotspot write — tail-latency / stress focus    |
+| `POST /orders/:id/manage` | operator traffic running alongside customer mix|
 
 ## Integration model
 

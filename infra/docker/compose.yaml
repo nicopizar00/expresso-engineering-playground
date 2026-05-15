@@ -1,16 +1,19 @@
-# Local development stack for the travel booking playground.
+# Local development stack for the mini-commerce engineering playground.
 #
-# This file is a PLACEHOLDER. It declares the services the local stack will
-# eventually run, but with minimal config and no secrets. Production
-# deployment configuration does NOT live here.
-#
-# Bring up locally (next iteration):
+# Bring up the full stack:
 #   docker compose -f infra/docker/compose.yaml up
+#
+# Bring up only Postgres (run the BFF locally with `pnpm --filter @mini-commerce/bff dev`):
+#   docker compose -f infra/docker/compose.yaml up postgres
 #
 # Conventions:
 #   - All credentials are sourced from a local .env file (gitignored).
 #   - No real URLs, image tags, or company names are committed.
 #   - Versions are pinned conservatively to public, well-known images.
+#
+# Persistence note: Postgres is provisioned and reachable, but the BFF does
+# NOT yet read from it (responses are mocked in-memory). The service exists
+# so the connection wiring lands in one PR rather than two.
 
 services:
   postgres:
@@ -20,11 +23,33 @@ services:
       # intentionally weak placeholders for local dev only.
       POSTGRES_USER: playground
       POSTGRES_PASSWORD: playground
-      POSTGRES_DB: travel_playground
+      POSTGRES_DB: mini_commerce_playground
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U playground -d mini_commerce_playground"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  bff:
+    build:
+      context: ../..
+      dockerfile: apps/bff/Dockerfile
+    environment:
+      PORT: "3001"
+      NODE_ENV: development
+      # Connection string is wired now so future Prisma work has a target.
+      DATABASE_URL: postgres://playground:playground@postgres:5432/mini_commerce_playground
+      # TODO: point to otel-collector once telemetry.ts initializes the SDK.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   otel-collector:
     # TODO: switch to the contrib image once a concrete pipeline is defined.
@@ -37,7 +62,6 @@ services:
       - "4318:4318"  # OTLP HTTP
 
   # TODO (future):
-  #   - bff:    build context apps/bff, depends_on postgres + otel-collector
   #   - web:    build context apps/web, depends_on bff
   #   - prometheus / grafana / tempo / loki for the observability stack
 

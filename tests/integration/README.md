@@ -11,9 +11,12 @@ package) and E2E tests (in `tests/e2e`).
 
 ## Examples (planned)
 
-- `booking → orders` — confirming a booking creates the right order record.
-- `booking → notifications` — confirming a booking emits a notification event.
-- `trips → booking` — holding a leg locks availability.
+- `cart → checkout → orders` — adding items, checking out, and verifying
+  the resulting order record.
+- `checkout → notifications` — a successful checkout emits an
+  `order.placed` event.
+- `catalog → cart` — adding a missing product id returns a 404 surfaced
+  through the cart controller.
 
 ## Next iteration TODOs
 

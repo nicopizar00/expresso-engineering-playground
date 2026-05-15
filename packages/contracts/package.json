@@ -1,8 +1,8 @@
 {
-  "name": "@travel-playground/contracts",
+  "name": "@mini-commerce/contracts",
   "version": "0.0.0",
   "private": true,
-  "description": "API and event contracts (OpenAPI, JSON Schema, Pact pacts) for the travel booking playground.",
+  "description": "API and event contracts (OpenAPI, JSON Schema, Pact pacts) for the mini-commerce playground.",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {

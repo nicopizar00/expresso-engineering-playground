@@ -1,13 +1,41 @@
-# Travel Booking Engineering Playground
+# Mini Commerce Engineering Playground
 
 A professional, opinionated playground for experimenting with software
 engineering, the software development lifecycle, software quality engineering,
 performance engineering, software architecture, DevOps, observability, and
 AI-assisted engineering practices.
 
-The domain is a **fictional travel booking platform**. No real company names,
-internal services, credentials, URLs, or proprietary details are used anywhere
-in this repository.
+The domain is a **fictional mini-commerce store**: a small catalog of
+products, a cart, a checkout, and an order lifecycle. No real company names,
+internal services, credentials, URLs, or proprietary details are used
+anywhere in this repository.
+
+---
+
+## Local Quick Start
+
+```bash
+# 1. Install workspace dependencies
+pnpm install
+
+# 2. Validate prerequisites (Node >=20, pnpm, Docker)
+pnpm pg:doctor
+
+# 3. Start Postgres + OTel Collector in Docker
+pnpm pg:up
+
+# 4. Start the web app (port 3000) and BFF (port 3001) in watch mode
+pnpm pg:dev
+
+# 5. Open in a browser
+open http://localhost:3000
+
+# 6. Run the endpoint smoke validation
+pnpm pg:smoke
+```
+
+See [docs/local-development.md](./docs/local-development.md) for the full
+setup guide, environment configuration, and troubleshooting.
 
 ---
 
@@ -21,27 +49,43 @@ against a realistic-looking domain:
 - Wiring up unit, integration, contract, end-to-end, and performance tests
   with clear ownership boundaries.
 - Connecting an existing k6 performance engineering solution into a CI-ready
-  layout.
+  layout (a deliberate next iteration — not yet wired).
 - Exercising observability (traces, metrics, logs) with OpenTelemetry.
 - Iterating on ADRs, lifecycle documentation, and quality strategy.
 - Experimenting with AI-assisted engineering on a non-trivial codebase.
 
-This first iteration is deliberately a **structural skeleton**: placeholders,
-clear extension points, and `TODO`s. Business logic is intentionally absent.
+### Why mini-commerce?
+
+Mini-commerce was chosen as the playground domain because it is:
+
+- **Universally understood** — anyone has bought a coffee or a notebook,
+  so the language never gets in the way of the engineering point.
+- **Small but realistic** — catalog → cart → checkout → order is a complete,
+  multi-step transaction with clear state transitions, but each step fits
+  in a single mocked module.
+- **Multi-actor** — customers, store operators, and notification consumers
+  all have a natural place, which exercises module boundaries.
+- **Performance-friendly** — product browse + checkout are textbook
+  scenarios for k6 load profiles in a later iteration.
+
+This first iteration is deliberately a **structural skeleton with mocked
+business logic**: clear extension points, deterministic responses, and
+`TODO`s. Real persistence and real payment processing are intentionally
+absent.
 
 ---
 
 ## 2. Architecture Vision
 
-The fictional product is a travel booking platform that lets travelers search
-trips, place bookings, manage orders, and receive notifications. The
+The fictional product is a small store that lets customers browse a
+catalog, add products to a cart, check out, and manage orders. The
 architecture is staged in three explicit phases:
 
 ### Phase 1 — Modular monolith (current target)
 
 - A single **BFF / API** application (`apps/bff`, NestJS) hosts all domain
-  modules behind clear module boundaries: `trips`, `booking`, `orders`,
-  `users`, `notifications`.
+  modules behind clear module boundaries: `catalog`, `cart`, `checkout`,
+  `orders`, `customers`, `notifications`.
 - A **web** application (`apps/web`, Next.js) consumes the BFF.
 - Shared contracts live in `packages/contracts`; shared domain types in
   `packages/shared-types`.
@@ -57,7 +101,7 @@ architecture is staged in three explicit phases:
 
 ### Phase 3 — Distributed services (future)
 
-- Selected modules (e.g. `booking`, `notifications`) are extracted into
+- Selected modules (e.g. `checkout`, `notifications`) are extracted into
   independently deployable services.
 - The BFF becomes an aggregation layer.
 - Contracts in `packages/contracts` become the source of truth for inter-service
@@ -73,10 +117,10 @@ reorganization** — only an extraction.
 ```
 .
 ├── apps/
-│   ├── web/                  # Next.js web app placeholder
-│   └── bff/                  # NestJS BFF / API placeholder
-│                             # Domain modules: trips, booking, orders,
-│                             # users, notifications
+│   ├── web/                  # Next.js web app (playground UI)
+│   └── bff/                  # NestJS BFF / API
+│                             # Domain modules: catalog, cart, checkout,
+│                             # orders, customers, notifications
 ├── packages/
 │   ├── shared-types/         # Cross-cutting TypeScript domain types
 │   ├── contracts/            # API + event contracts (OpenAPI/JSON Schema/Pact)
@@ -87,7 +131,7 @@ reorganization** — only an extraction.
 │   ├── contract/             # Pact consumer/provider tests
 │   ├── e2e/                  # Playwright end-to-end tests
 │   └── performance/
-│       └── k6/               # k6 performance engineering solution
+│       └── k6/               # k6 performance engineering solution (not yet wired)
 ├── infra/
 │   ├── docker/               # Local development Docker Compose
 │   └── observability/        # OpenTelemetry collector + dashboards
@@ -96,6 +140,8 @@ reorganization** — only an extraction.
 │   ├── adr/                  # Architecture Decision Records
 │   ├── quality-strategy/     # Test pyramid, quality gates, ownership
 │   └── lifecycle/            # SDLC, branching, release strategy
+├── scripts/
+│   └── playground.mjs        # Developer utility CLI (pnpm pg:*)
 └── .github/workflows/        # CI placeholders (lint, test, build, perf smoke)
 ```
 
@@ -133,12 +179,26 @@ The detailed strategy lives in
 
 ---
 
-## 5. Connecting the k6 Performance Engineering Solution
+## 5. How this domain supports performance testing with k6 (next iteration)
 
 The performance engineering layer is intentionally a **separate, pluggable
 sub-tree** at [`tests/performance/k6/`](./tests/performance/k6/README.md).
+It is **not connected yet** — that is the next deliberate iteration of this
+playground.
 
-The connection model is:
+The mini-commerce domain was chosen with k6 in mind:
+
+- **`GET /catalog/products`** — read-heavy browse traffic, ideal for
+  steady-state load profiles.
+- **`POST /cart/items` → `GET /cart`** — write-then-read pattern that
+  exercises in-process state and surfaces lock contention once persistence
+  is real.
+- **`POST /checkout`** — a clear write hotspot with deterministic outputs,
+  perfect for measuring tail latency and error rates under stress.
+- **`POST /orders/:id/manage`** — operator-side traffic that runs in
+  parallel with customer traffic, mirroring real production mixes.
+
+The connection model (planned):
 
 1. The existing k6 solution is dropped into `tests/performance/k6/` (either
    as a subdirectory copy or as a git submodule — to be decided in an ADR).
@@ -157,38 +217,60 @@ the integration checklist.
 
 ---
 
-## 6. Planned Evolution: Modular Monolith → Distributed Services
+## 6. How this domain evolves
 
-The repository is shaped so the evolution path is mechanical, not structural:
+The playground is shaped so the evolution path is mechanical, not structural:
 
-1. **Today** — `apps/bff` hosts all domain modules in one process.
-2. **Next** — module boundaries are enforced by lint rules and explicit
-   interfaces; cross-module calls go through a thin service layer.
-3. **Later** — contracts in `packages/contracts` are versioned, and each
-   producer/consumer pair is covered by Pact tests.
-4. **Eventually** — a domain module (likely `booking` or `notifications`) is
-   lifted into its own deployable service. The BFF keeps its public API
-   stable; only its internal wiring changes.
+1. **Modular monolith (today)** — `apps/bff` hosts all domain modules
+   (catalog, cart, checkout, orders) in one process with deterministic
+   mocks.
+2. **Strict boundaries** — module-to-module calls move through explicit
+   service interfaces; cross-module internal imports are lint-enforced.
+3. **Real persistence** — Prisma + PostgreSQL replaces the in-memory mocks.
+   Schema migrations land in `apps/bff/prisma/`.
+4. **Contract-first APIs** — OpenAPI in `packages/contracts` becomes the
+   source of truth; consumer (web) and producer (bff) are verified via
+   Pact in `tests/contract`.
+5. **Performance engineering** — k6 is connected at
+   `tests/performance/k6/` against env-var-driven targets and exports into
+   the observability pipeline.
+6. **Event-driven architecture** — `NotificationsModule` consumes domain
+   events (`order.placed`, `order.prepared`, `order.cancelled`) emitted via
+   an outbox; first internal, then over a real broker.
+7. **Observability** — the no-op OTel placeholder in
+   `apps/bff/src/common/telemetry.ts` is replaced with a real SDK, and the
+   collector pipeline fans out to a real backend stack.
+8. **Quality gates** — CI fans out into lint / unit / integration /
+   contract / E2E smoke / perf smoke jobs, each gating merges.
+9. **Distributed services** — a domain module (likely `checkout` or
+   `notifications`) is lifted into its own deployable. The BFF keeps its
+   public API stable; only its internal wiring changes.
 
 Each step is captured as an ADR under [`docs/adr/`](./docs/adr/).
 
 ---
 
-## 7. Local Development Vision
+## 7. Local Development
 
-Local development is designed to be **one command away** from a working
-stack:
+The local stack is **one command away** from running:
 
-- `pnpm install` — install workspace dependencies.
-- `docker compose -f infra/docker/compose.yaml up` — bring up PostgreSQL and
-  the OpenTelemetry collector locally (placeholders today).
-- `pnpm dev` — run `apps/web` and `apps/bff` in parallel via Turborepo.
-- `pnpm test` — run the unit + integration test layer.
-- `pnpm test:e2e` — run Playwright against a locally running stack.
-- `pnpm test:perf:smoke` — run the k6 smoke profile.
+```bash
+pnpm install
+pnpm pg:up      # start Postgres + OTel Collector in Docker
+pnpm pg:dev     # start web (3000) + BFF (3001) in watch mode
+pnpm pg:smoke   # validate all mini-commerce endpoints
+```
 
-Today these commands are wired as placeholders. The next iteration will give
-them real implementations.
+The full guide — prerequisites, environment files, troubleshooting, command
+reference — lives in [`docs/local-development.md`](./docs/local-development.md).
+
+### Current limitations
+
+- All BFF responses are **mocked and deterministic**; no DB reads yet.
+- The cart is single-user and in-process; it resets on BFF restart.
+- Observability is wired structurally only (`apps/bff/src/common/telemetry.ts`
+  is a no-op placeholder).
+- k6 is **not yet connected**; the perf-smoke script is a placeholder.
 
 ---
 
@@ -213,11 +295,12 @@ schedule, not on every PR. The pipeline placeholder lives at
 
 ## 9. Status
 
-This is the **initial scaffolding iteration**. Expect:
+This iteration is the **mini-commerce domain refactor**. Expect:
 
-- Files exist with realistic structure but minimal implementation.
-- `TODO:` markers identify the next implementation step.
-- Dependencies are intentionally absent until they earn their place.
+- The full catalog → cart → checkout → orders path runs locally with
+  mocked, deterministic responses.
+- `pnpm pg:smoke` validates every endpoint end-to-end.
+- `TODO:` markers identify the next implementation step in each module.
 
 See [`docs/lifecycle/README.md`](./docs/lifecycle/README.md) for how this
-playground will evolve.
+playground evolves.
