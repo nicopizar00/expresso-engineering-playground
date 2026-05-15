@@ -6,8 +6,8 @@
 
 ## Context
 
-The playground spans multiple deployables (a web app, a BFF), shared
-libraries (types, contracts, test utilities), and several test layers
+The mini-commerce playground spans multiple deployables (a web app, a BFF),
+shared libraries (types, contracts, test utilities), and several test layers
 (unit, integration, contract, E2E, performance). A core goal is to evolve
 from a modular monolith to a small set of distributed services without
 restructuring the repository.

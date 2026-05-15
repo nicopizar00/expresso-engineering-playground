@@ -1,6 +1,7 @@
 # infra/observability
 
-Local observability stack placeholders for the travel booking playground.
+Local observability stack placeholders for the mini-commerce engineering
+playground.
 
 ## Goal
 

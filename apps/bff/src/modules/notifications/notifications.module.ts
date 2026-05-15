@@ -1,7 +1,7 @@
-// Notifications domain module — fictional travel booking platform.
+// Notifications domain module — fictional mini-commerce store.
 //
 // Responsibility: outbound notifications (email/SMS placeholders) reacting
-// to domain events (booking confirmed, order refunded, etc.).
+// to domain events (order placed, order prepared, order cancelled, etc.).
 // Public surface (planned):
 //   - internal-only event handlers; no public HTTP endpoints by default.
 //

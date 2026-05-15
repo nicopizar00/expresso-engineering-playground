@@ -1,4 +1,4 @@
-# Continuous Integration — travel booking playground.
+# Continuous Integration — mini-commerce engineering playground.
 #
 # This is a PLACEHOLDER pipeline. It declares the gates we plan to enforce
 # and wires up the workspace, but most jobs are stubs that print TODOs.
