@@ -314,13 +314,13 @@ follow-ups, not silently broken):
 
 - `apps/web` runs on the host via `pnpm pg:dev` — a web Dockerfile is a
   separate iteration.
-- `apps/bff` has a Dockerfile but the workspace-aware multi-stage build
-  needs another pass before it joins the default `up` set. Until then the
-  BFF also runs on the host via `pnpm pg:dev`. The `bff` service stays
-  declared in `compose.yaml` so the design intent is visible.
 
-The **visualizer-3d** module itself is fully Docker-first today — no
-host-side toolchain involved.
+`apps/bff` and `apps/visualizer-3d` are both fully Docker-first today —
+`./scripts/app-up.sh` brings up postgres + otel-collector + bff with a
+single command, and `./scripts/full-up.sh` adds the visualizer. `pnpm
+pg:dev` remains the recommended inner loop for BFF source changes
+because it runs `nest start --watch` against host code, whereas the
+container runs the compiled bundle.
 
 ### 3D Visualizer (visualizer-3d)
 

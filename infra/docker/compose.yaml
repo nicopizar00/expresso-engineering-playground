@@ -40,7 +40,6 @@ services:
       dockerfile: apps/bff/Dockerfile
     environment:
       PORT: "3001"
-      NODE_ENV: development
       # Connection string is wired now so future Prisma work has a target.
       DATABASE_URL: postgres://playground:playground@postgres:5432/mini_commerce_playground
       # TODO: point to otel-collector once telemetry.ts initializes the SDK.
@@ -50,6 +49,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   otel-collector:
     # TODO: switch to the contrib image once a concrete pipeline is defined.

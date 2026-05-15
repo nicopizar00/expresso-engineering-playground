@@ -165,14 +165,17 @@ async function doctor() {
 // ---------------------------------------------------------------------------
 
 async function up() {
-  log(c.bold('\nStarting local infrastructure...\n'));
-  // Only start infra services. The BFF and web app run locally via pg:dev.
-  compose(['up', '-d', 'postgres', 'otel-collector']);
+  log(c.bold('\nStarting local app stack...\n'));
+  // Start postgres + otel-collector + the BFF container. --wait blocks
+  // until postgres and bff report healthy. The web app continues to run
+  // on the host via `pnpm pg:dev` (a web Dockerfile is a separate iteration).
+  compose(['up', '-d', '--wait', 'postgres', 'otel-collector', 'bff']);
   log('');
   pass('Postgres is running on port 5432');
   pass('OpenTelemetry Collector is running on ports 4317 / 4318');
+  pass('BFF is running on http://localhost:3001');
   log('');
-  info(`Run ${c.bold('pnpm pg:dev')} to start the web app and BFF in watch mode`);
+  info(`Run ${c.bold('pnpm pg:dev')} to start the web app (and BFF watch-mode if you prefer host hot-reload)`);
   info(`Run ${c.bold('pnpm pg:doctor')} to validate the full local environment`);
 }
 
