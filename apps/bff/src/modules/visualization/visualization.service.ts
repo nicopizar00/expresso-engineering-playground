@@ -1,58 +1,149 @@
 import { Injectable } from "@nestjs/common";
+import { CartService } from "../cart/cart.service";
+import { CatalogService } from "../catalog/catalog.service";
+import type { Product } from "../catalog/catalog.types";
+import { OrdersService } from "../orders/orders.service";
+import type { Order } from "../orders/orders.types";
 import type {
+  PositionHint,
   VisualizationDataResponse,
   VisualizationItem,
+  VisualizationItemStatus,
 } from "./visualization.types";
 
-// Deterministic mock dataset. The visualizer is intentionally a Hello World:
-// a small fixed set of items is enough to validate the contract end-to-end
-// and exercise the room layout. A future iteration will derive this from
-// real domain data (catalog / orders) via a dedicated read model.
-const ITEMS: ReadonlyArray<VisualizationItem> = [
-  {
-    id: "viz_demo_1",
-    label: "Catalog throughput",
+// Layout: three non-overlapping sectors within the 6×6 room.
+//   Products (cubes)  — back-left quadrant,  x ∈ [-2.2, 0.6],  z ∈ [-2.2, 0.6]
+//   Orders  (spheres) — right strip,          x ∈ [ 1.4, 2.3],  z ∈ [-2.0, …]
+//   Cart    (marker)  — front-centre,          x = 0,             z = 2.0
+// All values stay within the clamp range the frontend applies (±2.5).
+
+function productPosition(index: number): PositionHint {
+  return {
+    x: -2.2 + (index % 3) * 1.4,
+    y: 0.35,
+    z: -2.2 + Math.floor(index / 3) * 1.4,
+  };
+}
+
+function orderPosition(index: number): PositionHint {
+  return {
+    x: 1.4 + (index % 2) * 0.9,
+    y: 0.5,
+    z: -2.0 + Math.floor(index / 2) * 1.5,
+  };
+}
+
+const CART_POSITION: PositionHint = { x: 0, y: 0.35, z: 2.0 };
+
+function productStatus(inventory: number): VisualizationItemStatus {
+  if (inventory === 0) return "error";
+  if (inventory < 20) return "warn";
+  return "ok";
+}
+
+function orderStatus(status: Order["status"]): VisualizationItemStatus {
+  switch (status) {
+    case "pending":
+      return "warn";
+    case "preparing":
+    case "prepared":
+      return "ok";
+    case "cancelled":
+      return "error";
+    default:
+      return "idle";
+  }
+}
+
+function fromProduct(product: Product, index: number): VisualizationItem {
+  return {
+    id: `viz_product_${product.productId}`,
+    label: product.name,
     type: "cube",
-    value: 42,
-    status: "ok",
-    positionHint: { x: -1.4, y: 0.4, z: -1.0 },
-    metadata: { unit: "rps", source: "mock" },
-  },
-  {
-    id: "viz_demo_2",
-    label: "Open orders",
+    value: product.price.amountMinor,
+    status: productStatus(product.inventory),
+    positionHint: productPosition(index),
+    metadata: {
+      category: product.category,
+      price: product.price.amountMinor,
+      currency: product.price.currency,
+      inventory: product.inventory,
+      source: "catalog",
+    },
+  };
+}
+
+function fromOrder(order: Order, index: number): VisualizationItem {
+  return {
+    id: `viz_order_${order.orderId}`,
+    label: `${order.orderId} · ${order.customerName}`,
     type: "sphere",
-    value: 7,
-    status: "warn",
-    positionHint: { x: 1.2, y: 0.5, z: -1.2 },
-    metadata: { unit: "orders", source: "mock" },
-  },
-  {
-    id: "viz_demo_3",
-    label: "Checkout p95 latency",
-    type: "marker",
-    value: 312,
-    status: "error",
-    positionHint: { x: 0.0, y: 0.3, z: 1.0 },
-    metadata: { unit: "ms", source: "mock" },
-  },
-  {
-    id: "viz_demo_4",
-    label: "Idle cart sessions",
-    type: "cube",
-    value: 15,
-    status: "idle",
-    positionHint: { x: 1.6, y: 0.4, z: 1.4 },
-    metadata: { unit: "sessions", source: "mock" },
-  },
-];
+    value: order.total.amountMinor,
+    status: orderStatus(order.status),
+    positionHint: orderPosition(index),
+    metadata: {
+      orderStatus: order.status,
+      customerName: order.customerName,
+      lineCount: order.lines.length,
+      total: order.total.amountMinor,
+      currency: order.total.currency,
+      placedAt: order.placedAt,
+      source: "orders",
+    },
+  };
+}
 
 @Injectable()
 export class VisualizationService {
-  // TODO: derive items from real domain aggregates (catalog, orders) once a
-  // read model exists. The visualizer must keep consuming the DTO above —
-  // it never reads the database directly.
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly orders: OrdersService,
+    private readonly cart: CartService,
+  ) {}
+
   list(): VisualizationDataResponse {
-    return { items: ITEMS };
+    return {
+      items: [...this.catalogItems(), ...this.orderItems(), ...this.cartItems()],
+    };
+  }
+
+  private catalogItems(): VisualizationItem[] {
+    try {
+      return this.catalog.list().items.map(fromProduct);
+    } catch {
+      return [];
+    }
+  }
+
+  private orderItems(): VisualizationItem[] {
+    try {
+      return this.orders.listAll().map(fromOrder);
+    } catch {
+      return [];
+    }
+  }
+
+  private cartItems(): VisualizationItem[] {
+    try {
+      const cart = this.cart.get();
+      return [
+        {
+          id: "viz_cart_demo",
+          label: `Cart · ${cart.itemCount} item${cart.itemCount === 1 ? "" : "s"}`,
+          type: "marker",
+          value: cart.total.amountMinor,
+          status: cart.itemCount === 0 ? "idle" : "ok",
+          positionHint: CART_POSITION,
+          metadata: {
+            itemCount: cart.itemCount,
+            total: cart.total.amountMinor,
+            currency: cart.total.currency,
+            source: "cart",
+          },
+        },
+      ];
+    } catch {
+      return [];
+    }
   }
 }
