@@ -11,7 +11,7 @@ import type {
 // can exercise GET /orders/:id and POST /orders/:id/manage without first
 // running a checkout.
 //
-// TODO: swap for Prisma-backed repository.
+// TODO(next-steps/orders-persistence): swap this Map for Prisma + an onModuleInit cache (mirror the CatalogService pattern so VisualizationService.orderItems() stays sync). See docs/next-steps/orders-persistence.md
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);

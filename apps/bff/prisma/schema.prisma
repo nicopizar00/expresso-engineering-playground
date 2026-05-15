@@ -20,3 +20,5 @@ model Product {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+// TODO(next-steps/orders-persistence): add Order + OrderLine models here. OrderLine FK to Order on orderId; OrderLine references Product by productId (no FK — keep loose for now). See docs/next-steps/orders-persistence.md
