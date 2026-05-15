@@ -1,0 +1,113 @@
+# Continuous Integration — mini-commerce engineering playground.
+#
+# This is a PLACEHOLDER pipeline. It declares the gates we plan to enforce
+# and wires up the workspace, but most jobs are stubs that print TODOs.
+# No deployment, no secrets, no real registries are referenced.
+#
+# Jobs map 1:1 to the quality-gate plan in docs/quality-strategy/README.md.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Setup workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile || echo 'TODO: lockfile not yet committed'
+
+  lint:
+    name: Lint + typecheck
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  test-unit:
+    name: Unit + integration tests
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm test
+      - run: pnpm test:integration
+
+  build:
+    name: Build all packages
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm build
+
+  contract:
+    name: Contract verification
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm test:contract
+
+  e2e-smoke:
+    name: E2E smoke (Playwright)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo 'TODO: start ephemeral stack via infra/docker/compose.yaml and run @smoke Playwright tag'
+
+  perf-smoke:
+    name: Performance smoke (k6)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo 'TODO: invoke tests/performance/k6 smoke scenario against the ephemeral stack'

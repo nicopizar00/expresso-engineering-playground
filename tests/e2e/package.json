@@ -1,0 +1,11 @@
+{
+  "name": "@mini-commerce/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end tests (Playwright) for the mini-commerce playground.",
+  "scripts": {
+    "test:e2e": "echo 'TODO: wire playwright test'",
+    "lint": "echo 'TODO: wire eslint'",
+    "typecheck": "echo 'TODO: wire tsc --noEmit'"
+  }
+}
