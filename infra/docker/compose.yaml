@@ -61,6 +61,23 @@ services:
       - "4317:4317"  # OTLP gRPC
       - "4318:4318"  # OTLP HTTP
 
+  # visualizer-3d — opt-in static frontend that renders a Three.js room and
+  # consumes /visualization-data from the BFF. Gated behind a Compose profile
+  # so the default `docker compose up` still brings up the same lean app +
+  # observability stack as before. Bring it up with:
+  #   docker compose -f infra/docker/compose.yaml --profile visualizer up -d
+  # or via the wrapper scripts (scripts/visualizer-up.sh, scripts/full-up.sh).
+  visualizer-3d:
+    profiles: ["visualizer"]
+    build:
+      context: ../../apps/visualizer-3d
+    environment:
+      # The browser is on the host, so the BFF address must be the
+      # host-reachable URL (NOT the in-container service name `bff`).
+      VIZ_API_BASE_URL: ${VIZ_API_BASE_URL:-http://localhost:3001}
+    ports:
+      - "3002:80"
+
   # TODO (future):
   #   - web:    build context apps/web, depends_on bff
   #   - prometheus / grafana / tempo / loki for the observability stack

@@ -13,8 +13,16 @@ import { CatalogModule } from "./modules/catalog/catalog.module";
 import { CheckoutModule } from "./modules/checkout/checkout.module";
 import { HealthModule } from "./modules/health/health.module";
 import { OrdersModule } from "./modules/orders/orders.module";
+import { VisualizationModule } from "./modules/visualization/visualization.module";
 
 @Module({
-  imports: [HealthModule, CatalogModule, CartModule, CheckoutModule, OrdersModule],
+  imports: [
+    HealthModule,
+    CatalogModule,
+    CartModule,
+    CheckoutModule,
+    OrdersModule,
+    VisualizationModule,
+  ],
 })
 export class AppModule {}

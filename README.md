@@ -118,9 +118,10 @@ reorganization** — only an extraction.
 .
 ├── apps/
 │   ├── web/                  # Next.js web app (playground UI)
+│   ├── visualizer-3d/        # Static Three.js 3D visualizer (nginx)
 │   └── bff/                  # NestJS BFF / API
 │                             # Domain modules: catalog, cart, checkout,
-│                             # orders, customers, notifications
+│                             # orders, customers, notifications, visualization
 ├── packages/
 │   ├── shared-types/         # Cross-cutting TypeScript domain types
 │   ├── contracts/            # API + event contracts (OpenAPI/JSON Schema/Pact)
@@ -197,10 +198,10 @@ pnpm pg:perf:open-report
 pnpm pg:perf:clean
 ```
 
-The smoke scenario walks the same eight endpoints as `pnpm pg:smoke`
+The smoke scenario walks the same nine endpoints as `pnpm pg:smoke`
 (`/health`, `/catalog/products`, `/catalog/products/:id`, `/cart/items`,
-`/cart`, `/checkout`, `/orders/:id`, `/orders/:id/manage`) so a
-regression shows up in either suite. The runner uses
+`/cart`, `/checkout`, `/orders/:id`, `/orders/:id/manage`,
+`/visualization-data`) so a regression shows up in either suite. The runner uses
 `grafana/k6:latest` via
 [`infra/docker/compose.performance.yaml`](./infra/docker/compose.performance.yaml)
 — no local k6 install is needed.
@@ -291,6 +292,47 @@ pnpm pg:up      # start Postgres + OTel Collector in Docker
 pnpm pg:dev     # start web (3000) + BFF (3001) in watch mode
 pnpm pg:smoke   # validate all mini-commerce endpoints
 ```
+
+### Docker-first entrypoints
+
+The architectural direction is **Docker-first**: pnpm is being phased into
+an internal implementation detail of Node services. The official developer
+interface is Docker Compose plus a thin set of bash scripts.
+
+```bash
+./scripts/app-up.sh         # postgres + otel-collector
+./scripts/visualizer-up.sh  # only the 3D visualizer (port 3002)
+./scripts/full-up.sh        # infra + visualizer
+
+./scripts/app-down.sh
+./scripts/visualizer-down.sh
+./scripts/full-down.sh
+```
+
+Where the Docker-first contract is **not yet** complete (tracked as
+follow-ups, not silently broken):
+
+- `apps/web` runs on the host via `pnpm pg:dev` — a web Dockerfile is a
+  separate iteration.
+- `apps/bff` has a Dockerfile but the workspace-aware multi-stage build
+  needs another pass before it joins the default `up` set. Until then the
+  BFF also runs on the host via `pnpm pg:dev`. The `bff` service stays
+  declared in `compose.yaml` so the design intent is visible.
+
+The **visualizer-3d** module itself is fully Docker-first today — no
+host-side toolchain involved.
+
+### 3D Visualizer (visualizer-3d)
+
+A new lightweight Three.js module lives at
+[`apps/visualizer-3d/`](./apps/visualizer-3d/README.md) and runs as its own
+Docker service under the `visualizer` Compose profile. It renders a
+minimal white room with placeholder objects fed by `GET /visualization-data`
+on the BFF — it **never** connects to the database directly. A `v0.app`
+design track is reserved as a separate parallel exploration; see the
+visualizer README for the placeholder boundary.
+
+Open it at <http://localhost:3002> after `./scripts/visualizer-up.sh`.
 
 The full guide — prerequisites, environment files, troubleshooting, command
 reference — lives in [`docs/local-development.md`](./docs/local-development.md).

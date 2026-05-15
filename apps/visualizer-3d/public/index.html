@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mini Commerce — 3D Visualizer (Hello Room)</title>
+    <link rel="stylesheet" href="./style.css" />
+    <!--
+      Three.js is loaded via an ESM importmap from a public CDN. This keeps
+      the visualizer free of any build pipeline or npm install step — the
+      whole module is a static directory served by nginx. If the playground
+      ever needs to run fully offline, vendor `three` into ./vendor/ and
+      point the importmap there.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://esm.sh/three@0.161.0",
+          "three/addons/": "https://esm.sh/three@0.161.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="hud">
+      <div>
+        <h1>Mini Commerce · 3D Visualizer</h1>
+        <p class="subtitle">
+          Hello Room — placeholder objects fed by <code>/visualization-data</code>.
+        </p>
+      </div>
+      <div class="hud-controls">
+        <span id="status" class="status">starting…</span>
+        <button id="reload" type="button">Reload data</button>
+      </div>
+    </header>
+    <main id="stage"></main>
+    <!--
+      config.js is generated at container start by docker-entrypoint.sh and
+      defines window.__VIZ_CONFIG__.apiBaseUrl. It is intentionally a classic
+      script (not a module) so it runs synchronously and is visible to
+      scene.js when it executes. The 404 in local file:// dev is harmless;
+      scene.js falls back to a sensible default.
+    -->
+    <script src="./config.js"></script>
+    <script type="module" src="./scene.js"></script>
+  </body>
+</html>
