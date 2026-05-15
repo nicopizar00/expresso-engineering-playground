@@ -1,10 +1,11 @@
-// Smoke scenario — single VU walking the full mini-commerce happy path.
+// Load scenario — ramping VUs walking the full mini-commerce happy path.
 //
 // Purpose:
-//   Catch obvious regressions before scheduling longer load/stress runs.
-//   Runs in well under a minute so it is safe to wire into per-PR CI.
+//   Validate behaviour at expected nominal traffic. Mirrors smoke.js
+//   coverage but with a ramping-vus profile so the BFF sees sustained
+//   concurrency rather than a single-VU walk.
 //
-// Coverage (mirrors `pnpm pg:smoke` exactly):
+// Coverage (same eight endpoints as smoke.js):
 //   GET  /health
 //   GET  /catalog/products
 //   GET  /catalog/products/:id
@@ -17,19 +18,22 @@
 import http from "k6/http";
 import { check, group, sleep } from "k6";
 import { url } from "../../config/env.js";
-import { smokeThresholds } from "../../config/thresholds.js";
+import { loadThresholds } from "../../config/thresholds.js";
 
 export const options = {
   scenarios: {
-    smoke: {
-      executor: "constant-vus",
-      vus: 1,
-      duration: "20s",
+    load: {
+      executor: "ramping-vus",
+      startVUs: 0,
+      stages: [
+        { duration: "1m", target: 20 },
+        { duration: "2m", target: 20 },
+        { duration: "30s", target: 0 },
+      ],
     },
   },
-  thresholds: smokeThresholds,
-  // Single-letter tags keep output compact for CI consumers.
-  tags: { suite: "mini-commerce-smoke" },
+  thresholds: loadThresholds,
+  tags: { suite: "mini-commerce-load" },
 };
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -79,7 +83,7 @@ export default function () {
   group("checkout", () => {
     const res = http.post(
       url("/checkout"),
-      JSON.stringify({ customerName: "k6 Smoke" }),
+      JSON.stringify({ customerName: "k6 Load" }),
       { headers: JSON_HEADERS },
     );
     check(res, { "checkout 201": (r) => r.status === 201 });

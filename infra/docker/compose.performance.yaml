@@ -11,6 +11,11 @@
 #   docker compose -f infra/docker/compose.performance.yaml run --rm k6 \
 #     run /scripts/scenarios/smoke/smoke.js
 #
+# OTLP-enabled invocation (requires the main stack to be up so the
+# otel-collector and its network exist):
+#   docker compose -f infra/docker/compose.yaml up -d otel-collector
+#   docker compose -f infra/docker/compose.performance.yaml run --rm k6-otel
+#
 # Target resolution:
 #   - BASE_URL defaults to http://host.docker.internal:3001 so the
 #     container can reach the BFF running on the host.
@@ -35,3 +40,41 @@ services:
       SCENARIO: ${SCENARIO:-smoke}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  # Opt-in variant that exports OTLP metrics to the otel-collector running
+  # in the main stack (compose.yaml). Identical to `k6` except for the
+  # K6_OTEL_* env wiring and the explicit `--out experimental-opentelemetry`
+  # flag in the command. The default pg:perf:smoke wrapper still uses the
+  # plain `k6` service; this service is invoked manually when you want to
+  # see metrics land in the collector.
+  k6-otel:
+    image: grafana/k6:latest
+    container_name: mini-commerce-k6-otel
+    working_dir: /scripts
+    volumes:
+      - ../../tests/performance/k6:/scripts
+    command: run --out experimental-opentelemetry /scripts/scenarios/smoke/smoke.js
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
+      K6_ENV: ${K6_ENV:-local}
+      SCENARIO: ${SCENARIO:-smoke}
+      K6_OTEL_GRPC_EXPORTER_ENDPOINT: ${K6_OTEL_ENDPOINT:-otel-collector:4317}
+      K6_OTEL_GRPC_EXPORTER_INSECURE: "true"
+      K6_OTEL_SERVICE_NAME: "k6-mini-commerce"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - mini_commerce
+
+networks:
+  default:
+  # External network created by infra/docker/compose.yaml. The k6-otel
+  # service joins it so it can reach `otel-collector` by service name.
+  # Important: this network only exists while the main stack is up — bring
+  # the main stack up first (e.g. `docker compose -f infra/docker/compose.yaml
+  # up -d otel-collector`) before invoking the `k6-otel` service, otherwise
+  # Docker will refuse to start the container with a missing-network error.
+  mini_commerce:
+    name: mini_commerce_default
+    external: true

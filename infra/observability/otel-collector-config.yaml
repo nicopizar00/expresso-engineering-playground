@@ -26,6 +26,13 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [debug]
+    # k6 pushes OTLP metrics into this pipeline when scenarios are run via
+    # the `k6-otel` service in infra/docker/compose.performance.yaml (which
+    # passes `--out experimental-opentelemetry` and points
+    # K6_OTEL_GRPC_EXPORTER_ENDPOINT at this collector). Today they land in
+    # the debug exporter and show up in collector stdout; the next
+    # iteration should swap `debug` for Prometheus + Grafana so the metrics
+    # are queryable and can be correlated with BFF traces on a dashboard.
     metrics:
       receivers: [otlp]
       processors: [batch]
