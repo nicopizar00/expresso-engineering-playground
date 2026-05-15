@@ -1,4 +1,4 @@
-# 0003. k6 project strategy: scaffold is the canonical source
+# 0003. k6 project strategy: adopt git subtree from nicopizar00/k6-ts-docker
 
 - **Status:** Accepted
 - **Date:** 2026-05-14
@@ -14,58 +14,46 @@ header both referred to an "existing k6 project" that would be imported later
 — either vendored as a copy or pulled in via `git subtree` from an upstream
 repository.
 
-When the time came to do that import, the premise turned out to be wrong.
-There is no external k6 project to import: the scaffold was built as a
-stand-in, and it has since grown into a functioning starting point in its
-own right. The decision now is whether to:
+That upstream repository, `nicopizar00/k6-ts-docker`, exists and is stable
+enough to act as the source. The decision now is how to bring it in:
 
-1. Vendor a copy from some upstream source.
-2. Pull in an upstream repo via `git subtree`.
+1. Vendor a copy (snapshot, no upstream link).
+2. Pull in via `git subtree` (preserves history, supports future syncs).
 3. Treat the existing scaffold as the canonical source and grow from there.
-
-The forces in play:
-
-- Single-team playground — no external consumers and no upstream to track.
-- The scaffold already covers the BFF surface end-to-end, so a swap-in would
-  buy little and would break the working `pnpm pg:perf:smoke` flow.
-- Both subtree and vendoring introduce maintenance overhead (re-syncs,
-  divergence drift) without a counterparty to sync with.
 
 ## Decision
 
-The scaffold under `tests/performance/k6/` **is** the k6 project. No import
-is performed. All future scenarios (load, stress, soak, spike, etc.) are
-authored directly in this tree and evolve alongside the BFF.
+Adopt **git subtree** from `nicopizar00/k6-ts-docker@main` under the prefix
+`tests/performance/k6/`. The placeholder scenarios currently in this tree
+will be replaced by the subtree import; the playground-side glue (`config/`,
+`.env.example`, Docker runner) is preserved.
 
 ## Consequences
 
 **Easier:**
 
-- One source of truth for performance scenarios. Changes to BFF endpoints
-  and the corresponding k6 scenarios travel together in a single PR.
-- No subtree mechanics or vendoring rituals to learn or document.
-- `pg:perf:smoke` continues to work without disruption — the scaffold was
-  built to be invoked exactly this way.
+- Upstream history is preserved in the monorepo — `git log` traces scenario
+  changes back to their origin commit.
+- Scenarios authored in the dedicated k6 repo can be pulled in with a single
+  `git subtree pull` rather than a manual copy.
+- The playground stays cloneable in one step with no additional remotes
+  required at clone time.
 
 **Harder:**
 
-- Scenarios must be kept in sync with the BFF API contract by hand. There
-  is no upstream from which to pull contract updates, so contract drift is
-  caught only by the smoke run itself.
-- The directory layout (`scenarios/smoke/`, `scenarios/load/`,
-  `scenarios/stress/`) becomes a stable, load-bearing convention. Future
-  scenario additions should slot into one of these buckets rather than
-  inventing new top-level folders.
-- Any cross-repo k6 utility we eventually want to share will need to be
-  extracted into a published package; this ADR explicitly forecloses the
-  subtree path.
+- Subtree maintenance (split/push/pull cycles) is unfamiliar to developers
+  who have not used `git subtree` before.
+- Divergence between the monorepo and upstream must be managed deliberately;
+  ad-hoc edits in both trees without a pull/push cycle will cause conflicts.
+- The `tests/performance/k6/` prefix becomes load-bearing — renaming it
+  requires a `git subtree split` to rewrite the upstream pointer.
 
 ## Alternatives considered
 
-- **Vendored copy from an external source** — rejected: no upstream project
-  exists to copy from. Inventing one to satisfy the import step would be
-  ceremony with no payoff.
-- **`git subtree` from an upstream repo** — rejected for the same reason,
-  with the additional cost of subtree maintenance (split/push/pull cycles)
-  that is not justified for a single-team playground with no shared
-  consumers.
+- **Scaffold-only (grow in place)** — rejected: the scaffold was built as a
+  placeholder for an import, and `nicopizar00/k6-ts-docker` now exists as the
+  intended upstream. Keeping the scaffold forecloses the subtree path and
+  discards upstream history without a concrete benefit.
+- **Vendored copy** — rejected: loses upstream history and makes future
+  re-syncs a manual diff exercise. Suitable only if the upstream is unstable
+  or if the team wants zero coupling — neither is true here.

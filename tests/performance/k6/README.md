@@ -3,16 +3,18 @@
 Performance engineering layer for the mini-commerce playground, powered by
 [k6](https://k6.io/).
 
+**Status:** scaffold — awaiting subtree import from nicopizar00/k6-ts-docker@main
+
 This folder is the **integration point** for an existing k6-based
-performance engineering project. The foundation lives here (folder
-layout, env-driven target, Docker-based runner, a minimal smoke scenario,
-and developer commands) so the existing project can be dropped in without
+performance engineering project. The placeholder foundation lives here (folder
+layout, env-driven target, Docker-based runner, placeholder smoke scenario,
+and developer commands) so the incoming subtree can be dropped in without
 rewiring the playground.
 
 ## Why this folder lives inside the monorepo
 
-For now, the performance suite is **vendored into the same repo** as the
-application it targets. Reasons:
+The performance suite is kept **in the same repo** as the application it
+targets. Reasons:
 
 - Versioning the scenarios alongside the BFF avoids "tests targeted last
   week's API" drift while the endpoint surface is still evolving.
@@ -20,16 +22,6 @@ application it targets. Reasons:
   the lowest-friction onboarding for new contributors.
 - Pull requests touching both the BFF and its performance scenarios stay
   reviewable in one place.
-
-Later iterations may promote this folder to one of:
-
-1. **A reusable npm package** that consumers depend on by version.
-2. **A published Docker image** with the scenarios baked in.
-3. **A standalone repository** consumed via Git submodule / subtree.
-4. **A GitHub reusable workflow** that wraps the runner.
-
-None of that is needed yet. The folder layout below is structured so any
-of those paths is a mechanical move, not a rewrite.
 
 ## Folder layout
 
@@ -151,7 +143,7 @@ playground stays cloneable in one step.
 
 ```bash
 # One-time setup (placeholder URL — replace with the real source repo):
-git remote add perf-origin <https://github.com/nicopizar00/k6-ts-docker.git>
+git remote add perf-origin https://github.com/nicopizar00/k6-ts-docker.git
 git fetch perf-origin
 git subtree add --prefix tests/performance/k6 perf-origin main --squash
 
@@ -187,3 +179,19 @@ steps are:
 
 Each step is small and independent. None of them require restructuring
 this folder.
+
+## .subtree-marker
+
+Records the git subtree configuration for tooling and reviewers.
+
+| Field        | Value                                             |
+| ------------ | ------------------------------------------------- |
+| `prefix`     | `tests/performance/k6`                            |
+| `remote-url` | `https://github.com/nicopizar00/k6-ts-docker.git` |
+| `ref`        | `main`                                            |
+
+To pull upstream changes once the subtree is imported:
+
+```bash
+git subtree pull --prefix tests/performance/k6 perf-origin main --squash
+```
