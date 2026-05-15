@@ -1,4 +1,3 @@
-// Placeholder — replaced by k6-ts-docker subtree in next iteration.
 // Stress scenario — ramping VUs pushing the BFF past nominal load.
 //
 // Purpose:

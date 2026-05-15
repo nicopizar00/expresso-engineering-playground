@@ -1,4 +1,3 @@
-// Placeholder — replaced by k6-ts-docker subtree in next iteration.
 // Load scenario — ramping VUs walking the full mini-commerce happy path.
 //
 // Purpose:

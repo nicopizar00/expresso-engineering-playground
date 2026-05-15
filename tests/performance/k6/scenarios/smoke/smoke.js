@@ -1,4 +1,3 @@
-// Placeholder — replaced by k6-ts-docker subtree in next iteration.
 // Smoke scenario — single VU walking the full mini-commerce happy path.
 //
 // Purpose:
