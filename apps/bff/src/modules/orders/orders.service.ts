@@ -50,6 +50,10 @@ export class OrdersService {
     ],
   ]);
 
+  listAll(): ReadonlyArray<Order> {
+    return Array.from(this.orders.values());
+  }
+
   get(orderId: string): Order {
     const order = this.orders.get(orderId);
     if (!order) {
