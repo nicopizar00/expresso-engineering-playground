@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
+// TODO(vercel-build): @prisma/client types require `prisma generate` — ensured by package.json#build
 import type { Order as DbOrder, OrderLine as DbOrderLine } from "@prisma/client";
 import type { OrderStatus } from "@mini-commerce/shared-types";
 import { PrismaService } from "../../prisma.service";
