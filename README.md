@@ -39,6 +39,137 @@ setup guide, environment configuration, and troubleshooting.
 
 ---
 
+## Testing the main features
+
+Once the stack is running (`pnpm pg:up` + `pnpm pg:dev`), the following
+recipes exercise every feature currently implemented. They are ordered from
+fastest sanity check to deepest end-to-end flow.
+
+### A. One-shot health check (≈ 5 seconds)
+
+```bash
+pnpm pg:status      # show container health table
+pnpm pg:smoke       # hit all 9 BFF endpoints and assert 200/201/202
+```
+
+`pg:smoke` walks: `/health` → `/catalog/products` →
+`/catalog/products/:id` → `POST /cart/items` → `/cart` → `POST /checkout` →
+`/orders/:id` → `POST /orders/:id/manage` → `/visualization-data`. If it
+exits green, every wired endpoint works.
+
+### B. Click-through in the web app (≈ 2 minutes)
+
+The Next.js app at <http://localhost:3000> implements the full
+catalog → cart → checkout → orders → visualizer journey.
+
+| Step | Route | What to do | What you should see |
+|------|-------|------------|---------------------|
+| 1 | `/` | Browse the seeded catalog (7 products) | Product grid with espresso, latte, sandwich, cookie, water, notebook, backpack |
+| 2 | `/` → product card | Click "Add to cart" | Cart counter increments |
+| 3 | `/cart` | Review items and totals | Line items, subtotal in EUR, "Proceed to checkout" CTA |
+| 4 | `/checkout` | Enter a customer name and submit | Redirect to `/orders/:orderId` with the new order |
+| 5 | `/orders/:orderId` | Trigger management actions | `mark_prepared` and `cancel` transitions update the order status live |
+| 6 | `/orders` | View the orders list | Newly placed order plus the pre-seeded `ord_demo` |
+| 7 | `/visualizer` | View the 3D scene (embedded iframe) | Cubes (products), cone (cart), spheres (orders) — see §C for standalone view |
+| 8 | `/dev` | Inspect API client wiring | Dev-only diagnostics page |
+
+> The cart is **single-user, in-process** and resets when the BFF restarts —
+> this is intentional for Phase 1. Orders persist in Postgres and survive
+> restarts.
+
+### C. Standalone 3D Visualizer (≈ 1 minute)
+
+The Three.js visualizer is a separate Docker service that consumes
+`GET /visualization-data` from the BFF — no DB access.
+
+```bash
+./scripts/visualizer-up.sh   # or: pnpm pg:up viz
+open http://localhost:3002
+```
+
+Then, to **see BFF state reflected in 3D**:
+
+1. In another tab, add cart items / place an order via the web app (§B) or
+   curl (§D).
+2. Back on <http://localhost:3002>, click **"Reload data"** in the HUD.
+3. The scene rebuilds: products = cubes, cart = cone, orders = spheres,
+   colored by status (green = ok, orange = warn, red = error).
+
+> The visualizer does **not** auto-poll — reload is manual on purpose. See
+> [`apps/visualizer-3d/README.md`](./apps/visualizer-3d/README.md).
+
+### D. BFF endpoints via curl (≈ 1 minute)
+
+Exercise the API surface directly. Substitute your own IDs as needed.
+
+```bash
+# Health
+curl -s http://localhost:3001/health | jq
+
+# Catalog
+curl -s http://localhost:3001/catalog/products | jq
+curl -s http://localhost:3001/catalog/products/prod_espresso | jq
+
+# Cart (single-user, in-process)
+curl -s -X POST http://localhost:3001/cart/items \
+  -H 'Content-Type: application/json' \
+  -d '{"productId":"prod_espresso","quantity":2}' | jq
+curl -s http://localhost:3001/cart | jq
+
+# Checkout — returns the new orderId
+ORDER_ID=$(curl -s -X POST http://localhost:3001/checkout \
+  -H 'Content-Type: application/json' \
+  -d '{"customerName":"Test Buyer"}' | jq -r '.orderId')
+
+# Orders
+curl -s http://localhost:3001/orders | jq
+curl -s "http://localhost:3001/orders/$ORDER_ID" | jq
+curl -s -X POST "http://localhost:3001/orders/$ORDER_ID/manage" \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"mark_prepared"}' | jq
+
+# Visualizer feed
+curl -s http://localhost:3001/visualization-data | jq
+```
+
+### E. Performance scenarios (k6 in Docker, ≈ 30 s – 5 min)
+
+No host k6 install needed — these run `grafana/k6:latest` against the local
+stack.
+
+```bash
+pnpm pg:perf:smoke          # 1 VU, ~20s — full happy path, regression catch
+pnpm pg:perf:checkout-flow  # 1 VU, ~30s — orders persistence + status reads
+pnpm pg:perf:read-heavy     # 0→30 VUs over 3m — GET-only baseline latency
+pnpm pg:perf:open-report    # open the last HTML summary
+pnpm pg:perf:clean          # remove generated reports
+```
+
+Reports land under `tests/performance/k6/reports/`. See
+[`tests/performance/k6/README.md`](./tests/performance/k6/README.md) for
+profile design and thresholds.
+
+### F. Unit tests and type-check (≈ 30 s)
+
+```bash
+pnpm typecheck                        # tsc --noEmit across all packages
+pnpm test                             # Vitest unit tests across all packages
+pnpm --filter @mini-commerce/bff test # just the BFF
+```
+
+### Reset between runs
+
+```bash
+pnpm pg:reset    # drop + re-migrate + re-seed (clears orders)
+pnpm pg:down     # stop containers cleanly
+```
+
+> Cart state lives in the BFF process — restarting `pg:dev` or `pg:reset`
+> clears it. Orders are persisted in Postgres; only `pg:reset` (or a manual
+> DB wipe) removes them.
+
+---
+
 ## Frontend wiring status
 
 The next open thread is wiring the Next.js web app to consume the BFF via a
