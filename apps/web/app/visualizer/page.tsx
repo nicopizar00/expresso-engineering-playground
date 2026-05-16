@@ -37,8 +37,12 @@ import {
 
 /**
  * Environment variable for the visualizer URL.
+ *
+ * Confirmed local port: 3002 (per VIZ_PORT in ./dev script)
+ * Docker maps internal port 80 → host port 3002
+ *
  * In local Docker dev: http://localhost:3002
- * In staging/prod: environment-specific URL
+ * In staging/prod: environment-specific URL (to be configured)
  *
  * TODO(api-wire): Set per-environment values in deployment config
  */
@@ -108,8 +112,9 @@ export default function VisualizerPage() {
           </span>
         </div>
         <p style={{ color: 'var(--muted-foreground)' }} className="max-w-2xl">
-          A standalone Three.js visualization that displays domain data from the BFF.
-          This page embeds the visualizer for convenient access during development.
+          The 3D visualizer is a standalone static app that renders a Three.js scene
+          and fetches domain data from the BFF. This page provides an embed/launcher
+          surface — the main frontend does not own any Three.js rendering code.
         </p>
       </div>
 
@@ -207,21 +212,26 @@ export default function VisualizerPage() {
               <Code className="h-4 w-4" style={{ color: 'var(--primary)' }} />
               Architecture Overview
             </h2>
+            <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
+              The visualizer-3d app remains standalone. It is served as static files via nginx.
+              The main frontend embeds it via iframe — this is a launcher surface only, not
+              a tight integration.
+            </p>
             <div className="grid sm:grid-cols-3 gap-4">
               <ArchitectureCard
                 icon={Layers}
-                title="Standalone App"
-                description="Vanilla JS + Three.js via ESM importmap. No React, no build step."
+                title="Standalone Static App"
+                description="Vanilla JS + Three.js via ESM importmap/CDN. No React, no Node build step. Served by nginx:alpine."
               />
               <ArchitectureCard
                 icon={Server}
                 title="BFF Data Source"
-                description="Reads from GET /visualization-data. Falls back to mock if BFF unavailable."
+                description="Fetches GET /visualization-data from BFF. Has built-in fallback mock data if BFF is unreachable."
               />
               <ArchitectureCard
                 icon={Database}
                 title="No Direct DB Access"
-                description="Visualizer never touches the database. All data via HTTP contract."
+                description="Visualizer never touches the database. All data flows through the BFF HTTP contract."
               />
             </div>
           </div>
@@ -328,7 +338,7 @@ export default function VisualizerPage() {
                     className="mt-2 text-xs"
                     style={{ color: 'var(--muted-foreground)' }}
                   >
-                    Local dev: <code>http://localhost:3002</code>
+                    Local dev: <code>http://localhost:3002</code> (confirmed VIZ_PORT)
                   </p>
                 </div>
 

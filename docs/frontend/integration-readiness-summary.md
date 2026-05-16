@@ -129,10 +129,13 @@ The visualizer-3d is a **separate static artifact**:
 # Required for iframe embedding
 NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
 
+# Port 3002 is confirmed in ./dev script: VIZ_PORT="${VIZ_PORT:-3002}"
+# Docker maps internal nginx port 80 → host port 3002
+
 # Per-environment values:
-# - Local: http://localhost:3002
-# - Staging: https://visualizer.staging.example.com
-# - Production: https://visualizer.example.com
+# - Local: http://localhost:3002 (confirmed)
+# - Staging: https://visualizer.staging.example.com (to be configured)
+# - Production: https://visualizer.example.com (to be configured)
 ```
 
 ### BFF Endpoint Used by Visualizer
@@ -160,6 +163,16 @@ GET /visualization-data
 1. **CORS** - Verify visualizer allows iframe embedding from web app origin
 2. **URL mismatch** - Environment variable must match actual deployment URL
 3. **BFF availability** - Visualizer degrades gracefully but shows mock data notice
+
+### Deployment & Embedding Risks
+
+| Risk | Description | Mitigation |
+|------|-------------|------------|
+| **Environment URL mismatch** | NEXT_PUBLIC_VISUALIZER_URL must be set per environment. No default fallback in production. | Document required env vars in deployment runbook. Fail loudly if not set. |
+| **X-Frame-Options / CSP** | Visualizer nginx may set headers blocking iframe embedding. | Ensure visualizer nginx config does not include `X-Frame-Options: DENY` or restrictive `frame-ancestors` CSP. |
+| **HTTP/HTTPS mixed content** | If web app is HTTPS and visualizer URL is HTTP, browsers block the iframe. | Always deploy visualizer behind HTTPS in staging/prod. Local dev (localhost) is exempt. |
+| **Docker/local port mismatch** | Local port 3002 is confirmed in `./dev` script. If user runs visualizer differently, embedding fails silently. | Document `./scripts/visualizer-up.sh` as canonical local start command. |
+| **Iframe load failure detection** | Browser iframe `onerror` does not fire for HTTP 4xx/5xx or CORS blocks. | UI shows loading state; user can manually retry or open externally. Consider adding timeout-based "may have failed" hint. |
 
 ---
 
