@@ -151,11 +151,11 @@ function DemoGuidePanel() {
   }
 
   const scenarios: { value: MockScenario; label: string; description: string }[] = [
-    { value: 'happy', label: 'Happy Path', description: 'Normal operation with sample products' },
-    { value: 'loading', label: 'Loading State', description: 'Adds 2s delay to see loading UI' },
-    { value: 'empty', label: 'Empty State', description: 'Empty catalog and no orders' },
-    { value: 'error', label: 'API Error', description: 'Simulates backend failures' },
-    { value: 'cart-filled', label: 'Cart Filled', description: 'Pre-populated cart for checkout' },
+    { value: 'happy', label: 'Happy Path', description: '7 products, checkout success included' },
+    { value: 'loading', label: 'Loading State', description: '2s delay to see loading UI' },
+    { value: 'empty', label: 'Empty State', description: 'Empty catalog, no orders' },
+    { value: 'error', label: 'API Error', description: 'Simulates 500/503 failures' },
+    { value: 'cart-filled', label: 'Cart Filled', description: '3 items pre-added to cart' },
     { value: 'checkout-failure', label: 'Checkout Fail', description: 'Checkout always fails' },
   ];
 
@@ -250,6 +250,18 @@ function DemoGuidePanel() {
           </a>
         </div>
       </div>
+
+      {/* Visualizer Note */}
+      <div
+        className="p-2 rounded text-xs"
+        style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
+      >
+        <strong style={{ color: 'var(--foreground)' }}>Visualizer states:</strong> Controlled by{' '}
+        <code className="px-1 rounded" style={{ backgroundColor: 'var(--background)' }}>
+          NEXT_PUBLIC_VISUALIZER_URL
+        </code>{' '}
+        env var, not by mock scenarios. Set it to see the iframe; unset it to see the configuration state.
+      </div>
     </Card>
   );
 }
@@ -271,7 +283,7 @@ function ReadinessPanel() {
     { label: 'Remove cart item', status: 'mock', note: 'DELETE /cart/items/:id not in BFF' },
     { label: 'Update quantity', status: 'mock', note: 'PATCH /cart/items/:id not in BFF' },
     { label: 'Order list', status: 'mock', note: 'GET /orders not in BFF' },
-    { label: '3D Visualizer', status: 'embed', note: 'Standalone app via iframe' },
+    { label: '3D Visualizer', status: 'embed', note: 'Env-controlled: NEXT_PUBLIC_VISUALIZER_URL' },
   ];
 
   return (
