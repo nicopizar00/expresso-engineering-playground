@@ -346,7 +346,7 @@ function HealthCard() {
   );
 }
 
-function CatalogCard({ products, onLoaded }: { products: Product[] | null; onLoaded: (items: Product[]) => void }) {
+function CatalogCard({ products, onLoaded }: { products: ReadonlyArray<Product> | null; onLoaded: (items: ReadonlyArray<Product>) => void }) {
   const { result, loading, call } = useApiCall();
 
   async function load() {
@@ -382,7 +382,7 @@ function CatalogCard({ products, onLoaded }: { products: Product[] | null; onLoa
   );
 }
 
-function AddToCartCard({ products }: { products: Product[] | null }) {
+function AddToCartCard({ products }: { products: ReadonlyArray<Product> | null }) {
   const { result, loading, call } = useApiCall();
   const [productId, setProductId] = useState('prod_espresso_001');
   const [quantity, setQuantity] = useState(1);
@@ -580,7 +580,7 @@ function OrderManageCard() {
 // ---------------------------------------------------------------------------
 
 export default function DevPage() {
-  const [products, setProducts] = useState<Product[] | null>(null);
+  const [products, setProducts] = useState<ReadonlyArray<Product> | null>(null);
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
   const isDemoMode = getDemoModeStatus();
 
