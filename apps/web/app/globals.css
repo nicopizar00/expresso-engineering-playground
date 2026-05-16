@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 *,
 *::before,
 *::after {
@@ -7,213 +9,167 @@
 }
 
 :root {
-  --bg: #f4f4f5;
-  --surface: #ffffff;
-  --border: #e4e4e7;
-  --text: #18181b;
-  --text-muted: #71717a;
-  --blue: #2563eb;
-  --blue-hover: #1d4ed8;
-  --green: #16a34a;
-  --red: #dc2626;
-  --yellow: #ca8a04;
-  --code-bg: #18181b;
-  --code-text: #d4d4d8;
-  --radius: 8px;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  /* Core palette - warm espresso tones with modern neutrals */
+  --background: #0a0a0b;
+  --foreground: #fafafa;
+  --card: #141415;
+  --card-foreground: #fafafa;
+  --popover: #141415;
+  --popover-foreground: #fafafa;
+  --primary: #d4a574;
+  --primary-foreground: #0a0a0b;
+  --secondary: #1f1f22;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #c9956c;
+  --accent-foreground: #0a0a0b;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #d4a574;
+  
+  /* Status colors */
+  --success: #22c55e;
+  --success-foreground: #0a0a0b;
+  --warning: #f59e0b;
+  --warning-foreground: #0a0a0b;
+  --info: #3b82f6;
+  --info-foreground: #fafafa;
+  
+  /* Category colors */
+  --drink: #d4a574;
+  --food: #22c55e;
+  --accessory: #3b82f6;
+  
+  /* Radius */
+  --radius: 0.5rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+html {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
+  background-color: var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
 }
 
-.page {
-  max-width: 900px;
+/* Utility classes */
+.container {
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 16px 64px;
+  padding: 0 1rem;
 }
 
-.page-header {
-  margin-bottom: 32px;
-}
-
-.page-header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
-}
-
-.page-header .api-url {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 640px) {
-  .grid {
-    grid-template-columns: 1fr;
+@media (min-width: 640px) {
+  .container {
+    padding: 0 1.5rem;
   }
 }
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 2rem;
+  }
 }
 
-.card h2 {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* Selection */
+::selection {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
-.field label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.field input,
-.field select {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: inherit;
-  background: var(--surface);
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.15s;
+::-webkit-scrollbar-track {
+  background: var(--muted);
 }
 
-.field input:focus,
-.field select:focus {
-  border-color: var(--blue);
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
 }
 
-button.action {
-  padding: 8px 14px;
-  background: var(--blue);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  align-self: flex-start;
-  transition: background 0.15s;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
 
-button.action:hover {
-  background: var(--blue-hover);
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-button.action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.response {
-  border-radius: 6px;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
-  font-size: 12px;
-}
-
-.response-status {
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-
-.response-status.ok {
-  background: #dcfce7;
-  color: var(--green);
-}
-
-.response-status.err {
-  background: #fee2e2;
-  color: var(--red);
-}
-
-.response pre {
-  background: var(--code-bg);
-  color: var(--code-text);
-  padding: 12px;
-  overflow-x: auto;
-  max-height: 240px;
-  overflow-y: auto;
-  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.product-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 4px 0;
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
-}
-
-.product-list li {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  column-gap: 12px;
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--border);
-}
-
-.product-list li:last-child {
-  border-bottom: none;
-}
-
-.product-name {
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.product-meta {
-  font-size: 12px;
-  color: var(--text-muted);
-  text-align: right;
-}
-
-.product-id {
-  grid-column: 1 / -1;
-  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
-  font-size: 11px;
-  color: var(--text-muted);
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
