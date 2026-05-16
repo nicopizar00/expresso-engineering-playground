@@ -43,11 +43,18 @@
 import {
   MOCK_PRODUCTS,
   getMockCart,
+  getMockProducts,
   addMockCartItem,
   createMockOrder,
   getMockOrder,
   updateMockOrderStatus,
   getMockHealth,
+  shouldSimulateError,
+  getExtraLatency,
+  setMockScenario,
+  getMockScenario,
+  getSampleOrderId,
+  type MockScenario,
 } from './mock-data';
 
 // ---------------------------------------------------------------------------
@@ -190,6 +197,9 @@ export function getDemoModeStatus(): boolean {
   return isDemoMode();
 }
 
+// Re-export scenario management for demo controls
+export { setMockScenario, getMockScenario, getSampleOrderId, type MockScenario };
+
 // ---------------------------------------------------------------------------
 // HTTP Client
 // ---------------------------------------------------------------------------
@@ -253,17 +263,27 @@ function safeJson(text: string): unknown {
 const mockApi = {
   async getHealth(): Promise<HealthReport> {
     await simulateLatency();
+    if (shouldSimulateError()) {
+      throw new ExpressoApiError('GET', '/health', 503, { message: 'Service unavailable (mock)' });
+    }
     return getMockHealth();
   },
 
   async getProducts(): Promise<ProductsResponse> {
     await simulateLatency();
-    return { items: MOCK_PRODUCTS };
+    if (shouldSimulateError()) {
+      throw new ExpressoApiError('GET', '/catalog/products', 500, { message: 'Internal error (mock)' });
+    }
+    return { items: getMockProducts() };
   },
 
   async getProductById(productId: string): Promise<Product> {
     await simulateLatency();
-    const product = MOCK_PRODUCTS.find((p) => p.productId === productId);
+    if (shouldSimulateError()) {
+      throw new ExpressoApiError('GET', `/catalog/products/${productId}`, 500, { message: 'Internal error (mock)' });
+    }
+    const products = getMockProducts();
+    const product = products.find((p) => p.productId === productId);
     if (!product) {
       throw new ExpressoApiError('GET', `/catalog/products/${productId}`, 404, {
         message: 'Product not found',
@@ -340,7 +360,8 @@ const mockApi = {
 };
 
 function simulateLatency(ms = 150): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  const extra = getExtraLatency();
+  return new Promise((resolve) => setTimeout(resolve, ms + extra));
 }
 
 // ---------------------------------------------------------------------------
