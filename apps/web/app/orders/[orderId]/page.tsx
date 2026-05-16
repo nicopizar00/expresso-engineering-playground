@@ -102,7 +102,7 @@ export default function OrderPage({ params }: OrderPageProps) {
       <div className="container py-8">
         <PageErrorState
           title="Order not found"
-          message={`Could not find order ${orderId}. Orders reset when the BFF restarts (in-memory storage).`}
+          message={`Could not find order ${orderId}. Verify the order ID and try again.`}
           onRetry={() => mutate()}
         />
       </div>
@@ -297,7 +297,7 @@ export default function OrderPage({ params }: OrderPageProps) {
           className="text-xs text-center"
           style={{ color: 'var(--muted-foreground)' }}
         >
-          Orders reset when the BFF restarts (in-memory storage).
+          Orders are persisted to PostgreSQL and survive BFF restarts.
         </p>
       </div>
     </div>
