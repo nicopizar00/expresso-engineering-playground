@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/system/EmptyState';
 import { Coffee, UtensilsCrossed, Package, LayoutGrid } from 'lucide-react';
 
 interface ProductCatalogGridProps {
-  products: Product[];
+  products: ReadonlyArray<Product>;
 }
 
 type FilterCategory = ProductCategory | 'all';

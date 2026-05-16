@@ -1,89 +1,102 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
+import type { Order as DbOrder, OrderLine as DbOrderLine } from "@prisma/client";
 import type { OrderStatus } from "@mini-commerce/shared-types";
+import { PrismaService } from "../../prisma.service";
 import type { ManageOrderDto } from "./orders.dto";
 import type {
   CreateOrderInput,
   ManageOrderResponse,
   Order,
+  OrderLine,
 } from "./orders.types";
 
-// In-memory order store. Pre-seeded with `ord_demo` so the playground UI
-// can exercise GET /orders/:id and POST /orders/:id/manage without first
-// running a checkout.
-//
-// TODO(next-steps/orders-persistence): swap this Map for Prisma + an onModuleInit cache (mirror the CatalogService pattern so VisualizationService.orderItems() stays sync). See docs/next-steps/orders-persistence.md
+function toOrder(row: DbOrder & { lines: DbOrderLine[] }): Order {
+  return {
+    orderId: row.orderId,
+    customerName: row.customerName,
+    status: row.status as OrderStatus,
+    lines: row.lines.map((l): OrderLine => ({
+      productId: l.productId,
+      name: l.name,
+      quantity: l.quantity,
+      unitPrice: { amountMinor: l.unitAmountMinor, currency: l.unitCurrency },
+      lineTotal: { amountMinor: l.lineAmountMinor, currency: l.lineCurrency },
+    })),
+    total: { amountMinor: row.totalAmountMinor, currency: row.totalCurrency },
+    placedAt: row.placedAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
-  // Frozen clock keeps responses deterministic across runs.
-  private readonly placedAt = "2026-05-14T12:00:00.000Z";
-  private readonly acceptedAt = "2026-05-14T12:05:00.000Z";
+  private cache: Order[] = [];
   private nextOrderSeq = 1;
 
-  private readonly orders = new Map<string, Order>([
-    [
-      "ord_demo",
-      {
-        orderId: "ord_demo",
-        customerName: "Demo Customer",
-        status: "pending",
-        lines: [
-          {
-            productId: "prod_espresso",
-            name: "Espresso",
-            quantity: 2,
-            unitPrice: { amountMinor: 180, currency: "EUR" },
-            lineTotal: { amountMinor: 360, currency: "EUR" },
-          },
-          {
-            productId: "prod_cookie",
-            name: "Cookie",
-            quantity: 1,
-            unitPrice: { amountMinor: 200, currency: "EUR" },
-            lineTotal: { amountMinor: 200, currency: "EUR" },
-          },
-        ],
-        total: { amountMinor: 560, currency: "EUR" },
-        placedAt: this.placedAt,
-        updatedAt: this.placedAt,
-      },
-    ],
-  ]);
+  constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    const rows = await this.prisma.order.findMany({
+      include: { lines: true },
+      orderBy: { placedAt: "asc" },
+    });
+    this.cache = rows.map(toOrder);
+    const maxSeq = this.cache
+      .map((o) => {
+        const m = o.orderId.match(/^ord_(\d+)$/);
+        return m ? parseInt(m[1]!, 10) : 0;
+      })
+      .reduce((a, b) => Math.max(a, b), 0);
+    this.nextOrderSeq = maxSeq + 1;
+  }
 
   listAll(): ReadonlyArray<Order> {
-    return Array.from(this.orders.values());
+    return this.cache;
   }
 
   get(orderId: string): Order {
-    const order = this.orders.get(orderId);
+    const order = this.cache.find((o) => o.orderId === orderId);
     if (!order) {
       throw new NotFoundException(`order ${orderId} not found`);
     }
     return order;
   }
 
-  // Called by CheckoutService. Returns the newly created order.
-  create(input: CreateOrderInput): Order {
+  async create(input: CreateOrderInput): Promise<Order> {
     const orderId = `ord_${String(this.nextOrderSeq).padStart(3, "0")}`;
     this.nextOrderSeq += 1;
-    const order: Order = {
-      orderId,
-      customerName: input.customerName,
-      status: "pending",
-      lines: input.lines,
-      total: input.total,
-      placedAt: this.placedAt,
-      updatedAt: this.placedAt,
-    };
-    this.orders.set(orderId, order);
+
+    const row = await this.prisma.order.create({
+      data: {
+        orderId,
+        customerName: input.customerName,
+        status: "pending",
+        totalAmountMinor: input.total.amountMinor,
+        totalCurrency: input.total.currency,
+        placedAt: new Date(),
+        lines: {
+          create: input.lines.map((line) => ({
+            productId: line.productId,
+            name: line.name,
+            quantity: line.quantity,
+            unitAmountMinor: line.unitPrice.amountMinor,
+            unitCurrency: line.unitPrice.currency,
+            lineAmountMinor: line.lineTotal.amountMinor,
+            lineCurrency: line.lineTotal.currency,
+          })),
+        },
+      },
+      include: { lines: true },
+    });
+
+    const order = toOrder(row);
+    this.cache.push(order);
     this.logger.log(`order created id=${orderId} total=${input.total.amountMinor}`);
     return order;
   }
 
-  // Apply a mocked management action. Each action deterministically maps to
-  // a next status. Invalid transitions return 400 so the API contract stays
-  // predictable.
-  manage(orderId: string, payload: ManageOrderDto): ManageOrderResponse {
+  async manage(orderId: string, payload: ManageOrderDto): Promise<ManageOrderResponse> {
     const current = this.get(orderId);
     const previousStatus = current.status;
 
@@ -103,12 +116,14 @@ export class OrdersService {
       }
     })();
 
-    const updated: Order = {
-      ...current,
-      status: nextStatus,
-      updatedAt: this.acceptedAt,
-    };
-    this.orders.set(orderId, updated);
+    await this.prisma.order.update({
+      where: { orderId },
+      data: { status: nextStatus },
+    });
+
+    const acceptedAt = new Date().toISOString();
+    const idx = this.cache.findIndex((o) => o.orderId === orderId);
+    this.cache[idx] = { ...current, status: nextStatus, updatedAt: acceptedAt };
 
     this.logger.log(
       `manage order=${orderId} action=${payload.action} ${previousStatus} -> ${nextStatus}`,
@@ -119,7 +134,7 @@ export class OrdersService {
       action: payload.action,
       previousStatus,
       status: nextStatus,
-      acceptedAt: this.acceptedAt,
+      acceptedAt,
     };
   }
 }

@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working agreements
+
+- **Commit authorship**: Never add `Co-Authored-By: Claude`, `Generated with Claude Code`, or any other Claude/Anthropic attribution to commit messages, PR descriptions, or generated docs. The repo owner authors all attribution.
+
 ## What this repo is
 
 An engineering playground for a fictional mini-commerce store (catalog → cart → checkout → orders). Despite the directory name, there is no travel booking domain — see `docs/adr/0002-mini-commerce-domain.md`. The goal is to iterate software engineering practices (modularity, testing, observability, distributed systems) in a realistic but low-stakes context.

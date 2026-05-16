@@ -58,108 +58,50 @@ import {
 } from './mock-data';
 
 // ---------------------------------------------------------------------------
-// Types (mirror BFF contracts)
+// Types — canonical wire shapes re-exported from @mini-commerce/contracts.
+// The contracts package is the single source of truth shared with the BFF.
+// Any drift between this file and the BFF DTOs surfaces as a tsc error.
 // ---------------------------------------------------------------------------
 
-// TODO(types): Import from @mini-commerce/contracts or @mini-commerce/shared-types
-export type Money = {
-  amountMinor: number;
-  currency: string;
+import type {
+  Money,
+  ProductCategory,
+  Product,
+  ProductsResponse,
+  CartItem,
+  Cart,
+  AddCartItemRequest,
+  CheckoutRequest,
+  CheckoutResponse,
+  OrderStatus,
+  OrderLine,
+  Order,
+  OrderManageAction,
+  ManageOrderRequest,
+  ManageOrderResponse,
+  HealthReport,
+} from '@mini-commerce/contracts';
+
+export type {
+  Money,
+  ProductCategory,
+  Product,
+  ProductsResponse,
+  CartItem,
+  Cart,
+  CheckoutResponse,
+  OrderStatus,
+  OrderLine,
+  Order,
+  OrderManageAction,
+  ManageOrderResponse,
+  HealthReport,
 };
 
-export type ProductCategory = 'drink' | 'food' | 'accessory';
-
-export type Product = {
-  productId: string;
-  sku: string;
-  name: string;
-  description: string;
-  category: ProductCategory;
-  price: Money;
-  inventory: number;
-};
-
-export type ProductsResponse = { items: Product[] };
-
-export type CartItem = {
-  itemId: string;
-  productId: string;
-  name: string;
-  unitPrice: Money;
-  quantity: number;
-  lineTotal: Money;
-};
-
-export type Cart = {
-  cartId: string;
-  items: CartItem[];
-  itemCount: number;
-  total: Money;
-  updatedAt: string;
-};
-
-export type AddCartItemInput = {
-  productId: string;
-  quantity: number;
-};
-
-export type CheckoutInput = {
-  customerName: string;
-  idempotencyKey?: string;
-};
-
-export type OrderStatus = 'pending' | 'preparing' | 'prepared' | 'cancelled';
-
-export type CheckoutResponse = {
-  orderId: string;
-  cartId: string;
-  customerName: string;
-  status: Extract<OrderStatus, 'pending'>;
-  total: Money;
-  placedAt: string;
-};
-
-export type OrderLine = {
-  productId: string;
-  name: string;
-  quantity: number;
-  unitPrice: Money;
-  lineTotal: Money;
-};
-
-export type Order = {
-  orderId: string;
-  customerName: string;
-  status: OrderStatus;
-  lines: OrderLine[];
-  total: Money;
-  placedAt: string;
-  updatedAt: string;
-};
-
-export type OrderManageAction = 'cancel' | 'update_status' | 'mark_prepared';
-
-export type ManageOrderInput = {
-  action: OrderManageAction;
-  nextStatus?: OrderStatus;
-  reason?: string;
-};
-
-export type ManageOrderResponse = {
-  orderId: string;
-  action: OrderManageAction;
-  previousStatus: OrderStatus;
-  status: OrderStatus;
-  acceptedAt: string;
-};
-
-export type HealthReport = {
-  status: 'ok';
-  service: string;
-  version: string;
-  uptimeSeconds: number;
-  checks: { db: 'skipped' | 'ok' | 'down' };
-};
+// Legacy aliases retained for callers in apps/web.
+export type AddCartItemInput = AddCartItemRequest;
+export type CheckoutInput = CheckoutRequest;
+export type ManageOrderInput = ManageOrderRequest;
 
 // ---------------------------------------------------------------------------
 // Demo Mode Detection
