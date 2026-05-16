@@ -224,10 +224,15 @@ export function addMockCartItem(productId: string, quantity: number): Cart {
     throw new Error(`Product not found: ${productId}`);
   }
 
-  const existingItem = mockCartItems.find((item) => item.productId === productId);
-  if (existingItem) {
-    existingItem.quantity += quantity;
-    existingItem.lineTotal = money(existingItem.unitPrice.amountMinor * existingItem.quantity);
+  const existingIdx = mockCartItems.findIndex((item) => item.productId === productId);
+  if (existingIdx >= 0) {
+    const existing = mockCartItems[existingIdx]!;
+    const nextQuantity = existing.quantity + quantity;
+    mockCartItems[existingIdx] = {
+      ...existing,
+      quantity: nextQuantity,
+      lineTotal: money(existing.unitPrice.amountMinor * nextQuantity),
+    };
   } else {
     mockCartItems.push({
       itemId: generateId('item'),
@@ -331,9 +336,13 @@ export function updateMockOrderStatus(
   const order = mockOrders.get(orderId);
   if (!order) return null;
 
-  order.status = newStatus;
-  order.updatedAt = new Date().toISOString();
-  return { ...order };
+  const updated: Order = {
+    ...order,
+    status: newStatus,
+    updatedAt: new Date().toISOString(),
+  };
+  mockOrders.set(orderId, updated);
+  return updated;
 }
 
 /**
@@ -354,7 +363,7 @@ export function getMockHealth(): HealthReport {
   }
   return {
     status: 'ok',
-    service: 'bff-mock',
+    service: 'bff',
     version: '0.0.0-demo',
     uptimeSeconds: Math.floor((Date.now() / 1000) % 86400),
     checks: { db: 'skipped' },

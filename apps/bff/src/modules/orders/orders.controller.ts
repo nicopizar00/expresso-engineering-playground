@@ -17,7 +17,7 @@ export class OrdersController {
   manage(
     @Param("id") id: string,
     @Body() body: ManageOrderDto,
-  ): ManageOrderResponse {
+  ): Promise<ManageOrderResponse> {
     return this.orders.manage(id, body);
   }
 }
