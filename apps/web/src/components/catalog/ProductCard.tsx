@@ -1,8 +1,18 @@
 'use client';
 
+/**
+ * ProductCard - Individual product display card
+ *
+ * Displays product info with add-to-cart functionality.
+ * Uses category-based theming for visual distinction.
+ *
+ * TODO(v0-export): Consider adding product images when asset CDN is available
+ * TODO(types): Import ProductCategory from @mini-commerce/contracts
+ */
+
 import { useState } from 'react';
 import { Coffee, UtensilsCrossed, Package, Plus, Check, Loader2 } from 'lucide-react';
-import { Product, ProductCategory } from '@/lib/api/expresso-api';
+import { Product, ProductCategory, formatMoney } from '@/lib/api/expresso-api';
 import { useCart } from '@/components/cart/CartProvider';
 
 interface ProductCardProps {
@@ -10,15 +20,18 @@ interface ProductCardProps {
   onQuickView?: (product: Product) => void;
 }
 
-const categoryConfig: Record<ProductCategory, { icon: typeof Coffee; color: string; label: string }> = {
+/**
+ * Visual configuration for product categories.
+ * Colors align with CSS variables defined in globals.css.
+ */
+const categoryConfig: Record<
+  ProductCategory,
+  { icon: typeof Coffee; color: string; label: string }
+> = {
   drink: { icon: Coffee, color: 'var(--drink)', label: 'Drink' },
   food: { icon: UtensilsCrossed, color: 'var(--food)', label: 'Food' },
   accessory: { icon: Package, color: 'var(--accessory)', label: 'Accessory' },
 };
-
-function formatMoney(amountMinor: number, currency: string): string {
-  return `${(amountMinor / 100).toFixed(2)} ${currency}`;
-}
 
 export function ProductCard({ product, onQuickView }: ProductCardProps) {
   const { addItem } = useCart();
@@ -31,23 +44,24 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
 
   async function handleAddToCart() {
     if (isAdding || isOutOfStock) return;
-    
+
     setIsAdding(true);
     try {
       await addItem({ productId: product.productId, quantity: 1 });
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1500);
     } catch (error) {
-      console.error('[v0] Failed to add item to cart:', error);
+      // TODO(error-handling): Add toast notification for add-to-cart failures
+      console.error('Failed to add item to cart:', error);
     } finally {
       setIsAdding(false);
     }
   }
 
   return (
-    <article 
+    <article
       className="group rounded-lg border overflow-hidden transition-all hover:shadow-md"
-      style={{ 
+      style={{
         backgroundColor: 'var(--card)',
         borderColor: 'var(--border)',
       }}
@@ -59,16 +73,16 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
         style={{ backgroundColor: 'var(--secondary)' }}
         aria-label={`View details for ${product.name}`}
       >
-        <CategoryIcon 
-          className="h-12 w-12 transition-transform group-hover:scale-110" 
+        <CategoryIcon
+          className="h-12 w-12 transition-transform group-hover:scale-110"
           style={{ color: category.color }}
           aria-hidden="true"
         />
-        
+
         {/* Category badge */}
-        <span 
+        <span
           className="absolute top-3 left-3 px-2 py-1 text-xs font-medium rounded-md"
-          style={{ 
+          style={{
             backgroundColor: 'var(--card)',
             color: category.color,
           }}
@@ -78,9 +92,9 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
 
         {/* Stock indicator */}
         {isOutOfStock && (
-          <span 
+          <span
             className="absolute top-3 right-3 px-2 py-1 text-xs font-medium rounded-md"
-            style={{ 
+            style={{
               backgroundColor: 'rgba(239, 68, 68, 0.9)',
               color: 'var(--foreground)',
             }}
@@ -93,18 +107,15 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
       {/* Content */}
       <div className="p-4 space-y-3">
         <div>
-          <button
-            onClick={() => onQuickView?.(product)}
-            className="text-left w-full"
-          >
-            <h3 
+          <button onClick={() => onQuickView?.(product)} className="text-left w-full">
+            <h3
               className="font-semibold text-base leading-tight hover:underline"
               style={{ color: 'var(--foreground)' }}
             >
               {product.name}
             </h3>
           </button>
-          <p 
+          <p
             className="text-sm mt-1 line-clamp-2"
             style={{ color: 'var(--muted-foreground)' }}
           >
@@ -114,17 +125,11 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
 
         <div className="flex items-center justify-between pt-2">
           <div>
-            <p 
-              className="text-lg font-bold"
-              style={{ color: 'var(--foreground)' }}
-            >
+            <p className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
               {formatMoney(product.price.amountMinor, product.price.currency)}
             </p>
             {!isOutOfStock && (
-              <p 
-                className="text-xs"
-                style={{ color: 'var(--muted-foreground)' }}
-              >
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {product.inventory} in stock
               </p>
             )}
@@ -136,7 +141,9 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
             className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               backgroundColor: justAdded ? 'var(--success)' : 'var(--primary)',
-              color: justAdded ? 'var(--success-foreground)' : 'var(--primary-foreground)',
+              color: justAdded
+                ? 'var(--success-foreground)'
+                : 'var(--primary-foreground)',
             }}
             aria-label={`Add ${product.name} to cart`}
           >
