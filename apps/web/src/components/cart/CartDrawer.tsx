@@ -1,11 +1,21 @@
 'use client';
 
+/**
+ * CartDrawer - Slide-over cart panel
+ *
+ * Displays current cart contents with item list and checkout link.
+ *
+ * TODO(api-wire): Wire quantity update buttons when PATCH /cart/items/:id exists
+ * TODO(api-wire): Wire remove button when DELETE /cart/items/:id exists
+ * TODO(v0-export): Extract CartItemRow to separate file for reusability
+ */
+
 import { X, ShoppingCart, Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
 import { useCart } from './CartProvider';
 import { EmptyState } from '@/components/system/EmptyState';
 import { LoadingSpinner } from '@/components/system/LoadingSkeleton';
+import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
 import Link from 'next/link';
-import { CartItem as CartItemType } from '@/lib/api/expresso-api';
 
 interface CartDrawerProps {
   open: boolean;
@@ -20,16 +30,16 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 z-50 bg-black/50 transition-opacity animate-fadeIn"
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Drawer */}
-      <div 
+      <div
         className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md flex flex-col animate-slideUp"
-        style={{ 
+        style={{
           backgroundColor: 'var(--card)',
           boxShadow: 'var(--shadow-lg)',
         }}
@@ -38,23 +48,23 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         aria-labelledby="cart-drawer-title"
       >
         {/* Header */}
-        <div 
+        <div
           className="flex items-center justify-between px-4 py-4 border-b"
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" style={{ color: 'var(--primary)' }} />
-            <h2 
-              id="cart-drawer-title" 
+            <h2
+              id="cart-drawer-title"
               className="font-semibold text-lg"
               style={{ color: 'var(--foreground)' }}
             >
               Cart
             </h2>
             {itemCount > 0 && (
-              <span 
+              <span
                 className="px-2 py-0.5 text-xs font-medium rounded-full"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--muted-foreground)',
                 }}
@@ -66,7 +76,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
           <button
             onClick={onClose}
             className="p-2 rounded-md transition-colors"
-            style={{ 
+            style={{
               backgroundColor: 'var(--secondary)',
               color: 'var(--foreground)',
             }}
@@ -83,7 +93,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               <LoadingSpinner size="lg" />
             </div>
           ) : isEmpty ? (
-            <EmptyState 
+            <EmptyState
               variant="cart"
               action={{
                 label: 'Browse Products',
@@ -102,7 +112,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
         {/* Footer */}
         {!isEmpty && (
-          <div 
+          <div
             className="border-t p-4 space-y-4"
             style={{ borderColor: 'var(--border)' }}
           >
@@ -110,7 +120,10 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                 Subtotal
               </span>
-              <span className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
+              <span
+                className="text-lg font-semibold"
+                style={{ color: 'var(--foreground)' }}
+              >
                 {formattedTotal}
               </span>
             </div>
@@ -126,7 +139,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               Proceed to Checkout
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <p 
+            <p
               className="text-xs text-center"
               style={{ color: 'var(--muted-foreground)' }}
             >
@@ -139,32 +152,38 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   );
 }
 
+/**
+ * Individual cart item row.
+ *
+ * TODO(api-wire): Quantity controls are disabled pending BFF endpoints:
+ *   - PATCH /cart/items/:itemId { quantity: number }
+ *   - DELETE /cart/items/:itemId
+ */
 function CartItemRow({ item }: { item: CartItemType }) {
-  const formatMoney = (amountMinor: number, currency: string) => 
-    `${(amountMinor / 100).toFixed(2)} ${currency}`;
-
-  // TODO(api-wire): Wire quantity update and item removal when endpoints exist
   return (
     <li className="p-4">
       <div className="flex gap-4">
         {/* Product placeholder */}
-        <div 
+        <div
           className="w-16 h-16 rounded-md flex items-center justify-center flex-shrink-0"
           style={{ backgroundColor: 'var(--secondary)' }}
           aria-hidden="true"
         >
-          <ShoppingCart className="h-6 w-6" style={{ color: 'var(--muted-foreground)' }} />
+          <ShoppingCart
+            className="h-6 w-6"
+            style={{ color: 'var(--muted-foreground)' }}
+          />
         </div>
 
         {/* Details */}
         <div className="flex-1 min-w-0">
-          <h3 
+          <h3
             className="font-medium text-sm truncate"
             style={{ color: 'var(--foreground)' }}
           >
             {item.name}
           </h3>
-          <p 
+          <p
             className="text-xs mt-0.5 font-mono"
             style={{ color: 'var(--muted-foreground)' }}
           >
@@ -172,19 +191,20 @@ function CartItemRow({ item }: { item: CartItemType }) {
           </p>
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2">
-              {/* Quantity controls (visual only for now) */}
+              {/* Quantity controls - disabled until BFF supports PATCH/DELETE */}
               <button
                 disabled
                 className="p-1 rounded transition-colors disabled:opacity-50"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--foreground)',
                 }}
                 aria-label="Decrease quantity"
+                title="Not available - BFF endpoint not implemented"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span 
+              <span
                 className="text-sm font-medium w-8 text-center"
                 style={{ color: 'var(--foreground)' }}
               >
@@ -193,16 +213,17 @@ function CartItemRow({ item }: { item: CartItemType }) {
               <button
                 disabled
                 className="p-1 rounded transition-colors disabled:opacity-50"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--foreground)',
                 }}
                 aria-label="Increase quantity"
+                title="Not available - BFF endpoint not implemented"
               >
                 <Plus className="h-3 w-3" />
               </button>
             </div>
-            <span 
+            <span
               className="font-medium text-sm"
               style={{ color: 'var(--foreground)' }}
             >
@@ -211,12 +232,13 @@ function CartItemRow({ item }: { item: CartItemType }) {
           </div>
         </div>
 
-        {/* Remove button (visual only for now) */}
+        {/* Remove button - disabled until BFF supports DELETE */}
         <button
           disabled
           className="p-1 h-fit rounded transition-colors disabled:opacity-50"
           style={{ color: 'var(--muted-foreground)' }}
           aria-label={`Remove ${item.name} from cart`}
+          title="Not available - BFF endpoint not implemented"
         >
           <Trash2 className="h-4 w-4" />
         </button>
