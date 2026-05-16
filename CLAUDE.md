@@ -13,10 +13,29 @@ The codebase is a **deliberate skeleton**: business logic is mocked (in-memory),
 ### Developer loop
 
 ```bash
-pnpm pg:up        # Start postgres + otel-collector (Docker)
-pnpm pg:dev       # Start web + bff in watch mode (host-side)
-pnpm pg:smoke     # Hit all 9 endpoints and assert 200/201
-pnpm pg:down      # Stop Docker stack
+# Fresh setup: copy .env template to .env (gitignored)
+cp .env.example .env
+
+# Start infrastructure stack
+pnpm pg:up core       # postgres + otel-collector + bff (auto-migrates + seeds)
+pnpm pg:up web        # + Next.js web app
+pnpm pg:up full       # + visualizer-3d (all services)
+pnpm pg:up viz        # start visualizer only
+
+# Development: hot-reload via docker compose watch (bff + web in containers)
+pnpm pg:dev           # docker compose watch (recommended)
+pnpm pg:dev:host      # turbo run dev on host (escape hatch)
+
+# Inspection
+pnpm pg:status        # service health table
+pnpm pg:logs          # follow docker compose logs
+pnpm pg:open          # print local URLs
+
+# Testing + cleanup
+pnpm pg:smoke         # hit all 9 endpoints and assert 200/201
+pnpm pg:seed          # run prisma db seed
+pnpm pg:reset         # stop all containers (volumes preserved)
+pnpm pg:down          # stop services cleanly
 ```
 
 ### Build / test / check
@@ -48,12 +67,10 @@ pnpm pg:perf:open-report # Open k6 HTML report
 pnpm pg:perf:clean       # Delete k6 reports
 ```
 
-### Infrastructure scripts
+### Validation
 
 ```bash
-pnpm pg:doctor    # Validate Node, pnpm, Docker prerequisites
-pnpm pg:seed      # Populate DB (stubbed)
-pnpm pg:reset     # Drop + recreate DB (stubbed)
+pnpm pg:doctor    # Validate Node, pnpm, Docker, .env prerequisites
 ```
 
 ## Architecture
@@ -108,11 +125,35 @@ Applied globally in `main.ts`:
 
 `GET /visualization-data` is a read-only aggregator: the BFF pulls from domain services and reshapes into `VisualizationItem[]`. The `visualizer-3d` frontend **never reads the database directly** — all data flows through this endpoint. This boundary is load-bearing for Phase 3 service extraction.
 
-### Docker Compose
+### Docker Compose & local env
 
-Main stack (`infra/docker/compose.yaml`): `postgres`, `bff`, `otel-collector`. The `visualizer-3d` service is behind the `visualizer` profile — start it with `--profile visualizer`.
+**Root `.env`** (gitignored, copy from `.env.example`):
+```env
+POSTGRES_USER=playground
+POSTGRES_PASSWORD=playground
+POSTGRES_DB=mini_commerce_playground
+DATABASE_URL=postgres://playground:playground@localhost:5432/mini_commerce_playground
+BFF_PORT=3001
+WEB_PORT=3000
+VIZ_PORT=3002
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+All `pnpm pg:*` commands load this automatically.
 
-Performance runs use a separate file (`infra/docker/compose.performance.yaml`) so they don't mutate the main stack. k6 containers join the `mini_commerce_default` network to reach the otel-collector.
+**Main stack** (`infra/docker/compose.yaml`): 
+- Always-on: `postgres`, `bff`, `otel-collector`
+- Profiled (opt-in): `web` (profile: `web`), `visualizer-3d` (profile: `viz` or `visualizer`)
+- Activated via `pnpm pg:up <target>` where target is `core` | `web` | `viz` | `full`
+
+**Dev override** (`infra/docker/compose.dev.yaml`):
+- Used only by `pnpm pg:dev` (docker compose watch)
+- Switches bff + web to dev stages (nest --watch, next dev)
+- Syncs source changes into containers for hot-reload
+
+**Performance stack** (`infra/docker/compose.performance.yaml`):
+- Separate file (doesn't mutate main stack)
+- k6 containers join `mini_commerce_default` network to reach otel-collector
 
 ### Testing approach
 
@@ -125,9 +166,24 @@ Quality gates (CI vision, `docs/quality-strategy/`): lint → unit → build →
 ### Phase roadmap context
 
 - **Phase 1** (shipped): NestJS monolith, in-memory data stores.
-- **Phase 2** (in progress): Prisma + Postgres wired for the catalog (products persist; `POST /catalog/products` supported). Orders and cart still in-memory — see `docs/next-steps/orders-persistence.md`. OpenTelemetry SDK + domain events still pending.
+- **Phase 2** (in progress): 
+  - ✅ Orchestrator: `pnpm pg:*` unified CLI, Docker-first dev loop (`pg:dev` = docker compose watch), auto-migrate + seed on `pg:up`
+  - ⏳ Orders persistence: Prisma + Postgres for orders (currently in-memory). See `docs/next-steps/orders-persistence.md`
+  - ⏳ OpenTelemetry SDK + domain events
+  - Catalog already persists via Prisma; cart still in-memory (intentional Phase 1 contract)
 - **Phase 3**: Extract modules into independent services; promote contracts package to first-class boundary; replace in-process events with a broker.
 
-Open follow-ups live in `docs/next-steps/` — also see `docs/next-steps/orchestrator.md` for the Docker-first orchestrator wire-up.
+### Next steps workflow
 
-The monorepo is shaped so Phase 3 extraction is mechanical: module → service, `imports` → HTTP/event calls, `exports` → published contracts.
+**Track iterations in `docs/next-steps/`:**
+- Each iteration (orders-persistence, etc.) has a detailed `.md` with sub-tasks, critical files, and verification steps
+- Anchor inline TODOs to specific docs: `TODO(next-steps/<topic>)` — grep to find them
+  ```bash
+  grep -rn "next-steps/" .  # Find all anchored TODOs
+  ```
+
+**To pick the next iteration:**
+1. Read `docs/next-steps/README.md` for overview
+2. Pick a `.md` (e.g., `orders-persistence.md`)
+3. Use `EnterPlanMode` to design, then implement step-by-step
+4. Update this file + memory when complete

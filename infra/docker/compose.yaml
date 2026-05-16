@@ -1,36 +1,33 @@
 # Local development stack for the mini-commerce engineering playground.
 #
-# Bring up the full stack:
-#   docker compose -f infra/docker/compose.yaml up
+# Quick-start:
+#   pnpm pg:up          # core stack (postgres + otel-collector + bff)
+#   pnpm pg:up web      # + Next.js web app
+#   pnpm pg:up full     # + web + visualizer-3d
+#   pnpm pg:dev         # docker compose watch (hot-reload for bff + web)
 #
-# Bring up only Postgres (run the BFF locally with `pnpm --filter @mini-commerce/bff dev`):
-#   docker compose -f infra/docker/compose.yaml up postgres
+# All credentials and ports are sourced from the root .env file (gitignored).
+# Copy .env.example → .env before first run: cp .env.example .env
 #
 # Conventions:
-#   - All credentials are sourced from a local .env file (gitignored).
-#   - No real URLs, image tags, or company names are committed.
+#   - Credentials use ${VAR:-default} so the stack works without a .env.
 #   - Versions are pinned conservatively to public, well-known images.
-#
-# Persistence note: Postgres is provisioned and reachable, but the BFF does
-# NOT yet read from it (responses are mocked in-memory). The service exists
-# so the connection wiring lands in one PR rather than two.
+#   - Services with no profile are always started; profiled services are
+#     opt-in (activated by pnpm pg:up <target> or --profile <name>).
 
 services:
-  # TODO(next-steps/orchestrator): add a `web` service (Next.js, port 3000) and tag every service with profiles (core/web/viz/full). Source POSTGRES_USER/PASSWORD/DB + ports from a root .env via ${VAR:-default} so one file configures the whole stack. See docs/next-steps/orchestrator.md
   postgres:
     image: postgres:16-alpine
     environment:
-      # TODO: source these from a local .env file. Defaults below are
-      # intentionally weak placeholders for local dev only.
-      POSTGRES_USER: playground
-      POSTGRES_PASSWORD: playground
-      POSTGRES_DB: mini_commerce_playground
+      POSTGRES_USER: ${POSTGRES_USER:-playground}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-playground}
+      POSTGRES_DB: ${POSTGRES_DB:-mini_commerce_playground}
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U playground -d mini_commerce_playground"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -40,13 +37,11 @@ services:
       context: ../..
       dockerfile: apps/bff/Dockerfile
     environment:
-      PORT: "3001"
-      # Connection string is wired now so future Prisma work has a target.
-      DATABASE_URL: postgres://playground:playground@postgres:5432/mini_commerce_playground
-      # TODO: point to otel-collector once telemetry.ts initializes the SDK.
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      PORT: "${BFF_PORT:-3001}"
+      DATABASE_URL: postgres://${POSTGRES_USER:-playground}:${POSTGRES_PASSWORD:-playground}@postgres:5432/${POSTGRES_DB:-mini_commerce_playground}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
     ports:
-      - "3001:3001"
+      - "${BFF_PORT:-3001}:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,6 +51,26 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+
+  web:
+    profiles: [web]
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      PORT: "${WEB_PORT:-3000}"
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      bff:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
   otel-collector:
     # TODO: switch to the contrib image once a concrete pipeline is defined.
@@ -68,13 +83,11 @@ services:
       - "4318:4318"  # OTLP HTTP
 
   # visualizer-3d — opt-in static frontend that renders a Three.js room and
-  # consumes /visualization-data from the BFF. Gated behind a Compose profile
-  # so the default `docker compose up` still brings up the same lean app +
-  # observability stack as before. Bring it up with:
-  #   docker compose -f infra/docker/compose.yaml --profile visualizer up -d
-  # or via the wrapper scripts (scripts/visualizer-up.sh, scripts/full-up.sh).
+  # consumes /visualization-data from the BFF.
+  # Activated by: pnpm pg:up viz  (or pnpm pg:up full)
+  # Legacy alias: --profile visualizer still works.
   visualizer-3d:
-    profiles: ["visualizer"]
+    profiles: [visualizer, viz]
     build:
       context: ../../apps/visualizer-3d
     environment:
@@ -82,11 +95,9 @@ services:
       # host-reachable URL (NOT the in-container service name `bff`).
       VIZ_API_BASE_URL: ${VIZ_API_BASE_URL:-http://localhost:3001}
     ports:
-      - "3002:80"
+      - "${VIZ_PORT:-3002}:80"
 
-  # TODO (future):
-  #   - web:    build context apps/web, depends_on bff
-  #   - prometheus / grafana / tempo / loki for the observability stack
+  # TODO (future): prometheus / grafana / tempo / loki for observability stack
 
 volumes:
   postgres-data:

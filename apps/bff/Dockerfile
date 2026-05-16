@@ -11,6 +11,34 @@
 # requires those .ts files at runtime. Adding a value-level import from a
 # workspace package will break the image until those packages are built
 # with tsc — that is a separate iteration.
+#
+# Stages:
+#   dev     — used by docker compose watch (pg:dev); runs nest --watch
+#   builder — compiles the production bundle
+#   runtime — minimal image that runs the compiled bundle
+
+# ---- dev (watch mode) -------------------------------------------------------
+FROM node:20-alpine AS dev
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY apps/bff/package.json apps/bff/
+COPY packages/shared-types/package.json packages/shared-types/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/config/package.json packages/config/
+COPY packages/test-utils/package.json packages/test-utils/
+
+RUN pnpm install --frozen-lockfile
+
+COPY packages/ packages/
+COPY apps/bff/ apps/bff/
+
+RUN pnpm --filter @mini-commerce/bff exec prisma generate
+
+EXPOSE 3001
+CMD ["pnpm", "--filter", "@mini-commerce/bff", "dev"]
 
 # ---- builder ----------------------------------------------------------------
 FROM node:20-alpine AS builder

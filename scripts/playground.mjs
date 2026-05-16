@@ -9,16 +9,26 @@
  */
 
 import { spawnSync, execSync } from 'node:child_process';
-import { existsSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { createConnection } from 'node:net';
 import { platform } from 'node:os';
 
+// Load root .env into process.env; silently skip if absent.
+try {
+  const raw = readFileSync(new URL('../.env', import.meta.url), 'utf8');
+  for (const line of raw.split('\n')) {
+    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+} catch { /* .env is optional */ }
+
 const COMPOSE_FILE = 'infra/docker/compose.yaml';
+const COMPOSE_DEV_FILE = 'infra/docker/compose.dev.yaml';
 const PERF_COMPOSE_FILE = 'infra/docker/compose.performance.yaml';
 const PERF_DIR = 'tests/performance/k6';
 const PERF_REPORTS_DIR = `${PERF_DIR}/reports`;
-const BFF_PORT = 3001;
-const WEB_PORT = 3000;
+const BFF_PORT = Number(process.env.BFF_PORT ?? 3001);
+const WEB_PORT = Number(process.env.WEB_PORT ?? 3000);
 const API_BASE = `http://localhost:${BFF_PORT}`;
 
 // ANSI helpers — degrade gracefully when NO_COLOR is set.
@@ -45,12 +55,14 @@ const COMMANDS = {
   doctor,
   up,
   dev,
+  'dev:host': devHost,
   smoke,
   seed,
   reset,
   down,
   logs,
   open,
+  status,
   'perf:smoke': perfSmoke,
   'perf:open-report': perfOpenReport,
   'perf:clean': perfClean,
@@ -126,13 +138,12 @@ async function doctor() {
     allOk = false;
   }
 
-  // Environment files
-  const webEnvLocal = existsSync('apps/web/.env.local');
-  if (webEnvLocal) {
-    pass('apps/web/.env.local exists');
+  // Root .env file
+  if (existsSync('.env')) {
+    pass('.env exists');
   } else {
-    warn('apps/web/.env.local not found');
-    info('Copy the example: cp apps/web/.env.example apps/web/.env.local');
+    warn('.env not found — run: cp .env.example .env');
+    allOk = false;
   }
 
   // Port availability / occupancy
@@ -141,14 +152,14 @@ async function doctor() {
   if (bffUp) {
     pass(`Port ${BFF_PORT} (BFF) is responding — service is running`);
   } else {
-    info(`Port ${BFF_PORT} (BFF) is not in use — run pnpm pg:dev to start`);
+    info(`Port ${BFF_PORT} (BFF) is not in use — run pnpm pg:up to start`);
   }
 
   const webUp = await portInUse(WEB_PORT);
   if (webUp) {
     pass(`Port ${WEB_PORT} (web) is responding — service is running`);
   } else {
-    info(`Port ${WEB_PORT} (web) is not in use — run pnpm pg:dev to start`);
+    info(`Port ${WEB_PORT} (web) is not in use — run pnpm pg:up web to start`);
   }
 
   log('');
@@ -161,34 +172,89 @@ async function doctor() {
 }
 
 // ---------------------------------------------------------------------------
-// up — start local infrastructure (postgres, otel-collector)
+// up — start local infrastructure with optional target
 // ---------------------------------------------------------------------------
 
 async function up() {
-  // TODO(next-steps/orchestrator): accept [target] arg (core|web|viz|full), wire `prisma migrate deploy` + `prisma db seed` after postgres healthy, detect port collisions. See docs/next-steps/orchestrator.md
-  log(c.bold('\nStarting local app stack...\n'));
-  // Start postgres + otel-collector + the BFF container. --wait blocks
-  // until postgres and bff report healthy. The web app continues to run
-  // on the host via `pnpm pg:dev` (a web Dockerfile is a separate iteration).
-  compose(['up', '-d', '--wait', 'postgres', 'otel-collector', 'bff']);
+  const target = process.argv[3] ?? 'core';
+  const validTargets = ['core', 'web', 'viz', 'full'];
+  if (!validTargets.includes(target)) {
+    log(c.red(`Unknown target "${target}". Use: ${validTargets.join(' | ')}`));
+    process.exit(1);
+  }
+
+  log(c.bold(`\nStarting local app stack (${target})...\n`));
+
+  // Port collision pre-flight — warn if BFF port is already occupied
+  if (await portInUse(BFF_PORT)) {
+    const pid = getPidOnPort(BFF_PORT);
+    fail(`Port ${BFF_PORT} is already in use${pid ? ` (PID ${pid})` : ''}.`);
+    info(`Kill it: kill ${pid ?? '<PID>'}, then re-run.`);
+    process.exit(1);
+  }
+
+  // 1. Start postgres + otel-collector and wait for healthy
+  compose(['up', '-d', '--wait', 'postgres', 'otel-collector']);
+  pass('Postgres is healthy');
+
+  // 2. Run schema migrations (idempotent)
+  info('Running prisma migrate deploy...');
+  const migrateResult = spawnSync(
+    'pnpm',
+    ['--filter', '@mini-commerce/bff', 'exec', 'prisma', 'migrate', 'deploy'],
+    { stdio: 'inherit', shell: false },
+  );
+  if (migrateResult.status !== 0) process.exit(migrateResult.status ?? 1);
+  pass('Schema is up to date');
+
+  // 3. Seed (idempotent — seed.ts uses upsert)
+  info('Running prisma db seed...');
+  const seedResult = spawnSync(
+    'pnpm',
+    ['--filter', '@mini-commerce/bff', 'exec', 'prisma', 'db', 'seed'],
+    { stdio: 'inherit', shell: false },
+  );
+  if (seedResult.status !== 0) process.exit(seedResult.status ?? 1);
+  pass('Seed complete');
+
+  // 4. Start BFF and any additional services for the requested target
+  const profiles = targetToProfiles(target);
+  const extra = additionalServices(target);
+  compose(['up', '-d', '--wait', ...profiles, 'bff', ...extra]);
+
   log('');
-  pass('Postgres is running on port 5432');
-  pass('OpenTelemetry Collector is running on ports 4317 / 4318');
-  pass('BFF is running on http://localhost:3001');
+  pass(`BFF is running on http://localhost:${BFF_PORT}`);
+  if (extra.includes('web')) pass(`Web is running on http://localhost:${WEB_PORT}`);
+  if (extra.includes('visualizer-3d')) pass('Visualizer is running on http://localhost:3002');
   log('');
-  info(`Run ${c.bold('pnpm pg:dev')} to start the web app (and BFF watch-mode if you prefer host hot-reload)`);
-  info(`Run ${c.bold('pnpm pg:doctor')} to validate the full local environment`);
+  info(`Run ${c.bold('pnpm pg:dev')} for hot-reload (docker compose watch)`);
+  info(`Run ${c.bold('pnpm pg:status')} to check service health`);
 }
 
 // ---------------------------------------------------------------------------
-// dev — start development applications via Turborepo
+// dev — docker compose watch (hot-reload for bff + web)
 // ---------------------------------------------------------------------------
 
 async function dev() {
-  log(c.bold('\nStarting development applications...\n'));
-  log(c.dim('Tip: run pnpm pg:up first to ensure Postgres is available.\n'));
+  log(c.bold('\nStarting dev stack (docker compose watch)...\n'));
+  log(c.dim('Tip: run pnpm pg:up first so Postgres is healthy and migrations are applied.\n'));
+  log(c.dim('Ctrl+C to stop.\n'));
+  const result = spawnSync(
+    'docker',
+    ['compose', '-f', COMPOSE_FILE, '-f', COMPOSE_DEV_FILE, '--profile', 'web', 'watch'],
+    { stdio: 'inherit' },
+  );
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
+// ---------------------------------------------------------------------------
+// dev:host — start development applications via Turborepo on the host
+// ---------------------------------------------------------------------------
+
+async function devHost() {
+  log(c.bold('\nStarting development applications (host mode)...\n'));
+  log(c.dim('Tip: run pnpm pg:up core first to ensure Postgres is available.\n'));
   log(c.dim('Ctrl+C to stop all processes.\n'));
-  // Turborepo runs dev scripts for all workspace apps in parallel.
   const result = spawnSync('pnpm', ['turbo', 'run', 'dev'], {
     stdio: 'inherit',
     shell: false,
@@ -279,7 +345,7 @@ async function smoke() {
   } else {
     log(c.red(`${passed}/${total} smoke checks passed.`));
     log('');
-    log(c.dim(`Ensure the BFF is running: pnpm pg:dev`));
+    log(c.dim(`Ensure the BFF is running: pnpm pg:up`));
     process.exit(1);
   }
 }
@@ -309,18 +375,51 @@ async function fetchJson(url, { method = 'GET', body, expectStatus } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// seed — placeholder for local mock data
+// seed — run prisma db seed
 // ---------------------------------------------------------------------------
 
 async function seed() {
   log(c.bold('\nSeed\n'));
-  log(c.yellow('The BFF currently serves deterministic mock responses in-memory.'));
-  log('No database seeding is needed at this stage.');
+  info('Running prisma db seed...');
+  const result = spawnSync(
+    'pnpm',
+    ['--filter', '@mini-commerce/bff', 'exec', 'prisma', 'db', 'seed'],
+    { stdio: 'inherit', shell: false },
+  );
+  if (result.status !== 0) process.exit(result.status ?? 1);
+  pass('Seed complete.');
+}
+
+// ---------------------------------------------------------------------------
+// status — show running service health and ports
+// ---------------------------------------------------------------------------
+
+async function status() {
+  log(c.bold('\nService Status\n'));
+  try {
+    const raw = capture(`docker compose -f ${COMPOSE_FILE} ps --format json`);
+    const lines = raw.trim().split('\n').filter(Boolean);
+    if (lines.length === 0) {
+      info('No services running. Run pnpm pg:up to start.');
+      log('');
+      return;
+    }
+    const services = lines.map((l) => JSON.parse(l));
+    const col = (s, w) => String(s).padEnd(w).slice(0, w);
+    log(`  ${c.bold(col('SERVICE', 20))} ${c.bold(col('STATUS', 12))} ${c.bold(col('HEALTH', 12))} PORTS`);
+    for (const svc of services) {
+      const health = svc.Health || '—';
+      const ports = svc.Publishers
+        ?.filter((p) => p.PublishedPort)
+        .map((p) => `${p.PublishedPort}→${p.TargetPort}`)
+        .join(', ') || '—';
+      const statusColor = svc.State === 'running' ? c.green : c.red;
+      log(`  ${col(svc.Service, 20)} ${statusColor(col(svc.State, 12))} ${col(health, 12)} ${ports}`);
+    }
+  } catch {
+    warn('Could not reach Docker. Is Docker Desktop running?');
+  }
   log('');
-  info('Catalog, cart, checkout, and orders are all mocked inside the BFF modules.');
-  info('Order ord_demo is pre-seeded so /orders endpoints are usable immediately.');
-  // TODO(next-steps/orchestrator): replace this stub with `pnpm --filter @mini-commerce/bff exec prisma db seed`. Catalog seeding is already implemented in apps/bff/prisma/seed.ts. See docs/next-steps/orchestrator.md
-  info('TODO: Add a real seed script once Prisma persistence lands.');
 }
 
 // ---------------------------------------------------------------------------
@@ -330,8 +429,8 @@ async function seed() {
 async function reset() {
   log(c.bold('\nResetting local environment...\n'));
   log(c.yellow('This stops all containers. Postgres data volumes are preserved.'));
-  log(c.dim('To also remove volumes (destructive): docker compose -f infra/docker/compose.yaml down -v\n'));
-  compose(['down']);
+  log(c.dim('To also remove volumes (destructive): docker compose -f infra/docker/compose.yaml down --profile web --profile viz -v\n'));
+  compose(['down', '--profile', 'web', '--profile', 'viz']);
   log('');
   pass('All containers stopped.');
   info(`Run ${c.bold('pnpm pg:up')} to bring infrastructure back up.`);
@@ -343,7 +442,7 @@ async function reset() {
 
 async function down() {
   log(c.bold('\nStopping services...\n'));
-  compose(['down']);
+  compose(['down', '--profile', 'web', '--profile', 'viz']);
   log('');
   pass('Services stopped.');
 }
@@ -404,7 +503,7 @@ async function perfSmoke() {
   // time on a guaranteed-failure run.
   const bffUp = await portInUse(BFF_PORT);
   if (!bffUp && (baseUrl.includes('localhost') || baseUrl.includes('host.docker.internal'))) {
-    warn(`BFF does not appear to be listening on :${BFF_PORT}. Start it with: pnpm pg:dev`);
+    warn(`BFF does not appear to be listening on :${BFF_PORT}. Start it with: pnpm pg:up`);
     log('');
   }
 
@@ -456,8 +555,6 @@ async function perfOpenReport() {
     return;
   }
 
-  // Today the only artifact is JSON summary(ies). Once the imported k6
-  // project produces HTML reports, the heuristic below can be tightened.
   for (const name of entries.sort()) {
     info(`${PERF_REPORTS_DIR}/${name}`);
   }
@@ -525,6 +622,26 @@ function portInUse(port) {
     socket.once('error',   () => resolve(false));
     socket.setTimeout(500, () => { socket.destroy(); resolve(false); });
   });
+}
+
+function getPidOnPort(port) {
+  try {
+    return capture(`lsof -ti:${port}`).trim() || null;
+  } catch { return null; }
+}
+
+function targetToProfiles(target) {
+  const flags = [];
+  if (target === 'web' || target === 'full') flags.push('--profile', 'web');
+  if (target === 'viz' || target === 'full') flags.push('--profile', 'viz');
+  return flags;
+}
+
+function additionalServices(target) {
+  if (target === 'web') return ['web'];
+  if (target === 'viz') return ['visualizer-3d'];
+  if (target === 'full') return ['web', 'visualizer-3d'];
+  return [];
 }
 
 // ---------------------------------------------------------------------------
