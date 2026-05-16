@@ -7,6 +7,12 @@
 
 This document tracks the readiness status of frontend components, API integrations, and upcoming work. It is designed to help reviewers understand what is complete, what is prototype-only, and what dependencies exist.
 
+**Mock catalog:** 7 products (Espresso, Latte, Water, Cookie, Sandwich, Notebook, Backpack)
+
+**Mock scenarios:** happy, loading, empty, error, cart-filled, checkout-failure
+
+**Visualizer states:** Controlled by `NEXT_PUBLIC_VISUALIZER_URL` env var (not mock scenarios)
+
 ---
 
 ## 1. Foundation

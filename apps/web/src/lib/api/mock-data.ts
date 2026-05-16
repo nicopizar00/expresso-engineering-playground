@@ -7,12 +7,16 @@
  *
  * ## Scenario System
  *
- * The mock layer supports multiple scenarios for testing different UI states:
- * - happy: Normal operation with sample data
+ * The mock layer supports scenarios for testing different UI states:
+ * - happy: Normal operation with 7 sample products (includes checkout success)
  * - empty: Empty catalog and orders
- * - loading: Artificial delay to see loading states
- * - error: Simulate API failures
+ * - loading: Artificial delay (2s) to see loading states
+ * - error: Simulate API failures (500/503)
  * - cart-filled: Pre-populated cart for checkout testing
+ * - checkout-failure: Checkout always fails
+ *
+ * Note: Visualizer configured/missing states are controlled by the
+ * NEXT_PUBLIC_VISUALIZER_URL environment variable, not by mock scenarios.
  *
  * TODO(types): Import types from @mini-commerce/contracts once promoted.
  * TODO(api-wire): Replace mock API with repository adapter when ready.
@@ -38,10 +42,7 @@ export type MockScenario =
   | 'loading'
   | 'error'
   | 'cart-filled'
-  | 'checkout-success'
-  | 'checkout-failure'
-  | 'visualizer-configured'
-  | 'visualizer-missing';
+  | 'checkout-failure';
 
 let currentScenario: MockScenario = 'happy';
 
@@ -51,7 +52,7 @@ export function setMockScenario(scenario: MockScenario): void {
   if (scenario === 'empty') {
     mockCartItems = [];
   } else if (scenario === 'cart-filled') {
-    // Pre-fill cart with sample items
+    // Pre-fill cart with sample items from the 7-product catalog
     mockCartItems = [
       {
         itemId: 'item_demo_001',
@@ -71,11 +72,11 @@ export function setMockScenario(scenario: MockScenario): void {
       },
       {
         itemId: 'item_demo_003',
-        productId: 'prod_croissant_001',
-        name: 'Butter Croissant',
-        unitPrice: money(375),
+        productId: 'prod_cookie_001',
+        name: 'Chocolate Chip Cookie',
+        unitPrice: money(300),
         quantity: 3,
-        lineTotal: money(1125),
+        lineTotal: money(900),
       },
     ];
   } else if (scenario === 'happy') {
@@ -136,15 +137,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     inventory: 35,
   },
   {
-    productId: 'prod_cappuccino_001',
-    sku: 'CAP-001',
-    name: 'Cappuccino',
-    description: 'Equal parts espresso, steamed milk, and velvety foam.',
-    category: 'drink',
-    price: money(475),
-    inventory: 40,
-  },
-  {
     productId: 'prod_water_001',
     sku: 'WAT-001',
     name: 'Sparkling Water',
@@ -152,15 +144,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     category: 'drink',
     price: money(250),
     inventory: 100,
-  },
-  {
-    productId: 'prod_croissant_001',
-    sku: 'CRO-001',
-    name: 'Butter Croissant',
-    description: 'Flaky, buttery French-style croissant baked fresh daily.',
-    category: 'food',
-    price: money(375),
-    inventory: 20,
   },
   {
     productId: 'prod_cookie_001',
@@ -269,7 +252,7 @@ export function clearMockCart(): void {
 
 const mockOrders: Map<string, Order> = new Map();
 
-// Pre-populate a sample order for order lookup testing
+// Pre-populate a sample order for order lookup testing (uses 7-product catalog)
 const sampleOrder: Order = {
   orderId: 'ord_sample_001',
   customerName: 'Demo Customer',
@@ -283,14 +266,14 @@ const sampleOrder: Order = {
       lineTotal: money(700),
     },
     {
-      productId: 'prod_croissant_001',
-      name: 'Butter Croissant',
+      productId: 'prod_cookie_001',
+      name: 'Chocolate Chip Cookie',
       quantity: 1,
-      unitPrice: money(375),
-      lineTotal: money(375),
+      unitPrice: money(300),
+      lineTotal: money(300),
     },
   ],
-  total: money(1075),
+  total: money(1000),
   placedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 min ago
   updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 min ago
 };
