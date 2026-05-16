@@ -21,6 +21,7 @@
     "format": "echo 'TODO: wire prettier/eslint'",
     "pg:doctor": "node scripts/playground.mjs doctor",
     "pg:up": "node scripts/playground.mjs up",
+    "pg:restart": "node scripts/playground.mjs restart",
     "pg:dev": "node scripts/playground.mjs dev",
     "pg:dev:host": "node scripts/playground.mjs dev:host",
     "pg:status": "node scripts/playground.mjs status",
