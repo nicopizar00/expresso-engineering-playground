@@ -251,7 +251,7 @@ export default function CheckoutPage() {
           style={{ color: 'var(--muted-foreground)' }}
         >
           This is a playground environment. No real payment is processed. Orders
-          reset when the BFF restarts (in-memory storage).
+          are persisted to PostgreSQL and survive BFF restarts.
         </p>
       </div>
     </div>

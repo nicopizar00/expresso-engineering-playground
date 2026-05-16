@@ -16,15 +16,28 @@ When the count drops to zero, the topic is done.
 
 ## Open threads (priority order)
 
-1. **[Orders persistence](orders-persistence.md)** — *5 anchors*
-   Phase 2 follow-up. Move orders from in-memory `Map` to Prisma so they
-   survive BFF restarts (today they reset on every boot). Cart stays
-   in-memory by design. Critical files: `OrdersService`, `OrdersModule`,
-   Prisma schema, `CheckoutService`, tests.
+1. **OpenTelemetry SDK** — wire the OTel SDK in `apps/bff/src/common/telemetry.ts`
+   (currently a no-op placeholder). Add span instrumentation to at least one
+   domain service. Required before k6 → Grafana dashboard work begins.
 
-2. More coming — iterate on spec as Phase 2 stabilizes.
+2. **k6 scenario library** — add `checkout-flow.js` and `read-heavy.js` scenarios
+   under `tests/performance/k6/`. See `docs/project-state/k6-readiness.md` for
+   the canonical skeleton and readiness checklist.
+
+3. More coming — iterate as Phase 2 stabilizes.
 
 ## Done
+
+✅ **[Orders persistence](orders-persistence.md)** — *0 anchors remaining*
+   - `Order` + `OrderLine` Prisma models added to schema
+   - Migration `20260516022844_init_orders` applied
+   - `OrdersService` uses Prisma + warm sync cache via `OnModuleInit`
+   - `listAll()` / `get()` remain synchronous (cache reads)
+   - `create()` / `manage()` are async (write to DB, mutate cache)
+   - `CheckoutService.checkout()` awaits `orders.create()`
+   - `seed.ts` seeds `ord_demo` order
+   - `GET /orders` list endpoint added; orders visible from browser without knowing ID
+   - `orders.service.spec.ts` + `orders.controller.spec.ts` cover all paths
 
 ✅ **[Orchestrator wire-up](orchestrator.md)** — *0 anchors remaining*
    - Root `.env` centralizes all config (POSTGRES_USER, BFF_PORT, WEB_PORT, etc.)

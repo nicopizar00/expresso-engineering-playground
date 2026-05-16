@@ -47,6 +47,7 @@ import {
   addMockCartItem,
   createMockOrder,
   getMockOrder,
+  getAllMockOrders,
   updateMockOrderStatus,
   getMockHealth,
   shouldSimulateError,
@@ -76,6 +77,7 @@ import type {
   OrderStatus,
   OrderLine,
   Order,
+  OrdersResponse,
   OrderManageAction,
   ManageOrderRequest,
   ManageOrderResponse,
@@ -93,6 +95,7 @@ export type {
   OrderStatus,
   OrderLine,
   Order,
+  OrdersResponse,
   OrderManageAction,
   ManageOrderResponse,
   HealthReport,
@@ -255,6 +258,11 @@ const mockApi = {
     return createMockOrder(input.customerName);
   },
 
+  async getOrders(): Promise<OrdersResponse> {
+    await simulateLatency();
+    return getAllMockOrders();
+  },
+
   async getOrderById(orderId: string): Promise<Order> {
     await simulateLatency();
     const order = getMockOrder(orderId);
@@ -340,6 +348,10 @@ const realApi = {
     return request<CheckoutResponse>('POST', '/checkout', input);
   },
 
+  getOrders(): Promise<OrdersResponse> {
+    return request<OrdersResponse>('GET', '/orders');
+  },
+
   getOrderById(orderId: string): Promise<Order> {
     return request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`);
   },
@@ -385,6 +397,10 @@ export const expressoApi = {
 
   checkout(input: CheckoutInput): Promise<CheckoutResponse> {
     return isDemoMode() ? mockApi.checkout(input) : realApi.checkout(input);
+  },
+
+  getOrders(): Promise<OrdersResponse> {
+    return isDemoMode() ? mockApi.getOrders() : realApi.getOrders();
   },
 
   getOrderById(orderId: string): Promise<Order> {
