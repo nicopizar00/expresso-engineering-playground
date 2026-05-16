@@ -9,13 +9,25 @@
  */
 
 import { spawnSync, execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { createConnection } from 'node:net';
 import { platform } from 'node:os';
 
+// Auto-bootstrap .env from .env.example so the README quick start is
+// zero-ceremony. Defaults in .env.example are safe local-only values.
+const ENV_PATH = new URL('../.env', import.meta.url);
+const ENV_EXAMPLE_PATH = new URL('../.env.example', import.meta.url);
+let envBootstrapped = false;
+try {
+  if (!existsSync(ENV_PATH) && existsSync(ENV_EXAMPLE_PATH)) {
+    copyFileSync(ENV_EXAMPLE_PATH, ENV_PATH);
+    envBootstrapped = true;
+  }
+} catch { /* fall through — env load below will surface the issue */ }
+
 // Load root .env into process.env; silently skip if absent.
 try {
-  const raw = readFileSync(new URL('../.env', import.meta.url), 'utf8');
+  const raw = readFileSync(ENV_PATH, 'utf8');
   for (const line of raw.split('\n')) {
     const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
@@ -65,6 +77,8 @@ const COMMANDS = {
   open,
   status,
   'perf:smoke': perfSmoke,
+  'perf:checkout-flow': perfCheckoutFlow,
+  'perf:read-heavy': perfReadHeavy,
   'perf:open-report': perfOpenReport,
   'perf:clean': perfClean,
 };
@@ -139,11 +153,15 @@ async function doctor() {
     allOk = false;
   }
 
-  // Root .env file
+  // Root .env file — auto-bootstrapped above if missing.
   if (existsSync('.env')) {
-    pass('.env exists');
+    if (envBootstrapped) {
+      pass('.env created from .env.example');
+    } else {
+      pass('.env exists');
+    }
   } else {
-    warn('.env not found — run: cp .env.example .env');
+    fail('.env not found and .env.example missing — restore .env.example');
     allOk = false;
   }
 
@@ -185,6 +203,10 @@ async function up(targetOverride) {
   }
 
   log(c.bold(`\nStarting local app stack (${target})...\n`));
+
+  if (envBootstrapped) {
+    pass('.env created from .env.example');
+  }
 
   // Port collision pre-flight — stop existing Docker services if port is occupied.
   if (await portInUse(BFF_PORT)) {
@@ -554,6 +576,106 @@ async function perfSmoke() {
   } else {
     fail(`k6 smoke failed (exit code ${result.status ?? 'unknown'}).`);
     info('Re-run with verbose output: docker compose -f infra/docker/compose.performance.yaml run --rm k6 run --verbose /scripts/scenarios/smoke/smoke.js');
+    process.exit(result.status ?? 1);
+  }
+}
+
+// perf:checkout-flow — run the k6 checkout-flow scenario via Docker Compose
+// ---------------------------------------------------------------------------
+
+async function perfCheckoutFlow() {
+  log(c.bold('\nPerformance checkout-flow (k6)\n'));
+
+  const baseUrl = process.env.BASE_URL ?? 'http://host.docker.internal:3001';
+  const scenario = 'scenarios/checkout-flow/checkout-flow.js';
+  const summaryPath = '/scripts/reports/checkout-flow-summary.json';
+
+  info(`Target  : ${baseUrl}`);
+  info(`Scenario: ${scenario}`);
+  info(`Summary : ${PERF_REPORTS_DIR}/checkout-flow-summary.json`);
+  log('');
+
+  const bffUp = await portInUse(BFF_PORT);
+  if (!bffUp && (baseUrl.includes('localhost') || baseUrl.includes('host.docker.internal'))) {
+    warn(`BFF does not appear to be listening on :${BFF_PORT}. Start it with: pnpm pg:up`);
+    log('');
+  }
+
+  const result = spawnSync(
+    'docker',
+    [
+      'compose',
+      '-f',
+      PERF_COMPOSE_FILE,
+      'run',
+      '--rm',
+      '-e',
+      `BASE_URL=${baseUrl}`,
+      'k6',
+      'run',
+      '--summary-export',
+      summaryPath,
+      `/scripts/${scenario}`,
+    ],
+    { stdio: 'inherit' },
+  );
+
+  log('');
+  if (result.status === 0) {
+    pass('k6 checkout-flow completed.');
+    info(`Summary written to ${PERF_REPORTS_DIR}/checkout-flow-summary.json`);
+  } else {
+    fail(`k6 checkout-flow failed (exit code ${result.status ?? 'unknown'}).`);
+    process.exit(result.status ?? 1);
+  }
+}
+
+// perf:read-heavy — run the k6 read-heavy scenario via Docker Compose
+// ---------------------------------------------------------------------------
+
+async function perfReadHeavy() {
+  log(c.bold('\nPerformance read-heavy (k6)\n'));
+
+  const baseUrl = process.env.BASE_URL ?? 'http://host.docker.internal:3001';
+  const scenario = 'scenarios/read-heavy/read-heavy.js';
+  const summaryPath = '/scripts/reports/read-heavy-summary.json';
+
+  info(`Target  : ${baseUrl}`);
+  info(`Scenario: ${scenario}`);
+  info(`Summary : ${PERF_REPORTS_DIR}/read-heavy-summary.json`);
+  log('');
+
+  const bffUp = await portInUse(BFF_PORT);
+  if (!bffUp && (baseUrl.includes('localhost') || baseUrl.includes('host.docker.internal'))) {
+    warn(`BFF does not appear to be listening on :${BFF_PORT}. Start it with: pnpm pg:up`);
+    log('');
+  }
+
+  const result = spawnSync(
+    'docker',
+    [
+      'compose',
+      '-f',
+      PERF_COMPOSE_FILE,
+      'run',
+      '--rm',
+      '-e',
+      `BASE_URL=${baseUrl}`,
+      'k6',
+      'run',
+      '--summary-export',
+      summaryPath,
+      `/scripts/${scenario}`,
+    ],
+    { stdio: 'inherit' },
+  );
+
+  log('');
+  if (result.status === 0) {
+    pass('k6 read-heavy completed.');
+    info(`Summary written to ${PERF_REPORTS_DIR}/read-heavy-summary.json`);
+  } else {
+    fail(`k6 read-heavy failed (exit code ${result.status ?? 'unknown'}).`);
     process.exit(result.status ?? 1);
   }
 }
