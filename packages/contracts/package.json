@@ -10,5 +10,8 @@
     "lint": "echo 'TODO: wire eslint'",
     "typecheck": "echo 'TODO: wire tsc --noEmit'",
     "test": "echo 'TODO: wire contract self-tests'"
+  },
+  "dependencies": {
+    "@mini-commerce/shared-types": "workspace:*"
   }
 }

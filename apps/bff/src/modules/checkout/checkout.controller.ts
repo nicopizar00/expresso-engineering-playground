@@ -9,7 +9,7 @@ export class CheckoutController {
 
   @Post()
   @HttpCode(201)
-  create(@Body() body: CheckoutDto): CheckoutResponse {
+  create(@Body() body: CheckoutDto): Promise<CheckoutResponse> {
     return this.checkout.checkout(body);
   }
 }
