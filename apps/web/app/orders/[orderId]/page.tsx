@@ -121,7 +121,7 @@ export default function OrderPage({ params }: OrderPageProps) {
     );
   }
 
-  const status = statusConfig[order.status];
+  const status = statusConfig[order.status]!;
   const StatusIcon = status.icon;
 
   return (
