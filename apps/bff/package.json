@@ -17,9 +17,6 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node --project tsconfig.json --transpile-only prisma/seed.ts"
   },
-  "prisma": {
-    "seed": "ts-node --project tsconfig.json --transpile-only prisma/seed.ts"
-  },
   "dependencies": {
     "@mini-commerce/shared-types": "workspace:*",
     "@nestjs/common": "^10.3.0",

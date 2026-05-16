@@ -54,6 +54,7 @@ const info  = (label)     => log(`  ${c.dim('→')} ${label}`);
 const COMMANDS = {
   doctor,
   up,
+  restart,
   dev,
   'dev:host': devHost,
   smoke,
@@ -175,8 +176,8 @@ async function doctor() {
 // up — start local infrastructure with optional target
 // ---------------------------------------------------------------------------
 
-async function up() {
-  const target = process.argv[3] ?? 'core';
+async function up(targetOverride) {
+  const target = targetOverride ?? process.argv[3] ?? 'core';
   const validTargets = ['core', 'web', 'viz', 'full'];
   if (!validTargets.includes(target)) {
     log(c.red(`Unknown target "${target}". Use: ${validTargets.join(' | ')}`));
@@ -185,12 +186,19 @@ async function up() {
 
   log(c.bold(`\nStarting local app stack (${target})...\n`));
 
-  // Port collision pre-flight — warn if BFF port is already occupied
+  // Port collision pre-flight — stop existing Docker services if port is occupied.
   if (await portInUse(BFF_PORT)) {
-    const pid = getPidOnPort(BFF_PORT);
-    fail(`Port ${BFF_PORT} is already in use${pid ? ` (PID ${pid})` : ''}.`);
-    info(`Kill it: kill ${pid ?? '<PID>'}, then re-run.`);
-    process.exit(1);
+    warn(`Port ${BFF_PORT} is in use — stopping existing services...`);
+    compose(['down'], { profiles: ['web', 'viz'] });
+    // Give the port a moment to free after container shutdown.
+    await new Promise((r) => setTimeout(r, 1500));
+    if (await portInUse(BFF_PORT)) {
+      const pid = getPidOnPort(BFF_PORT);
+      fail(`Port ${BFF_PORT} is still occupied${pid ? ` (PID ${pid})` : ''} after stopping Docker services.`);
+      info(`Kill the non-Docker process: kill ${pid ?? '<PID>'}`);
+      process.exit(1);
+    }
+    pass(`Port ${BFF_PORT} is free`);
   }
 
   // 1. Start postgres + otel-collector and wait for healthy
@@ -429,8 +437,8 @@ async function status() {
 async function reset() {
   log(c.bold('\nResetting local environment...\n'));
   log(c.yellow('This stops all containers. Postgres data volumes are preserved.'));
-  log(c.dim('To also remove volumes (destructive): docker compose -f infra/docker/compose.yaml down --profile web --profile viz -v\n'));
-  compose(['down', '--profile', 'web', '--profile', 'viz']);
+  log(c.dim('To also remove volumes (destructive): docker compose --profile web --profile viz -f infra/docker/compose.yaml down -v\n'));
+  compose(['down'], { profiles: ['web', 'viz'] });
   log('');
   pass('All containers stopped.');
   info(`Run ${c.bold('pnpm pg:up')} to bring infrastructure back up.`);
@@ -442,9 +450,22 @@ async function reset() {
 
 async function down() {
   log(c.bold('\nStopping services...\n'));
-  compose(['down', '--profile', 'web', '--profile', 'viz']);
+  compose(['down'], { profiles: ['web', 'viz'] });
   log('');
   pass('Services stopped.');
+}
+
+// ---------------------------------------------------------------------------
+// restart — stop all services then bring them back up
+// ---------------------------------------------------------------------------
+
+async function restart() {
+  const target = process.argv[3] ?? 'full';
+  log(c.bold(`\nRestarting local app stack (${target})...\n`));
+  compose(['down'], { profiles: ['web', 'viz'] });
+  pass('Services stopped');
+  log('');
+  await up(target);
 }
 
 // ---------------------------------------------------------------------------
@@ -602,14 +623,17 @@ function capture(cmd) {
   return execSync(cmd, { encoding: 'utf8', stdio: 'pipe' });
 }
 
-function compose(args) {
+// profiles must be passed here (not inside args) — docker compose requires
+// --profile as a global flag before the subcommand, not after.
+function compose(args, { profiles = [] } = {}) {
+  const profileFlags = profiles.flatMap((p) => ['--profile', p]);
   const result = spawnSync(
     'docker',
-    ['compose', '-f', COMPOSE_FILE, ...args],
+    ['compose', ...profileFlags, '-f', COMPOSE_FILE, ...args],
     { stdio: 'inherit' },
   );
   if (result.status !== 0) {
-    log(c.red(`\ndocker compose ${args.join(' ')} failed`));
+    log(c.red(`\ndocker compose ${[...profileFlags, ...args].join(' ')} failed`));
     log(c.dim('Is Docker Desktop running? Try: pnpm pg:doctor'));
     process.exit(result.status ?? 1);
   }

@@ -44,6 +44,11 @@ tasks:
     cmds:
       - pnpm pg:down
 
+  restart:
+    desc: Stop all services then bring them back up (default target: full)
+    cmds:
+      - pnpm pg:restart {{.CLI_ARGS}}
+
   reset:
     desc: Stop all containers (volumes preserved)
     cmds:
