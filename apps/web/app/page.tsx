@@ -1,5 +1,23 @@
 'use client';
 
+// Mini Commerce / Expresso playground page.
+//
+// This is the developer-facing card grid that proves end-to-end
+// connectivity to the BFF. It is intentionally utilitarian — the polished
+// shopper-facing UI will land via v0.app under `src/components/<domain>/`
+// and consume `src/lib/api/expresso-api.ts` instead of the inline `fetch`
+// calls below.
+//
+// TODO(v0): Once the v0.app-generated screens land at `/catalog`,
+//   `/catalog/[productId]`, `/cart`, `/checkout`, and `/orders/[orderId]`,
+//   move this page to `apps/web/app/dev/page.tsx` as a debug surface.
+//   See docs/frontend/v0-wiring-plan.md for the migration plan.
+// TODO(api-wire): Replace every inline `fetch(...)` in the cards below with
+//   calls to `expressoApi.*` from `apps/web/src/lib/api/expresso-api.ts`.
+// TODO(types): Drop the inline `Product` and `ApiResult` types in favour of
+//   the typed responses exported from `expresso-api.ts` (and eventually
+//   `@mini-commerce/contracts`).
+
 import { useState } from 'react';
 
 const API_BASE =
@@ -83,6 +101,12 @@ function HealthCard() {
 // ---------------------------------------------------------------------------
 // Catalog: load products
 // ---------------------------------------------------------------------------
+//
+// TODO(v0): Replace this utilitarian list with the v0.app-generated
+//   `ProductCatalogGrid` from `src/components/catalog/`. Feed it via
+//   `productListVM(expressoApi.getProducts())`.
+// TODO(ux): Add loading skeleton + empty state from the v0 design system
+//   instead of the inline "Loading…" string.
 
 type Product = {
   productId: string;
@@ -145,6 +169,10 @@ function CatalogCard({
 // ---------------------------------------------------------------------------
 // Add to cart
 // ---------------------------------------------------------------------------
+//
+// TODO(state): Replace this card-local mock interaction with `useCart()`
+//   from `src/components/cart/CartProvider.tsx` so adding an item refreshes
+//   the cart drawer and the header count.
 
 function AddToCartCard({ products }: { products: Product[] | null }) {
   const { result, loading, call } = useApiCall();
@@ -225,6 +253,11 @@ function ViewCartCard() {
 // ---------------------------------------------------------------------------
 // Checkout
 // ---------------------------------------------------------------------------
+//
+// TODO(v0): Replace with the `CheckoutForm` from
+//   `src/components/orders/` and route success to `/orders/[orderId]`.
+// TODO(error-handling): Surface 400 / 409 from the BFF as a field-level
+//   error rather than a raw JSON dump.
 
 function CheckoutCard() {
   const { result, loading, call } = useApiCall();
@@ -263,6 +296,11 @@ function CheckoutCard() {
 // ---------------------------------------------------------------------------
 // Order lookup
 // ---------------------------------------------------------------------------
+//
+// TODO(v0): Replace manual order-id entry with a routed
+//   `/orders/[orderId]` page rendering `OrderSummary`. Until orders
+//   persist (docs/next-steps/orders-persistence.md), surface the
+//   "resets on BFF restart" caveat in the empty state.
 
 function OrderLookupCard() {
   const { result, loading, call } = useApiCall();
