@@ -22,6 +22,8 @@
     "pg:doctor": "node scripts/playground.mjs doctor",
     "pg:up": "node scripts/playground.mjs up",
     "pg:dev": "node scripts/playground.mjs dev",
+    "pg:dev:host": "node scripts/playground.mjs dev:host",
+    "pg:status": "node scripts/playground.mjs status",
     "pg:smoke": "node scripts/playground.mjs smoke",
     "pg:seed": "node scripts/playground.mjs seed",
     "pg:reset": "node scripts/playground.mjs reset",

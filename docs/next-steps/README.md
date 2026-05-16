@@ -16,17 +16,22 @@ When the count drops to zero, the topic is done.
 
 ## Open threads (priority order)
 
-1. **[Orchestrator wire-up](orchestrator.md)** — *3 anchors*
-   Make `pnpm pg:*` the single canonical interface: containerize web, add
-   compose profiles, wire `prisma migrate`/`db seed` into `pg:up`,
-   centralize env, retire `scripts/*.sh`. Resolves the host/container
-   port-3001 collision class of bugs.
-
-2. **[Orders persistence](orders-persistence.md)** — *3 anchors*
+1. **[Orders persistence](orders-persistence.md)** — *5 anchors*
    Phase 2 follow-up. Move orders from in-memory `Map` to Prisma so they
    survive BFF restarts (today they reset on every boot). Cart stays
-   in-memory by design.
+   in-memory by design. Critical files: `OrdersService`, `OrdersModule`,
+   Prisma schema, `CheckoutService`, tests.
+
+2. More coming — iterate on spec as Phase 2 stabilizes.
 
 ## Done
 
-_(none yet — entries land here as topics close)_
+✅ **[Orchestrator wire-up](orchestrator.md)** — *0 anchors remaining*
+   - Root `.env` centralizes all config (POSTGRES_USER, BFF_PORT, WEB_PORT, etc.)
+   - `pnpm pg:up [core|web|viz|full]` with target profiles
+   - `pnpm pg:dev` → docker compose watch (hot-reload for bff + web)
+   - `pnpm pg:status` shows service health
+   - Containerized web app + Dockerfile (Next.js standalone)
+   - Auto-run `prisma migrate deploy` + `prisma db seed` on `pg:up`
+   - Shell scripts shimmed to `pnpm pg:*` delegation
+   - Development: `pnpm pg:dev:host` escape hatch for turbo run dev on host

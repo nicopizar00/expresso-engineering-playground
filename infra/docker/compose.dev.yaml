@@ -1,0 +1,37 @@
+# Development override for docker compose watch (pg:dev).
+#
+# Merge with compose.yaml via:
+#   docker compose -f infra/docker/compose.yaml -f infra/docker/compose.dev.yaml --profile web watch
+#
+# This file is only used by `pnpm pg:dev`. It switches bff and web to their
+# `dev` Dockerfile stages (nest --watch and next dev respectively) and defines
+# the watch rules that tell Docker which file changes to sync into containers.
+#
+# Sync rules:
+#   bff  — src/ changes synced into the container; nest --watch picks them up.
+#           package.json changes trigger a full image rebuild.
+#   web  — app/ and public/ changes synced; next dev HMR picks them up.
+#           package.json changes trigger a full image rebuild.
+
+services:
+  bff:
+    build:
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/bff/src
+          target: /workspace/apps/bff/src
+        - action: rebuild
+          path: apps/bff/package.json
+
+  web:
+    build:
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/web/app
+          target: /workspace/apps/web/app
+        - action: rebuild
+          path: apps/web/package.json
