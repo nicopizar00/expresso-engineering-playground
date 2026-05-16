@@ -48,6 +48,10 @@ pnpm typecheck    # turbo run typecheck (tsc --noEmit across all packages)
 
 `pnpm lint` and `pnpm format` are stubbed (TODOs).
 
+### Task wrappers (optional)
+
+`Taskfile.yml` at the repo root mirrors the commands above for users with [`go-task`](https://taskfile.dev) installed (`brew install go-task`). It is a thin shell-out to the `pnpm pg:*` and turbo scripts — `package.json` remains the source of truth. Use `pnpm pg:*` in docs, CI, and agent instructions; `task` is for human convenience only. Examples: `task up` → `pnpm pg:up core`, `task dev` → `pnpm pg:dev`, `task smoke` → `pnpm pg:smoke`. Run `task --list` to discover all wrappers.
+
 ### Single app / single test
 
 ```bash
