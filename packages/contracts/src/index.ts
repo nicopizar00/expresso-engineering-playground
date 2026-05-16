@@ -93,6 +93,10 @@ export interface Order {
   readonly updatedAt: string;
 }
 
+export interface OrdersResponse {
+  readonly items: ReadonlyArray<Order>;
+}
+
 export interface ManageOrderRequest {
   readonly action: OrderManageAction;
   readonly nextStatus?: OrderStatus;
