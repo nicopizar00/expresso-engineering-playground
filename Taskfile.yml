@@ -1,0 +1,120 @@
+version: '3'
+
+# Thin wrapper over `pnpm pg:*` (scripts/playground.mjs) and the canonical
+# turbo commands. Both interfaces are valid; this file exists so users with
+# `go-task` installed can type `task up` instead of `pnpm pg:up core`.
+# The pnpm scripts in package.json remain the source of truth.
+
+tasks:
+  default:
+    desc: List all tasks
+    cmds:
+      - task --list
+    silent: true
+
+  # ── Setup ───────────────────────────────────────────────────────────────
+  doctor:
+    desc: Validate Node, pnpm, Docker, .env prerequisites
+    cmds:
+      - pnpm pg:doctor
+
+  # ── Lifecycle (Docker stack) ────────────────────────────────────────────
+  up:
+    desc: Start core stack (postgres + bff + otel-collector)
+    cmds:
+      - pnpm pg:up core
+
+  up:web:
+    desc: Start core + Next.js web
+    cmds:
+      - pnpm pg:up web
+
+  up:viz:
+    desc: Start visualizer-3d (joins core if not running)
+    cmds:
+      - pnpm pg:up viz
+
+  up:full:
+    desc: Start all services (core + web + viz)
+    cmds:
+      - pnpm pg:up full
+
+  down:
+    desc: Stop services cleanly
+    cmds:
+      - pnpm pg:down
+
+  reset:
+    desc: Stop all containers (volumes preserved)
+    cmds:
+      - pnpm pg:reset
+
+  # ── Dev loop ────────────────────────────────────────────────────────────
+  dev:
+    desc: Hot-reload via docker compose watch (recommended)
+    cmds:
+      - pnpm pg:dev
+
+  dev:host:
+    desc: Hot-reload on host via turbo (escape hatch)
+    cmds:
+      - pnpm pg:dev:host
+
+  # ── Inspection ──────────────────────────────────────────────────────────
+  status:
+    desc: Service health table
+    cmds:
+      - pnpm pg:status
+
+  logs:
+    desc: Follow docker compose logs
+    cmds:
+      - pnpm pg:logs
+
+  open:
+    desc: Print local URLs
+    cmds:
+      - pnpm pg:open
+
+  # ── Data / smoke ────────────────────────────────────────────────────────
+  smoke:
+    desc: Hit all 9 endpoints and assert 200/201
+    cmds:
+      - pnpm pg:smoke
+
+  seed:
+    desc: Run prisma db seed
+    cmds:
+      - pnpm pg:seed
+
+  # ── Build / test / typecheck ────────────────────────────────────────────
+  build:
+    desc: Build all packages (turbo)
+    cmds:
+      - pnpm build
+
+  test:
+    desc: Run unit tests across all packages (Vitest via turbo)
+    cmds:
+      - pnpm test
+
+  typecheck:
+    desc: tsc --noEmit across all packages
+    cmds:
+      - pnpm typecheck
+
+  # ── Performance ─────────────────────────────────────────────────────────
+  perf:smoke:
+    desc: k6 smoke profile in Docker (5–10 s)
+    cmds:
+      - pnpm pg:perf:smoke
+
+  perf:report:
+    desc: Open k6 HTML report
+    cmds:
+      - pnpm pg:perf:open-report
+
+  perf:clean:
+    desc: Delete k6 reports
+    cmds:
+      - pnpm pg:perf:clean
