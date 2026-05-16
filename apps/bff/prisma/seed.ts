@@ -21,6 +21,42 @@ async function main() {
     });
   }
   console.log(`Seeded ${PRODUCTS.length} products.`);
+
+  await prisma.order.upsert({
+    where: { orderId: "ord_demo" },
+    update: {},
+    create: {
+      orderId: "ord_demo",
+      customerName: "Demo Customer",
+      status: "pending",
+      totalAmountMinor: 560,
+      totalCurrency: "EUR",
+      placedAt: new Date("2026-05-14T12:00:00.000Z"),
+      lines: {
+        create: [
+          {
+            productId: "prod_espresso",
+            name: "Espresso",
+            quantity: 2,
+            unitAmountMinor: 180,
+            unitCurrency: "EUR",
+            lineAmountMinor: 360,
+            lineCurrency: "EUR",
+          },
+          {
+            productId: "prod_cookie",
+            name: "Cookie",
+            quantity: 1,
+            unitAmountMinor: 200,
+            unitCurrency: "EUR",
+            lineAmountMinor: 200,
+            lineCurrency: "EUR",
+          },
+        ],
+      },
+    },
+  });
+  console.log("Seeded ord_demo order.");
 }
 
 main()
