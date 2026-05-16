@@ -17,8 +17,7 @@ export class CheckoutService {
   // cart, hands it to OrdersService.create(), then clears the cart so the
   // playground UI starts fresh.
   // TODO: real payment + idempotency once persistence is wired.
-  // TODO(next-steps/orders-persistence): once OrdersService.create() becomes async (Prisma swap), make this method async and `await this.orders.create(...)`. The controller already supports a Promise return. See docs/next-steps/orders-persistence.md
-  checkout(payload: CheckoutDto): CheckoutResponse {
+  async checkout(payload: CheckoutDto): Promise<CheckoutResponse> {
     const items = this.cart.currentItems();
     if (items.length === 0) {
       throw new BadRequestException("cart is empty");
@@ -38,7 +37,7 @@ export class CheckoutService {
       currency,
     };
 
-    const order = this.orders.create({
+    const order = await this.orders.create({
       customerName: payload.customerName,
       lines,
       total,
