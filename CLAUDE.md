@@ -12,30 +12,47 @@ The codebase is a **deliberate skeleton**: business logic is mocked (in-memory),
 
 ### Developer loop
 
+Two equivalent CLIs — pick one based on what's installed:
+
+| Goal | Docker-only (`./dev`) | pnpm wrapper |
+|---|---|---|
+| Start core stack | `./dev up` | `pnpm pg:up core` |
+| Start + web app | `./dev up web` | `pnpm pg:up web` |
+| Start everything | `./dev up full` | `pnpm pg:up full` |
+| Hot-reload dev | `./dev dev` | `pnpm pg:dev` |
+| Service status | `./dev status` | `pnpm pg:status` |
+| Follow logs | `./dev logs` | `pnpm pg:logs` |
+| Smoke test | `./dev smoke` | `pnpm pg:smoke` |
+| Seed database | `./dev seed` | `pnpm pg:seed` |
+| Stop services | `./dev down` | `pnpm pg:down` |
+| Print URLs | `./dev open` | `pnpm pg:open` |
+
+**`./dev`** — requires Docker Desktop only (bash is built-in on macOS). Migrations and seeds run inside containers; no Node or pnpm on the host.
+
+**`pnpm pg:*`** — requires Node ≥ 20 + pnpm 9 on the host in addition to Docker.
+
 ```bash
 # Fresh setup: copy .env template to .env (gitignored)
 cp .env.example .env
 
-# Start infrastructure stack
-pnpm pg:up core       # postgres + otel-collector + bff (auto-migrates + seeds)
-pnpm pg:up web        # + Next.js web app
-pnpm pg:up full       # + visualizer-3d (all services)
-pnpm pg:up viz        # start visualizer only
+# Start infrastructure stack (Docker-only path)
+./dev up            # postgres + otel-collector + bff (auto-migrates + seeds)
+./dev up web        # + Next.js web app
+./dev up full       # + visualizer-3d (all services)
 
 # Development: hot-reload via docker compose watch (bff + web in containers)
-pnpm pg:dev           # docker compose watch (recommended)
-pnpm pg:dev:host      # turbo run dev on host (escape hatch)
+./dev dev           # docker compose watch (recommended)
+pnpm pg:dev:host    # turbo run dev on host (escape hatch — requires pnpm)
 
 # Inspection
-pnpm pg:status        # service health table
-pnpm pg:logs          # follow docker compose logs
-pnpm pg:open          # print local URLs
+./dev status        # service health table
+./dev logs          # follow docker compose logs
+./dev open          # print local URLs
 
 # Testing + cleanup
-pnpm pg:smoke         # hit all 9 endpoints and assert 200/201
-pnpm pg:seed          # run prisma db seed
-pnpm pg:reset         # stop all containers (volumes preserved)
-pnpm pg:down          # stop services cleanly
+./dev smoke         # hit all 9 endpoints and assert 200/201
+./dev seed          # run prisma db seed
+./dev down          # stop services cleanly
 ```
 
 ### Build / test / check
