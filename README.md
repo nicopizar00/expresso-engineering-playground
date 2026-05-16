@@ -39,6 +39,25 @@ setup guide, environment configuration, and troubleshooting.
 
 ---
 
+## Frontend wiring status
+
+The next open thread is wiring the Next.js web app to consume the BFF via a
+centralized client (and eventually v0.app-generated UI). Two documents
+track the state and plan:
+
+- [`docs/project-state/frontend-wiring-status.md`](./docs/project-state/frontend-wiring-status.md)
+  — branch comparison, backend / frontend readiness, integration gaps,
+  recommended base branch, and the TODO list for v0.app wiring.
+- [`docs/frontend/v0-wiring-plan.md`](./docs/frontend/v0-wiring-plan.md)
+  — intended experience, endpoint contracts, screen inventory, what v0.app
+  should and should not generate, and the TODO marker conventions used in
+  `apps/web/`.
+
+The starting point is the new API client at
+[`apps/web/src/lib/api/expresso-api.ts`](./apps/web/src/lib/api/expresso-api.ts).
+
+---
+
 ## 1. Purpose
 
 This repository is intentionally **not** a production system. It is a
