@@ -14,6 +14,7 @@
 | `/checkout` | `app/checkout/page.tsx` | Order placement with customer name input |
 | `/orders` | `app/orders/page.tsx` | Order lookup by ID (no list endpoint) |
 | `/orders/[orderId]` | `app/orders/[orderId]/page.tsx` | Order detail and management actions |
+| `/visualizer` | `app/visualizer/page.tsx` | 3D visualizer integration page |
 | `/dev` | `app/dev/page.tsx` | API debug/testing interface |
 
 ---
@@ -52,6 +53,7 @@
 | POST | `/checkout` | `checkout.controller.ts` | VERIFIED |
 | GET | `/orders/:id` | `orders.controller.ts` | VERIFIED |
 | POST | `/orders/:id/manage` | `orders.controller.ts` | VERIFIED |
+| GET | `/visualization-data` | `visualization.controller.ts` | VERIFIED |
 
 ### Missing Endpoints (UI has workarounds)
 
@@ -104,7 +106,64 @@
 
 ---
 
-## 6. Export Checklist (v0 → Repository)
+## 6. 3D Visualizer Integration
+
+### Files Created/Modified
+
+| File | Change |
+|------|--------|
+| `app/visualizer/page.tsx` | NEW - Visualizer integration page with iframe embed |
+| `src/components/system/AppShell.tsx` | MODIFIED - Added "3D" nav link |
+| `.env.example` | MODIFIED - Added NEXT_PUBLIC_VISUALIZER_URL |
+
+### Deployment Expectations
+
+The visualizer-3d is a **separate static artifact**:
+- Deployed via nginx:alpine container (`apps/visualizer-3d/`)
+- Docker-first: `./scripts/visualizer-up.sh` for local dev
+- No npm/pnpm build step required - pure static files
+
+### Environment Variable
+
+```bash
+# Required for iframe embedding
+NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
+
+# Per-environment values:
+# - Local: http://localhost:3002
+# - Staging: https://visualizer.staging.example.com
+# - Production: https://visualizer.example.com
+```
+
+### BFF Endpoint Used by Visualizer
+
+```
+GET /visualization-data
+```
+
+- Defined in `apps/bff/src/modules/visualization/visualization.controller.ts`
+- Returns `VisualizationDataResponse` with scene items
+- Visualizer has built-in fallback mock data if BFF unreachable
+
+### What Is NOT Integrated
+
+| Feature | Reason |
+|---------|--------|
+| React Three Fiber | visualizer uses vanilla Three.js |
+| Scene.js in Next.js | visualizer is separate artifact |
+| 3D controls in React | visualizer owns its own UI |
+| Visualization data transform | BFF owns the DTO shape |
+| WebGL context sharing | Iframe boundary intentional |
+
+### Pre-Merge Risks
+
+1. **CORS** - Verify visualizer allows iframe embedding from web app origin
+2. **URL mismatch** - Environment variable must match actual deployment URL
+3. **BFF availability** - Visualizer degrades gracefully but shows mock data notice
+
+---
+
+## 7. Export Checklist (v0 → Repository)
 
 ### Files to Export
 
@@ -118,6 +177,7 @@ apps/web/
 │   ├── checkout/page.tsx    # Checkout page
 │   ├── orders/page.tsx      # Order lookup page
 │   ├── orders/[orderId]/page.tsx  # Order detail page
+│   ├── visualizer/page.tsx  # 3D Visualizer integration
 │   └── dev/page.tsx         # API debug page
 ├── src/
 │   ├── lib/api/
@@ -127,6 +187,7 @@ apps/web/
 │       ├── system/          # All system components
 │       ├── cart/            # All cart components
 │       └── catalog/         # All catalog components
+├── .env.example             # Environment variable template
 └── tsconfig.json            # Path alias: @/* → src/*
 ```
 
@@ -154,4 +215,8 @@ NEXT_PUBLIC_DEMO_MODE=true pnpm dev
 
 # Or enable via UI
 # Click "Demo" button in header
+
+# With 3D Visualizer
+./scripts/visualizer-up.sh  # In another terminal
+# Set NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
 ```
