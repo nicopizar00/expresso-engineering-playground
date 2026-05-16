@@ -1,10 +1,30 @@
 'use client';
 
+/**
+ * Checkout Page - Order placement flow
+ *
+ * Collects customer name and creates an order via POST /checkout.
+ * No real payment is processed - this is a playground environment.
+ *
+ * ## API Endpoint
+ * POST /checkout → CheckoutResponse
+ * Body: { customerName: string, idempotencyKey?: string }
+ * Verified against: apps/bff/src/modules/checkout/checkout.controller.ts
+ *
+ * TODO(api-wire): Consider adding idempotencyKey for production use
+ */
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, CreditCard, Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import {
+  ShoppingCart,
+  CreditCard,
+  Loader2,
+  ArrowLeft,
+  AlertTriangle,
+} from 'lucide-react';
 import { useCart } from '@/components/cart/CartProvider';
-import { expressoApi, ExpressoApiError } from '@/lib/api/expresso-api';
+import { expressoApi, ExpressoApiError, formatMoney } from '@/lib/api/expresso-api';
 import { EmptyState } from '@/components/system/EmptyState';
 import { PageLoadingState } from '@/components/system/LoadingSkeleton';
 import Link from 'next/link';
@@ -24,22 +44,28 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      const result = await expressoApi.checkout({ customerName: customerName.trim() });
+      const result = await expressoApi.checkout({
+        customerName: customerName.trim(),
+      });
       refreshCart(); // Clear the cart after successful checkout
       router.push(`/orders/${result.orderId}`);
     } catch (err) {
       if (err instanceof ExpressoApiError) {
         if (err.status === 400) {
-          setError('Invalid checkout request. Please check your cart and try again.');
+          setError(
+            'Invalid checkout request. Please check your cart and try again.'
+          );
         } else if (err.status === 409) {
-          setError('Checkout conflict. Your cart may have been modified. Please refresh and try again.');
+          setError(
+            'Checkout conflict. Your cart may have been modified. Please refresh and try again.'
+          );
         } else {
           setError(`Checkout failed: ${err.message}`);
         }
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
-      console.error('[v0] Checkout failed:', err);
+      // TODO(error-handling): Add structured error logging
     } finally {
       setIsSubmitting(false);
     }
@@ -56,7 +82,7 @@ export default function CheckoutPage() {
   if (isEmpty) {
     return (
       <div className="container py-8">
-        <EmptyState 
+        <EmptyState
           variant="cart"
           title="Your cart is empty"
           description="Add some products to your cart before checking out."
@@ -81,7 +107,7 @@ export default function CheckoutPage() {
         Back to cart
       </Link>
 
-      <h1 
+      <h1
         className="text-3xl font-bold tracking-tight mb-8"
         style={{ color: 'var(--foreground)' }}
       >
@@ -90,14 +116,14 @@ export default function CheckoutPage() {
 
       <div className="space-y-6">
         {/* Order summary card */}
-        <div 
+        <div
           className="rounded-lg border p-6"
-          style={{ 
+          style={{
             backgroundColor: 'var(--card)',
             borderColor: 'var(--border)',
           }}
         >
-          <h2 
+          <h2
             className="font-semibold text-lg mb-4 flex items-center gap-2"
             style={{ color: 'var(--foreground)' }}
           >
@@ -109,21 +135,27 @@ export default function CheckoutPage() {
             {cart?.items.map((item) => (
               <li key={item.itemId} className="py-3 flex justify-between">
                 <div>
-                  <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+                  <p
+                    className="font-medium text-sm"
+                    style={{ color: 'var(--foreground)' }}
+                  >
                     {item.name}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                     Qty: {item.quantity}
                   </p>
                 </div>
-                <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-                  {(item.lineTotal.amountMinor / 100).toFixed(2)} {item.lineTotal.currency}
+                <p
+                  className="font-medium text-sm"
+                  style={{ color: 'var(--foreground)' }}
+                >
+                  {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
                 </p>
               </li>
             ))}
           </ul>
 
-          <div 
+          <div
             className="flex justify-between pt-4 mt-4 border-t font-semibold"
             style={{ borderColor: 'var(--border)' }}
           >
@@ -133,15 +165,15 @@ export default function CheckoutPage() {
         </div>
 
         {/* Checkout form */}
-        <form 
+        <form
           onSubmit={handleSubmit}
           className="rounded-lg border p-6"
-          style={{ 
+          style={{
             backgroundColor: 'var(--card)',
             borderColor: 'var(--border)',
           }}
         >
-          <h2 
+          <h2
             className="font-semibold text-lg mb-4 flex items-center gap-2"
             style={{ color: 'var(--foreground)' }}
           >
@@ -151,9 +183,9 @@ export default function CheckoutPage() {
 
           {/* Error message */}
           {error && (
-            <div 
+            <div
               className="flex items-start gap-2 p-3 rounded-md mb-4"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 color: 'var(--destructive)',
               }}
@@ -166,7 +198,7 @@ export default function CheckoutPage() {
 
           <div className="space-y-4">
             <div>
-              <label 
+              <label
                 htmlFor="customerName"
                 className="block text-sm font-medium mb-2"
                 style={{ color: 'var(--foreground)' }}
@@ -187,10 +219,7 @@ export default function CheckoutPage() {
                   color: 'var(--foreground)',
                 }}
               />
-              <p 
-                className="text-xs mt-1"
-                style={{ color: 'var(--muted-foreground)' }}
-              >
+              <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
                 This name will appear on your order confirmation.
               </p>
             </div>
@@ -210,21 +239,19 @@ export default function CheckoutPage() {
                   Processing...
                 </>
               ) : (
-                <>
-                  Place Order
-                </>
+                <>Place Order</>
               )}
             </button>
           </div>
         </form>
 
         {/* Notice */}
-        <p 
+        <p
           className="text-xs text-center"
           style={{ color: 'var(--muted-foreground)' }}
         >
-          This is a playground environment. No real payment is processed.
-          Orders reset when the BFF restarts (in-memory storage).
+          This is a playground environment. No real payment is processed. Orders
+          reset when the BFF restarts (in-memory storage).
         </p>
       </div>
     </div>

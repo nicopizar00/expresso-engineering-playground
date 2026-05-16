@@ -1,5 +1,16 @@
 'use client';
 
+/**
+ * Catalog Page - Product listing homepage
+ *
+ * Fetches and displays all products with category filtering.
+ * This is the main entry point for browsing products.
+ *
+ * ## API Endpoint
+ * GET /catalog/products → ProductsResponse
+ * Verified against: apps/bff/src/modules/catalog/catalog.controller.ts
+ */
+
 import useSWR from 'swr';
 import { expressoApi, ProductsResponse } from '@/lib/api/expresso-api';
 import { ProductCatalogGrid } from '@/components/catalog/ProductCatalogGrid';
@@ -24,16 +35,13 @@ export default function CatalogPage() {
     <div className="container py-8">
       {/* Hero section */}
       <section className="mb-8">
-        <h1 
+        <h1
           className="text-3xl font-bold tracking-tight"
           style={{ color: 'var(--foreground)' }}
         >
           Product Catalog
         </h1>
-        <p 
-          className="mt-2 text-lg"
-          style={{ color: 'var(--muted-foreground)' }}
-        >
+        <p className="mt-2 text-lg" style={{ color: 'var(--muted-foreground)' }}>
           Browse our selection of espresso drinks, food items, and accessories.
         </p>
       </section>
@@ -42,13 +50,16 @@ export default function CatalogPage() {
       {isLoading ? (
         <CatalogGridSkeleton count={6} />
       ) : error ? (
-        <PageErrorState 
+        <PageErrorState
           title="Failed to load products"
-          message={error.message || 'Could not connect to the BFF. Make sure it is running on port 3001.'}
+          message={
+            error.message ||
+            'Could not connect to the BFF. Try enabling Demo Mode or make sure it is running on port 3001.'
+          }
           onRetry={() => mutate()}
         />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState 
+        <EmptyState
           variant="products"
           action={{
             label: 'Refresh',
