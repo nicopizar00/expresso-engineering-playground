@@ -5,7 +5,17 @@
  * is not running. All data shapes mirror the contracts defined in the BFF
  * modules (apps/bff/src/modules/*).
  *
+ * ## Scenario System
+ *
+ * The mock layer supports multiple scenarios for testing different UI states:
+ * - happy: Normal operation with sample data
+ * - empty: Empty catalog and orders
+ * - loading: Artificial delay to see loading states
+ * - error: Simulate API failures
+ * - cart-filled: Pre-populated cart for checkout testing
+ *
  * TODO(types): Import types from @mini-commerce/contracts once promoted.
+ * TODO(api-wire): Replace mock API with repository adapter when ready.
  */
 
 import type {
@@ -13,11 +23,81 @@ import type {
   Cart,
   CartItem,
   Order,
-  OrderLine,
   HealthReport,
   CheckoutResponse,
   Money,
 } from './expresso-api';
+
+// ---------------------------------------------------------------------------
+// Scenario Management
+// ---------------------------------------------------------------------------
+
+export type MockScenario =
+  | 'happy'
+  | 'empty'
+  | 'loading'
+  | 'error'
+  | 'cart-filled'
+  | 'checkout-success'
+  | 'checkout-failure'
+  | 'visualizer-configured'
+  | 'visualizer-missing';
+
+let currentScenario: MockScenario = 'happy';
+
+export function setMockScenario(scenario: MockScenario): void {
+  currentScenario = scenario;
+  // Reset cart state when switching scenarios
+  if (scenario === 'empty') {
+    mockCartItems = [];
+  } else if (scenario === 'cart-filled') {
+    // Pre-fill cart with sample items
+    mockCartItems = [
+      {
+        itemId: 'item_demo_001',
+        productId: 'prod_espresso_001',
+        name: 'Classic Espresso',
+        unitPrice: money(350),
+        quantity: 2,
+        lineTotal: money(700),
+      },
+      {
+        itemId: 'item_demo_002',
+        productId: 'prod_latte_001',
+        name: 'Vanilla Latte',
+        unitPrice: money(525),
+        quantity: 1,
+        lineTotal: money(525),
+      },
+      {
+        itemId: 'item_demo_003',
+        productId: 'prod_croissant_001',
+        name: 'Butter Croissant',
+        unitPrice: money(375),
+        quantity: 3,
+        lineTotal: money(1125),
+      },
+    ];
+  } else if (scenario === 'happy') {
+    mockCartItems = [];
+  }
+}
+
+export function getMockScenario(): MockScenario {
+  return currentScenario;
+}
+
+export function shouldSimulateError(): boolean {
+  return currentScenario === 'error' || currentScenario === 'checkout-failure';
+}
+
+export function shouldSimulateEmpty(): boolean {
+  return currentScenario === 'empty';
+}
+
+export function getExtraLatency(): number {
+  return currentScenario === 'loading' ? 2000 : 0;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,9 +113,10 @@ function generateId(prefix: string): string {
 
 // ---------------------------------------------------------------------------
 // Mock Products (aligned with BFF catalog.types.ts)
+// Intentionally simple domain: espresso drinks, food, accessories
 // ---------------------------------------------------------------------------
 
-export const MOCK_PRODUCTS: Product[] = [
+const FULL_PRODUCT_CATALOG: Product[] = [
   {
     productId: 'prod_espresso_001',
     sku: 'ESP-001',
@@ -64,13 +145,13 @@ export const MOCK_PRODUCTS: Product[] = [
     inventory: 40,
   },
   {
-    productId: 'prod_americano_001',
-    sku: 'AME-001',
-    name: 'Americano',
-    description: 'Espresso diluted with hot water for a milder flavor.',
+    productId: 'prod_water_001',
+    sku: 'WAT-001',
+    name: 'Sparkling Water',
+    description: 'Refreshing sparkling mineral water, 500ml bottle.',
     category: 'drink',
-    price: money(400),
-    inventory: 60,
+    price: money(250),
+    inventory: 100,
   },
   {
     productId: 'prod_croissant_001',
@@ -82,54 +163,55 @@ export const MOCK_PRODUCTS: Product[] = [
     inventory: 20,
   },
   {
-    productId: 'prod_muffin_001',
-    sku: 'MUF-001',
-    name: 'Blueberry Muffin',
-    description: 'Moist muffin packed with fresh blueberries and a crumb topping.',
+    productId: 'prod_cookie_001',
+    sku: 'COO-001',
+    name: 'Chocolate Chip Cookie',
+    description: 'Warm, gooey chocolate chip cookie made with real butter.',
     category: 'food',
-    price: money(425),
-    inventory: 15,
+    price: money(300),
+    inventory: 30,
   },
   {
     productId: 'prod_sandwich_001',
     sku: 'SAN-001',
-    name: 'Avocado Toast',
-    description: 'Sourdough toast with smashed avocado, cherry tomatoes, and microgreens.',
+    name: 'Turkey Sandwich',
+    description: 'Fresh turkey, lettuce, tomato on artisan bread.',
     category: 'food',
     price: money(850),
     inventory: 12,
   },
   {
-    productId: 'prod_mug_001',
-    sku: 'MUG-001',
-    name: 'Expresso Ceramic Mug',
-    description: 'Handcrafted 12oz ceramic mug with the Expresso logo.',
+    productId: 'prod_notebook_001',
+    sku: 'NOT-001',
+    name: 'Expresso Notebook',
+    description: 'A5 lined notebook with soft-touch cover and Expresso branding.',
     category: 'accessory',
-    price: money(1800),
+    price: money(1200),
     inventory: 25,
   },
   {
-    productId: 'prod_tumbler_001',
-    sku: 'TUM-001',
-    name: 'Insulated Tumbler',
-    description: 'Double-walled stainless steel tumbler keeps drinks hot for 6 hours.',
+    productId: 'prod_backpack_001',
+    sku: 'BAC-001',
+    name: 'Expresso Backpack',
+    description: 'Water-resistant backpack with padded laptop sleeve.',
     category: 'accessory',
-    price: money(2400),
-    inventory: 18,
-  },
-  {
-    productId: 'prod_beans_001',
-    sku: 'BEA-001',
-    name: 'House Blend Beans (250g)',
-    description: 'Medium roast whole bean coffee with notes of chocolate and caramel.',
-    category: 'accessory',
-    price: money(1650),
-    inventory: 30,
+    price: money(4500),
+    inventory: 10,
   },
 ];
 
+export const MOCK_PRODUCTS: Product[] = FULL_PRODUCT_CATALOG;
+
+export function getMockProducts(): Product[] {
+  if (shouldSimulateEmpty()) {
+    return [];
+  }
+  return FULL_PRODUCT_CATALOG;
+}
+
 // ---------------------------------------------------------------------------
 // Mock Cart State (aligned with BFF cart.types.ts)
+// TODO(state): Replace localStorage cart with proper backend cart session
 // ---------------------------------------------------------------------------
 
 let mockCartItems: CartItem[] = [];
@@ -154,7 +236,7 @@ export function getMockCart(): Cart {
 }
 
 export function addMockCartItem(productId: string, quantity: number): Cart {
-  const product = MOCK_PRODUCTS.find((p) => p.productId === productId);
+  const product = FULL_PRODUCT_CATALOG.find((p) => p.productId === productId);
   if (!product) {
     throw new Error(`Product not found: ${productId}`);
   }
@@ -187,7 +269,38 @@ export function clearMockCart(): void {
 
 const mockOrders: Map<string, Order> = new Map();
 
+// Pre-populate a sample order for order lookup testing
+const sampleOrder: Order = {
+  orderId: 'ord_sample_001',
+  customerName: 'Demo Customer',
+  status: 'preparing',
+  lines: [
+    {
+      productId: 'prod_espresso_001',
+      name: 'Classic Espresso',
+      quantity: 2,
+      unitPrice: money(350),
+      lineTotal: money(700),
+    },
+    {
+      productId: 'prod_croissant_001',
+      name: 'Butter Croissant',
+      quantity: 1,
+      unitPrice: money(375),
+      lineTotal: money(375),
+    },
+  ],
+  total: money(1075),
+  placedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 min ago
+  updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 min ago
+};
+mockOrders.set(sampleOrder.orderId, sampleOrder);
+
 export function createMockOrder(customerName: string): CheckoutResponse {
+  if (currentScenario === 'checkout-failure') {
+    throw new Error('Payment processing failed (mock error)');
+  }
+
   const orderId = generateId('ord');
   const cart = buildMockCart();
   const placedAt = new Date().toISOString();
@@ -222,6 +335,9 @@ export function createMockOrder(customerName: string): CheckoutResponse {
 }
 
 export function getMockOrder(orderId: string): Order | null {
+  if (shouldSimulateEmpty()) {
+    return null;
+  }
   return mockOrders.get(orderId) ?? null;
 }
 
@@ -237,11 +353,22 @@ export function updateMockOrderStatus(
   return { ...order };
 }
 
+/**
+ * Get the sample order ID for testing order lookup.
+ * Use this in the Demo Guide to help reviewers test the order detail page.
+ */
+export function getSampleOrderId(): string {
+  return 'ord_sample_001';
+}
+
 // ---------------------------------------------------------------------------
 // Mock Health (aligned with BFF health.service.ts)
 // ---------------------------------------------------------------------------
 
 export function getMockHealth(): HealthReport {
+  if (shouldSimulateError()) {
+    throw new Error('Health check failed (mock error)');
+  }
   return {
     status: 'ok',
     service: 'bff-mock',
