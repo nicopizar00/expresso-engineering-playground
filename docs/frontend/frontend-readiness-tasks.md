@@ -1,7 +1,7 @@
 # Frontend Readiness Tasks
 
 > Tracking document for frontend stabilization and repository integration.
-> Updated: 2025-01
+> Updated: 2026-05-27
 
 ## Overview
 
@@ -41,7 +41,7 @@ This document tracks the readiness status of frontend components, API integratio
 | POST /orders/:id/manage | Done | Order management | Actions: cancel, update_status, mark_prepared | BFF orders module | None |
 | DELETE /cart/items/:id | Blocked | Remove cart item | Not in BFF | BFF endpoint needed | Request BFF implementation |
 | PATCH /cart/items/:id | Blocked | Update quantity | Not in BFF | BFF endpoint needed | Request BFF implementation |
-| GET /orders | Blocked | Order listing | Not in BFF | BFF endpoint needed | Request BFF implementation |
+| GET /orders | Done | Persisted order listing | Returns `OrdersResponse` | BFF orders module | Preserve in future UI work |
 
 ---
 
@@ -49,11 +49,11 @@ This document tracks the readiness status of frontend components, API integratio
 
 | Task | Status | Purpose | Assumption | Dependency | Next Action |
 |------|--------|---------|------------|------------|-------------|
-| Cart context | Done | Client-side cart state | Local state is prototype-only | None | TODO(state): Replace with BFF session |
+| Cart context | Done | Shared cart state | BFF cart is single-user and in-memory | BFF cart module | Define session strategy later |
 | Demo mode state | Done | Toggle mock/real API | localStorage toggle is acceptable | None | None |
 | Mock scenario state | Done | Test different UI states | Module-level state is acceptable for demo | None | None |
-| Product cache | Todo | Reduce API calls | SWR or similar | None | Add SWR hooks |
-| Order cache | Todo | Reduce API calls | SWR or similar | None | Add SWR hooks |
+| Product cache | Done | Coordinate product loading | SWR is acceptable | None | None |
+| Order cache | Done | Coordinate persisted order loading | SWR is acceptable | None | None |
 
 ---
 
@@ -144,7 +144,7 @@ This document tracks the readiness status of frontend components, API integratio
 | Task | Status | Purpose | Assumption | Dependency | Next Action |
 |------|--------|---------|------------|------------|-------------|
 | Remove v0-specific comments | Todo | Clean export | Comments are marked with TODO(v0-export) | None | Search and clean |
-| Type import from contracts | Todo | Type safety | @mini-commerce/contracts exists | Package published | Update imports |
+| Type import from contracts | Done | Type safety | `@mini-commerce/contracts` is the web boundary | None | Preserve shared imports |
 | Environment variable docs | Done | Deployment | .env.example is complete | None | None |
 | Component export | Ready | Shared library | Components are standalone | None | Copy to shared package |
 | Integration summary | Done | Handoff documentation | Summary is accurate | None | Keep updated |
@@ -155,16 +155,15 @@ This document tracks the readiness status of frontend components, API integratio
 
 **Ready for demo:** Catalog, cart, checkout, orders, health, visualizer embed, mock scenarios.
 
-**Demo-only (BFF missing):** Cart item removal, cart quantity update, order listing.
+**Demo-only or unsupported by the BFF:** Cart item removal and cart quantity update.
 
-**Intentionally not implemented:** Authentication, payments, analytics, observability, CI/CD.
+**Intentionally not implemented:** Authentication, payments, frontend
+analytics, and production observability dashboards.
 
 **Key assumptions to confirm:**
 1. Cart session strategy (cookies vs headers vs local state)
-2. Type package promotion from BFF to shared contracts
+2. Whether the BFF should consume or generate the canonical contracts package
 3. Visualizer deployment URL per environment
 4. Design system approval
 
 ---
-
-*Last updated by v0 frontend stabilization pass.*

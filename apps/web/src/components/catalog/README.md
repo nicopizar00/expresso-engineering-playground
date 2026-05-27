@@ -1,14 +1,14 @@
 # `components/catalog`
 
-v0.app-generated catalog UI lands here.
+Catalog presentation components integrated into the web storefront.
 
-Planned components:
-- `ProductCatalogGrid` — replaces today's `CatalogCard` in `app/page.tsx`.
-- `ProductDetailPanel` — fed by `expressoApi.getProductById(id)` via
-  `productDetailVM`.
+Current components:
+- `ProductCatalogGrid` — renders the catalog page content.
+- `ProductCard` and `ProductQuickView` — present products and dispatch
+  add-to-cart through shared cart state.
 
 Rules:
-- Consume `productVM` output from `src/lib/view-models/` — never the raw
-  `Product` DTO.
-- No `fetch` calls inside these components; route components or hooks own
-  the network.
+- No `fetch` calls inside these components; the API client and cart hook own
+  network behavior.
+- Use the canonical contract shapes through existing frontend boundaries;
+  do not redeclare BFF responses in visual components.
