@@ -16,17 +16,30 @@ When the count drops to zero, the topic is done.
 
 ## Open threads (priority order)
 
-1. **OpenTelemetry SDK** — wire the OTel SDK in `apps/bff/src/common/telemetry.ts`
-   (currently a no-op placeholder). Add span instrumentation to at least one
-   domain service. Required before k6 → Grafana dashboard work begins.
-
-2. **k6 scenario library** — add `checkout-flow.js` and `read-heavy.js` scenarios
-   under `tests/performance/k6/`. See `docs/project-state/k6-readiness.md` for
-   the canonical skeleton and readiness checklist.
-
-3. More coming — iterate as Phase 2 stabilizes.
+1. **[Visualizer reactivity](visualizer-reactivity.md)** — *5 anchors in source*
+   - Promote the 3D visualizer from manual-reload to interval polling
+     so browser mutations show up in 3D without clicking **Reload data**.
+   - State document captures the polling spec plus future SSE /
+     WebSocket variants for later iterations.
+   - Anchors live in `*.js` / `*.html` — run
+     `grep -rn "next-steps/visualizer-reactivity" apps/visualizer-3d/`
+     (the default grep recipe only scans `*.ts`, `*.prisma`, `*.mjs`,
+     `*.yaml`).
 
 ## Done
+
+✅ **OpenTelemetry SDK** — *wired in `feat/otel-sdk`*
+   - `initTelemetry()` initializes NodeSDK + OTLP HTTP exporter
+   - Auto-instrumentations: HTTP, Express, pg (fs disabled)
+   - Resource attributes: `service.name=bff`, `service.version`, `deployment.environment`
+   - Manual spans on `orders.create` and `orders.manage` with domain attributes
+   - No-ops when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset
+
+✅ **k6 scenario library** — *added in `feat/k6-scenarios`*
+   - `scenarios/checkout-flow/checkout-flow.js` — 1 VU write path, asserts real persisted orderId
+   - `scenarios/read-heavy/read-heavy.js` — 30 VU ramping, all GET endpoints, baseline latency
+   - `config/thresholds.js` extended with `checkoutFlowThresholds` + `readHeavyThresholds`
+   - `pnpm pg:perf:checkout-flow` and `pnpm pg:perf:read-heavy` commands wired
 
 ✅ **[Orders persistence](orders-persistence.md)** — *0 anchors remaining*
    - `Order` + `OrderLine` Prisma models added to schema

@@ -32,6 +32,8 @@
     "pg:logs": "node scripts/playground.mjs logs",
     "pg:open": "node scripts/playground.mjs open",
     "pg:perf:smoke": "node scripts/playground.mjs perf:smoke",
+    "pg:perf:checkout-flow": "node scripts/playground.mjs perf:checkout-flow",
+    "pg:perf:read-heavy": "node scripts/playground.mjs perf:read-heavy",
     "pg:perf:open-report": "node scripts/playground.mjs perf:open-report",
     "pg:perf:clean": "node scripts/playground.mjs perf:clean"
   },

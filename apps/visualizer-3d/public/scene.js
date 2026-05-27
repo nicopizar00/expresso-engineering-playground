@@ -38,6 +38,9 @@ const stage = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const reloadBtn = document.getElementById("reload");
 
+// TODO(next-steps/visualizer-reactivity): declare POLL_INTERVAL_MS (default 2000),
+// an `inflight` boolean, and a `pollHandle` for the setInterval id here.
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 
@@ -73,12 +76,17 @@ const dataGroup = new THREE.Group();
 scene.add(dataGroup);
 
 reloadBtn.addEventListener("click", () => {
+  // TODO(next-steps/visualizer-reactivity): clearInterval(pollHandle) then call
+  // startPolling() so the next automatic tick is a full interval after the manual one.
   void loadAndRender();
 });
 
 window.addEventListener("resize", onResize);
 onResize();
 
+// TODO(next-steps/visualizer-reactivity): replace this one-shot call with
+// startPolling() — calls loadAndRender() once, then setInterval at POLL_INTERVAL_MS,
+// plus a document.visibilitychange listener that pauses while hidden.
 void loadAndRender();
 animate();
 
@@ -169,6 +177,9 @@ function clearGroup(group) {
 }
 
 async function loadAndRender() {
+  // TODO(next-steps/visualizer-reactivity): short-circuit when `inflight` is true
+  // so overlapping poll ticks coalesce; surface `polling…` / `error · <reason>`
+  // via setStatus() instead of the current "loading…" copy.
   setStatus("loading…");
   const items = await fetchItems().catch(() => null);
 
