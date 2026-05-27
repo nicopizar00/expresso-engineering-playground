@@ -284,29 +284,14 @@ function generateKPIs(
 // Public API
 // ---------------------------------------------------------------------------
 
-let activeScenario: PerformanceScenario | null = null;
-let scenarioStartTime: number | null = null;
-let stateInitialized = false;
+// Default to "Mixed User Journey" scenario for UX demonstration
+// This ensures the Performance Playground shows live activity on first load
+const DEFAULT_SCENARIO_ID = 'mixed-journey';
 
-// Lazy initialization from localStorage (call before first read)
-function initializeState(): void {
-  if (stateInitialized || typeof window === 'undefined') return;
-  stateInitialized = true;
-  
-  try {
-    const stored = localStorage.getItem('perf_playground_scenario');
-    if (stored) {
-      const { scenarioId, startTime } = JSON.parse(stored);
-      const scenario = PERFORMANCE_SCENARIOS.find((s) => s.id === scenarioId);
-      if (scenario) {
-        activeScenario = scenario;
-        scenarioStartTime = startTime;
-      }
-    }
-  } catch {
-    // Ignore localStorage errors
-  }
-}
+let activeScenario: PerformanceScenario | null = PERFORMANCE_SCENARIOS.find(
+  (s) => s.id === DEFAULT_SCENARIO_ID
+) ?? null;
+let scenarioStartTime: number | null = Date.now();
 
 /**
  * Start a performance scenario.
@@ -317,17 +302,6 @@ export function startScenario(scenarioId: string): PerformanceScenario | null {
   if (scenario) {
     activeScenario = scenario;
     scenarioStartTime = Date.now();
-    // Persist to localStorage for HMR survival in development
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('perf_playground_scenario', JSON.stringify({
-          scenarioId,
-          startTime: scenarioStartTime,
-        }));
-      } catch {
-        // Ignore localStorage errors
-      }
-    }
   }
   return scenario ?? null;
 }
@@ -338,14 +312,6 @@ export function startScenario(scenarioId: string): PerformanceScenario | null {
 export function stopScenario(): void {
   activeScenario = null;
   scenarioStartTime = null;
-  // Clear localStorage
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.removeItem('perf_playground_scenario');
-    } catch {
-      // Ignore localStorage errors
-    }
-  }
 }
 
 /**
