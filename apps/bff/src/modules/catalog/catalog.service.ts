@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
-// TODO(vercel-build): @prisma/client types require `prisma generate` — ensured by package.json#build
 import type { Product as DbProduct } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../prisma.service";

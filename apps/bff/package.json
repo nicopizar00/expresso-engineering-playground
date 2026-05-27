@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "start": "node dist/main.js",
-    "build": "prisma generate && nest build",
+    "build": "nest build",
     "lint": "echo 'TODO: wire eslint'",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

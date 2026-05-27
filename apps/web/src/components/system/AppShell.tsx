@@ -22,6 +22,7 @@ import {
   ExternalLink,
   FlaskConical,
   Box,
+  Gauge,
 } from 'lucide-react';
 import { useCart } from '@/components/cart/CartProvider';
 import { HealthBadge } from './HealthBadge';
@@ -31,6 +32,7 @@ import { getDemoModeStatus, setDemoMode } from '@/lib/api/expresso-api';
 const navLinks = [
   { href: '/', label: 'Catalog', icon: Coffee },
   { href: '/orders', label: 'Orders', icon: Package },
+  { href: '/performance', label: 'Performance', icon: Gauge },
   { href: '/visualizer', label: '3D', icon: Box },
   { href: '/dev', label: 'API', icon: Activity },
 ];

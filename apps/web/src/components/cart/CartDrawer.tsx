@@ -143,7 +143,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               className="text-xs text-center"
               style={{ color: 'var(--muted-foreground)' }}
             >
-              Cart is in-memory and resets on BFF restart. Orders are persisted.
+              Cart resets when the BFF restarts (in-memory storage)
             </p>
           </div>
         )}

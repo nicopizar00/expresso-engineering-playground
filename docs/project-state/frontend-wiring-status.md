@@ -4,27 +4,24 @@ Snapshot of where the mini-commerce / Expresso playground stands before the next
 frontend iteration (v0.app-driven UI). This document is the input to
 [`docs/frontend/v0-wiring-plan.md`](../frontend/v0-wiring-plan.md).
 
-> Updated 2026-05-16 on branch `expresso-frontend-build`.
-> Earlier snapshot was captured 2026-05-15 from `feat/wb-app-orchestration` — significant work has landed since then.
+> Captured on 2026-05-15 from branch `feat/wb-app-orchestration`.
 
 ---
 
-## 1. Current state summary (updated 2026-05-16)
+## 1. Current state summary
 
-- The BFF (`apps/bff`, NestJS, port 3001) exposes **ten** working endpoints
-  (nine original + `GET /orders` added this iteration).
-- Catalog and **Orders** are **Prisma-backed** against Postgres. Cart is
-  **in-memory** (single user, resets on BFF restart — intentional Phase 1
-  contract). Orders persist across BFF restarts.
-- The web app has a full multi-page Next.js App Router structure with:
-  - A centralized `expresso-api.ts` client (real + demo-mode mock)
-  - `@mini-commerce/contracts` as the shared type boundary
-  - Cart context (`CartProvider` / `useCart()`) with SWR
-  - Catalog grid, product quick-view, cart drawer, checkout form, order detail,
-    order list, 3D visualizer embed, and a `/dev` debug page
-  - Demo mode (`NEXT_PUBLIC_DEMO_MODE=true`) for fully offline frontend use
-- The dev loop is `./dev up [web|full]` or `pnpm pg:up [web|full]`.
-  `pnpm pg:smoke` validates all endpoints.
+- The BFF (`apps/bff`, NestJS, port 3001) exposes nine working endpoints and
+  is reachable from the Next.js web app (`apps/web`, port 3000).
+- Catalog is **Prisma-backed** against Postgres. Cart is **in-memory** (single
+  user, resets on BFF restart — intentional Phase 1 contract). Orders are
+  **in-memory** today; persistence is the next open thread
+  (`docs/next-steps/orders-persistence.md`).
+- The web app already calls the real BFF from a single client page
+  (`apps/web/app/page.tsx`): seven utilitarian "cards", one per endpoint.
+  There is **no mock data** in the frontend — everything goes through HTTP.
+- The dev loop works end-to-end: `./dev up` (or `pnpm pg:up`) brings up
+  Postgres + OTel + BFF; `./dev up web` (or `pnpm pg:up web`) adds the Next.js
+  container. `pnpm pg:smoke` validates all nine endpoints.
 
 ## 2. Branch comparison summary
 
@@ -56,9 +53,8 @@ All nine endpoints below are implemented, validated, and exercised by
 | `GET /cart` | `cart` | In-memory | Stable. Single cart, resets on BFF restart. |
 | `POST /cart/items` | `cart` | In-memory | Stable. `quantity` ∈ [1,20]. Returns full `Cart` (201). |
 | `POST /checkout` | `checkout` | n/a (cart→order) | Stable. Drains cart, creates order. Idempotency key optional. |
-| `GET /orders` | `orders` | Prisma → Postgres | Added this iteration. Returns all orders as `{ items: Order[] }`. |
-| `GET /orders/:id` | `orders` | Prisma → Postgres | Stable. Cache-backed; synchronous read. |
-| `POST /orders/:id/manage` | `orders` | Prisma → Postgres | Stable. Actions: `cancel`, `update_status`, `mark_prepared`. |
+| `GET /orders/:id` | `orders` | **In-memory** | Stable. **Resets on BFF restart** — see `docs/next-steps/orders-persistence.md`. |
+| `POST /orders/:id/manage` | `orders` | In-memory | Stable. Actions: `cancel`, `update_status`, `mark_prepared`. |
 | `GET /visualization-data` | `visualization` | Read-only aggregator | Stable. Used by `apps/visualizer-3d`. |
 
 Cross-cutting:

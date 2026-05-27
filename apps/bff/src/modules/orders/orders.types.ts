@@ -18,10 +18,6 @@ export interface Order {
   readonly updatedAt: string;
 }
 
-export interface OrdersResponse {
-  readonly items: ReadonlyArray<Order>;
-}
-
 export interface CreateOrderInput {
   readonly customerName: string;
   readonly lines: ReadonlyArray<OrderLine>;
