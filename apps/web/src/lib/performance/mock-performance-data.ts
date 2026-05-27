@@ -2,14 +2,11 @@
  * Mock Performance Data for the Performance Playground
  *
  * This module provides deterministic mock data for visualizing system behavior
- * under concurrent load. Data shapes are designed to support future integration
- * with k6 summary output and Grafana dashboard metrics.
+ * under concurrent load. These local presentation types are intentionally not
+ * part of the public HTTP contracts package.
  *
  * ## Design Principle
- * Show "the system breathing under load" — not a complex monitoring dashboard.
- *
- * TODO(api-wire): Replace mock performance adapter with k6/Grafana/report adapter
- * TODO(types): Replace mock performance types with shared contracts or report DTOs
+ * Show simulated request pressure without implying live monitoring.
  */
 
 // ---------------------------------------------------------------------------
@@ -76,7 +73,7 @@ export const PERFORMANCE_SCENARIOS: PerformanceScenario[] = [
   {
     id: 'browsing-load',
     name: 'Browsing Load',
-    description: 'Simulates typical user browsing behavior — catalog views, product details, light cart activity.',
+    description: 'Simulates typical user browsing behavior - catalog views, product details, light cart activity.',
     virtualUsers: 25,
     requestRate: 150,
     durationSeconds: 120,
@@ -116,7 +113,7 @@ export const PERFORMANCE_SCENARIOS: PerformanceScenario[] = [
   {
     id: 'order-lookup-pressure',
     name: 'Order Lookup Pressure',
-    description: 'High volume of order status checks — typical after a promotion ends.',
+    description: 'High volume of order status checks - typical after a promotion ends.',
     virtualUsers: 75,
     requestRate: 320,
     durationSeconds: 120,
@@ -285,7 +282,7 @@ function generateKPIs(
 // ---------------------------------------------------------------------------
 
 // Default to "Mixed User Journey" scenario for UX demonstration
-// This ensures the Performance Playground shows live activity on first load
+// This ensures the Performance Playground shows simulated activity on first load.
 const DEFAULT_SCENARIO_ID = 'mixed-journey';
 
 let activeScenario: PerformanceScenario | null = PERFORMANCE_SCENARIOS.find(
@@ -317,8 +314,6 @@ export function stopScenario(): void {
 /**
  * Get the current performance snapshot.
  * This is the main data source for the Performance Playground UI.
- *
- * TODO(api-wire): Replace with real k6/Grafana data adapter
  */
 export function getPerformanceSnapshot(): PerformanceSnapshot {
   const elapsed = scenarioStartTime ? (Date.now() - scenarioStartTime) / 1000 : 0;

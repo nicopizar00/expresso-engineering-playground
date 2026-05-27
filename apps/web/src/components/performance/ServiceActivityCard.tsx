@@ -5,9 +5,6 @@
  *
  * Shows current activity, request pressure, health state, latency, and errors
  * for a single service in the Performance Playground.
- *
- * TODO(v0-export): Component ready for repository integration
- * TODO(api-wire): Replace mock data display when real metrics available
  */
 
 import { useEffect, useState } from 'react';

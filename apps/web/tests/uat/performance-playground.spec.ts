@@ -1,8 +1,8 @@
 /**
- * UAT Test Suite - Performance Playground
+ * Manual UAT Catalog - Performance Playground
  * 
- * Smoke tests for all Performance Playground functions.
- * Run these tests using agent-browser to verify usability through the browser.
+ * Human-readable validation cases for the Performance Playground surface.
+ * These cases guide browser-based review; they are not an automated test suite.
  * 
  * Test Categories:
  * 1. Page Load & Navigation
@@ -214,7 +214,7 @@ export const UAT_TESTS = {
     name: 'Future Integration panel is collapsible',
     steps: [
       'Navigate to /performance',
-      'Locate "Future k6 / Grafana Integration" panel',
+      'Locate "Potential Data Adapters" panel',
       'Verify panel header visible with "Mock Data" badge',
       'Verify panel is collapsed by default',
     ],
@@ -225,13 +225,12 @@ export const UAT_TESTS = {
     name: 'Expand Future Integration panel',
     steps: [
       'Navigate to /performance',
-      'Click on "Future k6 / Grafana Integration" header',
+      'Click on "Potential Data Adapters" header',
       'Wait for animation',
       'Verify "Current State" section visible',
-      'Verify "Planned Integrations" cards visible',
-      'Verify "Expected Data Sources" list visible',
-      'Verify "3D Visualizer Integration" link visible',
-      'Verify "Integration Points" code block visible',
+      'Verify "Future Options" cards visible',
+      'Verify "Candidate Inputs" list visible',
+      'Verify "Current Frontend Boundary" block visible',
     ],
     expected: 'Panel expands to show all integration details',
   },
@@ -363,15 +362,15 @@ export const UAT_TESTS = {
   // =========================================================================
   // 10. CROSS-PAGE NAVIGATION
   // =========================================================================
-  'TC090_LinkToVisualizer': {
-    name: 'Navigate to 3D Visualizer from panel',
+  'TC090_MockBoundaryDisclosure': {
+    name: 'Potential adapters remain clearly non-live',
     steps: [
       'Navigate to /performance',
-      'Expand Future Integration panel',
-      'Click "View 3D Visualizer" link',
-      'Verify navigation to /visualizer page',
+      'Expand Potential Data Adapters panel',
+      'Verify the current state says metrics are simulated',
+      'Verify candidate input text does not claim a live connection',
     ],
-    expected: 'Successfully navigate to Visualizer page',
+    expected: 'The page clearly separates mock data from future adapters',
   },
 
   'TC091_ReturnFromVisualizer': {
@@ -396,7 +395,7 @@ export const UAT_TESTS = {
   },
 };
 
-// Export test runner helper for agent-browser
+// Helpers for a future manual-review harness.
 export function getTestSteps(testId: keyof typeof UAT_TESTS) {
   return UAT_TESTS[testId];
 }

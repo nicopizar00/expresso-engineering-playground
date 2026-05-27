@@ -10,7 +10,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 An engineering playground for a fictional mini-commerce store (catalog → cart → checkout → orders). Despite the directory name, there is no travel booking domain — see `docs/adr/0002-mini-commerce-domain.md`. The goal is to iterate software engineering practices (modularity, testing, observability, distributed systems) in a realistic but low-stakes context.
 
-The codebase is a **deliberate skeleton**: business logic is mocked (in-memory), and every stub/TODO marks a planned mechanical next step toward Phase 3 distributed services.
+The codebase is an evolving **modular monolith**: catalog and orders are
+Prisma/PostgreSQL-backed, the cart is intentionally in-memory and
+single-user, and remaining stubs/TODOs mark mechanical next steps toward
+Phase 3 distributed services.
 
 ## Commands
 
@@ -105,7 +108,7 @@ pnpm pg:doctor    # Validate Node, pnpm, Docker, .env prerequisites
 Turbo + pnpm workspaces. Three scopes:
 
 - `apps/` — runnable services: `bff` (NestJS, port 3001), `web` (Next.js, port 3000), `visualizer-3d` (nginx/Three.js, port 3002, optional Docker profile)
-- `packages/` — shared libraries: `shared-types` (branded domain types, Money), `contracts` (OpenAPI/Pact stubs), `config` (eslint/tsconfig), `test-utils`
+- `packages/` — shared libraries: `shared-types` (branded domain types, Money), `contracts` (canonical HTTP TypeScript wire shapes; OpenAPI/Pact follow-ups), `config` (eslint/tsconfig), `test-utils`
 - `tests/` — cross-app test suites: `integration/`, `contract/`, `e2e/` (all stubbed), `performance/k6/` (smoke runnable)
 
 ### BFF module pattern
@@ -139,6 +142,8 @@ Applied globally in `main.ts`:
 - `LoggingInterceptor` — logs every request (method, path, status)
 - `HttpExceptionFilter` — normalizes error responses
 - `ValidationPipe` (`class-validator`) — validates all incoming DTOs
+- `initTelemetry()` — configures OpenTelemetry auto-instrumentation and OTLP
+  trace export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set
 
 ### Data model invariants
 
@@ -184,19 +189,22 @@ All `pnpm pg:*` commands load this automatically.
 
 - **Unit tests**: Vitest, colocated as `*.spec.ts` next to source. NestJS `Test.createTestingModule` for service/controller tests with mocked dependencies.
 - **Integration, contract (Pact), E2E (Playwright)**: infrastructure wired but test bodies are TODOs.
-- **Performance**: k6 scenarios in `tests/performance/k6/`; smoke profile is the only runnable one.
+- **Performance**: k6 runnable smoke, checkout-flow, and read-heavy scenarios
+  live in `tests/performance/k6/`; the larger load/stress tracks remain future work.
 
 Quality gates (CI vision, `docs/quality-strategy/`): lint → unit → build → contract → E2E smoke → perf smoke.
 
 ### Phase roadmap context
 
-- **Phase 1** (shipped): NestJS monolith, in-memory data stores.
+- **Phase 1** (shipped): NestJS modular monolith and deterministic commerce flow.
 - **Phase 2** (in progress): 
   - ✅ Orchestrator: `pnpm pg:*` unified CLI, Docker-first dev loop (`pg:dev` = docker compose watch), auto-migrate + seed on `pg:up`
-  - ⏳ Orders persistence: Prisma + Postgres for orders (currently in-memory). See `docs/next-steps/orders-persistence.md`
-  - ⏳ OpenTelemetry SDK + domain events
-  - Catalog already persists via Prisma; cart still in-memory (intentional Phase 1 contract)
-- **Phase 3**: Extract modules into independent services; promote contracts package to first-class boundary; replace in-process events with a broker.
+  - ✅ Catalog and orders persistence: Prisma + Postgres, with seeded data and order listing
+  - ✅ OpenTelemetry SDK: OTLP HTTP trace export, auto-instrumentation, and order spans
+  - ✅ Shared TypeScript HTTP contracts consumed by `apps/web`
+  - ⏳ Domain events and cart/session evolution; cart remains in-memory intentionally
+- **Phase 3**: Extract modules into independent services; expand contract
+  enforcement (OpenAPI/Pact); replace in-process events with a broker.
 
 ### Next steps workflow
 

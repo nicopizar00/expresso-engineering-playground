@@ -1,11 +1,11 @@
 /**
  * Centralized BFF client for the mini-commerce / Expresso playground.
  *
- * All HTTP traffic from the web app goes through here. v0.app-generated
- * components MUST NOT import `fetch` directly — they receive view models
+ * All HTTP traffic from the web app goes through here. Visual components
+ * MUST NOT import `fetch` directly; they receive view models
  * produced from these responses.
  *
- * The base URL comes from NEXT_PUBLIC_API_BASE_URL (root `.env` →
+ * The base URL comes from NEXT_PUBLIC_API_BASE_URL (root `.env` ->
  * `apps/web/.env.local` override). The fallback keeps the client usable in
  * `next dev` without any env file. Never hardcode a non-local URL here.
  *
@@ -14,7 +14,7 @@
  * Set NEXT_PUBLIC_DEMO_MODE=true to use mock data instead of the BFF.
  * This allows full frontend exploration without running the backend.
  *
- * ## Endpoint Verification (as of 2025-01)
+ * ## Endpoint Verification (as of 2026-05)
  *
  * The following endpoints are VERIFIED against BFF controllers:
  *
@@ -28,16 +28,12 @@
  * | POST /checkout               | checkout.controller  | VERIFIED  |
  * | GET  /orders/:id             | orders.controller    | VERIFIED  |
  * | POST /orders/:id/manage      | orders.controller    | VERIFIED  |
+ * | GET  /orders                 | orders.controller    | VERIFIED  |
  *
  * ## Missing Endpoints (frontend has workarounds)
  *
- * - DELETE /cart/items/:itemId — Not implemented in BFF
- * - PATCH  /cart/items/:itemId — Not implemented in BFF
- * - GET    /orders              — Not implemented (no list endpoint)
- *
- * TODO(types): Replace these inline response shapes with imports from
- *   `@mini-commerce/contracts` once those types are promoted out of the BFF
- *   modules (see docs/frontend/v0-wiring-plan.md §"Expected data contracts").
+ * - DELETE /cart/items/:itemId - Not implemented in BFF
+ * - PATCH  /cart/items/:itemId - Not implemented in BFF
  */
 
 import {
@@ -47,6 +43,7 @@ import {
   addMockCartItem,
   createMockOrder,
   getMockOrder,
+  getAllMockOrders,
   updateMockOrderStatus,
   getMockHealth,
   shouldSimulateError,
@@ -58,7 +55,7 @@ import {
 } from './mock-data';
 
 // ---------------------------------------------------------------------------
-// Types — canonical wire shapes re-exported from @mini-commerce/contracts.
+// Types - canonical wire shapes re-exported from @mini-commerce/contracts.
 // The contracts package is the single source of truth shared with the BFF.
 // Any drift between this file and the BFF DTOs surfaces as a tsc error.
 // ---------------------------------------------------------------------------
@@ -76,6 +73,7 @@ import type {
   OrderStatus,
   OrderLine,
   Order,
+  OrdersResponse,
   OrderManageAction,
   ManageOrderRequest,
   ManageOrderResponse,
@@ -93,6 +91,7 @@ export type {
   OrderStatus,
   OrderLine,
   Order,
+  OrdersResponse,
   OrderManageAction,
   ManageOrderResponse,
   HealthReport,
@@ -255,6 +254,11 @@ const mockApi = {
     return createMockOrder(input.customerName);
   },
 
+  async getOrders(): Promise<OrdersResponse> {
+    await simulateLatency();
+    return getAllMockOrders();
+  },
+
   async getOrderById(orderId: string): Promise<Order> {
     await simulateLatency();
     const order = getMockOrder(orderId);
@@ -340,6 +344,10 @@ const realApi = {
     return request<CheckoutResponse>('POST', '/checkout', input);
   },
 
+  getOrders(): Promise<OrdersResponse> {
+    return request<OrdersResponse>('GET', '/orders');
+  },
+
   getOrderById(orderId: string): Promise<Order> {
     return request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`);
   },
@@ -387,6 +395,10 @@ export const expressoApi = {
     return isDemoMode() ? mockApi.checkout(input) : realApi.checkout(input);
   },
 
+  getOrders(): Promise<OrdersResponse> {
+    return isDemoMode() ? mockApi.getOrders() : realApi.getOrders();
+  },
+
   getOrderById(orderId: string): Promise<Order> {
     return isDemoMode()
       ? mockApi.getOrderById(orderId)
@@ -404,7 +416,6 @@ export type ExpressoApi = typeof expressoApi;
 
 // ---------------------------------------------------------------------------
 // Utility: Format money for display
-// TODO(v0-export): Move to a shared utils file if reused across components
 // ---------------------------------------------------------------------------
 
 export function formatMoney(amountMinor: number, currency: string): string {

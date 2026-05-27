@@ -5,9 +5,6 @@
  *
  * Shows requests moving from users through BFF to services and persistence.
  * Uses a clean 2D visual flow with cards, lines, and animated dots.
- *
- * TODO(v0-export): Component ready for repository integration
- * TODO(api-wire): Replace mock flow with real trace data when available
  */
 
 import { useEffect, useState } from 'react';
@@ -50,7 +47,7 @@ export function RequestFlowDiagram({ flow, isAnimated = true }: RequestFlowDiagr
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Layer 1: Users → BFF */}
+          {/* Layer 1: Users -> BFF */}
           <FlowLayer>
             <FlowNode type="users" label="Users" isAnimated={isAnimated} />
             {userToBff && (
@@ -61,7 +58,7 @@ export function RequestFlowDiagram({ flow, isAnimated = true }: RequestFlowDiagr
             )}
           </FlowLayer>
 
-          {/* Layer 2: BFF → Services */}
+          {/* Layer 2: BFF -> Services */}
           {bffToServices.length > 0 && (
             <FlowLayer>
               <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -76,7 +73,7 @@ export function RequestFlowDiagram({ flow, isAnimated = true }: RequestFlowDiagr
             </FlowLayer>
           )}
 
-          {/* Layer 3: Services → Persistence */}
+          {/* Layer 3: Services -> Persistence */}
           {servicesToPersistence.length > 0 && (
             <FlowLayer>
               <div className="flex items-center justify-center gap-4 w-full">

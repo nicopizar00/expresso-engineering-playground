@@ -5,9 +5,6 @@
  *
  * Displays key performance indicators in a horizontal strip format.
  * Shows virtual users, request rate, latency, error rate, and success rate.
- *
- * TODO(v0-export): Component ready for repository integration
- * TODO(api-wire): Replace mock KPIs with real metrics
  */
 
 import { Users, Activity, Clock, AlertTriangle, CheckCircle, Zap } from 'lucide-react';

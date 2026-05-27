@@ -5,9 +5,6 @@
  *
  * Displays available performance scenarios with descriptions and allows
  * starting/stopping scenario playback.
- *
- * TODO(v0-export): Component ready for repository integration
- * TODO(api-wire): Connect to real k6 execution when available
  */
 
 import { Play, Square, Zap, Users, Clock, Activity } from 'lucide-react';
@@ -45,7 +42,7 @@ export function ScenarioSelector({
             className="px-2 py-1 text-[10px] font-medium rounded-full animate-pulse"
             style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)' }}
           >
-            LIVE
+            SIMULATED
           </span>
         )}
       </div>
@@ -88,7 +85,7 @@ export function ScenarioSelector({
                 style={{ backgroundColor: 'var(--success)' }}
               />
               <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                Running: {activeScenario.name}
+                Active mock: {activeScenario.name}
               </span>
             </div>
             <button

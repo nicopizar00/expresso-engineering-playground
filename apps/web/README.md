@@ -4,16 +4,18 @@ Next.js web application for the mini-commerce engineering playground.
 
 ## Responsibility
 
-- Simple, utilitarian playground UI for interacting with the BFF endpoints.
+- Multi-page storefront and developer playground UI for interacting with the
+  BFF endpoints.
 - Consumes the BFF in [`apps/bff`](../bff/README.md).
-- Imports shared types from `@mini-commerce/shared-types` and contract
-  definitions from `@mini-commerce/contracts` (once the contracts package
-  ships types).
+- Consumes canonical HTTP wire types from `@mini-commerce/contracts` through
+  the centralized `src/lib/api/expresso-api.ts` client.
 
 ## Status
 
-Runnable as a developer playground. Visual polish is intentionally not a
-goal; the UI prioritizes manual interaction and validation of BFF endpoints.
+Runnable with routes for catalog, cart, checkout, persisted order list and
+detail, a standalone 3D visualizer embed, the mock-only `/performance`
+design surface, and `/dev` diagnostics. Demo mode routes the API client to
+deterministic frontend fixtures when the BFF is not running.
 
 ## Run locally
 
@@ -23,8 +25,17 @@ pnpm pg:dev
 
 Then open http://localhost:3000.
 
+## Data boundaries
+
+- Real mode reads and mutates data through the BFF only.
+- Catalog and orders persist through the BFF; cart resets when the BFF process
+  restarts.
+- Demo mode is browser-local validation data and must not be presented as
+  persisted or live service state.
+- `/performance` always uses deterministic frontend scenario fixtures. It does
+  not call a performance endpoint, read k6 reports, or display live telemetry.
+
 ## Next iteration TODOs
 
-- [ ] Wire `next.config` to honor workspace packages once contracts ship types.
 - [ ] Add `vitest` for component tests.
 - [ ] Wire OpenTelemetry browser instrumentation placeholder.

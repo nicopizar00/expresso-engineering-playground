@@ -1,11 +1,11 @@
 # `components/system`
 
-Cross-cutting UI primitives that every domain folder consumes.
+Cross-cutting UI primitives consumed by the current domain screens.
 
-Planned components:
+Current components:
 - `AppShell` — header + cart count badge + health badge + slot.
 - `HealthBadge` — polls `expressoApi.getHealth()` on a slow interval.
 - `LoadingSkeleton`, `EmptyState`, `ErrorBanner` — design-system primitives.
 
-These are first in line for v0.app generation because every domain screen
-needs them.
+Future design passes may refine these primitives, but must preserve their
+hand-wired health and cart data boundaries.

@@ -2,16 +2,17 @@
 
 > Captured 2026-05-16. Current branch: `expresso-frontend-build`.
 
-This document describes the repository's readiness for Grafana k6 performance
-and scenario testing, and what must happen before k6 scenarios can be written.
+This document describes the repository's current Grafana k6 performance
+coverage and the remaining path to queryable performance observability.
 
 ---
 
 ## Current state
 
-The k6 infrastructure is wired (`tests/performance/k6/`, `pnpm pg:perf:smoke`).
-The smoke profile is the only runnable scenario. It targets the BFF's HTTP
-endpoints and does not depend on browser state.
+The k6 infrastructure is wired under `tests/performance/k6/`. Runnable
+commands include `pnpm pg:perf:smoke`, `pnpm pg:perf:checkout-flow`, and
+`pnpm pg:perf:read-heavy`; they target BFF HTTP endpoints and do not depend
+on browser state.
 
 ## What is stable and safe for k6 scenarios
 
@@ -65,7 +66,7 @@ http.get(`${BASE}/visualization-data`);
 
 | Area | Status | Blocker |
 |---|---|---|
-| OpenTelemetry tracing | Placeholder only (`telemetry.ts` is no-op) | OTel SDK not wired |
+| OpenTelemetry tracing | ✅ Wired — NodeSDK + OTLP HTTP exporter, auto-instrumentations, order spans | — |
 | k6 → Grafana dashboard | Not configured | Grafana stack not in Docker Compose |
 | Contract/Pact tests | Infrastructure wired, bodies are TODOs | Out of scope |
 | E2E (Playwright) | Infrastructure wired, bodies are TODOs | Out of scope |
@@ -73,13 +74,12 @@ http.get(`${BASE}/visualization-data`);
 
 ## Recommended next k6 iteration
 
-1. Add a `checkout-flow.js` scenario that runs the four-step flow above.
-2. Assert HTTP 201 on `/checkout`, 200 on `/orders/:id`, and that
-   `visualization-data` contains a sphere with `id === viz_order_${orderId}`.
-3. Add a `read-heavy.js` scenario that fans out across all GET endpoints
-   to establish baseline latency numbers before any optimization work.
-4. Wire the k6 HTML report to a Grafana dashboard (requires adding Grafana +
+1. Establish CI/nightly ownership for the existing checkout-flow and
+   read-heavy profiles.
+2. Wire scenario results to a Grafana dashboard (requires adding Grafana +
    InfluxDB or Prometheus to `infra/docker/compose.performance.yaml`).
+3. Define SLO review criteria for load and stress profiles before making
+   those paths merge-blocking.
 
 ## Anchor tag for future k6 work
 

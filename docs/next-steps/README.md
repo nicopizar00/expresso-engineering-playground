@@ -16,15 +16,41 @@ When the count drops to zero, the topic is done.
 
 ## Open threads (priority order)
 
-1. **[Orders persistence](orders-persistence.md)** — *5 anchors*
-   Phase 2 follow-up. Move orders from in-memory `Map` to Prisma so they
-   survive BFF restarts (today they reset on every boot). Cart stays
-   in-memory by design. Critical files: `OrdersService`, `OrdersModule`,
-   Prisma schema, `CheckoutService`, tests.
-
-2. More coming — iterate on spec as Phase 2 stabilizes.
+1. **[Visualizer reactivity](visualizer-reactivity.md)** — *5 anchors in source*
+   - Promote the 3D visualizer from manual-reload to interval polling
+     so browser mutations show up in 3D without clicking **Reload data**.
+   - State document captures the polling spec plus future SSE /
+     WebSocket variants for later iterations.
+   - Anchors live in `*.js` / `*.html` — run
+     `grep -rn "next-steps/visualizer-reactivity" apps/visualizer-3d/`
+     (the default grep recipe only scans `*.ts`, `*.prisma`, `*.mjs`,
+     `*.yaml`).
 
 ## Done
+
+✅ **OpenTelemetry SDK** — *wired in `feat/otel-sdk`*
+   - `initTelemetry()` initializes NodeSDK + OTLP HTTP exporter
+   - Auto-instrumentations: HTTP, Express, pg (fs disabled)
+   - Resource attributes: `service.name=bff`, `service.version`, `deployment.environment`
+   - Manual spans on `orders.create` and `orders.manage` with domain attributes
+   - No-ops when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset
+
+✅ **k6 scenario library** — *added in `feat/k6-scenarios`*
+   - `scenarios/checkout-flow/checkout-flow.js` — 1 VU write path, asserts real persisted orderId
+   - `scenarios/read-heavy/read-heavy.js` — 30 VU ramping, all GET endpoints, baseline latency
+   - `config/thresholds.js` extended with `checkoutFlowThresholds` + `readHeavyThresholds`
+   - `pnpm pg:perf:checkout-flow` and `pnpm pg:perf:read-heavy` commands wired
+
+✅ **[Orders persistence](orders-persistence.md)** — *0 anchors remaining*
+   - `Order` + `OrderLine` Prisma models added to schema
+   - Migration `20260516022844_init_orders` applied
+   - `OrdersService` uses Prisma + warm sync cache via `OnModuleInit`
+   - `listAll()` / `get()` remain synchronous (cache reads)
+   - `create()` / `manage()` are async (write to DB, mutate cache)
+   - `CheckoutService.checkout()` awaits `orders.create()`
+   - `seed.ts` seeds `ord_demo` order
+   - `GET /orders` list endpoint added; orders visible from browser without knowing ID
+   - `orders.service.spec.ts` + `orders.controller.spec.ts` cover all paths
 
 ✅ **[Orchestrator wire-up](orchestrator.md)** — *0 anchors remaining*
    - Root `.env` centralizes all config (POSTGRES_USER, BFF_PORT, WEB_PORT, etc.)

@@ -24,3 +24,17 @@ export const stressThresholds = {
   http_req_failed: ["rate<0.10"],
   http_req_duration: ["p(95)<2000"],
 };
+
+export const checkoutFlowThresholds = {
+  // Single VU write path — no concurrency pressure. Any failure is a real bug.
+  http_req_failed: ["rate<0.01"],
+  http_req_duration: ["p(95)<1000"],
+  checks: ["rate>0.99"],
+};
+
+export const readHeavyThresholds = {
+  // Read-only baseline — 30 VUs, idempotent GETs. Used to track regression.
+  http_req_failed: ["rate<0.01"],
+  http_req_duration: ["p(95)<600"],
+  checks: ["rate>0.99"],
+};

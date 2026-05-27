@@ -2,17 +2,13 @@
  * Performance Data Adapter
  *
  * Abstraction layer between the UI components and the data source.
- * Currently backed by mock data, designed for future k6/Grafana integration.
+ * This implementation is intentionally backed by deterministic frontend mocks.
  *
  * ## Integration Points
  *
- * Future integrations will replace these functions while keeping the same shape:
- * - k6 summary JSON output (post-test reports)
- * - Grafana dashboard API (live metrics)
- * - Performance report artifacts from CI
- *
- * TODO(api-wire): Replace mock adapter with k6/Grafana/report adapter
- * TODO(types): Import performance types from shared contracts once promoted
+ * A future product decision could supply saved performance artifacts or
+ * observable metric data through the same presentation interface. The mock
+ * shapes remain local while this route does not consume a runtime API.
  */
 
 import {
@@ -50,16 +46,13 @@ export type {
 
 export interface PerformanceAdapterConfig {
   /**
-   * Polling interval for live updates in milliseconds.
+   * Polling interval for simulated snapshot refreshes in milliseconds.
    * Default: 1000ms (1 second)
    */
   pollingIntervalMs: number;
 
   /**
-   * Whether to use mock data or attempt real integration.
-   * Currently always true; future versions may read from environment.
-   *
-   * TODO(api-wire): Read from NEXT_PUBLIC_PERF_DATA_SOURCE env var
+   * Whether to use mock data. This surface currently supports mock data only.
    */
   useMockData: boolean;
 }
@@ -93,8 +86,6 @@ export function getAdapterConfig(): PerformanceAdapterConfig {
 /**
  * Fetch the current performance snapshot.
  * This is the main entry point for UI components.
- *
- * TODO(api-wire): Add real data source integration
  */
 export async function fetchPerformanceSnapshot(): Promise<PerformanceSnapshot> {
   // Simulate async behavior for future API compatibility
@@ -103,8 +94,6 @@ export async function fetchPerformanceSnapshot(): Promise<PerformanceSnapshot> {
 
 /**
  * Fetch all available performance scenarios.
- *
- * TODO(api-wire): May fetch from CI artifacts or k6 config
  */
 export async function fetchScenarios(): Promise<PerformanceScenario[]> {
   return Promise.resolve(getScenarios());
@@ -113,8 +102,7 @@ export async function fetchScenarios(): Promise<PerformanceScenario[]> {
 /**
  * Start a performance scenario by ID.
  * Returns the started scenario or null if not found.
- *
- * TODO(api-wire): May trigger actual k6 execution in future
+ * This starts local playback only; it does not execute a load test.
  */
 export async function runScenario(scenarioId: string): Promise<PerformanceScenario | null> {
   return Promise.resolve(startScenario(scenarioId));
@@ -122,8 +110,7 @@ export async function runScenario(scenarioId: string): Promise<PerformanceScenar
 
 /**
  * Stop the currently running scenario.
- *
- * TODO(api-wire): May stop actual k6 execution in future
+ * This stops local playback only.
  */
 export async function haltScenario(): Promise<void> {
   stopScenario();
@@ -213,14 +200,15 @@ export function getIntensityColor(intensity: ScenarioIntensity): string {
 }
 
 // ---------------------------------------------------------------------------
-// Future Integration Notes
+// Potential Adapter Notes
 // ---------------------------------------------------------------------------
 
 /**
- * Future k6 Integration
+ * A future saved-artifact adapter could parse completed k6 output without
+ * starting tests from this view. The existing k6 scenarios are currently
+ * independent of this frontend demonstration.
  *
- * k6 outputs summary data in JSON format after test completion.
- * The adapter would parse this format:
+ * Example saved metric shape:
  *
  * {
  *   "metrics": {
@@ -230,19 +218,4 @@ export function getIntensityColor(intensity: ScenarioIntensity): string {
  *   },
  *   "root_group": { ... }
  * }
- *
- * TODO(api-wire): Implement k6JsonAdapter.parseReport(json)
- */
-
-/**
- * Future Grafana Integration
- *
- * Grafana provides a REST API for querying dashboards and panels.
- * The adapter would call:
- *
- * GET /api/datasources/proxy/:id/api/v1/query_range
- *
- * With PromQL queries for each metric we want to display.
- *
- * TODO(api-wire): Implement GrafanaAdapter.fetchMetrics(dashboardId, timeRange)
  */

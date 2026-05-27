@@ -5,8 +5,6 @@
  *
  * Provides consistent navigation, header, footer, and cart drawer across all pages.
  * Includes demo mode toggle for frontend exploration without backend.
- *
- * TODO(v0-export): Consider extracting navigation links to a separate config file.
  */
 
 import { ReactNode, useState, useEffect } from 'react';
@@ -66,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           role="status"
         >
           <FlaskConical className="inline h-3 w-3 mr-1" />
-          Demo Mode — Using mock data. Backend not required.
+          Demo Mode - Using mock data. Backend not required.
           <button
             onClick={handleToggleDemoMode}
             className="ml-2 underline hover:no-underline"

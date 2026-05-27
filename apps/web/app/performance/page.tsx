@@ -3,24 +3,16 @@
 /**
  * Performance Playground Page
  *
- * Visualizes system behavior under concurrent web service requests.
- * Shows "the system breathing under load" — not a traditional monitoring dashboard.
+ * Visualizes simulated behavior under concurrent web service requests.
+ * It is a design evaluation surface, not a monitoring dashboard.
  *
  * ## Design Principle
  * This page communicates engineering behavior in a simple, elegant, understandable way.
  * It does not attempt to be a production observability tool.
  *
  * ## Current State
- * All data is mocked. Future versions will integrate with:
- * - k6 summary output
- * - Grafana dashboard links
- * - Performance report artifacts
- *
- * TODO(v0-export): Component ready for repository integration
- * TODO(api-wire): Replace mock performance adapter with k6/Grafana/report adapter
- * TODO(state): Replace local scenario playback state if needed
- * TODO(types): Replace mock performance types with shared contracts or report DTOs
- * TODO(error-handling): Connect real performance data error handling
+ * All data is mocked. A later product decision could add an adapter for
+ * test artifacts or observable metrics without changing this mock boundary.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -60,7 +52,7 @@ export default function PerformancePage() {
     load();
   }, []);
 
-  // Polling for live updates
+  // Refresh the locally simulated snapshot while a reviewer explores the UI.
   useEffect(() => {
     const interval = setInterval(async () => {
       const snap = await fetchPerformanceSnapshot();

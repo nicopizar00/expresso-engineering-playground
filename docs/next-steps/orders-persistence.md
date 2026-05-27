@@ -1,5 +1,8 @@
 # Orders persistence (Phase 2 follow-up)
 
+> Status: completed. This document is retained as the implementation record
+> for the Prisma/PostgreSQL order persistence now present in the BFF.
+
 ## Goal
 
 Move orders from the in-memory `Map<OrderId, Order>` in

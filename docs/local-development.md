@@ -7,10 +7,9 @@ locally, validate the environment, and interact with the web app.
 
 ## Purpose
 
-The playground ships a developer utility layer (`pnpm pg:*`) that wraps
-common local tasks: starting infrastructure, running applications, validating
-endpoints, and tearing down the stack. All commands run from the **repository
-root**.
+The playground ships both a Docker-only `./dev` command and a host-enabled
+`pnpm pg:*` utility layer. Both cover starting applications, validating
+endpoints, and tearing down the stack from the **repository root**.
 
 The stack consists of:
 
@@ -21,9 +20,9 @@ The stack consists of:
 | PostgreSQL      | Postgres 16 (Docker)| localhost:5432               |
 | OTel Collector  | OpenTelemetry       | localhost:4317 / 4318        |
 
-> All BFF responses are currently **mocked in-memory**. PostgreSQL is
-> provisioned and reachable but not yet read by the BFF. This changes once
-> Prisma persistence lands.
+> Catalog and orders are persisted through Prisma/PostgreSQL. The cart is
+> intentionally stored in BFF process memory and resets when that process
+> restarts.
 
 ---
 
@@ -68,20 +67,20 @@ The doctor command checks:
 - `apps/web/.env.local` existence (warns if missing)
 - Whether ports 3000 and 3001 are already occupied
 
-### Set up environment files
+### Set up environment
 
 ```bash
-cp apps/web/.env.example apps/web/.env.local
+cp .env.example .env
 ```
 
-Edit `apps/web/.env.local` if the BFF runs on a non-default port:
+Edit `.env` if the BFF runs on a non-default port:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 ```
 
-The web app falls back to `http://localhost:3001` if the variable is not set,
-so this step is optional for the default local setup.
+The Compose stack and wrapper commands load this root configuration. The web
+app falls back to `http://localhost:3001` in host mode.
 
 ---
 
@@ -91,8 +90,9 @@ so this step is optional for the default local setup.
 pnpm pg:up
 ```
 
-This starts **PostgreSQL** and the **OpenTelemetry Collector** in the
-background using Docker Compose (`infra/docker/compose.yaml`).
+This starts **PostgreSQL**, the **OpenTelemetry Collector**, and the **BFF**
+using Docker Compose (`infra/docker/compose.yaml`). Migrations and seed data
+are applied as part of the startup flow.
 
 To verify Postgres is healthy:
 
@@ -102,20 +102,15 @@ docker compose -f infra/docker/compose.yaml ps
 
 ---
 
-## Start the web app and BFF
+## Start the web app
 
 ```bash
-pnpm pg:dev
+pnpm pg:up web
 ```
 
-This delegates to `turbo run dev`, which starts all workspace applications
-in parallel with hot-reload:
-
-- **BFF** on http://localhost:3001 (`apps/bff`, NestJS)
-- **Web app** on http://localhost:3000 (`apps/web`, Next.js)
-
-Wait for both services to print their startup messages before opening the
-browser.
+This adds the containerized web app on http://localhost:3000. For hot reload
+in containers use `pnpm pg:dev`; for host-mode application processes use
+`pnpm pg:dev:host`.
 
 ---
 
@@ -127,36 +122,26 @@ pnpm pg:open
 
 This prints all local URLs. Open http://localhost:3000 in a browser.
 
-The playground UI exposes seven panels, intentionally utilitarian — the goal
-is to validate the BFF endpoints, not to be a polished storefront:
+The web app exposes the customer flow plus development diagnostics:
 
-| Panel                  | Action                                          |
-|------------------------|-------------------------------------------------|
-| Health Check           | `GET /health`                                   |
-| Catalog — Load Products| `GET /catalog/products` (renders a product list) |
-| Cart — Add Item        | `POST /cart/items` (picks from the loaded list) |
-| Cart — View            | `GET /cart`                                     |
-| Checkout               | `POST /checkout` (converts cart to order)       |
-| Order — Lookup         | `GET /orders/:id` (`ord_demo` is pre-seeded)    |
-| Order — Manage         | `POST /orders/:id/manage` (cancel / update_status / mark_prepared) |
-
-Each panel shows the raw JSON response from the BFF directly below the
-action button. All data is fictional.
+| Route | Purpose |
+|-------|---------|
+| `/` | Browse the seeded catalog and add items to the cart. |
+| `/cart` | Inspect cart lines and proceed to checkout. |
+| `/checkout` | Place an order with a fictional customer name. |
+| `/orders` | List persisted orders. |
+| `/orders/<orderId>` | View and manage a persisted order. |
+| `/visualizer` | Embed the standalone Three.js visualizer. |
+| `/dev` | Inspect API wiring and demo-mode behavior. |
 
 ### Suggested manual run-through
 
-1. Click **GET /health** — confirm the BFF is up.
-2. Click **GET /catalog/products** — the product list populates the dropdown
-   in the Add Item panel.
-3. Pick a product, set a quantity, click **POST /cart/items** — repeat to
-   build up a multi-line cart.
-4. Click **GET /cart** — confirm the cart total reflects the lines.
-5. Set a customer name, click **POST /checkout** — note the returned
-   `orderId`. The cart resets on success.
-6. Paste the new `orderId` (or use `ord_demo`) into **Order Lookup** to
-   inspect the order.
-7. In **Order Manage**, try each action: `mark_prepared`, `update_status`
-   (with `nextStatus`), and `cancel`. Each returns the previous + new status.
+1. Browse the catalog on `/` and add one or more items.
+2. Review totals on `/cart` and continue to checkout.
+3. Enter a fictional customer name on `/checkout`.
+4. Confirm the resulting order detail page and update its status.
+5. Visit `/orders` to confirm the order appears in the persisted list.
+6. Open `/visualizer` to inspect the BFF-projected scene.
 
 ---
 
@@ -166,10 +151,9 @@ action button. All data is fictional.
 pnpm pg:smoke
 ```
 
-The smoke test calls all the mini-commerce endpoints in sequence and prints
-`✓ PASS` or `✗ FAIL` for each. This is a developer validation check, not a
-performance test. Cart and checkout share in-memory state, so the checks
-run sequentially rather than in parallel.
+The smoke test calls the core mini-commerce endpoints in sequence. This is a
+developer validation check, not a performance test. Cart and checkout share
+in-memory cart state, so its write flow runs sequentially.
 
 Example output:
 
@@ -186,8 +170,9 @@ Target: http://localhost:3001
   ✓ POST /checkout
   ✓ GET  /orders/ord_demo
   ✓ POST /orders/ord_demo/manage (mark_prepared)
+  ✓ GET  /visualization-data
 
-All 8 smoke checks passed.
+All 9 smoke checks passed.
 ```
 
 The smoke test requires the BFF to be running (`pnpm pg:dev` or
@@ -195,13 +180,12 @@ The smoke test requires the BFF to be running (`pnpm pg:dev` or
 
 ---
 
-## How this enables performance testing with k6 (next iteration)
+## Performance testing with k6
 
-The smoke validation is the **prerequisite gate** before k6 is connected.
-Once the endpoints above are validated, k6 scenarios can target the same
-URLs via env vars and reuse the same fictional product / order ids without
-any additional setup. See [`tests/performance/k6/README.md`](../tests/performance/k6/README.md)
-for the integration checklist. k6 is not connected in this iteration.
+The Docker-based k6 layer includes runnable smoke, checkout-flow, and
+read-heavy scenarios targeting the same BFF. See
+[`tests/performance/k6/README.md`](../tests/performance/k6/README.md) for
+commands and current limitations.
 
 ---
 
@@ -211,10 +195,9 @@ for the integration checklist. k6 is not connected in this iteration.
 pnpm pg:seed
 ```
 
-The BFF currently serves deterministic mock responses in-memory. No database
-seeding is required. The order `ord_demo` is pre-seeded inside
-`OrdersService` so the `/orders/:id` and `/orders/:id/manage` endpoints can
-be exercised immediately without first running a checkout.
+The seed task populates the persisted catalog and the `ord_demo` order in
+PostgreSQL so catalog and order endpoints are usable immediately. It does not
+seed the in-memory cart.
 
 ---
 
@@ -295,19 +278,15 @@ docker info
 ! apps/web/.env.local not found
 ```
 
-Run:
-
-```bash
-cp apps/web/.env.example apps/web/.env.local
-```
+Run `cp .env.example .env` from the repository root.
 
 ---
 
 ### Cart is empty after restart
 
-The cart lives in BFF process memory. Restarting the BFF (e.g. via
-`pnpm pg:dev` re-launch) clears it. This is expected for this iteration and
-goes away once persistence lands.
+The cart lives in BFF process memory. Restarting the BFF clears it. This is
+expected until a deliberate session/cart persistence design is adopted;
+orders are unaffected because they persist in PostgreSQL.
 
 ---
 
@@ -316,7 +295,7 @@ goes away once persistence lands.
 Symptom: The web app UI shows an error in the response box.
 
 1. Confirm the BFF is running: `pnpm pg:smoke`
-2. Check `apps/web/.env.local` — `NEXT_PUBLIC_API_BASE_URL` must match the
+2. Check `.env` — `NEXT_PUBLIC_API_BASE_URL` must match the
    BFF port.
 3. CORS is enabled for all origins in development (`CORS_ORIGIN=*`). If you
    see CORS errors, verify the BFF started without errors:
@@ -340,10 +319,11 @@ If pnpm is missing: `npm install -g pnpm@9`
 | Command          | What it does                                    |
 |------------------|-------------------------------------------------|
 | `pnpm pg:doctor` | Validate local prerequisites                    |
-| `pnpm pg:up`     | Start Postgres + OTel Collector in Docker       |
-| `pnpm pg:dev`    | Start web app + BFF in watch mode               |
+| `pnpm pg:up`     | Start Postgres, OTel Collector, and BFF         |
+| `pnpm pg:up web` | Add the containerized web app                   |
+| `pnpm pg:dev`    | Run web app and BFF with Compose watch          |
 | `pnpm pg:smoke`  | Run endpoint smoke validation                   |
-| `pnpm pg:seed`   | Explain mock data status (placeholder)          |
+| `pnpm pg:seed`   | Seed persisted catalog and order demo data      |
 | `pnpm pg:reset`  | Stop containers, keep volumes                   |
 | `pnpm pg:down`   | Stop Docker Compose services                    |
 | `pnpm pg:logs`   | Stream Docker Compose logs                      |

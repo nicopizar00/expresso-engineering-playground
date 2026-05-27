@@ -7,8 +7,6 @@
  * - Direct endpoint testing against the BFF
  * - Mock scenario controls for testing different UI states
  * - Demo Guide explaining how to explore the frontend
- *
- * TODO(v0-export): Component ready for repository integration.
  */
 
 import { useState, useEffect } from 'react';
@@ -28,7 +26,6 @@ import {
   Heart,
   ExternalLink,
   Gauge,
-  Box,
 } from 'lucide-react';
 import {
   expressoApi,
@@ -269,94 +266,13 @@ function DemoGuidePanel() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Visualizer Info Panel
-// ---------------------------------------------------------------------------
-
-function VisualizerInfoPanel() {
-  const visualizerUrl = process.env.NEXT_PUBLIC_VISUALIZER_URL || '';
-  const isConfigured = visualizerUrl.length > 0;
-
-  return (
-    <Card title="3D Visualizer" icon={Box}>
-      <div className="space-y-3">
-        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          The 3D Visualizer is a standalone static app that renders a Three.js scene
-          and fetches domain data from the BFF.
-        </p>
-
-        {/* Configuration Status */}
-        <div
-          className="p-3 rounded-md"
-          style={{
-            backgroundColor: isConfigured ? 'rgba(34, 197, 94, 0.1)' : 'rgba(234, 179, 8, 0.1)',
-            border: `1px solid ${isConfigured ? 'var(--success)' : 'var(--warning)'}`,
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-              {isConfigured ? 'Configured' : 'Not Configured'}
-            </span>
-            <span
-              className="px-2 py-0.5 text-xs font-medium rounded-full"
-              style={{
-                backgroundColor: isConfigured ? 'var(--success)' : 'var(--warning)',
-                color: isConfigured ? 'var(--success-foreground)' : 'var(--warning-foreground)',
-              }}
-            >
-              {isConfigured ? 'Ready' : 'Setup Required'}
-            </span>
-          </div>
-          <div className="text-xs font-mono" style={{ color: 'var(--muted-foreground)' }}>
-            NEXT_PUBLIC_VISUALIZER_URL={visualizerUrl || '(not set)'}
-          </div>
-        </div>
-
-        {/* Architecture Points */}
-        <div>
-          <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
-            Architecture
-          </label>
-          <div className="space-y-1.5 text-xs">
-            {[
-              { label: 'Standalone static app', note: 'Vanilla JS + Three.js' },
-              { label: 'Served via nginx:alpine', note: 'Port 3002 locally' },
-              { label: 'Data from BFF', note: 'GET /visualization-data' },
-              { label: 'No direct DB access', note: 'All through HTTP contract' },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between py-1">
-                <span style={{ color: 'var(--foreground)' }}>{item.label}</span>
-                <span style={{ color: 'var(--muted-foreground)' }}>{item.note}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Link */}
-        <Link
-          href="/visualizer"
-          className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
-        >
-          <Box className="h-4 w-4" />
-          Open 3D Visualizer
-        </Link>
-      </div>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Performance Integration Panel
-// ---------------------------------------------------------------------------
-
 function PerformanceInfoPanel() {
   return (
     <Card title="Performance Playground" icon={Gauge}>
       <div className="space-y-3">
         <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          The Performance Playground visualizes system behavior under concurrent load.
-          It&apos;s designed to show &quot;the system breathing under load&quot; — not a traditional monitoring dashboard.
+          The Performance Playground presents simulated request activity for design
+          evaluation. It is not a monitoring dashboard or a live telemetry surface.
         </p>
 
         {/* Current State */}
@@ -423,14 +339,14 @@ function PerformanceInfoPanel() {
         {/* Future Integration */}
         <div>
           <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
-            Future k6/Grafana Integration
+            Potential Data Adapters
           </label>
           <div className="space-y-1.5 text-xs">
             {[
               { label: 'k6 summary JSON parsing', status: 'planned' },
-              { label: 'Grafana dashboard links', status: 'planned' },
+              { label: 'Observable metric source', status: 'planned' },
               { label: 'CI performance artifacts', status: 'planned' },
-              { label: 'Live service metrics', status: 'planned' },
+              { label: 'Measured service metrics', status: 'planned' },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <span style={{ color: 'var(--foreground)' }}>{item.label}</span>
@@ -455,21 +371,6 @@ function PerformanceInfoPanel() {
           Open Performance Playground
         </Link>
 
-        {/* 3D Visualizer Note */}
-        <div
-          className="p-2 rounded text-xs"
-          style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
-        >
-          <strong style={{ color: 'var(--foreground)' }}>3D Visualizer:</strong> Future versions may
-          use the 3D room as an ambient system-load visualization surface.{' '}
-          <a
-            href="/visualizer"
-            className="underline hover:no-underline"
-            style={{ color: 'var(--primary)' }}
-          >
-            View Visualizer
-          </a>
-        </div>
       </div>
     </Card>
   );
@@ -531,7 +432,7 @@ function ReadinessPanel() {
       <div className="pt-2 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}>
         <p>
           <strong style={{ color: 'var(--foreground)' }}>wired</strong> = calls real BFF endpoint |{' '}
-          <strong style={{ color: 'var(--foreground)' }}>mock</strong> = demo-only (BFF endpoint missing) |{' '}
+          <strong style={{ color: 'var(--foreground)' }}>mock</strong> = frontend-only fixture behavior |{' '}
           <strong style={{ color: 'var(--foreground)' }}>embed</strong> = external app integration
         </p>
       </div>
@@ -829,10 +730,9 @@ export default function DevPage() {
         <ReadinessPanel />
       </div>
 
-      {/* Performance and Visualizer Info */}
-      <div className="grid gap-4 mb-8 lg:grid-cols-2">
+      {/* Performance mock-data guidance */}
+      <div className="mb-8">
         <PerformanceInfoPanel />
-        <VisualizerInfoPanel />
       </div>
 
       {/* API Debug Cards */}

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Performance Playground is a frontend experience designed to visually communicate system behavior under concurrent web service requests. It shows "the system breathing under load" — not a traditional monitoring dashboard or complex observability interface.
+The Performance Playground is a frontend experience designed to visually communicate simulated system behavior under concurrent web service requests. It is a design-evaluation surface, not a monitoring dashboard or an observability interface.
 
 ## Design Principle
 
@@ -47,7 +47,7 @@ Each card shows:
 ### Request Flow Diagram
 A clean 2D visualization showing:
 ```
-Users → BFF Gateway → [Services] → Persistence
+Users -> BFF Gateway -> [Services] -> Persistence
 ```
 - Animated dots represent request flow
 - Connection lines show traffic volume
@@ -86,11 +86,13 @@ src/lib/performance/mock-performance-data.ts
 | Order Lookup Pressure | 75 | 320 | 120s | Medium | Orders, BFF, Persistence |
 | Error Injection | 30 | 100 | 60s | Low | All services |
 
-## Future k6 Integration
+## Potential Saved-Artifact Adapter
 
-The adapter layer is designed for future k6 integration:
+The repository already contains runnable k6 scenarios. This page does not run
+them or read their reports. A future product decision could adapt saved test
+artifacts into this visual model.
 
-### Expected Data Source
+### Example Candidate Input
 ```bash
 k6 run --out json=report.json scenario.js
 ```
@@ -106,31 +108,22 @@ k6 run --out json=report.json scenario.js
 }
 ```
 
-### Integration Points
+### Local Presentation Boundary
 - `src/lib/performance/performance-adapter.ts` - Main adapter interface
-- `TODO(api-wire)` comments mark integration points
+- `src/lib/performance/mock-performance-data.ts` - Current deterministic fixture source
+- No BFF endpoint or public contract is added for this view
 
-## Future Grafana Integration
+## Potential Observable-Metrics Adapter
 
-### Expected Data Source
-```
-GET /api/datasources/proxy/:id/api/v1/query_range
-```
-
-With PromQL queries for service metrics.
-
-### Dashboard Links
-Future versions will link directly to Grafana dashboards for:
-- Service health overview
-- Request latency histograms
-- Error rate trends
-- Resource utilization
+An observed-metrics adapter remains possible future work. It would require a
+separate product and architecture decision; no Grafana request, metrics query,
+or telemetry feed is wired to `/performance`.
 
 ## What Is NOT Implemented
 
-Intentionally excluded from Design Pass 1:
+Intentionally excluded from this frontend surface:
 
-1. **Real k6 execution** - No actual load testing
+1. **k6 execution or report ingestion** - Existing tests remain separate
 2. **Grafana embedding** - No iframe dashboards
 3. **Real trace visualization** - No distributed tracing
 4. **Service mesh topology** - No complex network maps
@@ -147,30 +140,25 @@ Intentionally excluded from Design Pass 1:
 - No CI/CD integration
 - No production observability
 - No direct Grafana integration
-- No real k6 execution
+- No k6 execution or report ingestion from the page
 - 3D Visualizer remains standalone
 - Demo/mock system preserved
 - All existing routes preserved
 
 ## Component Structure
 
-```
+```text
 apps/web/
-├── app/
-│   └── performance/
-│       └── page.tsx           # Main page component
-├── src/
-│   ├── components/
-│   │   └── performance/
-│   │       ├── ServiceActivityCard.tsx
-│   │       ├── ScenarioSelector.tsx
-│   │       ├── KPIStrip.tsx
-│   │       ├── RequestFlowDiagram.tsx
-│   │       └── FutureIntegrationPanel.tsx
-│   └── lib/
-│       └── performance/
-│           ├── mock-performance-data.ts
-│           └── performance-adapter.ts
+|-- app/performance/page.tsx
+|-- src/components/performance/
+|   |-- ServiceActivityCard.tsx
+|   |-- ScenarioSelector.tsx
+|   |-- KPIStrip.tsx
+|   |-- RequestFlowDiagram.tsx
+|   `-- FutureIntegrationPanel.tsx
+`-- src/lib/performance/
+    |-- mock-performance-data.ts
+    `-- performance-adapter.ts
 ```
 
 ## Accessibility
@@ -182,23 +170,21 @@ apps/web/
 - Animated elements are decorative, not essential
 - Mobile layout is usable
 
-## TODO Comments
+## Local Data Boundary
 
-Standard TODO markers for future work:
-```typescript
-// TODO(v0-export): Component ready for repository integration
-// TODO(api-wire): Replace mock performance adapter
-// TODO(state): Replace local scenario playback state
-// TODO(types): Replace mock types with shared contracts
-// TODO(error-handling): Connect real data error handling
+```text
+Current input: deterministic frontend fixtures
+Current types: local presentation types
+Current network calls: none
+Current public contract changes: none
 ```
 
 ## Risks and Follow-up
 
-1. **Mock data fidelity** - Current scenarios are illustrative; real k6 output may differ
+1. **Mock data fidelity** - Current scenarios are illustrative; saved test output may differ
 2. **Animation performance** - Many animated elements may impact low-end devices
 3. **Metric accuracy** - Visual representations are simplified approximations
-4. **Integration complexity** - Real k6/Grafana integration will require additional work
+4. **Integration complexity** - Any observed-data adapter requires separate architecture work
 5. **State management** - Current polling approach may not scale to real-time data
 
 ## Visual Design

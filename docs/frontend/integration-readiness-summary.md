@@ -1,6 +1,6 @@
 # Frontend Integration Readiness Summary
 
-**Date:** January 2025  
+**Date:** 2026-05-27
 **Status:** Ready for demo, integration-aligned
 
 ---
@@ -12,9 +12,10 @@
 | `/` | `app/page.tsx` | Product catalog with category filtering |
 | `/cart` | `app/cart/page.tsx` | Full cart view with checkout navigation |
 | `/checkout` | `app/checkout/page.tsx` | Order placement with customer name input |
-| `/orders` | `app/orders/page.tsx` | Order lookup by ID (no list endpoint) |
+| `/orders` | `app/orders/page.tsx` | Persisted order list and detail navigation |
 | `/orders/[orderId]` | `app/orders/[orderId]/page.tsx` | Order detail and management actions |
 | `/visualizer` | `app/visualizer/page.tsx` | 3D visualizer integration page |
+| `/performance` | `app/performance/page.tsx` | Simulated performance design surface with visible mock-data disclosure |
 | `/dev` | `app/dev/page.tsx` | API debug/testing interface |
 
 ---
@@ -37,6 +38,13 @@
 - `ProductCatalogGrid.tsx` - Filterable product grid
 - `ProductQuickView.tsx` - Product detail modal
 
+### Performance Components (`src/components/performance/`)
+- `KPIStrip.tsx` - Simulated KPI display
+- `ServiceActivityCard.tsx` - Mock service activity cards
+- `RequestFlowDiagram.tsx` - Simulated request-flow presentation
+- `ScenarioSelector.tsx` - Deterministic scenario controls
+- `FutureIntegrationPanel.tsx` - Boundary disclosure and potential adapter notes
+
 ---
 
 ## 3. API Calls (Real vs Mock)
@@ -53,6 +61,7 @@
 | POST | `/checkout` | `checkout.controller.ts` | VERIFIED |
 | GET | `/orders/:id` | `orders.controller.ts` | VERIFIED |
 | POST | `/orders/:id/manage` | `orders.controller.ts` | VERIFIED |
+| GET | `/orders` | `orders.controller.ts` | VERIFIED |
 | GET | `/visualization-data` | `visualization.controller.ts` | VERIFIED |
 
 ### Missing Endpoints (UI has workarounds)
@@ -61,7 +70,6 @@
 |--------|----------|-------------|
 | DELETE | `/cart/items/:id` | Buttons disabled with tooltip |
 | PATCH | `/cart/items/:id` | Buttons disabled with tooltip |
-| GET | `/orders` | Manual ID lookup page |
 
 ---
 
@@ -73,7 +81,7 @@
 - All API calls routed to mock implementations
 
 ### Mock Data (`src/lib/api/mock-data.ts`)
-- 10 sample products (drinks, food, accessories)
+- 7 sample products (drinks, food, accessories)
 - In-memory cart state with add operations
 - In-memory order storage with status transitions
 - Mock health report
@@ -83,38 +91,54 @@
 - Orders stored in Map (resets on page refresh)
 - Demo mode preference in localStorage
 
+### Performance Fixtures (`src/lib/performance/`)
+- `/performance` uses deterministic scenario data independent of demo-mode API fixtures.
+- Its adapter makes no BFF, k6, Grafana, or telemetry requests.
+- Its presentation types stay local and do not extend `@mini-commerce/contracts`.
+
 ---
 
 ## 5. Assumptions Requiring Confirmation
 
 ### BFF Contract Alignment
-- [ ] **Cart session strategy** - BFF uses cookies/headers for cart identification?
-- [ ] **Product IDs** - Format matches `prod_*` pattern used in mocks?
-- [ ] **Money format** - amountMinor is always cents (integer)?
-- [ ] **Order status transitions** - Allowed: pending→preparing→prepared, any→cancelled?
+- [ ] **Cart session strategy** - The BFF is currently single-user and
+  in-memory; define future session ownership before multi-user behavior.
+- [x] **Money format** - `amountMinor` is integer cents in shared contracts.
+- [x] **Order listing** - `GET /orders` returns persisted orders.
 
 ### Missing Features (intentionally excluded)
 - [ ] **Authentication** - No user login/registration implemented
 - [ ] **Product images** - Using category icons as placeholders
 - [ ] **Cart item updates** - No PATCH/DELETE endpoints exist
-- [ ] **Order listing** - No GET /orders endpoint exists
 - [ ] **Search/pagination** - Products load all at once
 
 ### Type Synchronization
-- [ ] Types duplicated from BFF modules - should import from `@mini-commerce/contracts`?
-- [ ] `Money` type matches `@mini-commerce/shared-types`?
+- [x] The web API client consumes `@mini-commerce/contracts`.
+- [ ] The BFF still maintains local response interfaces; decide future
+  provider-side contract enforcement.
 
 ---
 
-## 6. 3D Visualizer Integration
+## 6. Performance Playground Boundary
 
-### Files Created/Modified
+| Concern | Integrated Behavior |
+|---------|---------------------|
+| Data source | Deterministic frontend fixtures only |
+| Runtime APIs | None added or consumed |
+| Public contracts | No performance wire types added |
+| Existing k6 scenarios | Remain runnable separately; not displayed by this page |
+| Observable metrics | Potential later adapter work only |
+| Validation | Manual UAT catalog in `apps/web/tests/uat/performance-playground.spec.ts` |
+
+## 7. 3D Visualizer Integration
+
+### Integrated Files
 
 | File | Change |
 |------|--------|
-| `app/visualizer/page.tsx` | NEW - Visualizer integration page with iframe embed |
-| `src/components/system/AppShell.tsx` | MODIFIED - Added "3D" nav link |
-| `.env.example` | MODIFIED - Added NEXT_PUBLIC_VISUALIZER_URL |
+| `app/visualizer/page.tsx` | Visualizer integration page with iframe embed |
+| `src/components/system/AppShell.tsx` | Includes the "3D" navigation link |
+| `.env.example` | Documents `NEXT_PUBLIC_VISUALIZER_URL` |
 
 ### Deployment Expectations
 
@@ -176,7 +200,7 @@ GET /visualization-data
 
 ---
 
-## 7. Export Checklist (v0 → Repository)
+## 8. Frontend File Map
 
 ### Files to Export
 
@@ -188,7 +212,7 @@ apps/web/
 │   ├── page.tsx             # Catalog page
 │   ├── cart/page.tsx        # Cart page
 │   ├── checkout/page.tsx    # Checkout page
-│   ├── orders/page.tsx      # Order lookup page
+│   ├── orders/page.tsx      # Persisted orders list page
 │   ├── orders/[orderId]/page.tsx  # Order detail page
 │   ├── visualizer/page.tsx  # 3D Visualizer integration
 │   └── dev/page.tsx         # API debug page
@@ -204,15 +228,12 @@ apps/web/
 └── tsconfig.json            # Path alias: @/* → src/*
 ```
 
-### TODO Comments Reference
+### Performance Design Files
 
-Search for these markers to find integration points:
-
-- `TODO(api-wire)` - Pending BFF endpoint implementation
-- `TODO(state)` - State management improvements
-- `TODO(types)` - Type imports from contracts package
-- `TODO(error-handling)` - Error handling improvements
-- `TODO(v0-export)` - Export/refactoring suggestions
+- `app/performance/page.tsx` - Mock-only route entry point.
+- `src/components/performance/` - Scenario, KPI, service and disclosure UI.
+- `src/lib/performance/` - Local deterministic fixture and adapter layer.
+- `tests/uat/performance-playground.spec.ts` - Manual validation catalog.
 
 ---
 

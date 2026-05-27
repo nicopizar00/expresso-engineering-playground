@@ -1,28 +1,22 @@
 'use client';
 
 /**
- * FutureIntegrationPanel - Information panel for k6/Grafana integration readiness
+ * FutureIntegrationPanel - Information panel for potential data adapters
  *
- * Explains that the Performance Playground is currently mock-driven and prepared
- * for future integration with real observability tools.
- *
- * TODO(v0-export): Component ready for repository integration
- * TODO(api-wire): Update when real integrations are available
+ * Explains that the Performance Playground is currently mock-driven. Candidate
+ * adapters are future product work, not active integrations.
  */
 
 import { useState } from 'react';
-import Link from 'next/link';
 import {
   Info,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
   BarChart3,
   FileJson,
   Link2,
   Database,
   Activity,
-  Box,
 } from 'lucide-react';
 
 export function FutureIntegrationPanel() {
@@ -41,7 +35,7 @@ export function FutureIntegrationPanel() {
         <div className="flex items-center gap-2">
           <Info className="h-4 w-4" style={{ color: 'var(--info)' }} />
           <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-            Future k6 / Grafana Integration
+            Potential Data Adapters
           </span>
           <span
             className="px-2 py-0.5 text-[10px] font-medium rounded-full"
@@ -83,31 +77,31 @@ export function FutureIntegrationPanel() {
               className="text-xs font-semibold uppercase tracking-wide mb-2"
               style={{ color: 'var(--muted-foreground)' }}
             >
-              Planned Integrations
+              Future Options
             </h3>
             <div className="grid sm:grid-cols-2 gap-3">
               <IntegrationCard
                 icon={FileJson}
-                title="k6 Summary Output"
-                description="Parse k6 JSON summary reports for post-test analysis and historical comparison."
+                title="Saved k6 Output"
+                description="Read completed test artifacts for later visual comparison."
                 status="planned"
               />
               <IntegrationCard
                 icon={BarChart3}
-                title="Grafana Dashboards"
-                description="Link to live Grafana dashboards for real-time service metrics."
+                title="Observable Metrics"
+                description="Represent measured service signals after an explicit product decision."
                 status="planned"
               />
               <IntegrationCard
                 icon={Link2}
-                title="CI/CD Artifacts"
-                description="Fetch performance report artifacts from CI pipelines."
+                title="CI Artifacts"
+                description="Read published performance reports from a future pipeline."
                 status="planned"
               />
               <IntegrationCard
                 icon={Database}
-                title="Service Metrics"
-                description="Connect to Prometheus/metrics endpoints for live service health."
+                title="Metric Storage"
+                description="Query stored measurements through a deliberately designed adapter."
                 status="planned"
               />
             </div>
@@ -119,7 +113,7 @@ export function FutureIntegrationPanel() {
               className="text-xs font-semibold uppercase tracking-wide mb-2"
               style={{ color: 'var(--muted-foreground)' }}
             >
-              Expected Data Sources
+              Candidate Inputs
             </h3>
             <ul
               className="space-y-1.5 text-xs"
@@ -129,57 +123,30 @@ export function FutureIntegrationPanel() {
                 <Activity className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
                 <span>
                   <code className="font-mono" style={{ color: 'var(--foreground)' }}>
-                    k6 run --out json=report.json
+                    saved k6 report artifact
                   </code>{' '}
-                  — scenario execution summary
+                  - completed test summary, not executed by this page
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <BarChart3 className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
                 <span>
                   <code className="font-mono" style={{ color: 'var(--foreground)' }}>
-                    Grafana API /api/dashboards
+                    observable metric source
                   </code>{' '}
-                  — dashboard metadata and links
+                  - future decision only
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <Database className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
                 <span>
                   <code className="font-mono" style={{ color: 'var(--foreground)' }}>
-                    /metrics
+                    CI performance artifact
                   </code>{' '}
-                  — Prometheus-format service metrics
+                  - future published report
                 </span>
               </li>
             </ul>
-          </div>
-
-          {/* 3D Visualizer Link */}
-          <div
-            className="p-3 rounded-md"
-            style={{ backgroundColor: 'var(--secondary)' }}
-          >
-            <div className="flex items-start gap-3">
-              <Box className="h-5 w-5 shrink-0 mt-0.5" style={{ color: 'var(--primary)' }} />
-              <div>
-                <h4 className="text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                  3D Visualizer Integration
-                </h4>
-                <p className="text-xs mb-2" style={{ color: 'var(--muted-foreground)' }}>
-                  Future versions may use the 3D room as an ambient system-load visualization
-                  surface, showing activity and pressure through visual effects in the scene.
-                </p>
-                <Link
-                  href="/visualizer"
-                  className="inline-flex items-center gap-1 text-xs font-medium transition-colors"
-                  style={{ color: 'var(--primary)' }}
-                >
-                  View 3D Visualizer
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              </div>
-            </div>
           </div>
 
           {/* Technical Notes */}
@@ -188,7 +155,7 @@ export function FutureIntegrationPanel() {
               className="text-xs font-semibold uppercase tracking-wide mb-2"
               style={{ color: 'var(--muted-foreground)' }}
             >
-              Integration Points (Code TODOs)
+              Current Frontend Boundary
             </h3>
             <div
               className="p-3 rounded-md font-mono text-xs overflow-x-auto"
@@ -198,14 +165,13 @@ export function FutureIntegrationPanel() {
               }}
             >
               <pre className="whitespace-pre-wrap">
-{`// TODO(api-wire): Replace mock adapter
-src/lib/performance/performance-adapter.ts
-
-// TODO(types): Shared contracts
+{`Local fixture source:
 src/lib/performance/mock-performance-data.ts
 
-// TODO(state): Scenario playback state
-// TODO(error-handling): Real data errors`}
+Presentation adapter:
+src/lib/performance/performance-adapter.ts
+
+No runtime endpoints or public contracts are added by this view.`}
               </pre>
             </div>
           </div>

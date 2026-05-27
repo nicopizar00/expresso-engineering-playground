@@ -329,6 +329,13 @@ export function getMockOrder(orderId: string): Order | null {
   return mockOrders.get(orderId) ?? null;
 }
 
+export function getAllMockOrders(): { items: Order[] } {
+  if (shouldSimulateEmpty()) {
+    return { items: [] };
+  }
+  return { items: Array.from(mockOrders.values()) };
+}
+
 export function updateMockOrderStatus(
   orderId: string,
   newStatus: Order['status']

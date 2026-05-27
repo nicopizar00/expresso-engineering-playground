@@ -1,10 +1,12 @@
 # Root .dockerignore for the mini-commerce playground.
 #
-# The bff image (apps/bff/Dockerfile) uses the repo root as its build
-# context so the pnpm workspace, packages/*, and apps/bff/ are all
-# visible. Docker only consults the .dockerignore that sits next to the
-# build context, so this file — not apps/bff/.dockerignore — is what
-# governs what gets sent to the daemon.
+# All app images (bff, web, …) use the repo root as their build context
+# so the pnpm workspace, packages/*, and any apps/* directory are visible.
+# Docker only consults the .dockerignore at the context root, so this
+# single file governs what every image build sees. Keep entries here
+# universal — anything that should be excluded for just one image
+# belongs in `apps/<name>/Dockerfile.dockerignore` next to that
+# Dockerfile, not here.
 
 # Node / pnpm
 **/node_modules
@@ -32,11 +34,7 @@
 **/.env.*
 !.env.example
 
-# Other apps not consumed by the bff image
-apps/web
-apps/visualizer-3d
-
-# Test suites the bff image does not need
+# Test suites no image needs at build time
 tests/e2e
 tests/contract
 tests/integration
