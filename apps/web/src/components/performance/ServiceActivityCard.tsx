@@ -42,6 +42,9 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
   const Icon = SERVICE_ICONS[service.name];
   const healthColor = getHealthColor(service.healthState);
   const hasActivity = service.requestsPerSecond > 0;
+  const pressurePercent = Math.min(100, Math.round(service.requestsPerSecond / 3));
+  const isHighPressure = pressurePercent > 60;
+  const isCriticalPressure = pressurePercent > 80;
 
   // Pulse effect when receiving requests
   useEffect(() => {
@@ -68,12 +71,18 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div
-            className="p-1.5 rounded-md"
+            className="p-1.5 rounded-md relative"
             style={{
               backgroundColor: `color-mix(in srgb, ${healthColor} 15%, transparent)`,
             }}
           >
             <Icon className="h-4 w-4" style={{ color: healthColor }} />
+            {hasActivity && isAnimated && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ backgroundColor: healthColor }}
+              />
+            )}
           </div>
           <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
             {service.displayName}
@@ -107,23 +116,36 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
         />
       </div>
 
-      {/* Activity Bar */}
+      {/* Activity Bar - Enhanced */}
       <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between text-xs mb-1.5">
           <span style={{ color: 'var(--muted-foreground)' }}>Pressure</span>
-          <span style={{ color: 'var(--foreground)' }}>
-            {Math.min(100, Math.round(service.requestsPerSecond / 3))}%
+          <span
+            className="font-mono font-medium"
+            style={{
+              color: isCriticalPressure
+                ? 'var(--destructive)'
+                : isHighPressure
+                  ? 'var(--warning)'
+                  : 'var(--foreground)',
+            }}
+          >
+            {pressurePercent}%
           </span>
         </div>
         <div
-          className="h-1.5 rounded-full overflow-hidden"
+          className="h-2 rounded-full overflow-hidden"
           style={{ backgroundColor: 'var(--secondary)' }}
         >
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
-              width: `${Math.min(100, Math.round(service.requestsPerSecond / 3))}%`,
-              backgroundColor: healthColor,
+              width: `${pressurePercent}%`,
+              backgroundColor: isCriticalPressure
+                ? 'var(--destructive)'
+                : isHighPressure
+                  ? 'var(--warning)'
+                  : healthColor,
             }}
           />
         </div>

@@ -86,33 +86,40 @@ export default function PerformancePage() {
     <div className="container py-8">
       {/* Page Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-3">
           <div
-            className="p-2 rounded-lg"
+            className="p-2.5 rounded-lg"
             style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
           >
-            <Activity className="h-5 w-5" />
+            <Activity className="h-6 w-6" />
           </div>
-          <h1
-            className="text-2xl font-semibold"
-            style={{ color: 'var(--foreground)' }}
-          >
-            Performance Playground
-          </h1>
-          <span
-            className="px-2 py-0.5 text-xs font-medium rounded-full"
-            style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              color: 'var(--info)',
-            }}
-          >
-            Mock Data
-          </span>
+          <div>
+            <h1
+              className="text-2xl font-semibold"
+              style={{ color: 'var(--foreground)' }}
+            >
+              Performance Playground
+            </h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span
+                className="px-2 py-0.5 text-xs font-medium rounded-full"
+                style={{
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  color: 'var(--info)',
+                }}
+              >
+                Mock Data
+              </span>
+              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                Simulated load scenarios for design validation
+              </span>
+            </div>
+          </div>
         </div>
-        <p style={{ color: 'var(--muted-foreground)' }} className="max-w-2xl">
-          Visualize system behavior under concurrent web service requests.
-          Select a scenario to see how different load patterns affect service activity,
-          latency, and health across the system.
+        <p style={{ color: 'var(--muted-foreground)' }} className="max-w-2xl text-sm">
+          Watch the system breathe under load. Select a scenario below to simulate different
+          traffic patterns and observe how services respond with varying latency, throughput,
+          and error rates.
         </p>
       </div>
 

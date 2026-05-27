@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Activity,
   Play,
@@ -332,14 +333,14 @@ function VisualizerInfoPanel() {
         </div>
 
         {/* Quick Link */}
-        <a
+        <Link
           href="/visualizer"
           className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
           style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
         >
           <Box className="h-4 w-4" />
           Open 3D Visualizer
-        </a>
+        </Link>
       </div>
     </Card>
   );
@@ -445,14 +446,14 @@ function PerformanceInfoPanel() {
         </div>
 
         {/* Quick Link */}
-        <a
+        <Link
           href="/performance"
           className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
           style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
         >
           <Gauge className="h-4 w-4" />
           Open Performance Playground
-        </a>
+        </Link>
 
         {/* 3D Visualizer Note */}
         <div

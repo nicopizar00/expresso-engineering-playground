@@ -32,13 +32,33 @@ export function ScenarioSelector({
       className="rounded-lg border p-4"
       style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
     >
-      <h2
-        className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mb-4"
-        style={{ color: 'var(--muted-foreground)' }}
-      >
-        <Zap className="h-3.5 w-3.5" />
-        Performance Scenarios
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2
+          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+          style={{ color: 'var(--muted-foreground)' }}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          Performance Scenarios
+        </h2>
+        {activeScenario && (
+          <span
+            className="px-2 py-1 text-[10px] font-medium rounded-full animate-pulse"
+            style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)' }}
+          >
+            LIVE
+          </span>
+        )}
+      </div>
+
+      {/* Quick scenario hint */}
+      {!activeScenario && (
+        <p
+          className="text-xs mb-3 p-2 rounded-md"
+          style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
+        >
+          Click a scenario to start simulating load
+        </p>
+      )}
 
       <div className="grid gap-3">
         {scenarios.map((scenario) => (
@@ -62,12 +82,18 @@ export function ScenarioSelector({
           }}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-              Running: {activeScenario.name}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: 'var(--success)' }}
+              />
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                Running: {activeScenario.name}
+              </span>
+            </div>
             <button
               onClick={onStop}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer"
               style={{
                 backgroundColor: 'var(--destructive)',
                 color: 'var(--destructive-foreground)',

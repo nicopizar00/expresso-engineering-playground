@@ -23,17 +23,21 @@ export function KPIStrip({ kpis }: KPIStripProps) {
 
   return (
     <div
-      className="rounded-lg border p-3"
-      style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+      className="rounded-lg border p-4"
+      style={{
+        backgroundColor: 'var(--card)',
+        borderColor: hasActivity ? 'var(--success)' : 'var(--border)',
+        boxShadow: hasActivity ? '0 0 0 1px rgba(34, 197, 94, 0.2)' : 'none',
+      }}
     >
       <div className="flex flex-wrap items-center gap-4 sm:gap-6">
         {/* Active Scenario Badge */}
         <div className="flex items-center gap-2">
           <div
-            className="p-1.5 rounded-md"
+            className="p-1.5 rounded-md relative"
             style={{
               backgroundColor: hasActivity
-                ? 'rgba(34, 197, 94, 0.1)'
+                ? 'rgba(34, 197, 94, 0.15)'
                 : 'var(--secondary)',
             }}
           >
@@ -43,17 +47,23 @@ export function KPIStrip({ kpis }: KPIStripProps) {
                 color: hasActivity ? 'var(--success)' : 'var(--muted-foreground)',
               }}
             />
+            {hasActivity && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: 'var(--success)' }}
+              />
+            )}
           </div>
           <div>
             <div
-              className="text-xs uppercase tracking-wide"
+              className="text-[10px] uppercase tracking-wide"
               style={{ color: 'var(--muted-foreground)' }}
             >
               Scenario
             </div>
             <div
-              className="text-sm font-medium"
-              style={{ color: 'var(--foreground)' }}
+              className="text-sm font-semibold"
+              style={{ color: hasActivity ? 'var(--success)' : 'var(--muted-foreground)' }}
             >
               {kpis.activeScenario ?? 'Idle'}
             </div>
@@ -62,7 +72,7 @@ export function KPIStrip({ kpis }: KPIStripProps) {
 
         {/* Divider */}
         <div
-          className="hidden sm:block w-px h-8"
+          className="hidden sm:block w-px h-10"
           style={{ backgroundColor: 'var(--border)' }}
         />
 
@@ -79,6 +89,8 @@ export function KPIStrip({ kpis }: KPIStripProps) {
             label="req/s"
             value={formatCompact(kpis.requestsPerSecond)}
             active={hasActivity}
+            highlight={hasActivity && kpis.requestsPerSecond > 300}
+            highlightColor="var(--warning)"
           />
           <KPIItem
             icon={Clock}
