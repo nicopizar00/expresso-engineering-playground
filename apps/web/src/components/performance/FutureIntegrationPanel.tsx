@@ -3,8 +3,8 @@
 /**
  * FutureIntegrationPanel - Information panel for potential data adapters
  *
- * Explains that the Performance Playground is currently mock-driven. Candidate
- * adapters are future product work, not active integrations.
+ * Explains that the Performance Playground is currently mock-driven.
+ * Redesigned with a clean, modern interface.
  */
 
 import { useState } from 'react';
@@ -17,6 +17,7 @@ import {
   Link2,
   Database,
   Activity,
+  FlaskConical,
 } from 'lucide-react';
 
 export function FutureIntegrationPanel() {
@@ -24,7 +25,7 @@ export function FutureIntegrationPanel() {
 
   return (
     <div
-      className="rounded-lg border"
+      className="rounded-xl border overflow-hidden"
       style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
     >
       <button
@@ -35,16 +36,16 @@ export function FutureIntegrationPanel() {
         <div className="flex items-center gap-2">
           <Info className="h-4 w-4" style={{ color: 'var(--info)' }} />
           <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-            Potential Data Adapters
+            Data Sources
           </span>
           <span
-            className="px-2 py-0.5 text-[10px] font-medium rounded-full"
+            className="px-1.5 py-0.5 text-[9px] font-medium rounded uppercase tracking-wide"
             style={{
               backgroundColor: 'rgba(59, 130, 246, 0.1)',
               color: 'var(--info)',
             }}
           >
-            Mock Data
+            Mock
           </span>
         </div>
         {isExpanded ? (
@@ -59,120 +60,72 @@ export function FutureIntegrationPanel() {
           {/* Current State */}
           <div>
             <h3
-              className="text-xs font-semibold uppercase tracking-wide mb-2"
+              className="text-[10px] font-medium uppercase tracking-wider mb-2"
               style={{ color: 'var(--muted-foreground)' }}
             >
               Current State
             </h3>
-            <p className="text-sm" style={{ color: 'var(--foreground)' }}>
-              This Performance Playground is currently powered by deterministic mock data. All
-              scenarios, metrics, and visualizations are simulated for demonstration and design
-              validation purposes.
-            </p>
+            <div 
+              className="flex items-start gap-2 p-3 rounded-lg"
+              style={{ backgroundColor: 'var(--secondary)' }}
+            >
+              <FlaskConical className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--info)' }} />
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                All metrics shown are deterministic mock data for design validation.
+                This does not represent live telemetry or real performance data.
+              </p>
+            </div>
           </div>
 
-          {/* Planned Integrations */}
+          {/* Potential Integrations */}
           <div>
             <h3
-              className="text-xs font-semibold uppercase tracking-wide mb-2"
+              className="text-[10px] font-medium uppercase tracking-wider mb-2"
               style={{ color: 'var(--muted-foreground)' }}
             >
-              Future Options
+              Potential Adapters
             </h3>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <IntegrationCard
                 icon={FileJson}
-                title="Saved k6 Output"
-                description="Read completed test artifacts for later visual comparison."
+                title="k6 Reports"
                 status="planned"
               />
               <IntegrationCard
                 icon={BarChart3}
-                title="Observable Metrics"
-                description="Represent measured service signals after an explicit product decision."
+                title="Metrics"
                 status="planned"
               />
               <IntegrationCard
                 icon={Link2}
                 title="CI Artifacts"
-                description="Read published performance reports from a future pipeline."
                 status="planned"
               />
               <IntegrationCard
                 icon={Database}
-                title="Metric Storage"
-                description="Query stored measurements through a deliberately designed adapter."
+                title="Storage"
                 status="planned"
               />
             </div>
           </div>
 
-          {/* Data Contracts */}
+          {/* Source files */}
           <div>
             <h3
-              className="text-xs font-semibold uppercase tracking-wide mb-2"
+              className="text-[10px] font-medium uppercase tracking-wider mb-2"
               style={{ color: 'var(--muted-foreground)' }}
             >
-              Candidate Inputs
-            </h3>
-            <ul
-              className="space-y-1.5 text-xs"
-              style={{ color: 'var(--muted-foreground)' }}
-            >
-              <li className="flex items-start gap-2">
-                <Activity className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
-                <span>
-                  <code className="font-mono" style={{ color: 'var(--foreground)' }}>
-                    saved k6 report artifact
-                  </code>{' '}
-                  - completed test summary, not executed by this page
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <BarChart3 className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
-                <span>
-                  <code className="font-mono" style={{ color: 'var(--foreground)' }}>
-                    observable metric source
-                  </code>{' '}
-                  - future decision only
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Database className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
-                <span>
-                  <code className="font-mono" style={{ color: 'var(--foreground)' }}>
-                    CI performance artifact
-                  </code>{' '}
-                  - future published report
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Technical Notes */}
-          <div>
-            <h3
-              className="text-xs font-semibold uppercase tracking-wide mb-2"
-              style={{ color: 'var(--muted-foreground)' }}
-            >
-              Current Frontend Boundary
+              Source
             </h3>
             <div
-              className="p-3 rounded-md font-mono text-xs overflow-x-auto"
+              className="p-2 rounded-lg font-mono text-[10px]"
               style={{
                 backgroundColor: 'var(--background)',
-                color: 'var(--foreground)',
+                color: 'var(--muted-foreground)',
               }}
             >
-              <pre className="whitespace-pre-wrap">
-{`Local fixture source:
-src/lib/performance/mock-performance-data.ts
-
-Presentation adapter:
-src/lib/performance/performance-adapter.ts
-
-No runtime endpoints or public contracts are added by this view.`}
-              </pre>
+              <div>lib/performance/mock-performance-data.ts</div>
+              <div>lib/performance/performance-adapter.ts</div>
             </div>
           </div>
         </div>
@@ -181,58 +134,24 @@ No runtime endpoints or public contracts are added by this view.`}
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
 function IntegrationCard({
   icon: Icon,
   title,
-  description,
   status,
 }: {
   icon: typeof FileJson;
   title: string;
-  description: string;
   status: 'planned' | 'in-progress' | 'ready';
 }) {
-  const statusConfig = {
-    planned: { label: 'Planned', color: 'var(--muted-foreground)' },
-    'in-progress': { label: 'In Progress', color: 'var(--warning)' },
-    ready: { label: 'Ready', color: 'var(--success)' },
-  };
-  const config = statusConfig[status];
-
   return (
     <div
-      className="p-3 rounded-md border"
-      style={{
-        backgroundColor: 'var(--background)',
-        borderColor: 'var(--border)',
-      }}
+      className="flex items-center gap-2 p-2 rounded-lg"
+      style={{ backgroundColor: 'var(--background)' }}
     >
-      <div className="flex items-start gap-2">
-        <Icon className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
-              {title}
-            </span>
-            <span
-              className="px-1.5 py-0.5 text-[10px] font-medium rounded"
-              style={{
-                backgroundColor: `color-mix(in srgb, ${config.color} 15%, transparent)`,
-                color: config.color,
-              }}
-            >
-              {config.label}
-            </span>
-          </div>
-          <p className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
-            {description}
-          </p>
-        </div>
-      </div>
+      <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+      <span className="text-[10px] font-medium" style={{ color: 'var(--foreground)' }}>
+        {title}
+      </span>
     </div>
   );
 }

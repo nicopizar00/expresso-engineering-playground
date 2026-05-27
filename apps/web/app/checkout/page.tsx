@@ -4,24 +4,20 @@
  * Checkout Page - Order placement flow
  *
  * Collects customer name and creates an order via POST /checkout.
- * No real payment is processed - this is a playground environment.
- *
- * ## API Endpoint
- * POST /checkout → CheckoutResponse
- * Body: { customerName: string, idempotencyKey?: string }
- * Verified against: apps/bff/src/modules/checkout/checkout.controller.ts
- *
- * TODO(api-wire): Consider adding idempotencyKey for production use
+ * Redesigned with a clean, modern interface.
  */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ShoppingCart,
+  ShoppingBag,
   CreditCard,
   Loader2,
   ArrowLeft,
   AlertTriangle,
+  User,
+  CheckCircle2,
+  Shield,
 } from 'lucide-react';
 import { useCart } from '@/components/cart/CartProvider';
 import { expressoApi, ExpressoApiError, formatMoney } from '@/lib/api/expresso-api';
@@ -47,25 +43,20 @@ export default function CheckoutPage() {
       const result = await expressoApi.checkout({
         customerName: customerName.trim(),
       });
-      refreshCart(); // Clear the cart after successful checkout
+      refreshCart();
       router.push(`/orders/${result.orderId}`);
     } catch (err) {
       if (err instanceof ExpressoApiError) {
         if (err.status === 400) {
-          setError(
-            'Invalid checkout request. Please check your cart and try again.'
-          );
+          setError('Invalid checkout request. Please check your cart and try again.');
         } else if (err.status === 409) {
-          setError(
-            'Checkout conflict. Your cart may have been modified. Please refresh and try again.'
-          );
+          setError('Checkout conflict. Your cart may have been modified. Please refresh and try again.');
         } else {
           setError(`Checkout failed: ${err.message}`);
         }
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
-      // TODO(error-handling): Add structured error logging
     } finally {
       setIsSubmitting(false);
     }
@@ -100,103 +91,125 @@ export default function CheckoutPage() {
       {/* Back link */}
       <Link
         href="/cart"
-        className="inline-flex items-center gap-1.5 text-sm font-medium mb-6 transition-colors hover:opacity-80"
+        className="inline-flex items-center gap-2 text-sm font-medium mb-6 transition-colors"
         style={{ color: 'var(--muted-foreground)' }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to cart
       </Link>
 
-      <h1
-        className="text-3xl font-bold tracking-tight mb-8"
-        style={{ color: 'var(--foreground)' }}
-      >
-        Checkout
-      </h1>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <div
+          className="flex items-center justify-center w-10 h-10 rounded-lg"
+          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+        >
+          <CreditCard className="h-5 w-5" />
+        </div>
+        <div>
+          <h1
+            className="text-2xl font-semibold tracking-tight"
+            style={{ color: 'var(--foreground)' }}
+          >
+            Checkout
+          </h1>
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            Complete your order
+          </p>
+        </div>
+      </div>
 
       <div className="space-y-6">
         {/* Order summary card */}
         <div
-          className="rounded-lg border p-6"
+          className="rounded-xl border overflow-hidden"
           style={{
             backgroundColor: 'var(--card)',
             borderColor: 'var(--border)',
           }}
         >
-          <h2
-            className="font-semibold text-lg mb-4 flex items-center gap-2"
-            style={{ color: 'var(--foreground)' }}
-          >
-            <ShoppingCart className="h-5 w-5" style={{ color: 'var(--primary)' }} />
-            Order Summary
-          </h2>
-
-          <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {cart?.items.map((item) => (
-              <li key={item.itemId} className="py-3 flex justify-between">
-                <div>
-                  <p
-                    className="font-medium text-sm"
-                    style={{ color: 'var(--foreground)' }}
-                  >
-                    {item.name}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                    Qty: {item.quantity}
-                  </p>
-                </div>
-                <p
-                  className="font-medium text-sm"
-                  style={{ color: 'var(--foreground)' }}
-                >
-                  {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
-                </p>
-              </li>
-            ))}
-          </ul>
-
-          <div
-            className="flex justify-between pt-4 mt-4 border-t font-semibold"
+          <div 
+            className="flex items-center gap-2 px-5 py-4 border-b"
             style={{ borderColor: 'var(--border)' }}
           >
-            <span style={{ color: 'var(--foreground)' }}>Total</span>
-            <span style={{ color: 'var(--foreground)' }}>{formattedTotal}</span>
+            <ShoppingBag className="h-4 w-4" style={{ color: 'var(--primary)' }} />
+            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+              Order Summary
+            </span>
+            <span 
+              className="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
+              style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
+            >
+              {cart?.itemCount} items
+            </span>
+          </div>
+
+          <div className="p-5">
+            <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {cart?.items.map((item) => (
+                <li key={item.itemId} className="py-3 flex justify-between first:pt-0 last:pb-0">
+                  <div>
+                    <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+                      {item.name}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      Qty: {item.quantity}
+                    </p>
+                  </div>
+                  <p className="font-medium text-sm font-mono" style={{ color: 'var(--foreground)' }}>
+                    {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+
+            <div
+              className="flex justify-between pt-4 mt-4 border-t"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <span className="font-medium" style={{ color: 'var(--foreground)' }}>Total</span>
+              <span className="font-semibold font-mono" style={{ color: 'var(--foreground)' }}>
+                {formattedTotal}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Checkout form */}
         <form
           onSubmit={handleSubmit}
-          className="rounded-lg border p-6"
+          className="rounded-xl border overflow-hidden"
           style={{
             backgroundColor: 'var(--card)',
             borderColor: 'var(--border)',
           }}
         >
-          <h2
-            className="font-semibold text-lg mb-4 flex items-center gap-2"
-            style={{ color: 'var(--foreground)' }}
+          <div 
+            className="flex items-center gap-2 px-5 py-4 border-b"
+            style={{ borderColor: 'var(--border)' }}
           >
-            <CreditCard className="h-5 w-5" style={{ color: 'var(--primary)' }} />
-            Customer Information
-          </h2>
+            <User className="h-4 w-4" style={{ color: 'var(--primary)' }} />
+            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+              Customer Information
+            </span>
+          </div>
 
-          {/* Error message */}
-          {error && (
-            <div
-              className="flex items-start gap-2 p-3 rounded-md mb-4"
-              style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                color: 'var(--destructive)',
-              }}
-              role="alert"
-            >
-              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
+          <div className="p-5 space-y-4">
+            {/* Error message */}
+            {error && (
+              <div
+                className="flex items-start gap-3 p-4 rounded-lg"
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                }}
+                role="alert"
+              >
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--destructive)' }} />
+                <p className="text-sm" style={{ color: 'var(--destructive)' }}>{error}</p>
+              </div>
+            )}
 
-          <div className="space-y-4">
             <div>
               <label
                 htmlFor="customerName"
@@ -212,14 +225,15 @@ export default function CheckoutPage() {
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Enter your name"
                 required
-                className="w-full px-3 py-2 rounded-md border text-sm transition-colors focus:outline-none focus:ring-2"
+                autoFocus
+                className="w-full px-4 py-3 rounded-lg border text-sm transition-all"
                 style={{
                   backgroundColor: 'var(--background)',
                   borderColor: 'var(--border)',
                   color: 'var(--foreground)',
                 }}
               />
-              <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+              <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>
                 This name will appear on your order confirmation.
               </p>
             </div>
@@ -227,7 +241,7 @@ export default function CheckoutPage() {
             <button
               type="submit"
               disabled={isSubmitting || !customerName.trim()}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: 'var(--primary)',
                 color: 'var(--primary-foreground)',
@@ -239,20 +253,26 @@ export default function CheckoutPage() {
                   Processing...
                 </>
               ) : (
-                <>Place Order</>
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Place Order
+                </>
               )}
             </button>
           </div>
         </form>
 
         {/* Notice */}
-        <p
-          className="text-xs text-center"
-          style={{ color: 'var(--muted-foreground)' }}
+        <div 
+          className="flex items-start gap-3 p-4 rounded-xl"
+          style={{ backgroundColor: 'var(--secondary)' }}
         >
-          This is a playground environment. No real payment is processed. Orders
-          are persisted to PostgreSQL and survive BFF restarts.
-        </p>
+          <Shield className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
+          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+            This is a playground environment. No real payment is processed. Orders
+            are persisted to PostgreSQL and survive BFF restarts.
+          </p>
+        </div>
       </div>
     </div>
   );

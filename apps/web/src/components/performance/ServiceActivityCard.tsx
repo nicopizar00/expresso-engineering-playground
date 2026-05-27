@@ -3,8 +3,8 @@
 /**
  * ServiceActivityCard - Displays service health and activity metrics
  *
- * Shows current activity, request pressure, health state, latency, and errors
- * for a single service in the Performance Playground.
+ * Shows current activity, request pressure, health state, latency, and errors.
+ * Redesigned with a clean, modern interface.
  */
 
 import { useEffect, useState } from 'react';
@@ -57,18 +57,17 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
 
   return (
     <div
-      className="rounded-lg border p-4 transition-all duration-200"
+      className="rounded-xl border p-4 transition-all duration-200"
       style={{
         backgroundColor: 'var(--card)',
         borderColor: pulse ? healthColor : 'var(--border)',
-        boxShadow: pulse ? `0 0 12px ${healthColor}20` : 'none',
       }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div
-            className="p-1.5 rounded-md relative"
+            className="flex items-center justify-center w-8 h-8 rounded-lg relative"
             style={{
               backgroundColor: `color-mix(in srgb, ${healthColor} 15%, transparent)`,
             }}
@@ -89,7 +88,7 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 mb-3">
         <MetricItem
           label="req/s"
           value={formatCompact(service.requestsPerSecond)}
@@ -113,10 +112,10 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
         />
       </div>
 
-      {/* Activity Bar - Enhanced */}
-      <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+      {/* Pressure Bar */}
+      <div className="pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between text-xs mb-1.5">
-          <span style={{ color: 'var(--muted-foreground)' }}>Pressure</span>
+          <span style={{ color: 'var(--muted-foreground)' }}>Load</span>
           <span
             className="font-mono font-medium"
             style={{
@@ -131,7 +130,7 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
           </span>
         </div>
         <div
-          className="h-2 rounded-full overflow-hidden"
+          className="h-1.5 rounded-full overflow-hidden"
           style={{ backgroundColor: 'var(--secondary)' }}
         >
           <div
@@ -151,14 +150,10 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
 function HealthBadge({ state }: { state: ServiceMetrics['healthState'] }) {
   const color = getHealthColor(state);
   const labels: Record<ServiceMetrics['healthState'], string> = {
-    healthy: 'Healthy',
+    healthy: 'OK',
     degraded: 'Degraded',
     critical: 'Critical',
     idle: 'Idle',
@@ -166,7 +161,7 @@ function HealthBadge({ state }: { state: ServiceMetrics['healthState'] }) {
 
   return (
     <span
-      className="px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1.5"
+      className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium rounded-md uppercase tracking-wide"
       style={{
         backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
         color,
@@ -198,7 +193,7 @@ function MetricItem({
   return (
     <div>
       <div
-        className="text-xs uppercase tracking-wide"
+        className="text-[10px] uppercase tracking-wider font-medium mb-0.5"
         style={{ color: 'var(--muted-foreground)' }}
       >
         {label}
