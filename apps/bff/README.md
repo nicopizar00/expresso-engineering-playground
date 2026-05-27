@@ -5,18 +5,18 @@ NestJS Backend-for-Frontend / API for the mini-commerce engineering playground.
 ## Responsibility
 
 - Aggregates domain modules behind a single HTTP surface for `apps/web`.
-- Hosts the domain modules of the modular monolith (Phase 1):
-  - `health`        — liveness/readiness placeholder.
-  - `catalog`       — product catalog and product lookup.
+- Hosts the domain modules of the modular monolith:
+  - `health`        — liveness status; database readiness follow-up.
+  - `catalog`       — persisted product catalog and product creation.
   - `cart`          — single-user in-memory cart.
   - `checkout`      — converts the current cart into an order.
-  - `orders`        — order record + mocked management actions.
+  - `orders`        — persisted order listing, lookup, and management.
   - `customers`     — customer profile (placeholder only).
   - `notifications` — outbound notifications (placeholder only).
-- Owns persistence (PostgreSQL via Prisma — provisioned in compose, not yet
-  used by the app code).
-- Will emit OpenTelemetry traces, metrics, and logs (placeholder today —
-  see `src/common/telemetry.ts`).
+- Owns catalog and order persistence through Prisma/PostgreSQL. Cart storage
+  deliberately remains in BFF process memory.
+- Initializes OpenTelemetry tracing through an OTLP HTTP exporter when
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is configured.
 
 ## Module layout
 
@@ -31,29 +31,32 @@ src/
 ├── common/
 │   ├── http-exception.filter.ts  # error mapper (problem+json TODO)
 │   ├── logging.interceptor.ts    # request/response logging
-│   └── telemetry.ts              # OpenTelemetry init (no-op placeholder)
+│   └── telemetry.ts              # OpenTelemetry SDK + OTLP trace export
 └── modules/
     ├── health/        # GET /health
-    ├── catalog/       # GET /catalog/products, GET /catalog/products/:id
+    ├── catalog/       # GET/POST /catalog/products, GET /catalog/products/:id
     ├── cart/          # GET /cart, POST /cart/items
     ├── checkout/      # POST /checkout
-    ├── orders/        # GET /orders/:id, POST /orders/:id/manage
+    ├── orders/        # GET /orders, GET /orders/:id, POST /orders/:id/manage
     ├── customers/     # placeholder (not wired into AppModule)
     └── notifications/ # placeholder (not wired into AppModule)
 ```
 
-## HTTP surface (current iteration — mocked, in-memory)
+## HTTP surface
 
 | Method | Path                       | Notes                                                     |
 | ------ | -------------------------- | --------------------------------------------------------- |
 | GET    | `/health`                  | Liveness; `checks.db` is `"skipped"` for now.             |
 | GET    | `/catalog/products`        | Deterministic catalog of seven products.                  |
 | GET    | `/catalog/products/:id`    | `prod_unknown` returns 404 for error-path tests.          |
+| POST   | `/catalog/products`        | Creates a persisted product.                              |
 | GET    | `/cart`                    | Current cart snapshot.                                    |
 | POST   | `/cart/items`              | Adds a product line; returns the updated cart.            |
 | POST   | `/checkout`                | Converts the cart to an order; resets the cart.           |
-| GET    | `/orders/:id`              | `ord_demo` is pre-seeded; unknown ids return 404.         |
-| POST   | `/orders/:id/manage`       | Actions: `cancel`, `update_status`, `mark_prepared`.      |
+| GET    | `/orders`                  | Lists persisted orders, including seeded `ord_demo`.      |
+| GET    | `/orders/:id`              | Finds a persisted order; unknown ids return 404.          |
+| POST   | `/orders/:id/manage`       | Persists `cancel`, `update_status`, `mark_prepared`.      |
+| GET    | `/visualization-data`      | Aggregates catalog, orders, and cart for the 3D client.   |
 
 ## Local run
 
@@ -63,7 +66,7 @@ From the repo root:
 # 1. Install workspace deps (one time)
 pnpm install
 
-# 2. Start Postgres in the background (BFF does not yet read from it)
+# 2. Start Postgres in the background
 docker compose -f infra/docker/compose.yaml up -d postgres
 
 # 3. Run the BFF in watch mode
@@ -88,14 +91,14 @@ pnpm --filter @mini-commerce/bff test
 
 ## Persistence
 
-Prisma schema lives in `prisma/schema.prisma`. The schema is intentionally
-empty in this iteration. Postgres is provisioned via Docker Compose so the
-connection wiring lands incrementally.
+Prisma schema and migrations live in `prisma/`. Product and order records
+are persisted in Postgres; module startup warms read caches used by the BFF
+and visualization aggregator. The cart remains in-memory by design.
 
 ## Next iteration TODOs
 
-- [ ] Replace mocked module bodies with Prisma-backed repositories.
 - [ ] Add `@nestjs/swagger` and serve OpenAPI on `/docs` from `packages/contracts`.
-- [ ] Wire OpenTelemetry SDK in `src/common/telemetry.ts` (OTLP exporter env-configurable).
 - [ ] Add Pact provider verification entry point under `tests/contract`.
+- [ ] Add a real database readiness check under `/health`.
+- [ ] Define domain events for notifications and future extraction.
 - [ ] Lint rule that forbids cross-module internal imports.

@@ -48,6 +48,13 @@ Concretely:
   process memory, orders in an in-memory map pre-seeded with `ord_demo`).
 - No real payment processing, no authentication.
 
+## Subsequent implementation note
+
+The initial persistence choice described above was later advanced without
+changing the selected mini-commerce domain: catalog and orders now persist
+through Prisma/PostgreSQL and `GET /orders` lists persisted orders. Cart
+remains the intentional single-user, in-process store.
+
 ## Consequences
 
 **Easier:**

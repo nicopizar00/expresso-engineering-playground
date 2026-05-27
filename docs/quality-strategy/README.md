@@ -31,28 +31,26 @@ shortcut — that pushes cost up.
 
 ## 3. Quality gates
 
-Every pull request runs:
+Current CI coverage:
 
-1. **Lint + typecheck** — must pass.
-2. **Unit + integration tests** — must pass; coverage thresholds enforced
-   per package (see each package's vitest config).
-3. **Build** — must pass.
-4. **Contract verification** — must pass on changes affecting
-   `packages/contracts` or any API surface.
-5. **E2E smoke** — a single golden-path test; must pass.
-6. **Performance smoke** — short k6 scenario; threshold violations block.
-   (Not yet wired — see `tests/performance/k6/README.md`.)
+1. **Typecheck and build** run through the workspace pipeline. Lint commands
+   remain stubs until ESLint configuration lands.
+2. **Unit tests** run for packages with implemented suites, including the
+   active BFF module tests.
+3. **Performance smoke** boots the Compose BFF stack and executes the k6 smoke
+   profile.
 
-Nightly:
+Planned gates, not yet enforced:
 
-- Full E2E suite.
-- Full k6 load profile against the ephemeral stack.
-- Dependency / vulnerability scan.
+- Integration tests under `tests/integration`.
+- Pact contract verification under `tests/contract`.
+- Playwright E2E smoke under `tests/e2e`.
+- Nightly load/stress execution and dependency scanning.
 
 ## 4. Local developer validation
 
 Before any of the layers above, `pnpm pg:smoke` provides a fast
-developer-loop validation: it calls every mocked BFF endpoint
+developer-loop validation: it calls the active BFF endpoints
 (`/health`, `/catalog/products`, `/catalog/products/:id`, `/cart/items`,
 `/cart`, `/checkout`, `/orders/:id`, `/orders/:id/manage`) and asserts a
 200/201/202 status. It is the local equivalent of a smoke E2E test and is
@@ -63,7 +61,7 @@ what the rest of the pipeline plugs into.
 - **Modules expose narrow public surfaces.** Tests target those surfaces,
   not internals.
 - **Time and randomness are injected.** Tests stay deterministic — the
-  mocked BFF uses frozen timestamps and stable id generation precisely so
+  fixtures and test setup should keep persisted flows deterministic so
   contract/smoke tests do not flake.
 - **Observability is testable.** Tests can assert on emitted spans or
   metrics where it adds value.

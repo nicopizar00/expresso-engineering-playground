@@ -5,11 +5,10 @@ engineering playground. First iteration — Hello Room.
 
 ## What this is
 
-A standalone static frontend that renders a minimal Three.js scene (a white
-3D room with placeholder objects) and consumes domain-shaped data through
-the BFF's HTTP contract. It exists to give the playground a visual surface
-that can later display real catalog / orders / performance data without
-ever touching the database directly.
+A standalone static frontend that renders a minimal Three.js scene and
+consumes domain-shaped data through the BFF's HTTP contract. Products,
+persisted orders, and the current in-memory cart are already projected into
+the scene; the visualizer never touches the database directly.
 
 ## What this is NOT (current iteration)
 
@@ -57,8 +56,7 @@ reachable from the host (e.g. `http://localhost:3001`, not `http://bff:3001`).
 
 The visualizer consumes `GET /visualization-data` on the BFF, defined in
 [`apps/bff/src/modules/visualization`](../bff/src/modules/visualization).
-Today the BFF returns a small deterministic mock set; later it will
-aggregate from real domain modules (catalog, orders) behind the same DTO:
+The BFF aggregates its current domain state behind this DTO:
 
 ```ts
 interface VisualizationItem {
@@ -93,22 +91,22 @@ Three reasons, in priority order:
 
 ## What remains for future iterations
 
-- Real data: replace the mock service with aggregations from
-  `catalog` / `orders` / k6 metrics.
+- Optional performance or operational overlays, provided through an
+  explicitly owned BFF contract rather than direct data-store access.
 - Optional richer geometry (still primitives — no model loaders).
 - A small legend / inspector panel.
-- Wire the visualizer into the `web` Next.js app as an embedded route, once
-  embedding makes more product sense than the standalone container.
+- Improve automatic refresh behavior; the current scene requires manual
+  reload after state changes.
 - A read-heavy k6 load / stress profile for `/visualization-data`. Smoke
   coverage already hits the endpoint via
   `tests/performance/k6/scenarios/smoke/smoke.js`.
 
-## Future v0.app track (placeholder)
+## Design tooling boundary
 
-A separate, parallel design track may use [v0.app](https://v0.app) to
+A separate design track may use [v0.app](https://v0.app) to
 explore the visual design, layout, interaction concepts, control panels,
-legends, and UI polish for the 3D visualization. **That track is
-explicitly out of scope here.**
+legends, and UI polish. The current web app already embeds the standalone
+visualizer through `/visualizer`; the runtime boundary remains unchanged.
 
 > Future v0.app track: use v0.app only for visual exploration, interaction
 > ideas, UI layout, control panels, legends, and design language. Do not

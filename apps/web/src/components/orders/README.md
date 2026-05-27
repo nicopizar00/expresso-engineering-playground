@@ -1,11 +1,10 @@
 # `components/orders`
 
-v0.app-generated order UI.
+Order UI boundary.
 
-Planned components:
-- `OrderSummary` — header, status, total, lines.
-- `OrderManagePanel` — actions: `cancel`, `update_status`, `mark_prepared`.
+The route components currently provide list, detail, status, total, lines,
+and management actions (`cancel`, `update_status`, `mark_prepared`).
 
-Reminder: orders are in-memory in the BFF today. A checkout's `orderId`
-becomes a 404 after BFF restart. Surface this lifecycle constraint in the
-empty state until `docs/next-steps/orders-persistence.md` ships.
+Orders are persisted through Prisma/PostgreSQL and are visible from the list
+page after BFF restarts. Do not copy the cart's in-memory lifecycle notice
+into order surfaces.

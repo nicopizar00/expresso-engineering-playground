@@ -10,6 +10,5 @@ Examples of what lives here:
 
 Avoid:
 - Redeclaring BFF response shapes — import them from
-  `lib/api/expresso-api.ts` (today) or `@mini-commerce/contracts`
-  (after the promotion described in
-  `docs/frontend/v0-wiring-plan.md`).
+  `@mini-commerce/contracts`, directly or through the API client's
+  intentional re-exports.

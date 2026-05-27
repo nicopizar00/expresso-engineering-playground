@@ -249,22 +249,23 @@ apps/
   bff/             NestJS API. Modules: catalog, cart, checkout, orders, visualization, health.
   web/             Next.js 14 App Router frontend (`/`, `/cart`, `/checkout`, `/orders/*`, `/visualizer`).
   visualizer-3d/   Static Three.js scene served via nginx, fed by GET /visualization-data.
-packages/          Shared TypeScript: domain types, OpenAPI/Pact contracts, eslint/tsconfig, test utils.
+packages/          Shared TypeScript: domain types, HTTP wire contracts, config, test utils.
 tests/             Cross-app suites: integration, contract (Pact), e2e (Playwright), performance (k6).
 infra/             Docker Compose stacks (core, dev override, perf) + OTel collector config.
 docs/              Architecture, ADRs, quality strategy, lifecycle, project state.
 scripts/           Host-mode pnpm wrapper (scripts/playground.mjs) and small helpers.
 ```
 
-The current iteration is a **modular monolith** with mocked-but-realistic
-behavior. The folder structure is designed so the Phase 3 jump to
-distributed services is a relocation, not a rewrite.
+The current iteration is a **modular monolith**: catalog and orders are
+persisted with Prisma/PostgreSQL, while the intentionally single-user cart
+remains in process memory. The folder structure is designed so the Phase 3
+jump to distributed services is a relocation, not a rewrite.
 
 ---
 
 ## Further reading
 
-- [`docs/architecture/`](./docs/architecture/) — C4 context, container, and component views.
+- [`docs/architecture/`](./docs/architecture/) — planned C4 views and architecture authoring rules.
 - [`docs/quality-strategy/`](./docs/quality-strategy/README.md) — test pyramid, ownership, CI quality gates.
 - [`docs/lifecycle/README.md`](./docs/lifecycle/README.md) — SDLC, branching, PR conventions.
 - [`docs/adr/`](./docs/adr/) — Architecture Decision Records (numbered, append-only).

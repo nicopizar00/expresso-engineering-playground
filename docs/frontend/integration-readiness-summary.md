@@ -1,6 +1,6 @@
 # Frontend Integration Readiness Summary
 
-**Date:** January 2025  
+**Date:** 2026-05-27
 **Status:** Ready for demo, integration-aligned
 
 ---
@@ -12,7 +12,7 @@
 | `/` | `app/page.tsx` | Product catalog with category filtering |
 | `/cart` | `app/cart/page.tsx` | Full cart view with checkout navigation |
 | `/checkout` | `app/checkout/page.tsx` | Order placement with customer name input |
-| `/orders` | `app/orders/page.tsx` | Order lookup by ID (no list endpoint) |
+| `/orders` | `app/orders/page.tsx` | Persisted order list and detail navigation |
 | `/orders/[orderId]` | `app/orders/[orderId]/page.tsx` | Order detail and management actions |
 | `/visualizer` | `app/visualizer/page.tsx` | 3D visualizer integration page |
 | `/dev` | `app/dev/page.tsx` | API debug/testing interface |
@@ -53,6 +53,7 @@
 | POST | `/checkout` | `checkout.controller.ts` | VERIFIED |
 | GET | `/orders/:id` | `orders.controller.ts` | VERIFIED |
 | POST | `/orders/:id/manage` | `orders.controller.ts` | VERIFIED |
+| GET | `/orders` | `orders.controller.ts` | VERIFIED |
 | GET | `/visualization-data` | `visualization.controller.ts` | VERIFIED |
 
 ### Missing Endpoints (UI has workarounds)
@@ -61,7 +62,6 @@
 |--------|----------|-------------|
 | DELETE | `/cart/items/:id` | Buttons disabled with tooltip |
 | PATCH | `/cart/items/:id` | Buttons disabled with tooltip |
-| GET | `/orders` | Manual ID lookup page |
 
 ---
 
@@ -73,7 +73,7 @@
 - All API calls routed to mock implementations
 
 ### Mock Data (`src/lib/api/mock-data.ts`)
-- 10 sample products (drinks, food, accessories)
+- 7 sample products (drinks, food, accessories)
 - In-memory cart state with add operations
 - In-memory order storage with status transitions
 - Mock health report
@@ -88,33 +88,33 @@
 ## 5. Assumptions Requiring Confirmation
 
 ### BFF Contract Alignment
-- [ ] **Cart session strategy** - BFF uses cookies/headers for cart identification?
-- [ ] **Product IDs** - Format matches `prod_*` pattern used in mocks?
-- [ ] **Money format** - amountMinor is always cents (integer)?
-- [ ] **Order status transitions** - Allowed: pending→preparing→prepared, any→cancelled?
+- [ ] **Cart session strategy** - The BFF is currently single-user and
+  in-memory; define future session ownership before multi-user behavior.
+- [x] **Money format** - `amountMinor` is integer cents in shared contracts.
+- [x] **Order listing** - `GET /orders` returns persisted orders.
 
 ### Missing Features (intentionally excluded)
 - [ ] **Authentication** - No user login/registration implemented
 - [ ] **Product images** - Using category icons as placeholders
 - [ ] **Cart item updates** - No PATCH/DELETE endpoints exist
-- [ ] **Order listing** - No GET /orders endpoint exists
 - [ ] **Search/pagination** - Products load all at once
 
 ### Type Synchronization
-- [ ] Types duplicated from BFF modules - should import from `@mini-commerce/contracts`?
-- [ ] `Money` type matches `@mini-commerce/shared-types`?
+- [x] The web API client consumes `@mini-commerce/contracts`.
+- [ ] The BFF still maintains local response interfaces; decide future
+  provider-side contract enforcement.
 
 ---
 
 ## 6. 3D Visualizer Integration
 
-### Files Created/Modified
+### Integrated Files
 
 | File | Change |
 |------|--------|
-| `app/visualizer/page.tsx` | NEW - Visualizer integration page with iframe embed |
-| `src/components/system/AppShell.tsx` | MODIFIED - Added "3D" nav link |
-| `.env.example` | MODIFIED - Added NEXT_PUBLIC_VISUALIZER_URL |
+| `app/visualizer/page.tsx` | Visualizer integration page with iframe embed |
+| `src/components/system/AppShell.tsx` | Includes the "3D" navigation link |
+| `.env.example` | Documents `NEXT_PUBLIC_VISUALIZER_URL` |
 
 ### Deployment Expectations
 
@@ -188,7 +188,7 @@ apps/web/
 │   ├── page.tsx             # Catalog page
 │   ├── cart/page.tsx        # Cart page
 │   ├── checkout/page.tsx    # Checkout page
-│   ├── orders/page.tsx      # Order lookup page
+│   ├── orders/page.tsx      # Persisted orders list page
 │   ├── orders/[orderId]/page.tsx  # Order detail page
 │   ├── visualizer/page.tsx  # 3D Visualizer integration
 │   └── dev/page.tsx         # API debug page

@@ -1,36 +1,43 @@
 # infra/observability
 
-Local observability stack placeholders for the mini-commerce engineering
-playground.
+Local observability foundation for the mini-commerce engineering playground.
 
 ## Goal
 
 Treat **traces, metrics, and logs** as first-class engineering signals from
 day one, even before the application emits anything meaningful.
 
-## Components (planned)
+## Implemented today
 
-- **OpenTelemetry collector** — single ingest point for traces / metrics / logs
-  from `apps/bff`, `apps/web`, and `tests/performance/k6` runs.
+- **OpenTelemetry Collector** accepts OTLP gRPC and HTTP traffic through the
+  Compose stack and writes received telemetry through the debug exporter.
+- **BFF trace instrumentation** initializes the Node SDK when an OTLP endpoint
+  is configured, including HTTP/Express/Postgres auto-instrumentation and
+  manual order spans.
+- **k6 OTLP path** is configured in the performance Compose stack so test
+  metrics can reach the collector debug pipeline.
+
+## Planned backends
+
 - **Tempo / Jaeger** — trace backend (TBD in ADR).
 - **Prometheus** — metrics backend.
 - **Loki** — log backend.
 - **Grafana** — unified dashboards.
 
-This iteration only ships the collector config skeleton. The full backend
-stack will be added in a follow-up iteration alongside `infra/docker/compose.yaml`.
+There is no persistent telemetry backend or dashboard yet; collector output
+is currently diagnostic console output only.
 
 ## Why this matters for quality engineering
 
 - Performance runs (`tests/performance/k6`) export metrics into the same
   pipeline → SLO regressions become obvious in dashboards, not just k6 output.
-- E2E and integration tests carry trace IDs through their HTTP calls → a
-  failing test links straight to a trace.
+- Future E2E and integration correlation can carry trace IDs through their
+  HTTP calls once those suites and a trace backend are active.
 - The same instrumentation that powers local debugging is what would later
   power production-grade observability — no separate "monitoring" effort.
 
 ## Next iteration TODOs
 
-- [ ] Fill in `otel-collector-config.yaml` with OTLP receivers and stub exporters.
 - [ ] Add Grafana, Prometheus, Tempo, Loki services to `compose.yaml`.
 - [ ] Add a starter Grafana dashboard JSON under `dashboards/`.
+- [ ] Correlate test run identifiers with persisted traces and metrics.
