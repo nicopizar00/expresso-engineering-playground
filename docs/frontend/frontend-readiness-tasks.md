@@ -13,6 +13,9 @@ This document tracks the readiness status of frontend components, API integratio
 
 **Visualizer states:** Controlled by `NEXT_PUBLIC_VISUALIZER_URL` env var (not mock scenarios)
 
+**Performance Playground:** Deterministic frontend-only scenario fixtures; no live
+metrics, k6 report ingestion, or new BFF endpoint.
+
 ---
 
 ## 1. Foundation
@@ -118,10 +121,14 @@ This document tracks the readiness status of frontend components, API integratio
 
 ---
 
-## 9. Performance (Placeholder)
+## 9. Performance Playground and Web Performance
 
 | Task | Status | Purpose | Assumption | Dependency | Next Action |
 |------|--------|---------|------------|------------|-------------|
+| `/performance` visual surface | Done | Design validation of load presentation | Clearly marked mock data | None | Validate responsive/keyboard flow |
+| Deterministic scenario adapter | Done | Stable visual review fixtures | Local types only | None | Keep separate from HTTP contracts |
+| Manual UAT catalog | Done | Review scenario controls and disclosures | Manual browser validation | None | Execute before integration |
+| Saved k6/metric adapter | Planned | Potential observed-data input | Requires architecture decision | None | Do not imply active integration |
 | Bundle analysis | Todo | Size optimization | None | None | Add @next/bundle-analyzer |
 | Image optimization | Todo | Load time | Next.js Image is available | None | Convert img to Image |
 | Code splitting | Ready | Load time | Next.js handles automatically | None | None |
@@ -143,7 +150,7 @@ This document tracks the readiness status of frontend components, API integratio
 
 | Task | Status | Purpose | Assumption | Dependency | Next Action |
 |------|--------|---------|------------|------------|-------------|
-| Remove v0-specific comments | Todo | Clean export | Comments are marked with TODO(v0-export) | None | Search and clean |
+| Performance boundary copy | Done | Avoid live-data claims | Fixtures remain local | None | Preserve mock badge and disclosures |
 | Type import from contracts | Done | Type safety | `@mini-commerce/contracts` is the web boundary | None | Preserve shared imports |
 | Environment variable docs | Done | Deployment | .env.example is complete | None | None |
 | Component export | Ready | Shared library | Components are standalone | None | Copy to shared package |
@@ -153,7 +160,8 @@ This document tracks the readiness status of frontend components, API integratio
 
 ## Summary
 
-**Ready for demo:** Catalog, cart, checkout, orders, health, visualizer embed, mock scenarios.
+**Ready for demo:** Catalog, cart, checkout, orders, health, visualizer embed,
+mock scenarios, and the mock-only Performance Playground.
 
 **Demo-only or unsupported by the BFF:** Cart item removal and cart quantity update.
 

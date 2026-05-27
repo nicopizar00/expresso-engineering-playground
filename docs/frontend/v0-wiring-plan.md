@@ -15,6 +15,7 @@ The Next.js app currently provides:
 - A persisted orders list at `/orders` and order management at
   `/orders/[orderId]`.
 - A standalone 3D visualizer embed at `/visualizer`.
+- A deterministic, mock-only Performance Playground at `/performance`.
 - Diagnostics and demo-mode controls at `/dev`.
 
 All HTTP traffic is owned by `apps/web/src/lib/api/expresso-api.ts`. The
@@ -56,6 +57,16 @@ that these capabilities exist.
   access remains outside generated visual components.
 - Wire response types belong in `@mini-commerce/contracts`; local component
   types are for presentation state only.
+
+## Performance demo boundary
+
+- `/performance` reads only local deterministic frontend fixtures.
+- Scenario playback changes presentation state only; it does not execute k6,
+  call Grafana, or query OpenTelemetry data.
+- Performance presentation types remain local to `apps/web` while the source
+  is mock data; they are not HTTP wire contracts.
+- The `/dev` link to Performance is informational and does not add BFF
+  behavior.
 
 ## Design-assisted changes
 

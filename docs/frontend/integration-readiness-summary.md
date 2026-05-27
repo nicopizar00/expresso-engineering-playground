@@ -15,6 +15,7 @@
 | `/orders` | `app/orders/page.tsx` | Persisted order list and detail navigation |
 | `/orders/[orderId]` | `app/orders/[orderId]/page.tsx` | Order detail and management actions |
 | `/visualizer` | `app/visualizer/page.tsx` | 3D visualizer integration page |
+| `/performance` | `app/performance/page.tsx` | Simulated performance design surface with visible mock-data disclosure |
 | `/dev` | `app/dev/page.tsx` | API debug/testing interface |
 
 ---
@@ -36,6 +37,13 @@
 - `ProductCard.tsx` - Individual product display with add-to-cart
 - `ProductCatalogGrid.tsx` - Filterable product grid
 - `ProductQuickView.tsx` - Product detail modal
+
+### Performance Components (`src/components/performance/`)
+- `KPIStrip.tsx` - Simulated KPI display
+- `ServiceActivityCard.tsx` - Mock service activity cards
+- `RequestFlowDiagram.tsx` - Simulated request-flow presentation
+- `ScenarioSelector.tsx` - Deterministic scenario controls
+- `FutureIntegrationPanel.tsx` - Boundary disclosure and potential adapter notes
 
 ---
 
@@ -83,6 +91,11 @@
 - Orders stored in Map (resets on page refresh)
 - Demo mode preference in localStorage
 
+### Performance Fixtures (`src/lib/performance/`)
+- `/performance` uses deterministic scenario data independent of demo-mode API fixtures.
+- Its adapter makes no BFF, k6, Grafana, or telemetry requests.
+- Its presentation types stay local and do not extend `@mini-commerce/contracts`.
+
 ---
 
 ## 5. Assumptions Requiring Confirmation
@@ -106,7 +119,18 @@
 
 ---
 
-## 6. 3D Visualizer Integration
+## 6. Performance Playground Boundary
+
+| Concern | Integrated Behavior |
+|---------|---------------------|
+| Data source | Deterministic frontend fixtures only |
+| Runtime APIs | None added or consumed |
+| Public contracts | No performance wire types added |
+| Existing k6 scenarios | Remain runnable separately; not displayed by this page |
+| Observable metrics | Potential later adapter work only |
+| Validation | Manual UAT catalog in `apps/web/tests/uat/performance-playground.spec.ts` |
+
+## 7. 3D Visualizer Integration
 
 ### Integrated Files
 
@@ -176,7 +200,7 @@ GET /visualization-data
 
 ---
 
-## 7. Export Checklist (v0 → Repository)
+## 8. Frontend File Map
 
 ### Files to Export
 
@@ -204,15 +228,12 @@ apps/web/
 └── tsconfig.json            # Path alias: @/* → src/*
 ```
 
-### TODO Comments Reference
+### Performance Design Files
 
-Search for these markers to find integration points:
-
-- `TODO(api-wire)` - Pending BFF endpoint implementation
-- `TODO(state)` - State management improvements
-- `TODO(types)` - Type imports from contracts package
-- `TODO(error-handling)` - Error handling improvements
-- `TODO(v0-export)` - Export/refactoring suggestions
+- `app/performance/page.tsx` - Mock-only route entry point.
+- `src/components/performance/` - Scenario, KPI, service and disclosure UI.
+- `src/lib/performance/` - Local deterministic fixture and adapter layer.
+- `tests/uat/performance-playground.spec.ts` - Manual validation catalog.
 
 ---
 

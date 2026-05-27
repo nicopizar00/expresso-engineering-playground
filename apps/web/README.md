@@ -13,9 +13,9 @@ Next.js web application for the mini-commerce engineering playground.
 ## Status
 
 Runnable with routes for catalog, cart, checkout, persisted order list and
-detail, a standalone 3D visualizer embed, and `/dev` diagnostics. Demo mode
-routes the API client to deterministic frontend fixtures when the BFF is not
-running.
+detail, a standalone 3D visualizer embed, the mock-only `/performance`
+design surface, and `/dev` diagnostics. Demo mode routes the API client to
+deterministic frontend fixtures when the BFF is not running.
 
 ## Run locally
 
@@ -32,6 +32,8 @@ Then open http://localhost:3000.
   restarts.
 - Demo mode is browser-local validation data and must not be presented as
   persisted or live service state.
+- `/performance` always uses deterministic frontend scenario fixtures. It does
+  not call a performance endpoint, read k6 reports, or display live telemetry.
 
 ## Next iteration TODOs
 

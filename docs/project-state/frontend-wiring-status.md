@@ -9,7 +9,8 @@
 - Catalog and orders use Prisma/PostgreSQL. Cart remains a deliberate
   single-user, in-process store.
 - The Next.js app is multi-page: catalog, cart, checkout, order list, order
-  detail, visualizer embed, and development diagnostics are wired.
+  detail, visualizer embed, simulated Performance Playground, and development
+  diagnostics are wired.
 - `apps/web/src/lib/api/expresso-api.ts` owns HTTP and demo-mode routing.
 - `@mini-commerce/contracts` provides the frontend HTTP wire-format types.
 - OpenTelemetry tracing is wired in the BFF when its exporter endpoint is
@@ -46,6 +47,8 @@
   components.
 - Keep demo-mode data visibly fictional and separate from real persisted
   state.
+- Treat `/performance` as a mock-only frontend surface: it does not consume
+  k6 output, Grafana data, or telemetry feeds.
 - Treat the BFF and `@mini-commerce/contracts` as boundaries that a visual
   design pass cannot redefine.
 

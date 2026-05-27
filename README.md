@@ -157,7 +157,8 @@ Then open <http://localhost:3000> and walk this path:
 | 5 | `/orders/<orderId>` | Trigger `mark_prepared` / `cancel`  | Status badge updates live                        |
 | 6 | `/orders`           | View orders list                    | The new order plus the seeded `ord_demo`         |
 | 7 | `/visualizer`       | Embedded 3D scene                   | Iframe loads the standalone visualizer          |
-| 8 | `/dev`              | Dev-only diagnostics                | API client wiring and demo-mode toggle           |
+| 8 | `/performance`      | Explore simulated load scenarios    | Mock-data KPIs and request-flow visualization    |
+| 9 | `/dev`              | Dev-only diagnostics                | API client wiring, demo-mode toggle, and Performance link |
 
 ### Step 4 — Add the 3D visualizer
 

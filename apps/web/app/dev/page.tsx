@@ -7,11 +7,10 @@
  * - Direct endpoint testing against the BFF
  * - Mock scenario controls for testing different UI states
  * - Demo Guide explaining how to explore the frontend
- *
- * TODO(v0-export): Component ready for repository integration.
  */
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Activity,
   Play,
@@ -26,6 +25,7 @@ import {
   Package,
   Heart,
   ExternalLink,
+  Gauge,
 } from 'lucide-react';
 import {
   expressoApi,
@@ -266,6 +266,116 @@ function DemoGuidePanel() {
   );
 }
 
+function PerformanceInfoPanel() {
+  return (
+    <Card title="Performance Playground" icon={Gauge}>
+      <div className="space-y-3">
+        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          The Performance Playground presents simulated request activity for design
+          evaluation. It is not a monitoring dashboard or a live telemetry surface.
+        </p>
+
+        {/* Current State */}
+        <div
+          className="p-3 rounded-md"
+          style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--info)' }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+              Mock Data Mode
+            </span>
+            <span
+              className="px-2 py-0.5 text-xs font-medium rounded-full"
+              style={{ backgroundColor: 'var(--info)', color: 'var(--info-foreground)' }}
+            >
+              Active
+            </span>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+            All performance data is currently deterministic mock data for design validation.
+          </p>
+        </div>
+
+        {/* Scenario Types */}
+        <div>
+          <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+            Available Mock Scenarios
+          </label>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {[
+              { name: 'Browsing Load', intensity: 'low' },
+              { name: 'Checkout Spike', intensity: 'high' },
+              { name: 'Mixed User Journey', intensity: 'medium' },
+              { name: 'Catalog Stress', intensity: 'stress' },
+              { name: 'Order Lookup Pressure', intensity: 'medium' },
+              { name: 'Error Injection', intensity: 'low' },
+            ].map((scenario) => (
+              <div
+                key={scenario.name}
+                className="px-2 py-1.5 rounded"
+                style={{ backgroundColor: 'var(--secondary)' }}
+              >
+                <span style={{ color: 'var(--foreground)' }}>{scenario.name}</span>
+                <span
+                  className="ml-1.5 text-[10px] uppercase"
+                  style={{
+                    color:
+                      scenario.intensity === 'stress'
+                        ? 'var(--destructive)'
+                        : scenario.intensity === 'high'
+                          ? 'var(--warning)'
+                          : scenario.intensity === 'medium'
+                            ? 'var(--info)'
+                            : 'var(--success)',
+                  }}
+                >
+                  {scenario.intensity}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Future Integration */}
+        <div>
+          <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+            Potential Data Adapters
+          </label>
+          <div className="space-y-1.5 text-xs">
+            {[
+              { label: 'k6 summary JSON parsing', status: 'planned' },
+              { label: 'Observable metric source', status: 'planned' },
+              { label: 'CI performance artifacts', status: 'planned' },
+              { label: 'Measured service metrics', status: 'planned' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between">
+                <span style={{ color: 'var(--foreground)' }}>{item.label}</span>
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
+                >
+                  {item.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Link */}
+        <Link
+          href="/performance"
+          className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+        >
+          <Gauge className="h-4 w-4" />
+          Open Performance Playground
+        </Link>
+
+      </div>
+    </Card>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Frontend Readiness Panel
 // ---------------------------------------------------------------------------
@@ -322,7 +432,7 @@ function ReadinessPanel() {
       <div className="pt-2 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}>
         <p>
           <strong style={{ color: 'var(--foreground)' }}>wired</strong> = calls real BFF endpoint |{' '}
-          <strong style={{ color: 'var(--foreground)' }}>mock</strong> = demo-only (BFF endpoint missing) |{' '}
+          <strong style={{ color: 'var(--foreground)' }}>mock</strong> = frontend-only fixture behavior |{' '}
           <strong style={{ color: 'var(--foreground)' }}>embed</strong> = external app integration
         </p>
       </div>
@@ -618,6 +728,11 @@ export default function DevPage() {
       <div className="grid gap-4 mb-8 lg:grid-cols-2">
         <DemoGuidePanel />
         <ReadinessPanel />
+      </div>
+
+      {/* Performance mock-data guidance */}
+      <div className="mb-8">
+        <PerformanceInfoPanel />
       </div>
 
       {/* API Debug Cards */}

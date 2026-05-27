@@ -5,8 +5,6 @@
  *
  * Provides consistent navigation, header, footer, and cart drawer across all pages.
  * Includes demo mode toggle for frontend exploration without backend.
- *
- * TODO(v0-export): Consider extracting navigation links to a separate config file.
  */
 
 import { ReactNode, useState, useEffect } from 'react';
@@ -22,6 +20,7 @@ import {
   ExternalLink,
   FlaskConical,
   Box,
+  Gauge,
 } from 'lucide-react';
 import { useCart } from '@/components/cart/CartProvider';
 import { HealthBadge } from './HealthBadge';
@@ -31,6 +30,7 @@ import { getDemoModeStatus, setDemoMode } from '@/lib/api/expresso-api';
 const navLinks = [
   { href: '/', label: 'Catalog', icon: Coffee },
   { href: '/orders', label: 'Orders', icon: Package },
+  { href: '/performance', label: 'Performance', icon: Gauge },
   { href: '/visualizer', label: '3D', icon: Box },
   { href: '/dev', label: 'API', icon: Activity },
 ];
@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           role="status"
         >
           <FlaskConical className="inline h-3 w-3 mr-1" />
-          Demo Mode — Using mock data. Backend not required.
+          Demo Mode - Using mock data. Backend not required.
           <button
             onClick={handleToggleDemoMode}
             className="ml-2 underline hover:no-underline"
