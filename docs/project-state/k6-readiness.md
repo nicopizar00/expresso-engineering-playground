@@ -65,7 +65,7 @@ http.get(`${BASE}/visualization-data`);
 
 | Area | Status | Blocker |
 |---|---|---|
-| OpenTelemetry tracing | Placeholder only (`telemetry.ts` is no-op) | OTel SDK not wired |
+| OpenTelemetry tracing | ✅ Wired — NodeSDK + OTLP HTTP exporter, auto-instrumentations, order spans | — |
 | k6 → Grafana dashboard | Not configured | Grafana stack not in Docker Compose |
 | Contract/Pact tests | Infrastructure wired, bodies are TODOs | Out of scope |
 | E2E (Playwright) | Infrastructure wired, bodies are TODOs | Out of scope |
