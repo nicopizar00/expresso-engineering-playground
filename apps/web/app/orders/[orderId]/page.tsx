@@ -7,7 +7,8 @@
  * Redesigned with a clean, modern interface.
  */
 
-import { use, useState } from 'react';
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import {
   Package,
@@ -35,10 +36,6 @@ import {
 import { PageLoadingState } from '@/components/system/LoadingSkeleton';
 import { PageErrorState } from '@/components/system/ErrorBanner';
 import Link from 'next/link';
-
-interface OrderPageProps {
-  params: Promise<{ orderId: string }>;
-}
 
 async function fetchOrder(orderId: string): Promise<Order> {
   return expressoApi.getOrderById(orderId);
@@ -74,8 +71,9 @@ const statusConfig: Record<
   },
 };
 
-export default function OrderPage({ params }: OrderPageProps) {
-  const { orderId } = use(params);
+export default function OrderPage() {
+  const params = useParams<{ orderId: string }>();
+  const orderId = params.orderId;
   const {
     data: order,
     error,
