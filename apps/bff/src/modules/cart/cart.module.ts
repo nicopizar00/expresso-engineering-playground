@@ -14,12 +14,13 @@
 //   - Back service with a Prisma-backed repository
 
 import { Module } from "@nestjs/common";
+import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { CartController } from "./cart.controller";
 import { CartService } from "./cart.service";
 
 @Module({
-  imports: [CatalogModule],
+  imports: [CatalogModule, DomainEventsModule],
   controllers: [CartController],
   providers: [CartService],
   exports: [CartService],

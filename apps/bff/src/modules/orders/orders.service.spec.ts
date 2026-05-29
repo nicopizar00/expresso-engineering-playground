@@ -2,6 +2,7 @@ import { NotFoundException, BadRequestException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Order as DbOrder, OrderLine as DbOrderLine } from "@prisma/client";
+import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { PrismaService } from "../../prisma.service";
 import { OrdersService } from "./orders.service";
 import type { CreateOrderInput, ManageOrderResponse } from "./orders.types";
@@ -51,11 +52,19 @@ function makePrisma() {
   };
 }
 
-async function makeService(prisma: ReturnType<typeof makePrisma>) {
+function makeDomainEvents() {
+  return { emit: vi.fn() };
+}
+
+async function makeService(
+  prisma: ReturnType<typeof makePrisma>,
+  domainEvents: ReturnType<typeof makeDomainEvents> = makeDomainEvents(),
+) {
   const module = await Test.createTestingModule({
     providers: [
       OrdersService,
       { provide: PrismaService, useValue: prisma },
+      { provide: DomainEventsService, useValue: domainEvents },
     ],
   }).compile();
 
@@ -67,10 +76,12 @@ async function makeService(prisma: ReturnType<typeof makePrisma>) {
 describe("OrdersService", () => {
   let service: OrdersService;
   let prisma: ReturnType<typeof makePrisma>;
+  let domainEvents: ReturnType<typeof makeDomainEvents>;
 
   beforeEach(async () => {
     prisma = makePrisma();
-    service = await makeService(prisma);
+    domainEvents = makeDomainEvents();
+    service = await makeService(prisma, domainEvents);
   });
 
   describe("onModuleInit()", () => {
@@ -222,6 +233,8 @@ describe("OrdersService", () => {
       const items = service.listAll();
       expect(items).toHaveLength(2);
       expect(items[1].orderId).toBe("ord_001");
+      // Creating an order pushes a visualization snapshot for SSE subscribers.
+      expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
 
     it("increments nextOrderSeq for successive creates", async () => {
@@ -267,6 +280,8 @@ describe("OrdersService", () => {
         data: { status: "cancelled" },
       });
       expect(service.get("ord_demo").status).toBe("cancelled");
+      // Managing an order pushes a visualization snapshot for SSE subscribers.
+      expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
 
     it("marks an order as prepared and updates cache", async () => {

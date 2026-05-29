@@ -13,14 +13,12 @@ import { CatalogModule } from "./modules/catalog/catalog.module";
 import { CheckoutModule } from "./modules/checkout/checkout.module";
 import { HealthModule } from "./modules/health/health.module";
 import { OrdersModule } from "./modules/orders/orders.module";
-import { VisualizationEventsModule } from "./modules/visualization/visualization-events.module";
 import { VisualizationModule } from "./modules/visualization/visualization.module";
 import { PrismaModule } from "./prisma.module";
 
 @Module({
   imports: [
     PrismaModule,
-    VisualizationEventsModule,
     HealthModule,
     CatalogModule,
     CartModule,
