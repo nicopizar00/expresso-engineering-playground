@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Money } from "@mini-commerce/shared-types";
+import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
-import type { AddCartItemDto } from "./cart.dto";
+import type { AddCartItemDto, UpdateCartItemDto } from "./cart.dto";
 import type { Cart, CartItem } from "./cart.types";
 
 // Single-user in-memory cart. Sufficient for a playground where the BFF runs
@@ -21,7 +22,10 @@ export class CartService {
   // stable across runs.
   private updatedAt = "2026-05-14T12:00:00.000Z";
 
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly domainEvents: DomainEventsService,
+  ) {}
 
   add(payload: AddCartItemDto): Cart {
     // Re-uses CatalogService through its public surface — same access path a
@@ -44,11 +48,49 @@ export class CartService {
     this.logger.log(
       `cart add product=${product.productId} qty=${payload.quantity}`,
     );
-    return this.snapshot();
+    const cart = this.snapshot();
+    this.domainEvents.emit();
+    return cart;
   }
 
   get(): Cart {
     return this.snapshot();
+  }
+
+  // Update an existing line's quantity, recomputing its line total from the
+  // stored unit price. Throws 404 if the item is not in the cart.
+  updateQuantity(itemId: string, quantity: number): Cart {
+    const index = this.items.findIndex((item) => item.itemId === itemId);
+    if (index === -1) {
+      throw new NotFoundException(`Cart item ${itemId} not found`);
+    }
+    const existing = this.items[index]!;
+    const updated: CartItem = {
+      ...existing,
+      quantity,
+      lineTotal: {
+        amountMinor: existing.unitPrice.amountMinor * quantity,
+        currency: existing.unitPrice.currency,
+      },
+    };
+    this.items = this.items.map((item, i) => (i === index ? updated : item));
+    this.logger.log(`cart update item=${itemId} qty=${quantity}`);
+    const cart = this.snapshot();
+    this.domainEvents.emit();
+    return cart;
+  }
+
+  // Remove a line from the cart. Throws 404 if the item is not present.
+  remove(itemId: string): Cart {
+    const exists = this.items.some((item) => item.itemId === itemId);
+    if (!exists) {
+      throw new NotFoundException(`Cart item ${itemId} not found`);
+    }
+    this.items = this.items.filter((item) => item.itemId !== itemId);
+    this.logger.log(`cart remove item=${itemId}`);
+    const cart = this.snapshot();
+    this.domainEvents.emit();
+    return cart;
   }
 
   // Consumed by CheckoutService after a successful checkout to reset state.

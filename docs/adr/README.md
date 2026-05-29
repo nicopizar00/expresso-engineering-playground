@@ -23,3 +23,5 @@ This folder records significant architecture decisions and their context.
 
 - [0001 — Monorepo + pnpm + Turborepo](./0001-monorepo-and-tooling.md) — Accepted
 - [0002 — Adopt a mini-commerce domain for the playground](./0002-mini-commerce-domain.md) — Accepted
+- [0003 — k6 project strategy: git subtree](./0003-k6-project-strategy.md) — Accepted
+- [0004 — UAT React hydration #418/#423 is environmental](./0004-uat-react-hydration-environmental.md) — Accepted

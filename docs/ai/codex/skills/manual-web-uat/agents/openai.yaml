@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manual Web UAT"
+  short_description: "Plan and run manual UX UAT for the web app."
+  default_prompt: "Use this skill to generate or execute a manual UX UAT plan for the mini-commerce web app."

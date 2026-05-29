@@ -1,0 +1,99 @@
+ROLE
+You are Claude Code working in the mini-commerce engineering playground. Work in
+English. Do not add AI attribution, generated-by text, co-author trailers, or
+tool ownership claims.
+
+GOAL
+Upgrade the 3D visualizer from interval polling to near-real-time Server-Sent
+Events (SSE), so a domain mutation in the web app (add to cart, checkout, manage
+order) appears in the 3D scene within a fraction of a second — without the 2 s
+poll delay and without a manual reload. Keep polling as the automatic fallback
+when SSE is unavailable.
+
+READ FIRST
+- CLAUDE.md
+- docs/ai/codex/governance.md
+- docs/next-steps/visualizer-reactivity.md  (this implements "Variant A — SSE")
+- docs/project-state/current-system.md
+- docs/architecture/web-entry-point.md
+
+CONFIRM IN CODE BEFORE CODING
+- apps/bff/src/modules/visualization/visualization.controller.ts (GET /visualization-data)
+- apps/bff/src/modules/visualization/visualization.service.ts (list() snapshot builder)
+- apps/bff/src/modules/visualization/visualization.module.ts (imports catalog/orders/cart)
+- apps/bff/src/modules/cart/cart.service.ts, .../orders/orders.service.ts, .../checkout/checkout.service.ts (mutation points)
+- apps/bff/src/app.module.ts and apps/bff/src/main.ts (module wiring + CORS '*')
+- apps/bff/package.json (note: @nestjs/event-emitter is NOT installed; rxjs IS; @Sse() is in @nestjs/common)
+- apps/visualizer-3d/public/scene.js (existing startPolling/stopPolling, inflight guard, visibility listener, #status HUD)
+- apps/visualizer-3d/public/index.html (config.js sets window.__VIZ_CONFIG__.apiBaseUrl; the visualizer calls the BFF directly at :3001, not the /api/bff proxy)
+
+DESIGN (recommended)
+- Decouple producers from the visualization module with @nestjs/event-emitter:
+  register EventEmitterModule.forRoot() in AppModule; emit a single coarse event
+  (e.g. "visualization.changed") from cart add/update/remove, checkout, and order
+  manage. Do NOT make cart/orders/checkout import the visualization module.
+  (Acceptable lighter alternative if you prefer zero new deps: a global RxJS
+  Subject provider exported by a small VisualizationEventsModule. Pick one and
+  justify it briefly; rxjs is already present.)
+- Add GET /visualization-updates as an SSE stream using Nest's @Sse() decorator
+  in visualization.controller.ts. It returns an Observable<MessageEvent>. On
+  subscribe, push one immediate frame (current snapshot) so a late subscriber
+  paints right away; then push a fresh frame on each "visualization.changed"
+  event. The frame data is the existing VisualizationDataResponse from
+  VisualizationService.list() (JSON-stringified) so the client renders without a
+  second round trip.
+- Keep GET /visualization-data unchanged (initial paint + polling fallback).
+
+CLIENT (apps/visualizer-3d/public/scene.js)
+- Open new EventSource(`${API_BASE}/visualization-updates`). On a successful
+  open, stopPolling() (SSE is primary). On each message, parse the payload and
+  render it directly (reuse the existing buildItemMesh/clearGroup path); on parse
+  failure, fall back to loadAndRender() (GET). On EventSource error or if
+  EventSource is unsupported, fall back to startPolling() and retry SSE later.
+- Preserve the inflight guard, the visibility pause/resume, and the #status HUD.
+  Extend HUD copy: "live (sse) · N items" when streaming, keep "live · N items"
+  for the polling path, plus "polling…" / "error · <reason>" / "offline · N mock
+  items". Update the index.html #status comment.
+
+FUNCTIONAL BOUNDARIES
+- Preserve the web app as the single browser entry point and the /api/bff + /viz
+  proxy topology. The visualizer keeps fetching the BFF directly at :3001.
+- GET /visualization-data must keep working unchanged (fallback + initial paint).
+- Preserve persistent orders, GET /orders, and the in-memory cart.
+- Keep /performance mock-only.
+- This iteration is OWNER-APPROVED to add one backend contract (GET
+  /visualization-updates) and emit in-process domain events. Do not change the
+  /visualization-data shape, telemetry, k6 scenarios, or unrelated contracts.
+- Keep the SSE snapshot identical in shape to VisualizationDataResponse so the
+  contract stays singular.
+
+TASKS
+1. Add the event mechanism (EventEmitterModule.forRoot() in AppModule, or the
+   RxJS Subject hub) and emit "visualization.changed" from cart add/update/remove,
+   checkout.checkout(), and orders.manage(). One coarse event is enough.
+2. Add the @Sse('visualization-updates') endpoint that emits the current snapshot
+   on connect and on each change event. Coalesce bursts if trivial (optional).
+3. Rework scene.js to prefer SSE and fall back to polling; preserve guards,
+   visibility handling, and HUD states.
+4. Update apps/visualizer-3d/index.html (#status comment), README.md (describe
+   SSE-primary + polling fallback), and docs/next-steps/visualizer-reactivity.md
+   (mark Variant A done; keep WebSocket as future).
+5. Add an SSE smoke check to `dev` and scripts/playground.mjs that opens the
+   stream with a short timeout and asserts a text/event-stream frame; keep the
+   existing 12 checks green.
+
+VALIDATION
+- pnpm --filter @mini-commerce/bff typecheck && pnpm build
+- Rebuild bff + visualizer: docker compose -f infra/docker/compose.yaml --profile viz build bff visualizer-3d ; then pnpm pg:up full
+- Stream check: curl -N -H 'Accept: text/event-stream' --max-time 3 http://localhost:3001/visualization-updates → Content-Type text/event-stream + at least one data frame.
+- Reactivity: with the stream open, POST /cart/items (or /checkout) and confirm a
+  fresh frame arrives effectively immediately (no 2 s wait).
+- Served client carries SSE: curl -s http://localhost:3000/viz/scene.js | grep -c EventSource → >= 1.
+- pnpm pg:smoke → 12/12 (plus the new SSE check). pnpm typecheck / pnpm build pass.
+- Note any browser-only confirmation (scene repaint, HUD "live (sse)") as a manual
+  step; do not fake visual confirmation.
+
+OUTPUT
+A short report: design chosen (and why), files changed, the new endpoint contract,
+validation results, and any remaining manual/browser checks. Update CLAUDE.md's
+Phase-2 status line and memory if the visualizer thread is now fully closed.
