@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Money } from "@mini-commerce/shared-types";
-import { VisualizationEventsService } from "../visualization/visualization-events.service";
+import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
 import type { AddCartItemDto, UpdateCartItemDto } from "./cart.dto";
 import type { Cart, CartItem } from "./cart.types";
@@ -24,7 +24,7 @@ export class CartService {
 
   constructor(
     private readonly catalog: CatalogService,
-    private readonly vizEvents: VisualizationEventsService,
+    private readonly domainEvents: DomainEventsService,
   ) {}
 
   add(payload: AddCartItemDto): Cart {
@@ -49,7 +49,7 @@ export class CartService {
       `cart add product=${product.productId} qty=${payload.quantity}`,
     );
     const cart = this.snapshot();
-    this.vizEvents.emit();
+    this.domainEvents.emit();
     return cart;
   }
 
@@ -76,7 +76,7 @@ export class CartService {
     this.items = this.items.map((item, i) => (i === index ? updated : item));
     this.logger.log(`cart update item=${itemId} qty=${quantity}`);
     const cart = this.snapshot();
-    this.vizEvents.emit();
+    this.domainEvents.emit();
     return cart;
   }
 
@@ -89,7 +89,7 @@ export class CartService {
     this.items = this.items.filter((item) => item.itemId !== itemId);
     this.logger.log(`cart remove item=${itemId}`);
     const cart = this.snapshot();
-    this.vizEvents.emit();
+    this.domainEvents.emit();
     return cart;
   }
 

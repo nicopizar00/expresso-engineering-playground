@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CartService } from "../cart/cart.service";
 import { OrdersService } from "../orders/orders.service";
-import { VisualizationEventsService } from "../visualization/visualization-events.service";
 import type { CheckoutDto } from "./checkout.dto";
 import type { CheckoutResponse } from "./checkout.types";
 
@@ -12,7 +12,7 @@ export class CheckoutService {
   constructor(
     private readonly cart: CartService,
     private readonly orders: OrdersService,
-    private readonly vizEvents: VisualizationEventsService,
+    private readonly domainEvents: DomainEventsService,
   ) {}
 
   // Mocked checkout — no real payment is processed. Consumes the current
@@ -46,7 +46,7 @@ export class CheckoutService {
     });
 
     this.cart.clear();
-    this.vizEvents.emit();
+    this.domainEvents.emit();
 
     this.logger.log(
       `checkout key=${payload.idempotencyKey ?? "n/a"} order=${order.orderId}`,

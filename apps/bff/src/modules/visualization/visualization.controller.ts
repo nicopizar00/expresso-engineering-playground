@@ -1,7 +1,7 @@
 import { Controller, Get, MessageEvent, Sse } from "@nestjs/common";
 import { Observable, merge, of } from "rxjs";
 import { debounceTime, map } from "rxjs/operators";
-import { VisualizationEventsService } from "./visualization-events.service";
+import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { VisualizationService } from "./visualization.service";
 import type { VisualizationDataResponse } from "./visualization.types";
 
@@ -9,7 +9,7 @@ import type { VisualizationDataResponse } from "./visualization.types";
 export class VisualizationController {
   constructor(
     private readonly visualization: VisualizationService,
-    private readonly events: VisualizationEventsService,
+    private readonly domainEvents: DomainEventsService,
   ) {}
 
   @Get("visualization-data")
@@ -24,7 +24,7 @@ export class VisualizationController {
   updates(): Observable<MessageEvent> {
     return merge(
       of(null),
-      this.events.changed$.pipe(debounceTime(50)),
+      this.domainEvents.changed$.pipe(debounceTime(50)),
     ).pipe(
       map(() => ({ data: this.visualization.list() } as MessageEvent)),
     );
