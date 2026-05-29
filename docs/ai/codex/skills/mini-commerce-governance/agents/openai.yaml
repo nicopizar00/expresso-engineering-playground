@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mini Commerce Governance"
+  short_description: "Frame architecture and scope decisions."
+  default_prompt: "Use this skill to frame a scoped design-governance or architecture prompt for the mini-commerce engineering playground."

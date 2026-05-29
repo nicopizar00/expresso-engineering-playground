@@ -38,8 +38,12 @@ const stage = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const reloadBtn = document.getElementById("reload");
 
-// TODO(next-steps/visualizer-reactivity): declare POLL_INTERVAL_MS (default 2000),
-// an `inflight` boolean, and a `pollHandle` for the setInterval id here.
+// Polling state. The scene refreshes from /visualization-data every
+// POLL_INTERVAL_MS so web-app mutations appear without a manual reload.
+// `inflight` coalesces overlapping ticks; `pollHandle` holds the interval id.
+const POLL_INTERVAL_MS = 2000;
+let inflight = false;
+let pollHandle = null;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -76,18 +80,24 @@ const dataGroup = new THREE.Group();
 scene.add(dataGroup);
 
 reloadBtn.addEventListener("click", () => {
-  // TODO(next-steps/visualizer-reactivity): clearInterval(pollHandle) then call
-  // startPolling() so the next automatic tick is a full interval after the manual one.
-  void loadAndRender();
+  // Reset the timer so the next automatic tick is a full interval after the
+  // manual one, then refresh immediately.
+  startPolling();
 });
 
 window.addEventListener("resize", onResize);
 onResize();
 
-// TODO(next-steps/visualizer-reactivity): replace this one-shot call with
-// startPolling() — calls loadAndRender() once, then setInterval at POLL_INTERVAL_MS,
-// plus a document.visibilitychange listener that pauses while hidden.
-void loadAndRender();
+// Pause polling while the tab is hidden; resume with an immediate fetch on focus.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopPolling();
+  } else {
+    startPolling();
+  }
+});
+
+startPolling();
 animate();
 
 // ---------------------------------------------------------------------------
@@ -176,23 +186,52 @@ function clearGroup(group) {
   }
 }
 
-async function loadAndRender() {
-  // TODO(next-steps/visualizer-reactivity): short-circuit when `inflight` is true
-  // so overlapping poll ticks coalesce; surface `polling…` / `error · <reason>`
-  // via setStatus() instead of the current "loading…" copy.
-  setStatus("loading…");
-  const items = await fetchItems().catch(() => null);
+// Run loadAndRender() once immediately, then on a fixed interval. Safe to call
+// repeatedly: it clears any existing timer first, so the manual reload button
+// and the visibility listener can reuse it without stacking intervals.
+function startPolling() {
+  stopPolling();
+  void loadAndRender();
+  pollHandle = setInterval(() => void loadAndRender(), POLL_INTERVAL_MS);
+}
 
-  clearGroup(dataGroup);
-  const source = items ?? FALLBACK_ITEMS;
-  for (const item of source) {
-    dataGroup.add(buildItemMesh(item));
+function stopPolling() {
+  if (pollHandle !== null) {
+    clearInterval(pollHandle);
+    pollHandle = null;
   }
+}
 
-  if (items) {
-    setStatus(`live · ${items.length} item${items.length === 1 ? "" : "s"}`);
-  } else {
-    setStatus(`offline · ${FALLBACK_ITEMS.length} mock items`);
+async function loadAndRender() {
+  if (inflight) return; // coalesce overlapping poll ticks
+  inflight = true;
+  setStatus("polling…");
+  try {
+    let items = null;
+    try {
+      items = await fetchItems();
+    } catch (err) {
+      // Transient error: keep the already-rendered scene and retry next tick.
+      // Only fall through to the inline fallback on the very first load.
+      if (dataGroup.children.length > 0) {
+        setStatus(`error · ${err.message}`);
+        return;
+      }
+    }
+
+    clearGroup(dataGroup);
+    const source = items ?? FALLBACK_ITEMS;
+    for (const item of source) {
+      dataGroup.add(buildItemMesh(item));
+    }
+
+    setStatus(
+      items
+        ? `live · ${items.length} item${items.length === 1 ? "" : "s"}`
+        : `offline · ${FALLBACK_ITEMS.length} mock items`,
+    );
+  } finally {
+    inflight = false;
   }
 }
 

@@ -12,7 +12,7 @@
  * Verified against: apps/bff/src/modules/orders/orders.controller.ts
  */
 
-import { use, useState } from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
 import {
   Package,
@@ -37,7 +37,7 @@ import { PageErrorState } from '@/components/system/ErrorBanner';
 import Link from 'next/link';
 
 interface OrderPageProps {
-  params: Promise<{ orderId: string }>;
+  params: { orderId: string };
 }
 
 async function fetchOrder(orderId: string): Promise<Order> {
@@ -79,7 +79,7 @@ const statusConfig: Record<
 };
 
 export default function OrderPage({ params }: OrderPageProps) {
-  const { orderId } = use(params);
+  const { orderId } = params;
   const {
     data: order,
     error,

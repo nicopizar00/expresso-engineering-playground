@@ -16,17 +16,22 @@ When the count drops to zero, the topic is done.
 
 ## Open threads (priority order)
 
-1. **[Visualizer reactivity](visualizer-reactivity.md)** — *5 anchors in source*
-   - Promote the 3D visualizer from manual-reload to interval polling
-     so browser mutations show up in 3D without clicking **Reload data**.
-   - State document captures the polling spec plus future SSE /
-     WebSocket variants for later iterations.
-   - Anchors live in `*.js` / `*.html` — run
-     `grep -rn "next-steps/visualizer-reactivity" apps/visualizer-3d/`
-     (the default grep recipe only scans `*.ts`, `*.prisma`, `*.mjs`,
-     `*.yaml`).
+1. **[UAT remediation](uat-remediation.md)** — *manual browser pass remaining*
+   - Code blockers (order-detail 500, invalid-order 500, `pnpm pg:up full`
+     `--profile` drift) are fixed and validated.
+   - Remaining: R4 — a human/browser walkthrough of header/footer nav,
+     cart-drawer pixels, Demo Mode scenarios, and `/dev` cards (now unblocked).
 
 ## Done
+
+✅ **Visualizer reactivity** — *interval polling shipped*
+   - 3D scene polls `GET /visualization-data` every 2 s, so web-app/curl
+     mutations appear without clicking **Reload data**
+   - In-flight guard (no overlapping requests), pause while the tab is hidden,
+     immediate refresh on focus, reload button resets the timer
+   - HUD status: `polling…` / `live · N items` / `error · <reason>` /
+     `offline · N mock items`; all 5 source anchors removed
+   - Spec + variants: [visualizer-reactivity.md](visualizer-reactivity.md)
 
 ✅ **Unified web entry point** — *web app as the single browser-facing shell*
    - Containerized Next.js standalone server runs from Docker and is reachable

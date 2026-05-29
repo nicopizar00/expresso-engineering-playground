@@ -4,7 +4,7 @@ Single entry point for the mini-commerce engineering playground documentation.
 This is the **hub**; every area below is a **spoke**. Start here, then follow
 the one spoke that matches your task.
 
-- Governance frame (conceptual / scope authority): [`../CODEX.md`](../CODEX.md)
+- Governance frame (conceptual / scope authority): [ai/codex/governance.md](ai/codex/governance.md)
 - Execution frame (operational / build rules): [`../CLAUDE.md`](../CLAUDE.md)
 
 ## Read first
@@ -14,6 +14,7 @@ the one spoke that matches your task.
 | Understand the live system (features + UX state) | [project-state/current-system.md](project-state/current-system.md) |
 | Run the stack locally | [local-development.md](local-development.md) |
 | Understand how the web app reaches the other services | [architecture/web-entry-point.md](architecture/web-entry-point.md) |
+| Use Codex prompts or repo-local skills | [ai/codex/README.md](ai/codex/README.md) |
 | Know which CLI command does what | [cli-reference.md](cli-reference.md) |
 
 ## Current system at a glance
@@ -45,6 +46,7 @@ the one spoke that matches your task.
 | Lifecycle | [lifecycle/README.md](lifecycle/README.md) | Build/run lifecycle notes |
 | Frontend | [frontend/integration-readiness-summary.md](frontend/integration-readiness-summary.md) | Frontend integration rules and readiness |
 | UAT | [uat/walkthrough-uat.md](uat/walkthrough-uat.md) | Manual acceptance walkthrough |
+| AI prompts | [ai/codex/README.md](ai/codex/README.md) | Repo-local Codex prompts and skills |
 
 ## Authoring rules
 

@@ -248,10 +248,12 @@ async function up(targetOverride) {
   if (seedResult.status !== 0) process.exit(seedResult.status ?? 1);
   pass('Seed complete');
 
-  // 4. Start BFF and any additional services for the requested target
-  const profiles = targetToProfiles(target);
+  // 4. Start BFF and any additional services for the requested target.
+  // Profiles go through the compose() helper so --profile is a global flag
+  // before the subcommand (some Docker Compose versions reject it after `up`).
+  const profiles = targetToProfileNames(target);
   const extra = additionalServices(target);
-  compose(['up', '-d', '--wait', ...profiles, 'bff', ...extra]);
+  compose(['up', '-d', '--wait', 'bff', ...extra], { profiles });
 
   log('');
   pass(`BFF is running on http://localhost:${BFF_PORT}`);
@@ -815,11 +817,11 @@ function getPidOnPort(port) {
   } catch { return null; }
 }
 
-function targetToProfiles(target) {
-  const flags = [];
-  if (target === 'web' || target === 'full') flags.push('--profile', 'web');
-  if (target === 'viz' || target === 'full') flags.push('--profile', 'viz');
-  return flags;
+function targetToProfileNames(target) {
+  const names = [];
+  if (target === 'web' || target === 'full') names.push('web');
+  if (target === 'viz' || target === 'full') names.push('viz');
+  return names;
 }
 
 function additionalServices(target) {

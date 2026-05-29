@@ -2,8 +2,9 @@
 
 ## Status
 
-Scaffolded — implementation pending. **5 anchors** in source
-(`grep -rn "next-steps/visualizer-reactivity" apps/visualizer-3d/`).
+**Done** (2026-05-29) — interval polling shipped in
+`apps/visualizer-3d/public/scene.js`. All 5 source anchors removed. The richer
+SSE / WebSocket variants below remain recorded as optional future work.
 
 ## Goal
 

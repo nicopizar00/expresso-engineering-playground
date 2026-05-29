@@ -1,6 +1,6 @@
-# CODEX.md
+# Codex Governance Frame
 
-This file defines the Codex working frame for this repository.
+This document defines the Codex working frame for this repository.
 
 ## Purpose
 
@@ -9,7 +9,7 @@ this project. The main goal is to keep the product direction coherent, keep
 AI-assisted work bounded, and make sure implementation agents receive clear
 context without taking over authorship or product authority.
 
-This file intentionally stays lighter than `CLAUDE.md`. Claude Code remains
+This document intentionally stays lighter than `CLAUDE.md`. Claude Code remains
 the primary implementation and operational execution agent. Codex should
 prepare direction, review scope, and frame implementation prompts.
 
