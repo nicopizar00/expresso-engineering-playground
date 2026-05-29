@@ -44,7 +44,7 @@ export class CatalogPage {
   }
 
   errorState(): Locator {
-    return this.page.getByRole('alert');
+    return this.page.getByRole('alert').filter({ hasText: /\S/ }).first();
   }
 
   async addItemToCart(productName: string): Promise<void> {

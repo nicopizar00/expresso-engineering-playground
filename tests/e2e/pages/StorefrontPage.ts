@@ -73,7 +73,7 @@ export class StorefrontPage {
   }
 
   checkoutAlert(): Locator {
-    return this.page.getByRole('alert');
+    return this.page.getByRole('alert').filter({ hasText: /\S/ }).first();
   }
 
   orderDetailsHeading(): Locator {

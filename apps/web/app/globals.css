@@ -137,6 +137,7 @@ body {
 
 /* Flexbox utilities */
 .flex { display: flex; }
+.hidden { display: none; }
 .flex-col { flex-direction: column; }
 .flex-wrap { flex-wrap: wrap; }
 .items-start { align-items: flex-start; }
@@ -153,6 +154,16 @@ body {
 .gap-4 { gap: 1rem; }
 .gap-5 { gap: 1.25rem; }
 .gap-6 { gap: 1.5rem; }
+
+@media (min-width: 640px) {
+  .sm\:flex { display: flex; }
+  .sm\:flex-row { flex-direction: row; }
+}
+
+@media (min-width: 768px) {
+  .md\:flex { display: flex; }
+  .md\:hidden { display: none; }
+}
 
 /* Grid */
 .grid { display: grid; }
