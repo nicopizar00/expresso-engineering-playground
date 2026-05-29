@@ -40,13 +40,18 @@ FROM deps AS builder
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 
-# NEXT_PUBLIC_* values are inlined into the client bundle at build time, so they
-# must be present here (not just at container runtime) for the standalone server.
-# The browser runs on the host, so these default to host-reachable URLs and can
-# be overridden via compose build.args (see infra/docker/compose.yaml).
-ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+# The browser talks only to this app (same origin); the Next.js server proxies
+# to the other containers over the internal Docker network. The rewrite targets
+# are resolved when next.config.mjs loads, so they must be present at build time
+# for the standalone server. Internal service names are baked here; compose can
+# override via build.args (see infra/docker/compose.yaml).
+ARG BFF_INTERNAL_URL=http://localhost:3001
+ARG VISUALIZER_INTERNAL_URL=http://localhost:3002
+# NEXT_PUBLIC_VISUALIZER_URL is the host-reachable link used to open the
+# visualizer standalone in a new tab; it is inlined into the client bundle.
 ARG NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV BFF_INTERNAL_URL=$BFF_INTERNAL_URL
+ENV VISUALIZER_INTERNAL_URL=$VISUALIZER_INTERNAL_URL
 ENV NEXT_PUBLIC_VISUALIZER_URL=$NEXT_PUBLIC_VISUALIZER_URL
 
 RUN pnpm --filter @mini-commerce/web build

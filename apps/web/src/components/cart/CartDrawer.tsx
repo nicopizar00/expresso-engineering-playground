@@ -3,19 +3,22 @@
 /**
  * CartDrawer - Slide-over cart panel
  *
- * Displays current cart contents with item list and checkout link.
+ * Displays current cart contents with item list and checkout link. Quantity
+ * steppers and the remove button drive the real BFF cart endpoints
+ * (PATCH/DELETE /cart/items/:itemId) through the /api/bff proxy.
  *
- * TODO(api-wire): Wire quantity update buttons when PATCH /cart/items/:id exists
- * TODO(api-wire): Wire remove button when DELETE /cart/items/:id exists
  * TODO(v0-export): Extract CartItemRow to separate file for reusability
  */
 
-import { X, ShoppingCart, Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { X, ShoppingCart, Minus, Plus, Trash2, ArrowRight, Loader2 } from 'lucide-react';
 import { useCart } from './CartProvider';
 import { EmptyState } from '@/components/system/EmptyState';
 import { LoadingSpinner } from '@/components/system/LoadingSkeleton';
 import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
 import Link from 'next/link';
+
+const MAX_QUANTITY = 20;
 
 interface CartDrawerProps {
   open: boolean;
@@ -153,13 +156,29 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 }
 
 /**
- * Individual cart item row.
- *
- * TODO(api-wire): Quantity controls are disabled pending BFF endpoints:
- *   - PATCH /cart/items/:itemId { quantity: number }
- *   - DELETE /cart/items/:itemId
+ * Individual cart item row. Quantity steppers call PATCH /cart/items/:itemId
+ * and the trash button calls DELETE /cart/items/:itemId, both through the
+ * cart context. A per-row pending flag prevents overlapping mutations.
  */
 function CartItemRow({ item }: { item: CartItemType }) {
+  const { updateItem, removeItem } = useCart();
+  const [pending, setPending] = useState(false);
+
+  async function run(action: () => Promise<void>) {
+    setPending(true);
+    try {
+      await action();
+    } catch {
+      // Surface nothing destructive: SWR keeps the last good cart on failure.
+      // TODO(error-handling): replace with a user-facing toast.
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const atMin = item.quantity <= 1;
+  const atMax = item.quantity >= MAX_QUANTITY;
+
   return (
     <li className="p-4">
       <div className="flex gap-4">
@@ -191,34 +210,35 @@ function CartItemRow({ item }: { item: CartItemType }) {
           </p>
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2">
-              {/* Quantity controls - disabled until BFF supports PATCH/DELETE */}
               <button
-                disabled
+                onClick={() => run(() => updateItem(item.itemId, item.quantity - 1))}
+                disabled={pending || atMin}
                 className="p-1 rounded transition-colors disabled:opacity-50"
                 style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--foreground)',
                 }}
                 aria-label="Decrease quantity"
-                title="Not available - BFF endpoint not implemented"
+                title={atMin ? 'Use remove to clear this item' : 'Decrease quantity'}
               >
                 <Minus className="h-3 w-3" />
               </button>
               <span
-                className="text-sm font-medium w-8 text-center"
+                className="text-sm font-medium w-8 text-center flex items-center justify-center"
                 style={{ color: 'var(--foreground)' }}
               >
-                {item.quantity}
+                {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : item.quantity}
               </span>
               <button
-                disabled
+                onClick={() => run(() => updateItem(item.itemId, item.quantity + 1))}
+                disabled={pending || atMax}
                 className="p-1 rounded transition-colors disabled:opacity-50"
                 style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--foreground)',
                 }}
                 aria-label="Increase quantity"
-                title="Not available - BFF endpoint not implemented"
+                title={atMax ? 'Maximum quantity reached' : 'Increase quantity'}
               >
                 <Plus className="h-3 w-3" />
               </button>
@@ -232,13 +252,14 @@ function CartItemRow({ item }: { item: CartItemType }) {
           </div>
         </div>
 
-        {/* Remove button - disabled until BFF supports DELETE */}
+        {/* Remove button */}
         <button
-          disabled
-          className="p-1 h-fit rounded transition-colors disabled:opacity-50"
-          style={{ color: 'var(--muted-foreground)' }}
+          onClick={() => run(() => removeItem(item.itemId))}
+          disabled={pending}
+          className="p-1 h-fit rounded transition-colors disabled:opacity-50 hover:opacity-80"
+          style={{ color: 'var(--destructive)' }}
           aria-label={`Remove ${item.name} from cart`}
-          title="Not available - BFF endpoint not implemented"
+          title="Remove from cart"
         >
           <Trash2 className="h-4 w-4" />
         </button>

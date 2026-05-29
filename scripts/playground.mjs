@@ -328,9 +328,46 @@ async function smoke() {
       }),
     ),
   );
+  // Add a second line so the PATCH/DELETE checks can mutate one item while
+  // leaving the cart non-empty for the checkout step below.
+  results.push(
+    await check('POST /cart/items (2nd)', () =>
+      fetchJson(`${API_BASE}/cart/items`, {
+        method: 'POST',
+        body: { productId: 'prod_espresso', quantity: 1 },
+        expectStatus: 201,
+      }),
+    ),
+  );
   results.push(
     await check('GET  /cart', () =>
       fetchJson(`${API_BASE}/cart`, { expectStatus: 200 }),
+    ),
+  );
+  // Resolve a real itemId so the mutation checks don't depend on the in-memory
+  // sequence counter (robust across repeated runs).
+  let cartItemId = 'ci_001';
+  try {
+    const cart = await fetchJson(`${API_BASE}/cart`, { expectStatus: 200 });
+    cartItemId = cart?.items?.[0]?.itemId ?? cartItemId;
+  } catch {
+    // Keep the default; the checks below will report any real failure.
+  }
+  results.push(
+    await check('PATCH /cart/items/:id', () =>
+      fetchJson(`${API_BASE}/cart/items/${cartItemId}`, {
+        method: 'PATCH',
+        body: { quantity: 3 },
+        expectStatus: 200,
+      }),
+    ),
+  );
+  results.push(
+    await check('DELETE /cart/items/:id', () =>
+      fetchJson(`${API_BASE}/cart/items/${cartItemId}`, {
+        method: 'DELETE',
+        expectStatus: 200,
+      }),
     ),
   );
   results.push(

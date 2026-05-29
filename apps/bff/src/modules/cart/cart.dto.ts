@@ -13,3 +13,11 @@ export class AddCartItemDto {
   @Type(() => Number)
   quantity!: number;
 }
+
+export class UpdateCartItemDto {
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  @Type(() => Number)
+  quantity!: number;
+}

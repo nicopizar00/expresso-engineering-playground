@@ -264,7 +264,19 @@ cmd_smoke() {
   smoke_check "GET  /catalog/products/prod_espresso"   GET  "${API_BASE}/catalog/products/prod_espresso" 200
   smoke_check "POST /cart/items" POST "${API_BASE}/cart/items" 201 \
     -H "Content-Type: application/json" -d '{"productId":"prod_espresso","quantity":2}'
+  # Add a second line so the PATCH/DELETE checks can mutate one item while
+  # leaving the cart non-empty for the checkout step below.
+  smoke_check "POST /cart/items (2nd)" POST "${API_BASE}/cart/items" 201 \
+    -H "Content-Type: application/json" -d '{"productId":"prod_espresso","quantity":1}'
   smoke_check "GET  /cart"                             GET  "${API_BASE}/cart"                           200
+  # Resolve a real itemId from the cart so the checks don't depend on the
+  # in-memory sequence counter (robust across repeated runs).
+  local cart_item_id
+  cart_item_id=$(curl -s "${API_BASE}/cart" | grep -o '"itemId":"[^"]*"' | head -1 | cut -d'"' -f4)
+  cart_item_id="${cart_item_id:-ci_001}"
+  smoke_check "PATCH /cart/items/:id" PATCH "${API_BASE}/cart/items/${cart_item_id}" 200 \
+    -H "Content-Type: application/json" -d '{"quantity":3}'
+  smoke_check "DELETE /cart/items/:id"                 DELETE "${API_BASE}/cart/items/${cart_item_id}"   200
   smoke_check "POST /checkout" POST "${API_BASE}/checkout" 201 \
     -H "Content-Type: application/json" -d '{"customerName":"Smoke Customer"}'
   smoke_check "GET  /orders/ord_demo"                  GET  "${API_BASE}/orders/ord_demo"                200

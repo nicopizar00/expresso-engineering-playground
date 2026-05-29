@@ -36,24 +36,32 @@ import {
 } from 'lucide-react';
 
 /**
- * Environment variable for the visualizer URL.
+ * Same-origin path for the embedded visualizer.
  *
- * Confirmed local port: 3002 (per VIZ_PORT in ./dev script)
- * Docker maps internal port 80 → host port 3002
+ * The iframe loads /viz/index.html, which the Next.js server rewrites to the
+ * visualizer container over the internal Docker network (see next.config.mjs).
+ * The browser never connects to the visualizer port directly — it only talks to
+ * the web app. This makes the web app the single product shell.
  *
- * In local Docker dev: http://localhost:3002
- * In staging/prod: environment-specific URL (to be configured)
- *
- * TODO(api-wire): Set per-environment values in deployment config
+ * index.html (not the bare /viz/) is used on purpose: Next strips trailing
+ * slashes (/viz/ -> 308 -> /viz), which would make the visualizer's relative
+ * asset paths resolve to /scene.js. Pointing at /viz/index.html keeps the
+ * document base under /viz/, so ./scene.js resolves to /viz/scene.js.
  */
-const VISUALIZER_URL = process.env.NEXT_PUBLIC_VISUALIZER_URL || '';
+const EMBED_SRC = '/viz/index.html';
+
+/**
+ * Host-reachable URL for opening the visualizer standalone in a new browser tab.
+ *
+ * Confirmed local port: 3002 (per VIZ_PORT). Docker maps internal port 80 →
+ * host port 3002. Inlined into the client bundle from NEXT_PUBLIC_VISUALIZER_URL.
+ */
+const STANDALONE_URL = process.env.NEXT_PUBLIC_VISUALIZER_URL || '';
 
 type IframeStatus = 'loading' | 'loaded' | 'error' | 'not-configured';
 
 export default function VisualizerPage() {
-  const [iframeStatus, setIframeStatus] = useState<IframeStatus>(
-    VISUALIZER_URL ? 'loading' : 'not-configured'
-  );
+  const [iframeStatus, setIframeStatus] = useState<IframeStatus>('loading');
   const [showDevInfo, setShowDevInfo] = useState(true);
 
   const handleIframeLoad = useCallback(() => {
@@ -113,8 +121,10 @@ export default function VisualizerPage() {
         </div>
         <p style={{ color: 'var(--muted-foreground)' }} className="max-w-2xl">
           The 3D visualizer is a standalone static app that renders a Three.js scene
-          and fetches domain data from the BFF. This page provides an embed/launcher
-          surface — the main frontend does not own any Three.js rendering code.
+          and fetches domain data from the BFF. It is embedded here through the web
+          app&apos;s <code>/viz</code> proxy, which reaches the visualizer container
+          over the internal Docker network — the browser only talks to this app, and
+          the main frontend does not own any Three.js rendering code.
         </p>
       </div>
 
@@ -141,50 +151,45 @@ export default function VisualizerPage() {
                 <StatusBadge status={iframeStatus} />
               </div>
               <div className="flex items-center gap-2">
-                {VISUALIZER_URL && (
-                  <>
-                    <button
-                      onClick={handleRetry}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
-                      style={{
-                        backgroundColor: 'var(--secondary)',
-                        color: 'var(--muted-foreground)',
-                      }}
-                      title="Reload visualizer"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Reload</span>
-                    </button>
-                    <a
-                      href={VISUALIZER_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
-                      style={{
-                        backgroundColor: 'var(--primary)',
-                        color: 'var(--primary-foreground)',
-                      }}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      <span>Open Visualizer</span>
-                    </a>
-                  </>
-                )}
+                <button
+                  onClick={handleRetry}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: 'var(--secondary)',
+                    color: 'var(--muted-foreground)',
+                  }}
+                  title="Reload visualizer"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Reload</span>
+                </button>
+                <a
+                  href={STANDALONE_URL || EMBED_SRC}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: 'var(--primary-foreground)',
+                  }}
+                  title="Open the visualizer standalone in a new tab"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>Open Standalone</span>
+                </a>
               </div>
             </div>
 
             {/* Iframe Container */}
             <div className="relative" style={{ aspectRatio: '16 / 10' }}>
-              {iframeStatus === 'not-configured' ? (
-                <NotConfiguredState />
-              ) : iframeStatus === 'error' ? (
+              {iframeStatus === 'error' ? (
                 <ErrorState onRetry={handleRetry} />
               ) : (
                 <>
                   {iframeStatus === 'loading' && <LoadingOverlay />}
                   <iframe
                     key={iframeStatus} // Force remount on retry
-                    src={VISUALIZER_URL}
+                    src={EMBED_SRC}
                     className="w-full h-full border-0"
                     title="3D Visualizer - Hello Room"
                     onLoad={handleIframeLoad}
@@ -213,9 +218,10 @@ export default function VisualizerPage() {
               Architecture Overview
             </h2>
             <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
-              The visualizer-3d app remains standalone. It is served as static files via nginx.
-              The main frontend embeds it via iframe — this is a launcher surface only, not
-              a tight integration.
+              The visualizer-3d app remains standalone (static files served by nginx). The
+              web app embeds it through the same-origin <code>/viz</code> proxy, which
+              rewrites to the visualizer container over the internal Docker network — a
+              launcher surface, not a tight integration.
             </p>
             <div className="grid sm:grid-cols-3 gap-4">
               <ArchitectureCard
@@ -225,8 +231,8 @@ export default function VisualizerPage() {
               />
               <ArchitectureCard
                 icon={Server}
-                title="BFF Data Source"
-                description="Fetches GET /visualization-data from BFF. Has built-in fallback mock data if BFF is unreachable."
+                title="Internal Proxy Embed"
+                description="The browser loads /viz on the web app's origin; Next.js rewrites it to the visualizer container over the internal network."
               />
               <ArchitectureCard
                 icon={Database}
@@ -308,28 +314,28 @@ export default function VisualizerPage() {
                   </ul>
                 </div>
 
-                {/* Environment Setup */}
+                {/* Connection */}
                 <div>
                   <h3
                     className="text-xs font-semibold uppercase tracking-wide mb-2"
                     style={{ color: 'var(--muted-foreground)' }}
                   >
-                    Environment
+                    Connection
                   </h3>
                   <div
-                    className="p-3 rounded-md font-mono text-xs"
+                    className="p-3 rounded-md font-mono text-xs space-y-1"
                     style={{
                       backgroundColor: 'var(--secondary)',
                       color: 'var(--foreground)',
                     }}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span style={{ color: 'var(--muted-foreground)' }}>
-                        NEXT_PUBLIC_VISUALIZER_URL
-                      </span>
+                    <div>
+                      <span style={{ color: 'var(--muted-foreground)' }}>embed (proxy): </span>
+                      <span>{EMBED_SRC}</span>
                     </div>
                     <div className="truncate">
-                      {VISUALIZER_URL || (
+                      <span style={{ color: 'var(--muted-foreground)' }}>standalone: </span>
+                      {STANDALONE_URL || (
                         <span style={{ color: 'var(--destructive)' }}>Not set</span>
                       )}
                     </div>
@@ -338,7 +344,9 @@ export default function VisualizerPage() {
                     className="mt-2 text-xs"
                     style={{ color: 'var(--muted-foreground)' }}
                   >
-                    Local dev: <code>http://localhost:3002</code> (confirmed VIZ_PORT)
+                    The iframe loads <code>/viz</code> on this origin; Next.js rewrites it
+                    to <code>VISUALIZER_INTERNAL_URL</code> over the internal network. The
+                    standalone link uses <code>NEXT_PUBLIC_VISUALIZER_URL</code> (host port).
                   </p>
                 </div>
 
@@ -400,11 +408,11 @@ export default function VisualizerPage() {
                     Integration Status
                   </h3>
                   <div className="space-y-1.5 text-xs">
+                    <IntegrationStatusRow label="Iframe embed (/viz proxy)" status="ready" />
                     <IntegrationStatusRow
-                      label="Iframe embed"
-                      status={VISUALIZER_URL ? 'ready' : 'needs-config'}
+                      label="Standalone link"
+                      status={STANDALONE_URL ? 'ready' : 'needs-config'}
                     />
-                    <IntegrationStatusRow label="External link" status="ready" />
                     <IntegrationStatusRow label="BFF endpoint" status="verified" />
                     <IntegrationStatusRow label="Mock fallback" status="verified" />
                   </div>
@@ -460,57 +468,6 @@ function LoadingOverlay() {
   );
 }
 
-function NotConfiguredState() {
-  return (
-    <div
-      className="absolute inset-0 flex items-center justify-center p-6"
-      style={{ backgroundColor: 'var(--secondary)' }}
-    >
-      <div className="text-center max-w-md">
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
-          style={{
-            backgroundColor: 'var(--warning)',
-            color: 'var(--warning-foreground)',
-          }}
-        >
-          <AlertCircle className="h-6 w-6" />
-        </div>
-        <h3
-          className="font-semibold mb-2"
-          style={{ color: 'var(--foreground)' }}
-        >
-          Visualizer URL Not Configured
-        </h3>
-        <p
-          className="text-sm mb-4"
-          style={{ color: 'var(--muted-foreground)' }}
-        >
-          Set <code className="px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--background)' }}>
-            NEXT_PUBLIC_VISUALIZER_URL
-          </code> to embed the 3D visualizer.
-        </p>
-        <div
-          className="p-3 rounded-md text-left font-mono text-xs"
-          style={{
-            backgroundColor: 'var(--background)',
-            color: 'var(--foreground)',
-          }}
-        >
-          <p style={{ color: 'var(--muted-foreground)' }}># .env.local</p>
-          <p>NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002</p>
-        </div>
-        <p
-          className="text-xs mt-4"
-          style={{ color: 'var(--muted-foreground)' }}
-        >
-          Start the visualizer with <code>./scripts/visualizer-up.sh</code>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div
@@ -537,9 +494,10 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
           className="text-sm mb-4"
           style={{ color: 'var(--muted-foreground)' }}
         >
-          The visualizer at <code className="px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--background)' }}>
-            {VISUALIZER_URL}
-          </code> could not be reached.
+          The <code className="px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--background)' }}>
+            /viz
+          </code> proxy could not reach the visualizer container. Start it with{' '}
+          <code>./dev up viz</code> (or <code>full</code>).
         </p>
         <div className="flex items-center justify-center gap-3">
           <button
@@ -553,9 +511,9 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
             <RefreshCw className="h-4 w-4" />
             Retry
           </button>
-          {VISUALIZER_URL && (
+          {STANDALONE_URL && (
             <a
-              href={VISUALIZER_URL}
+              href={STANDALONE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors"
@@ -565,7 +523,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
               }}
             >
               <ExternalLink className="h-4 w-4" />
-              Open Directly
+              Open Standalone
             </a>
           )}
         </div>

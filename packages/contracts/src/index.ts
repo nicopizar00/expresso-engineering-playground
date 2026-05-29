@@ -71,6 +71,10 @@ export interface AddCartItemRequest {
   readonly quantity: number;
 }
 
+export interface UpdateCartItemRequest {
+  readonly quantity: number;
+}
+
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------

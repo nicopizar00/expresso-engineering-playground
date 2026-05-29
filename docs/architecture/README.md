@@ -4,6 +4,11 @@ This folder documents the architecture of the mini-commerce engineering
 playground. The goal is to keep documentation **just ahead** of the code,
 not behind it.
 
+## Documents
+
+- [`web-entry-point.md`](web-entry-point.md) — the web app as the single
+  browser entry point and its internal proxy to the BFF and 3D visualizer.
+
 ## Documents (planned)
 
 - `context.md`     — C4 Level 1: system context.

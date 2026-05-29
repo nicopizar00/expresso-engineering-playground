@@ -391,9 +391,9 @@ function ReadinessPanel() {
     { label: 'Order management', status: 'wired', note: 'POST /orders/:id/manage' },
     { label: 'Health check', status: 'wired', note: 'GET /health' },
     { label: 'Order list', status: 'wired', note: 'GET /orders' },
-    { label: 'Remove cart item', status: 'mock', note: 'DELETE /cart/items/:id not in BFF' },
-    { label: 'Update quantity', status: 'mock', note: 'PATCH /cart/items/:id not in BFF' },
-    { label: '3D Visualizer', status: 'embed', note: 'Env-controlled: NEXT_PUBLIC_VISUALIZER_URL' },
+    { label: 'Update quantity', status: 'wired', note: 'PATCH /cart/items/:id' },
+    { label: 'Remove cart item', status: 'wired', note: 'DELETE /cart/items/:id' },
+    { label: '3D Visualizer', status: 'embed', note: 'Same-origin /viz proxy → internal network' },
   ];
 
   return (
@@ -562,6 +562,60 @@ function ViewCartCard() {
   );
 }
 
+function CartMutateCard() {
+  const { result, loading, call } = useApiCall();
+  const [itemId, setItemId] = useState('ci_001');
+  const [quantity, setQuantity] = useState(2);
+
+  return (
+    <Card title="Cart - Update / Remove">
+      <div className="space-y-2">
+        <div>
+          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            Item ID
+          </label>
+          <input
+            value={itemId}
+            onChange={(e) => setItemId(e.target.value)}
+            placeholder="ci_001"
+            className="w-full px-2 py-1.5 rounded text-xs border"
+            style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            Quantity
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+            className="w-full px-2 py-1.5 rounded text-xs border"
+            style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+          />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <ActionButton
+          onClick={() => call(() => expressoApi.updateCartItem(itemId, { quantity }))}
+          loading={loading}
+        >
+          PATCH /cart/items/:id
+        </ActionButton>
+        <ActionButton
+          onClick={() => call(() => expressoApi.removeCartItem(itemId))}
+          loading={loading}
+        >
+          DELETE /cart/items/:id
+        </ActionButton>
+      </div>
+      <ResponseBox result={result} />
+    </Card>
+  );
+}
+
 function CheckoutCard() {
   const { result, loading, call } = useApiCall();
   const [customerName, setCustomerName] = useState('Alex Demo');
@@ -691,7 +745,9 @@ function OrderManageCard() {
 
 export default function DevPage() {
   const [products, setProducts] = useState<ReadonlyArray<Product> | null>(null);
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
+  // The browser talks to the web app's own /api/bff proxy, which rewrites to
+  // the BFF container over the internal network (unless explicitly overridden).
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/bff → bff (internal)';
   const isDemoMode = getDemoModeStatus();
 
   return (
@@ -744,6 +800,7 @@ export default function DevPage() {
         <CatalogCard products={products} onLoaded={setProducts} />
         <AddToCartCard products={products} />
         <ViewCartCard />
+        <CartMutateCard />
         <CheckoutCard />
         <OrderLookupCard />
         <OrderManageCard />

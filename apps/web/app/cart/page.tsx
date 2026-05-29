@@ -4,17 +4,19 @@
  * Cart Page - Full cart view with order summary
  *
  * Displays all cart items with details and provides checkout navigation.
- *
- * TODO(api-wire): Wire quantity update when PATCH /cart/items/:id exists
- * TODO(api-wire): Wire item removal when DELETE /cart/items/:id exists
+ * Quantity steppers and remove drive PATCH/DELETE /cart/items/:itemId through
+ * the cart context (same-origin /api/bff proxy).
  */
 
-import { ShoppingCart, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { ShoppingCart, ArrowRight, Minus, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useCart } from '@/components/cart/CartProvider';
 import { EmptyState } from '@/components/system/EmptyState';
 import { PageLoadingState } from '@/components/system/LoadingSkeleton';
 import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
 import Link from 'next/link';
+
+const MAX_QUANTITY = 20;
 
 export default function CartPage() {
   const { cart, isLoading, isEmpty, formattedTotal } = useCart();
@@ -124,11 +126,28 @@ export default function CartPage() {
 }
 
 /**
- * Cart item row for full cart page.
- *
- * TODO(api-wire): Quantity controls pending BFF endpoints
+ * Cart item row for full cart page. Quantity steppers and remove call the cart
+ * context, which hits PATCH/DELETE /cart/items/:itemId via the proxy.
  */
 function CartItemRow({ item }: { item: CartItemType }) {
+  const { updateItem, removeItem } = useCart();
+  const [pending, setPending] = useState(false);
+
+  async function run(action: () => Promise<void>) {
+    setPending(true);
+    try {
+      await action();
+    } catch {
+      // SWR keeps the last good cart on failure.
+      // TODO(error-handling): replace with a user-facing toast.
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const atMin = item.quantity <= 1;
+  const atMax = item.quantity >= MAX_QUANTITY;
+
   return (
     <div className="p-4 sm:p-6">
       <div className="flex gap-4">
@@ -156,9 +175,49 @@ function CartItemRow({ item }: { item: CartItemType }) {
             {item.productId}
           </p>
           <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-            Qty: {item.quantity} x{' '}
-            {formatMoney(item.unitPrice.amountMinor, item.unitPrice.currency)}
+            {formatMoney(item.unitPrice.amountMinor, item.unitPrice.currency)} each
           </p>
+
+          {/* Quantity controls */}
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              onClick={() => run(() => updateItem(item.itemId, item.quantity - 1))}
+              disabled={pending || atMin}
+              className="p-1.5 rounded transition-colors disabled:opacity-50"
+              style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
+              aria-label="Decrease quantity"
+              title={atMin ? 'Use remove to clear this item' : 'Decrease quantity'}
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span
+              className="text-sm font-medium w-8 text-center flex items-center justify-center"
+              style={{ color: 'var(--foreground)' }}
+            >
+              {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : item.quantity}
+            </span>
+            <button
+              onClick={() => run(() => updateItem(item.itemId, item.quantity + 1))}
+              disabled={pending || atMax}
+              className="p-1.5 rounded transition-colors disabled:opacity-50"
+              style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
+              aria-label="Increase quantity"
+              title={atMax ? 'Maximum quantity reached' : 'Increase quantity'}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => run(() => removeItem(item.itemId))}
+              disabled={pending}
+              className="ml-2 flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50 hover:opacity-80"
+              style={{ color: 'var(--destructive)' }}
+              aria-label={`Remove ${item.name} from cart`}
+              title="Remove from cart"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Remove
+            </button>
+          </div>
         </div>
 
         {/* Line total */}

@@ -1,5 +1,14 @@
-import { Body, Controller, Get, HttpCode, Post } from "@nestjs/common";
-import { AddCartItemDto } from "./cart.dto";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+} from "@nestjs/common";
+import { AddCartItemDto, UpdateCartItemDto } from "./cart.dto";
 import { CartService } from "./cart.service";
 import type { Cart } from "./cart.types";
 
@@ -16,5 +25,18 @@ export class CartController {
   @HttpCode(201)
   addItem(@Body() body: AddCartItemDto): Cart {
     return this.cart.add(body);
+  }
+
+  @Patch("items/:itemId")
+  updateItem(
+    @Param("itemId") itemId: string,
+    @Body() body: UpdateCartItemDto,
+  ): Cart {
+    return this.cart.updateQuantity(itemId, body.quantity);
+  }
+
+  @Delete("items/:itemId")
+  removeItem(@Param("itemId") itemId: string): Cart {
+    return this.cart.remove(itemId);
   }
 }

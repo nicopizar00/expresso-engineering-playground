@@ -28,6 +28,16 @@ When the count drops to zero, the topic is done.
 
 ## Done
 
+✅ **Unified web entry point** — *web app as the single browser-facing shell*
+   - Containerized Next.js standalone server runs from Docker and is reachable
+     at `http://localhost:3000` (fixed the monorepo standalone entrypoint path)
+   - Browser talks only to the web app; the web server proxies `/api/bff/*` to
+     the BFF and `/viz/*` to the visualizer over the internal Docker network
+   - Cart gained full CRUD: `PATCH` / `DELETE /cart/items/:itemId`, wired into
+     the cart drawer and `/cart` page (in-memory cart preserved)
+   - State + topology: [../project-state/current-system.md](../project-state/current-system.md),
+     [../architecture/web-entry-point.md](../architecture/web-entry-point.md)
+
 ✅ **OpenTelemetry SDK** — *wired in `feat/otel-sdk`*
    - `initTelemetry()` initializes NodeSDK + OTLP HTTP exporter
    - Auto-instrumentations: HTTP, Express, pg (fs disabled)

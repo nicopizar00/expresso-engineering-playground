@@ -57,19 +57,23 @@ services:
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
-      # NEXT_PUBLIC_* are inlined into the client bundle at build time, so the
-      # production build (pg:up web/full) needs them as build args. The browser
-      # runs on the host, so these point at host-reachable ports, NOT the
-      # in-container service names.
+      # The web server proxies to the other containers over the internal Docker
+      # network (next.config.mjs rewrites). These targets are resolved when the
+      # config loads, so the production build (pg:up web/full) needs them as
+      # build args. They are in-container service names, NOT host ports.
+      # NEXT_PUBLIC_VISUALIZER_URL stays host-reachable: it only feeds the
+      # "open standalone in a new tab" link, which the host browser follows.
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+        BFF_INTERNAL_URL: ${BFF_INTERNAL_URL:-http://bff:3001}
+        VISUALIZER_INTERNAL_URL: ${VISUALIZER_INTERNAL_URL:-http://visualizer-3d:80}
         NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
     environment:
       PORT: "${WEB_PORT:-3000}"
       # Runtime values used by the dev (watch) stage, where `next dev` reads
-      # process.env live. Ignored by the production standalone server, which
-      # relies on the baked build args above.
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+      # process.env live. The production standalone server uses the baked build
+      # args above.
+      BFF_INTERNAL_URL: ${BFF_INTERNAL_URL:-http://bff:3001}
+      VISUALIZER_INTERNAL_URL: ${VISUALIZER_INTERNAL_URL:-http://visualizer-3d:80}
       NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
     ports:
       - "${WEB_PORT:-3000}:3000"
