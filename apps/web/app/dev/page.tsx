@@ -390,9 +390,9 @@ function ReadinessPanel() {
     { label: 'Order lookup', status: 'wired', note: 'GET /orders/:id' },
     { label: 'Order management', status: 'wired', note: 'POST /orders/:id/manage' },
     { label: 'Health check', status: 'wired', note: 'GET /health' },
+    { label: 'Order list', status: 'wired', note: 'GET /orders' },
     { label: 'Remove cart item', status: 'mock', note: 'DELETE /cart/items/:id not in BFF' },
     { label: 'Update quantity', status: 'mock', note: 'PATCH /cart/items/:id not in BFF' },
-    { label: 'Order list', status: 'mock', note: 'GET /orders not in BFF' },
     { label: '3D Visualizer', status: 'embed', note: 'Env-controlled: NEXT_PUBLIC_VISUALIZER_URL' },
   ];
 

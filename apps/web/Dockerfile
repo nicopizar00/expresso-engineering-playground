@@ -40,6 +40,15 @@ FROM deps AS builder
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 
+# NEXT_PUBLIC_* values are inlined into the client bundle at build time, so they
+# must be present here (not just at container runtime) for the standalone server.
+# The browser runs on the host, so these default to host-reachable URLs and can
+# be overridden via compose build.args (see infra/docker/compose.yaml).
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+ARG NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_VISUALIZER_URL=$NEXT_PUBLIC_VISUALIZER_URL
+
 RUN pnpm --filter @mini-commerce/web build
 
 # ---- runtime ----------------------------------------------------------------
@@ -50,8 +59,10 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Standalone output bundles everything needed to run the server.
-# Static assets and public files must be copied separately.
+# Standalone output bundles everything needed to run the server. In a pnpm
+# monorepo, Next.js traces from the workspace root, so the server entrypoint
+# lands at apps/web/server.js (not the standalone root) and static assets must
+# sit beside it at apps/web/.next/static.
 COPY --from=builder /workspace/apps/web/.next/standalone ./
 COPY --from=builder /workspace/apps/web/.next/static ./apps/web/.next/static
 
@@ -60,4 +71,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=10 \
   CMD node -e "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]

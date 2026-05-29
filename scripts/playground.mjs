@@ -41,6 +41,7 @@ const PERF_DIR = 'tests/performance/k6';
 const PERF_REPORTS_DIR = `${PERF_DIR}/reports`;
 const BFF_PORT = Number(process.env.BFF_PORT ?? 3001);
 const WEB_PORT = Number(process.env.WEB_PORT ?? 3000);
+const VIZ_PORT = Number(process.env.VIZ_PORT ?? 3002);
 const API_BASE = `http://localhost:${BFF_PORT}`;
 
 // ANSI helpers — degrade gracefully when NO_COLOR is set.
@@ -511,9 +512,10 @@ async function logs() {
 
 async function open() {
   log(c.bold('\nLocal URLs\n'));
-  log(`  Web app             ${c.green(`http://localhost:${WEB_PORT}`)}`);
+  log(`  Web app             ${c.green(`http://localhost:${WEB_PORT}`)}  (entry point — links every surface)`);
   log(`  BFF / API           ${c.green(`http://localhost:${BFF_PORT}`)}`);
   log(`  Health endpoint     ${c.green(`http://localhost:${BFF_PORT}/health`)}`);
+  log(`  3D Visualizer       ${c.green(`http://localhost:${VIZ_PORT}`)}  (standalone; embedded at /visualizer, needs 'up viz' or 'up full')`);
   log(`  OTLP HTTP           ${c.dim('http://localhost:4318')}  (otel-collector)`);
   log(`  OTLP gRPC           ${c.dim('http://localhost:4317')}  (otel-collector)`);
   log('');

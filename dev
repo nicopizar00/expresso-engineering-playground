@@ -300,9 +300,10 @@ cmd_seed() {
 
 cmd_open() {
   header "Local URLs"
-  printf "  Web app         ${GR}http://localhost:${WEB_PORT}${RS}\n"
+  printf "  Web app         ${GR}http://localhost:${WEB_PORT}${RS}  (entry point — links every surface)\n"
   printf "  BFF / API       ${GR}http://localhost:${BFF_PORT}${RS}\n"
   printf "  Health endpoint ${GR}http://localhost:${BFF_PORT}/health${RS}\n"
+  printf "  3D Visualizer   ${GR}http://localhost:${VIZ_PORT}${RS}  (standalone; embedded at /visualizer, needs 'up viz' or 'up full')\n"
   printf "  OTLP HTTP       ${DM}http://localhost:4318${RS}  (otel-collector)\n"
   printf "  OTLP gRPC       ${DM}http://localhost:4317${RS}  (otel-collector)\n\n"
   printf "${DM}See docs/local-development.md for full setup instructions.${RS}\n\n"

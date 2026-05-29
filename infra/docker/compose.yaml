@@ -57,9 +57,20 @@ services:
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
+      # NEXT_PUBLIC_* are inlined into the client bundle at build time, so the
+      # production build (pg:up web/full) needs them as build args. The browser
+      # runs on the host, so these point at host-reachable ports, NOT the
+      # in-container service names.
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+        NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
     environment:
       PORT: "${WEB_PORT:-3000}"
+      # Runtime values used by the dev (watch) stage, where `next dev` reads
+      # process.env live. Ignored by the production standalone server, which
+      # relies on the baked build args above.
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+      NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:
