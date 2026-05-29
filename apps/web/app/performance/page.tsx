@@ -4,19 +4,14 @@
  * Performance Playground Page
  *
  * Visualizes simulated behavior under concurrent web service requests.
- * It is a design evaluation surface, not a monitoring dashboard.
+ * This is a design evaluation surface using deterministic mock data.
  *
- * ## Design Principle
- * This page communicates engineering behavior in a simple, elegant, understandable way.
- * It does not attempt to be a production observability tool.
- *
- * ## Current State
- * All data is mocked. A later product decision could add an adapter for
- * test artifacts or observable metrics without changing this mock boundary.
+ * IMPORTANT: All data is simulated. This page does not represent live
+ * telemetry, real Grafana data, or actual k6 execution results.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Activity, RefreshCw } from 'lucide-react';
+import { Activity, RefreshCw, FlaskConical, Info } from 'lucide-react';
 import {
   fetchPerformanceSnapshot,
   fetchScenarios,
@@ -52,7 +47,7 @@ export default function PerformancePage() {
     load();
   }, []);
 
-  // Refresh the locally simulated snapshot while a reviewer explores the UI.
+  // Refresh the locally simulated snapshot
   useEffect(() => {
     const interval = setInterval(async () => {
       const snap = await fetchPerformanceSnapshot();
@@ -78,40 +73,57 @@ export default function PerformancePage() {
     <div className="container py-8">
       {/* Page Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-3">
-          <div
-            className="p-2.5 rounded-lg"
-            style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
-          >
-            <Activity className="h-6 w-6" />
-          </div>
-          <div>
-            <h1
-              className="text-2xl font-semibold"
-              style={{ color: 'var(--foreground)' }}
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex items-center justify-center w-10 h-10 rounded-lg"
+              style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
             >
-              Performance Playground
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span
-                className="px-2 py-0.5 text-xs font-medium rounded-full"
-                style={{
-                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                  color: 'var(--info)',
-                }}
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <h1
+                className="text-2xl font-semibold tracking-tight"
+                style={{ color: 'var(--foreground)' }}
               >
-                Mock Data
-              </span>
-              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                Simulated load scenarios for design validation
-              </span>
+                Performance Playground
+              </h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium rounded-md uppercase tracking-wider"
+                  style={{
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    color: 'var(--info)',
+                  }}
+                >
+                  <FlaskConical className="h-3 w-3" />
+                  Simulated Data
+                </span>
+              </div>
             </div>
           </div>
         </div>
-        <p style={{ color: 'var(--muted-foreground)' }} className="max-w-2xl text-sm">
-          Watch the system breathe under load. Select a scenario below to simulate different
-          traffic patterns and observe how services respond with varying latency, throughput,
-          and error rates.
+        
+        {/* Mock data notice */}
+        <div 
+          className="flex items-start gap-3 p-4 rounded-xl mb-6"
+          style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}
+        >
+          <Info className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--info)' }} />
+          <div>
+            <p className="text-sm font-medium mb-0.5" style={{ color: 'var(--foreground)' }}>
+              This is a design evaluation surface
+            </p>
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              All performance data shown is deterministic mock data for demonstration purposes. 
+              This does not represent live telemetry, real Grafana data, or actual k6 execution results.
+            </p>
+          </div>
+        </div>
+
+        <p className="text-sm max-w-2xl" style={{ color: 'var(--muted-foreground)' }}>
+          Select a scenario to simulate different traffic patterns and observe how services 
+          respond with varying latency, throughput, and error rates.
         </p>
       </div>
 
@@ -129,22 +141,22 @@ export default function PerformancePage() {
               {/* Animation Toggle */}
               <div className="flex items-center justify-between">
                 <h2
-                  className="text-sm font-semibold"
+                  className="text-sm font-medium"
                   style={{ color: 'var(--foreground)' }}
                 >
                   Service Activity
                 </h2>
                 <button
                   onClick={() => setIsAnimated(!isAnimated)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                   style={{
-                    backgroundColor: 'var(--secondary)',
-                    color: 'var(--muted-foreground)',
+                    backgroundColor: isAnimated ? 'var(--primary)' : 'var(--secondary)',
+                    color: isAnimated ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
                   }}
                   aria-pressed={isAnimated}
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isAnimated ? 'animate-spin' : ''}`} />
-                  {isAnimated ? 'Animations On' : 'Animations Off'}
+                  <RefreshCw className={`h-3 w-3 ${isAnimated ? 'animate-spin' : ''}`} />
+                  {isAnimated ? 'Live' : 'Paused'}
                 </button>
               </div>
 
@@ -187,10 +199,6 @@ export default function PerformancePage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Loading State
-// ---------------------------------------------------------------------------
-
 function LoadingState() {
   return (
     <div
@@ -211,10 +219,6 @@ function LoadingState() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Error State
-// ---------------------------------------------------------------------------
-
 function ErrorState() {
   return (
     <div
@@ -223,21 +227,15 @@ function ErrorState() {
     >
       <div className="text-center max-w-md">
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+          className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
           style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
         >
           <Activity className="h-6 w-6" />
         </div>
-        <h3
-          className="font-semibold mb-2"
-          style={{ color: 'var(--foreground)' }}
-        >
+        <h3 className="font-semibold mb-2" style={{ color: 'var(--foreground)' }}>
           Failed to Load Performance Data
         </h3>
-        <p
-          className="text-sm"
-          style={{ color: 'var(--muted-foreground)' }}
-        >
+        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
           Could not retrieve performance metrics. Please try refreshing the page.
         </p>
       </div>

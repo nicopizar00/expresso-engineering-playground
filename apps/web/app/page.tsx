@@ -4,11 +4,7 @@
  * Catalog Page - Product listing homepage
  *
  * Fetches and displays all products with category filtering.
- * This is the main entry point for browsing products.
- *
- * ## API Endpoint
- * GET /catalog/products → ProductsResponse
- * Verified against: apps/bff/src/modules/catalog/catalog.controller.ts
+ * Redesigned with a clean, modern interface.
  */
 
 import useSWR from 'swr';
@@ -17,6 +13,7 @@ import { ProductCatalogGrid } from '@/components/catalog/ProductCatalogGrid';
 import { CatalogGridSkeleton } from '@/components/system/LoadingSkeleton';
 import { PageErrorState } from '@/components/system/ErrorBanner';
 import { EmptyState } from '@/components/system/EmptyState';
+import { Coffee, Sparkles } from 'lucide-react';
 
 async function fetchProducts(): Promise<ProductsResponse> {
   return expressoApi.getProducts();
@@ -35,15 +32,41 @@ export default function CatalogPage() {
     <div className="container py-8">
       {/* Hero section */}
       <section className="mb-8">
-        <h1
-          className="text-3xl font-bold tracking-tight"
-          style={{ color: 'var(--foreground)' }}
-        >
-          Product Catalog
-        </h1>
-        <p className="mt-2 text-lg" style={{ color: 'var(--muted-foreground)' }}>
-          Browse our selection of espresso drinks, food items, and accessories.
-        </p>
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded-lg"
+                style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+              >
+                <Coffee className="h-5 w-5" />
+              </div>
+              <div>
+                <h1
+                  className="text-2xl font-semibold tracking-tight"
+                  style={{ color: 'var(--foreground)' }}
+                >
+                  Product Catalog
+                </h1>
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  Browse our selection of drinks, food, and accessories
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {data && data.items.length > 0 && (
+            <div
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"
+              style={{ backgroundColor: 'var(--secondary)' }}
+            >
+              <Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--primary)' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                {data.items.length} products available
+              </span>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Content */}

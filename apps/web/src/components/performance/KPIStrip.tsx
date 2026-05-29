@@ -4,7 +4,7 @@
  * KPIStrip - Compact performance KPI indicator strip
  *
  * Displays key performance indicators in a horizontal strip format.
- * Shows virtual users, request rate, latency, error rate, and success rate.
+ * Redesigned with a clean, modern interface.
  */
 
 import { Users, Activity, Clock, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
@@ -20,18 +20,17 @@ export function KPIStrip({ kpis }: KPIStripProps) {
 
   return (
     <div
-      className="rounded-lg border p-4"
+      className="rounded-xl border p-4"
       style={{
         backgroundColor: 'var(--card)',
         borderColor: hasActivity ? 'var(--success)' : 'var(--border)',
-        boxShadow: hasActivity ? '0 0 0 1px rgba(34, 197, 94, 0.2)' : 'none',
       }}
     >
       <div className="flex flex-wrap items-center gap-4 sm:gap-6">
         {/* Active Scenario Badge */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div
-            className="p-1.5 rounded-md relative"
+            className="flex items-center justify-center w-10 h-10 rounded-lg relative"
             style={{
               backgroundColor: hasActivity
                 ? 'rgba(34, 197, 94, 0.15)'
@@ -39,21 +38,21 @@ export function KPIStrip({ kpis }: KPIStripProps) {
             }}
           >
             <Zap
-              className="h-4 w-4"
+              className="h-5 w-5"
               style={{
                 color: hasActivity ? 'var(--success)' : 'var(--muted-foreground)',
               }}
             />
             {hasActivity && (
               <span
-                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full animate-pulse"
+                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-pulse"
                 style={{ backgroundColor: 'var(--success)' }}
               />
             )}
           </div>
           <div>
             <div
-              className="text-[10px] uppercase tracking-wide"
+              className="text-[10px] uppercase tracking-wider font-medium"
               style={{ color: 'var(--muted-foreground)' }}
             >
               Scenario
@@ -77,7 +76,7 @@ export function KPIStrip({ kpis }: KPIStripProps) {
         <div className="flex flex-wrap items-center gap-4 sm:gap-6">
           <KPIItem
             icon={Users}
-            label="Virtual Users"
+            label="VUs"
             value={kpis.virtualUsers.toString()}
             active={hasActivity}
           />
@@ -91,7 +90,7 @@ export function KPIStrip({ kpis }: KPIStripProps) {
           />
           <KPIItem
             icon={Clock}
-            label="p95 Latency"
+            label="p95"
             value={formatLatency(kpis.latencyP95Ms)}
             active={hasActivity}
             highlight={kpis.latencyP95Ms > 200}
@@ -99,7 +98,7 @@ export function KPIStrip({ kpis }: KPIStripProps) {
           />
           <KPIItem
             icon={AlertTriangle}
-            label="Error Rate"
+            label="err"
             value={formatPercent(kpis.errorRate)}
             active={hasActivity}
             highlight={kpis.errorRate > 0.01}
@@ -107,7 +106,7 @@ export function KPIStrip({ kpis }: KPIStripProps) {
           />
           <KPIItem
             icon={CheckCircle}
-            label="Success"
+            label="ok"
             value={formatPercent(kpis.successRate)}
             active={hasActivity}
             highlight={kpis.successRate < 0.99 && hasActivity}
@@ -118,10 +117,6 @@ export function KPIStrip({ kpis }: KPIStripProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
 
 function KPIItem({
   icon: Icon,
@@ -153,7 +148,7 @@ function KPIItem({
       />
       <div>
         <div
-          className="text-[10px] uppercase tracking-wide"
+          className="text-[10px] uppercase tracking-wider font-medium"
           style={{ color: 'var(--muted-foreground)' }}
         >
           {label}
