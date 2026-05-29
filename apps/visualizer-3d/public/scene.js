@@ -38,12 +38,17 @@ const stage = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const reloadBtn = document.getElementById("reload");
 
-// Polling state. The scene refreshes from /visualization-data every
-// POLL_INTERVAL_MS so web-app mutations appear without a manual reload.
+// Polling state. Used as the fallback when SSE is unavailable.
 // `inflight` coalesces overlapping ticks; `pollHandle` holds the interval id.
 const POLL_INTERVAL_MS = 2000;
 let inflight = false;
 let pollHandle = null;
+
+// SSE state. Primary data path. Falls back to polling on error; retries SSE
+// after SSE_RETRY_MS so the stream reconnects once the BFF is available again.
+const SSE_RETRY_MS = 5000;
+let sseSource = null;
+let sseRetryHandle = null;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -80,24 +85,31 @@ const dataGroup = new THREE.Group();
 scene.add(dataGroup);
 
 reloadBtn.addEventListener("click", () => {
-  // Reset the timer so the next automatic tick is a full interval after the
-  // manual one, then refresh immediately.
-  startPolling();
+  // Reconnect SSE (triggers immediate snapshot); falls back to polling if SSE
+  // is unavailable and resets the interval timer.
+  connectSse();
 });
 
 window.addEventListener("resize", onResize);
 onResize();
 
-// Pause polling while the tab is hidden; resume with an immediate fetch on focus.
+// Pause data transport while the tab is hidden; resume on focus.
+// SSE is closed to avoid unnecessary server-side held connections.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     stopPolling();
+    if (sseSource) {
+      sseSource.close();
+      sseSource = null;
+    }
+    clearTimeout(sseRetryHandle);
+    sseRetryHandle = null;
   } else {
-    startPolling();
+    connectSse();
   }
 });
 
-startPolling();
+connectSse();
 animate();
 
 // ---------------------------------------------------------------------------
@@ -186,9 +198,58 @@ function clearGroup(group) {
   }
 }
 
-// Run loadAndRender() once immediately, then on a fixed interval. Safe to call
-// repeatedly: it clears any existing timer first, so the manual reload button
-// and the visibility listener can reuse it without stacking intervals.
+// SSE — primary data path. Connects to /visualization-updates and renders each
+// pushed snapshot directly. Falls back to polling on error; schedules a retry
+// after SSE_RETRY_MS so reconnection is automatic once the BFF recovers.
+function connectSse() {
+  if (typeof EventSource === "undefined") {
+    startPolling();
+    return;
+  }
+
+  if (sseSource) {
+    sseSource.close();
+    sseSource = null;
+  }
+  clearTimeout(sseRetryHandle);
+  sseRetryHandle = null;
+
+  sseSource = new EventSource(`${API_BASE}/visualization-updates`);
+
+  sseSource.addEventListener("open", () => {
+    stopPolling();
+    clearTimeout(sseRetryHandle);
+    sseRetryHandle = null;
+  });
+
+  sseSource.addEventListener("message", (event) => {
+    try {
+      const body = JSON.parse(event.data);
+      if (!Array.isArray(body?.items)) throw new Error("malformed");
+      clearGroup(dataGroup);
+      for (const item of body.items) {
+        dataGroup.add(buildItemMesh(item));
+      }
+      setStatus(
+        `live (sse) · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`,
+      );
+    } catch {
+      void loadAndRender();
+    }
+  });
+
+  sseSource.addEventListener("error", () => {
+    if (sseSource) {
+      sseSource.close();
+      sseSource = null;
+    }
+    startPolling();
+    sseRetryHandle = setTimeout(() => connectSse(), SSE_RETRY_MS);
+  });
+}
+
+// Polling fallback — used when SSE is unavailable or the browser lacks
+// EventSource. Safe to call repeatedly: clears any existing timer first.
 function startPolling() {
   stopPolling();
   void loadAndRender();

@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { CartDrawer } from './CartDrawer';
 
-const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3100';
 
 export class CatalogPage {
   readonly cartDrawer: CartDrawer;

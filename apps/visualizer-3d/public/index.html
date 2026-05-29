@@ -30,10 +30,12 @@
         </p>
       </div>
       <div class="hud-controls">
-        <!-- #status reflects the poll loop in scene.js: "polling…" while a tick
-             is in flight, "live · N items" on success, "error · <reason>" on a
-             failed tick (previous scene stays), "offline · N mock items" when
-             the BFF is unreachable on first load. -->
+        <!-- #status reflects the active data transport in scene.js:
+             "live (sse) · N items" — SSE stream active (primary path)
+             "live · N items"       — polling fallback succeeded
+             "polling…"            — a poll tick is in flight
+             "error · <reason>"    — failed tick (previous scene stays, retries)
+             "offline · N mock items" — BFF unreachable on first load -->
         <span id="status" class="status">starting…</span>
         <button id="reload" type="button">Reload data</button>
       </div>

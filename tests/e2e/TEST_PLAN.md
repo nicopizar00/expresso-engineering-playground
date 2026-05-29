@@ -2,7 +2,7 @@
 
 ## Application Metadata
 
-- Target URL: `E2E_BASE_URL` with fallback to `http://localhost:3000`.
+- Target URL: `E2E_BASE_URL` with fallback to `http://localhost:3100`.
 - Authentication: no login required for storefront flows.
 - Stack observed in repo: Next.js 14, React 18, Node/BFF APIs through `/api/bff`.
 - Test language: TypeScript with Playwright.
@@ -71,6 +71,6 @@ Recommended config traits for the next iteration:
 
 - `fullyParallel: true`
 - projects for Desktop Chrome and Mobile Chrome
-- `baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000"`
+- `baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3100"`
 - `trace: "retain-on-failure"`, `screenshot: "only-on-failure"`, `video: "retain-on-failure"`
 - `webServer` that starts `pnpm pg:dev` or targets an already running stack

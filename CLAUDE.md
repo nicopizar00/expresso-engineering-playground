@@ -202,6 +202,7 @@ Quality gates (CI vision, `docs/quality-strategy/`): lint → unit → build →
   - ✅ Catalog and orders persistence: Prisma + Postgres, with seeded data and order listing
   - ✅ OpenTelemetry SDK: OTLP HTTP trace export, auto-instrumentation, and order spans
   - ✅ Shared TypeScript HTTP contracts consumed by `apps/web`
+  - ✅ Visualizer real-time SSE: `GET /visualization-updates` pushes snapshots on domain mutations; polling fallback when SSE unavailable
   - ⏳ Domain events and cart/session evolution; cart remains in-memory intentionally
 - **Phase 3**: Extract modules into independent services; expand contract
   enforcement (OpenAPI/Pact); replace in-process events with a broker.

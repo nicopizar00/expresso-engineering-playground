@@ -76,15 +76,21 @@ header status pill (`offline · N mock items`).
 
 ### Refresh behavior
 
-The scene polls `GET /visualization-data` every 2 s (`POLL_INTERVAL_MS` in
-`scene.js`), so a mutation in the web app or via curl — add to cart, place an
-order — appears in 3D within a couple of seconds without clicking **Reload
-data**. Only one request is in flight at a time (overlapping ticks are skipped).
-Polling pauses while the browser tab is hidden and resumes with an immediate
-fetch on focus. The **Reload data** button forces a refresh and resets the
-timer. The status pill shows `polling…` during a tick, `live · N items` on
-success, and `error · <reason>` on a failed tick (the previous scene stays
-rendered and the next tick retries).
+The scene connects to `GET /visualization-updates` (SSE) on load, so a
+mutation in the web app or via curl — add to cart, place an order, manage an
+order — appears in 3D in tens of milliseconds, without clicking **Reload
+data** and without the 2 s poll delay. The BFF pushes a full snapshot
+immediately on connection and again after each domain mutation.
+
+If SSE is unavailable (unsupported browser, transient BFF error), the scene
+falls back to polling `GET /visualization-data` every 2 s (`POLL_INTERVAL_MS`)
+and retries the SSE connection after 5 s (`SSE_RETRY_MS`). Only one request
+is in flight at a time (overlapping ticks are skipped). Both SSE and polling
+pause while the browser tab is hidden and resume on focus. The **Reload data**
+button reconnects SSE (or resets the poll timer in fallback mode). The status
+pill shows `live (sse) · N items` when streaming, `live · N items` when
+polling succeeds, `polling…` during a tick, and `error · <reason>` on a
+failed tick (the previous scene stays rendered and the next tick retries).
 
 ## Why it does not access the database directly
 

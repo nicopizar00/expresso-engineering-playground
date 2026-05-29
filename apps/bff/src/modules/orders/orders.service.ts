@@ -4,6 +4,7 @@ import type { Order as DbOrder, OrderLine as DbOrderLine } from "@prisma/client"
 import type { OrderStatus } from "@mini-commerce/shared-types";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { PrismaService } from "../../prisma.service";
+import { VisualizationEventsService } from "../visualization/visualization-events.service";
 import type { ManageOrderDto } from "./orders.dto";
 import type {
   CreateOrderInput,
@@ -38,7 +39,10 @@ export class OrdersService implements OnModuleInit {
   private cache: Order[] = [];
   private nextOrderSeq = 1;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly vizEvents: VisualizationEventsService,
+  ) {}
 
   async onModuleInit() {
     const rows = await this.prisma.order.findMany({
@@ -101,6 +105,7 @@ export class OrdersService implements OnModuleInit {
         const order = toOrder(row);
         this.cache.push(order);
         this.logger.log(`order created id=${orderId} total=${input.total.amountMinor}`);
+        this.vizEvents.emit();
         return order;
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
@@ -148,6 +153,7 @@ export class OrdersService implements OnModuleInit {
         this.logger.log(
           `manage order=${orderId} action=${payload.action} ${previousStatus} -> ${nextStatus}`,
         );
+        this.vizEvents.emit();
 
         return {
           orderId,

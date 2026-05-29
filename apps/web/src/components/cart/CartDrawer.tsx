@@ -10,12 +10,13 @@
  * TODO(v0-export): Extract CartItemRow to separate file for reusability
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { X, ShoppingCart, Minus, Plus, Trash2, ArrowRight, Loader2 } from 'lucide-react';
 import { useCart } from './CartProvider';
 import { EmptyState } from '@/components/system/EmptyState';
 import { LoadingSpinner } from '@/components/system/LoadingSkeleton';
 import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
+import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
 import Link from 'next/link';
 
 const MAX_QUANTITY = 20;
@@ -27,6 +28,9 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const { cart, isLoading, isEmpty, formattedTotal, itemCount } = useCart();
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  useDialogA11y({ open, onClose, containerRef: drawerRef });
 
   if (!open) return null;
 
@@ -41,7 +45,9 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
       {/* Drawer */}
       <div
-        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md flex flex-col animate-slideUp"
+        ref={drawerRef}
+        tabIndex={-1}
+        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md flex flex-col animate-slideInRight"
         style={{
           backgroundColor: 'var(--card)',
           boxShadow: 'var(--shadow-lg)',
@@ -163,14 +169,17 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 function CartItemRow({ item }: { item: CartItemType }) {
   const { updateItem, removeItem } = useCart();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function run(action: () => Promise<void>) {
     setPending(true);
+    setError(null);
     try {
       await action();
     } catch {
-      // Surface nothing destructive: SWR keeps the last good cart on failure.
-      // TODO(error-handling): replace with a user-facing toast.
+      // SWR keeps the last good cart on failure; surface an inline hint so the
+      // action doesn't fail silently.
+      setError('Update failed. Please try again.');
     } finally {
       setPending(false);
     }
@@ -202,18 +211,12 @@ function CartItemRow({ item }: { item: CartItemType }) {
           >
             {item.name}
           </h3>
-          <p
-            className="text-xs mt-0.5 font-mono"
-            style={{ color: 'var(--muted-foreground)' }}
-          >
-            {item.productId}
-          </p>
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => run(() => updateItem(item.itemId, item.quantity - 1))}
                 disabled={pending || atMin}
-                className="p-1 rounded transition-colors disabled:opacity-50"
+                className="p-2 rounded transition-colors disabled:opacity-50"
                 style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--foreground)',
@@ -232,7 +235,7 @@ function CartItemRow({ item }: { item: CartItemType }) {
               <button
                 onClick={() => run(() => updateItem(item.itemId, item.quantity + 1))}
                 disabled={pending || atMax}
-                className="p-1 rounded transition-colors disabled:opacity-50"
+                className="p-2 rounded transition-colors disabled:opacity-50"
                 style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--foreground)',
@@ -250,13 +253,22 @@ function CartItemRow({ item }: { item: CartItemType }) {
               {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
             </span>
           </div>
+          {error && (
+            <p
+              role="alert"
+              className="text-xs mt-2"
+              style={{ color: 'var(--destructive)' }}
+            >
+              {error}
+            </p>
+          )}
         </div>
 
         {/* Remove button */}
         <button
           onClick={() => run(() => removeItem(item.itemId))}
           disabled={pending}
-          className="p-1 h-fit rounded transition-colors disabled:opacity-50 hover:opacity-80"
+          className="p-2 h-fit rounded transition-colors disabled:opacity-50 hover:opacity-80"
           style={{ color: 'var(--destructive)' }}
           aria-label={`Remove ${item.name} from cart`}
           title="Remove from cart"

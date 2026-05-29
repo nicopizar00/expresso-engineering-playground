@@ -405,6 +405,36 @@ async function smoke() {
       }
     }),
   );
+  results.push(
+    await check('GET  /visualization-updates (SSE)', async () => {
+      const ac = new AbortController();
+      let gotDataFrame = false;
+      const timer = setTimeout(() => ac.abort(), 3000);
+      try {
+        const res = await fetch(`${API_BASE}/visualization-updates`, {
+          headers: { accept: 'text/event-stream' },
+          signal: ac.signal,
+        });
+        if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+        const ct = res.headers.get('content-type') ?? '';
+        if (!ct.includes('text/event-stream')) {
+          throw new Error(`Expected text/event-stream, got ${ct}`);
+        }
+        for await (const chunk of res.body) {
+          if (Buffer.from(chunk).toString().includes('data:')) {
+            gotDataFrame = true;
+            ac.abort();
+            break;
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!gotDataFrame) throw new Error('No SSE data frame received');
+    }),
+  );
 
   log('');
   const passed = results.filter(Boolean).length;

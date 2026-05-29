@@ -117,26 +117,27 @@ products, cart, and orders — no event bus, no SSE, no WebSocket needed.
 
 ## Future work (not in this thread)
 
-The polling approach is intentionally minimal. Two richer variants are
-recorded here so future iterations can pick them up without re-doing
-the discovery work:
+The polling approach is intentionally minimal. Two richer variants were
+recorded here for future iterations.
 
-### Variant A — Server-Sent Events
+### Variant A — Server-Sent Events — DONE (2026-05-29)
 
-- New endpoint `GET /visualization-updates` in
-  `apps/bff/src/modules/visualization/visualization.controller.ts` that
-  streams `text/event-stream`.
-- A Nest `EventEmitter` injected into `CartService`, `OrdersService`,
-  and `CheckoutService`. Each mutation emits a domain event
-  (`cart.added`, `order.placed`, `order.updated`). The visualization
-  module listens, computes a fresh snapshot, and pushes an SSE frame.
-- Browser side: replace `setInterval` with an `EventSource` that
-  triggers `loadAndRender()` on each frame. Polling becomes the
-  fallback when SSE is unavailable.
-- Trade-off: ~50 ms latency instead of `~2000 ms`, but multiplies the
-  number of moving parts (event emitter, SSE plumbing,
-  reconnection logic) — only worth it if user testing flags 2 s as
-  too slow.
+Shipped in this iteration. Summary of changes:
+
+- `GET /visualization-updates` SSE endpoint in
+  `apps/bff/src/modules/visualization/visualization.controller.ts`.
+- `VisualizationEventsService` (RxJS `Subject<void>`, `@Global()` module)
+  injected into `CartService`, `OrdersService`, and `CheckoutService`.
+  Each mutation calls `vizEvents.emit()`. The controller subscribes via
+  `merge(of(null), events.changed$.pipe(debounceTime(50)))` and pushes a
+  full snapshot on connect and on each change.
+- `scene.js`: `connectSse()` is the primary data path. On SSE open,
+  polling stops. On SSE error, falls back to polling and retries SSE
+  after 5 s. Visibility handler closes SSE on hide and reconnects on show.
+- HUD: `live (sse) · N items` for SSE path; `live · N items` + `polling…`
+  for fallback path.
+- Smoke checks updated to 13/13 (SSE frame assertion added to `./dev smoke`
+  and `scripts/playground.mjs`).
 
 ### Variant B — WebSocket
 

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Coffee, UtensilsCrossed, Package, Plus, Minus, Check, Loader2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { X, Coffee, UtensilsCrossed, Package, Plus, Minus, Check, Loader2, AlertCircle } from 'lucide-react';
 import { Product, ProductCategory } from '@/lib/api/expresso-api';
 import { useCart } from '@/components/cart/CartProvider';
+import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
 
 interface ProductQuickViewProps {
   product: Product;
@@ -25,6 +26,10 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useDialogA11y({ open: true, onClose, containerRef: modalRef });
 
   const category = categoryConfig[product.category];
   const CategoryIcon = category.icon;
@@ -33,8 +38,9 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
 
   async function handleAddToCart() {
     if (isAdding || isOutOfStock) return;
-    
+
     setIsAdding(true);
+    setError(null);
     try {
       await addItem({ productId: product.productId, quantity });
       setJustAdded(true);
@@ -42,8 +48,9 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
         setJustAdded(false);
         onClose();
       }, 1000);
-    } catch (error) {
-      console.error('[v0] Failed to add item to cart:', error);
+    } catch (err) {
+      console.error('Failed to add item to cart:', err);
+      setError('Could not add to cart. Please try again.');
     } finally {
       setIsAdding(false);
     }
@@ -59,10 +66,14 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
       />
       
       {/* Modal */}
-      <div 
+      <div
+        ref={modalRef}
+        tabIndex={-1}
         className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 w-auto sm:w-full sm:max-w-lg rounded-lg overflow-hidden animate-slideUp"
-        style={{ 
+        style={{
           backgroundColor: 'var(--card)',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
           boxShadow: 'var(--shadow-lg)',
         }}
         role="dialog"
@@ -234,6 +245,17 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
               </>
             )}
           </button>
+
+          {error && (
+            <p
+              role="alert"
+              className="flex items-center gap-2 text-sm"
+              style={{ color: 'var(--destructive)' }}
+            >
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </>

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isCI = Boolean(process.env.CI);
-const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3100';
 const parsedBaseURL = new URL(baseURL);
 const webServerPort =
   parsedBaseURL.port || (parsedBaseURL.protocol === 'https:' ? '443' : '80');
@@ -25,6 +25,9 @@ export default defineConfig({
     baseURL,
     actionTimeout: 10_000,
     navigationTimeout: 20_000,
+    // Disable entrance animations (gated behind prefers-reduced-motion in
+    // globals.css) so layout assertions measure settled, final positions.
+    contextOptions: { reducedMotion: 'reduce' },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

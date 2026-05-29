@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Money } from "@mini-commerce/shared-types";
+import { VisualizationEventsService } from "../visualization/visualization-events.service";
 import { CatalogService } from "../catalog/catalog.service";
 import type { AddCartItemDto, UpdateCartItemDto } from "./cart.dto";
 import type { Cart, CartItem } from "./cart.types";
@@ -21,7 +22,10 @@ export class CartService {
   // stable across runs.
   private updatedAt = "2026-05-14T12:00:00.000Z";
 
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly vizEvents: VisualizationEventsService,
+  ) {}
 
   add(payload: AddCartItemDto): Cart {
     // Re-uses CatalogService through its public surface — same access path a
@@ -44,7 +48,9 @@ export class CartService {
     this.logger.log(
       `cart add product=${product.productId} qty=${payload.quantity}`,
     );
-    return this.snapshot();
+    const cart = this.snapshot();
+    this.vizEvents.emit();
+    return cart;
   }
 
   get(): Cart {
@@ -69,7 +75,9 @@ export class CartService {
     };
     this.items = this.items.map((item, i) => (i === index ? updated : item));
     this.logger.log(`cart update item=${itemId} qty=${quantity}`);
-    return this.snapshot();
+    const cart = this.snapshot();
+    this.vizEvents.emit();
+    return cart;
   }
 
   // Remove a line from the cart. Throws 404 if the item is not present.
@@ -80,7 +88,9 @@ export class CartService {
     }
     this.items = this.items.filter((item) => item.itemId !== itemId);
     this.logger.log(`cart remove item=${itemId}`);
-    return this.snapshot();
+    const cart = this.snapshot();
+    this.vizEvents.emit();
+    return cart;
   }
 
   // Consumed by CheckoutService after a successful checkout to reset state.

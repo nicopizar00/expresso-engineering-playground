@@ -93,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Coffee className="h-5 w-5" style={{ color: 'var(--primary)' }} />
               <span>Expresso</span>
               <span
-                className="text-xs font-normal px-2 py-0.5 rounded-full ml-1"
+                className="hidden sm:inline text-xs font-normal px-2 py-0.5 rounded-full ml-1"
                 style={{
                   backgroundColor: 'var(--secondary)',
                   color: 'var(--muted-foreground)',
@@ -215,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       key={link.href}
                       href={link.href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors"
+                      className="flex items-center gap-3 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium transition-colors"
                       style={{
                         backgroundColor: isActive ? 'var(--secondary)' : 'transparent',
                         color: isActive
@@ -233,7 +233,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {/* Demo mode toggle in mobile menu */}
                 <button
                   onClick={handleToggleDemoMode}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors mt-2 border-t pt-4"
+                  className="flex items-center gap-3 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium transition-colors mt-2 border-t pt-4"
                   style={{
                     backgroundColor: isDemoMode ? 'var(--warning)' : 'var(--secondary)',
                     color: isDemoMode

@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 
-const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3100';
 
 export class StorefrontPage {
   constructor(

@@ -77,17 +77,16 @@ export default function VisualizerPage() {
     // Force iframe reload by updating key (handled in JSX)
   }, []);
 
-  // Detect iframe load failures via timeout (iframes don't fire onerror for 4xx/5xx)
+  // Iframes don't fire onError for proxy 4xx/5xx, so guard against an infinite
+  // spinner: if the embed hasn't reported a load within a generous window, flip
+  // to the actionable error state (retry + standalone link). The functional
+  // updater reads the current status at fire time, avoiding a stale closure.
   useEffect(() => {
     if (iframeStatus !== 'loading') return;
 
     const timeout = setTimeout(() => {
-      // If still loading after 10s, likely failed
-      if (iframeStatus === 'loading') {
-        // We can't reliably detect iframe failures, so we leave it as loading
-        // The user can see the iframe content or lack thereof
-      }
-    }, 10000);
+      setIframeStatus((current) => (current === 'loading' ? 'error' : current));
+    }, 12_000);
 
     return () => clearTimeout(timeout);
   }, [iframeStatus]);
@@ -153,7 +152,7 @@ export default function VisualizerPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleRetry}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                   style={{
                     backgroundColor: 'var(--secondary)',
                     color: 'var(--muted-foreground)',
@@ -167,7 +166,7 @@ export default function VisualizerPage() {
                   href={STANDALONE_URL || EMBED_SRC}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                   style={{
                     backgroundColor: 'var(--primary)',
                     color: 'var(--primary-foreground)',

@@ -285,6 +285,17 @@ cmd_smoke() {
     -H "Content-Type: application/json" -d '{"action":"mark_prepared"}'
   smoke_check "GET  /visualization-data"               GET  "${API_BASE}/visualization-data"             200
 
+  # SSE check: open the stream, assert Content-Type and at least one data frame.
+  total=$((total + 1))
+  local sse_output
+  sse_output=$(curl -s -N -H 'Accept: text/event-stream' --max-time 3 \
+    "${API_BASE}/visualization-updates" 2>/dev/null || true)
+  if echo "$sse_output" | grep -q "^data:"; then
+    pass "GET  /visualization-updates (SSE)"; passed=$((passed + 1))
+  else
+    fail "GET  /visualization-updates (SSE) — no data frame received"
+  fi
+
   echo ""
   if [[ "$passed" -eq "$total" ]]; then
     printf "${GR}All ${total} smoke checks passed.${RS}\n\n"
