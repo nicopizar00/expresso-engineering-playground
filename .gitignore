@@ -153,3 +153,6 @@ tests/e2e/playwright-report/
 # but keep the directory tracked via its .gitkeep.
 tests/performance/k6/reports/*
 !tests/performance/k6/reports/.gitkeep
+
+# Vercel local project metadata
+.vercel/
