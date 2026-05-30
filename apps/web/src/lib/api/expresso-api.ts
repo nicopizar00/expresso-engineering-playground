@@ -27,13 +27,13 @@
  * | POST   /cart/items           | cart.controller      | VERIFIED  |
  * | PATCH  /cart/items/:itemId   | cart.controller      | VERIFIED  |
  * | DELETE /cart/items/:itemId   | cart.controller      | VERIFIED  |
- * | POST /checkout               | checkout.controller  | VERIFIED  |
- * | GET  /orders/:id             | orders.controller    | VERIFIED  |
- * | POST /orders/:id/manage      | orders.controller    | VERIFIED  |
- * | GET  /orders                 | orders.controller    | VERIFIED  |
+ * | POST   /checkout             | checkout.controller  | VERIFIED  |
+ * | GET    /orders/:id           | orders.controller    | VERIFIED  |
+ * | POST   /orders/:id/manage    | orders.controller    | VERIFIED  |
+ * | GET    /orders               | orders.controller    | VERIFIED  |
  *
- * Browser traffic uses the same-origin /api/bff proxy by default. Server-side
- * code can reach the BFF directly through BFF_INTERNAL_URL.
+ * All endpoints are reached through the same-origin /api/bff proxy in the
+ * browser (next.config.mjs rewrites it to the internal BFF container).
  */
 
 import {
@@ -149,6 +149,10 @@ export { setMockScenario, getMockScenario, getSampleOrderId, type MockScenario }
 // HTTP Client
 // ---------------------------------------------------------------------------
 
+// The browser talks to the web app's own origin via the /api/bff proxy
+// (next.config.mjs rewrites it to the internal BFF container). Server-side code
+// reaches the BFF directly over the internal network. NEXT_PUBLIC_API_BASE_URL
+// is an explicit escape hatch that overrides both when set.
 const BROWSER_PROXY_BASE = '/api/bff';
 const SERVER_BASE_FALLBACK = 'http://localhost:3001';
 
@@ -159,6 +163,8 @@ function resolveBaseUrl(): string {
     return override.replace(/\/$/, '');
   }
   if (typeof window === 'undefined') {
+    // SSR / route handlers run inside the web container — go straight to the
+    // internal BFF service name (set by compose) or the host fallback.
     return (process.env.BFF_INTERNAL_URL || SERVER_BASE_FALLBACK).replace(/\/$/, '');
   }
   return BROWSER_PROXY_BASE;

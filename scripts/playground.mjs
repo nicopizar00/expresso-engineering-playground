@@ -41,6 +41,7 @@ const PERF_DIR = 'tests/performance/k6';
 const PERF_REPORTS_DIR = `${PERF_DIR}/reports`;
 const BFF_PORT = Number(process.env.BFF_PORT ?? 3001);
 const WEB_PORT = Number(process.env.WEB_PORT ?? 3000);
+const VIZ_PORT = Number(process.env.VIZ_PORT ?? 3002);
 const API_BASE = `http://localhost:${BFF_PORT}`;
 
 // ANSI helpers — degrade gracefully when NO_COLOR is set.
@@ -247,8 +248,10 @@ async function up(targetOverride) {
   if (seedResult.status !== 0) process.exit(seedResult.status ?? 1);
   pass('Seed complete');
 
-  // 4. Start BFF and any additional services for the requested target
-  const profiles = targetToProfiles(target);
+  // 4. Start BFF and any additional services for the requested target.
+  // Profiles go through the compose() helper so --profile is a global flag
+  // before the subcommand (some Docker Compose versions reject it after `up`).
+  const profiles = targetToProfileNames(target);
   const extra = additionalServices(target);
   compose(['up', '-d', '--wait', 'bff', ...extra], { profiles });
 
@@ -327,9 +330,46 @@ async function smoke() {
       }),
     ),
   );
+  // Add a second line so the PATCH/DELETE checks can mutate one item while
+  // leaving the cart non-empty for the checkout step below.
+  results.push(
+    await check('POST /cart/items (2nd)', () =>
+      fetchJson(`${API_BASE}/cart/items`, {
+        method: 'POST',
+        body: { productId: 'prod_espresso', quantity: 1 },
+        expectStatus: 201,
+      }),
+    ),
+  );
   results.push(
     await check('GET  /cart', () =>
       fetchJson(`${API_BASE}/cart`, { expectStatus: 200 }),
+    ),
+  );
+  // Resolve a real itemId so the mutation checks don't depend on the in-memory
+  // sequence counter (robust across repeated runs).
+  let cartItemId = 'ci_001';
+  try {
+    const cart = await fetchJson(`${API_BASE}/cart`, { expectStatus: 200 });
+    cartItemId = cart?.items?.[0]?.itemId ?? cartItemId;
+  } catch {
+    // Keep the default; the checks below will report any real failure.
+  }
+  results.push(
+    await check('PATCH /cart/items/:id', () =>
+      fetchJson(`${API_BASE}/cart/items/${cartItemId}`, {
+        method: 'PATCH',
+        body: { quantity: 3 },
+        expectStatus: 200,
+      }),
+    ),
+  );
+  results.push(
+    await check('DELETE /cart/items/:id', () =>
+      fetchJson(`${API_BASE}/cart/items/${cartItemId}`, {
+        method: 'DELETE',
+        expectStatus: 200,
+      }),
     ),
   );
   results.push(
@@ -366,9 +406,34 @@ async function smoke() {
     }),
   );
   results.push(
-    await check('GET  /visualization-updates (SSE)', () =>
-      fetchSseFrame(`${API_BASE}/visualization-updates`),
-    ),
+    await check('GET  /visualization-updates (SSE)', async () => {
+      const ac = new AbortController();
+      let gotDataFrame = false;
+      const timer = setTimeout(() => ac.abort(), 3000);
+      try {
+        const res = await fetch(`${API_BASE}/visualization-updates`, {
+          headers: { accept: 'text/event-stream' },
+          signal: ac.signal,
+        });
+        if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+        const ct = res.headers.get('content-type') ?? '';
+        if (!ct.includes('text/event-stream')) {
+          throw new Error(`Expected text/event-stream, got ${ct}`);
+        }
+        for await (const chunk of res.body) {
+          if (Buffer.from(chunk).toString().includes('data:')) {
+            gotDataFrame = true;
+            ac.abort();
+            break;
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!gotDataFrame) throw new Error('No SSE data frame received');
+    }),
   );
 
   log('');
@@ -407,43 +472,6 @@ async function fetchJson(url, { method = 'GET', body, expectStatus } = {}) {
     throw new Error(`Expected HTTP ${expectStatus}, got ${res.status}`);
   }
   return res.json();
-}
-
-async function fetchSseFrame(url) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3000);
-  let sawDataFrame = false;
-  try {
-    const res = await fetch(url, {
-      headers: { accept: 'text/event-stream' },
-      signal: controller.signal,
-    });
-    if (res.status !== 200) {
-      throw new Error(`Expected HTTP 200, got ${res.status}`);
-    }
-    const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('text/event-stream')) {
-      throw new Error(`Expected text/event-stream, got ${contentType || '<empty>'}`);
-    }
-    const reader = res.body?.getReader();
-    if (!reader) throw new Error('SSE response body is not readable');
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    while (!sawDataFrame) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      sawDataFrame = buffer.includes('data:');
-    }
-
-    if (!sawDataFrame) {
-      throw new Error('Expected at least one SSE data frame');
-    }
-  } finally {
-    clearTimeout(timeout);
-    controller.abort();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -553,9 +581,10 @@ async function logs() {
 
 async function open() {
   log(c.bold('\nLocal URLs\n'));
-  log(`  Web app             ${c.green(`http://localhost:${WEB_PORT}`)}`);
+  log(`  Web app             ${c.green(`http://localhost:${WEB_PORT}`)}  (entry point — links every surface)`);
   log(`  BFF / API           ${c.green(`http://localhost:${BFF_PORT}`)}`);
   log(`  Health endpoint     ${c.green(`http://localhost:${BFF_PORT}/health`)}`);
+  log(`  3D Visualizer       ${c.green(`http://localhost:${VIZ_PORT}`)}  (standalone; embedded at /visualizer, needs 'up viz' or 'up full')`);
   log(`  OTLP HTTP           ${c.dim('http://localhost:4318')}  (otel-collector)`);
   log(`  OTLP gRPC           ${c.dim('http://localhost:4317')}  (otel-collector)`);
   log('');
@@ -818,11 +847,11 @@ function getPidOnPort(port) {
   } catch { return null; }
 }
 
-function targetToProfiles(target) {
-  const profiles = [];
-  if (target === 'web' || target === 'full') profiles.push('web');
-  if (target === 'viz' || target === 'full') profiles.push('viz');
-  return profiles;
+function targetToProfileNames(target) {
+  const names = [];
+  if (target === 'web' || target === 'full') names.push('web');
+  if (target === 'viz' || target === 'full') names.push('viz');
+  return names;
 }
 
 function additionalServices(target) {

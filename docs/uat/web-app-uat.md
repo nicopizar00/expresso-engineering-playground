@@ -561,6 +561,7 @@ Resolution update on 2026-05-29:
 - `pnpm pg:smoke` passed 10/10 checks, including the SSE
   `/visualization-updates` smoke check.
 
+
 ## Failure Detail
 
 ### route-5 - Order Detail Route Returns 500

@@ -40,8 +40,15 @@ FROM deps AS builder
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 
+# The browser talks only to this app (same origin); the Next.js server proxies
+# to the other containers over the internal Docker network. The rewrite targets
+# are resolved when next.config.mjs loads, so they must be present at build time
+# for the standalone server. Internal service names are baked here; compose can
+# override via build.args (see infra/docker/compose.yaml).
 ARG BFF_INTERNAL_URL=http://localhost:3001
 ARG VISUALIZER_INTERNAL_URL=http://localhost:3002
+# NEXT_PUBLIC_VISUALIZER_URL is the host-reachable link used to open the
+# visualizer standalone in a new tab; it is inlined into the client bundle.
 ARG NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
 ENV BFF_INTERNAL_URL=$BFF_INTERNAL_URL
 ENV VISUALIZER_INTERNAL_URL=$VISUALIZER_INTERNAL_URL
@@ -57,8 +64,10 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Standalone output bundles everything needed to run the server. In this pnpm
-# monorepo the server entrypoint lands under apps/web.
+# Standalone output bundles everything needed to run the server. In a pnpm
+# monorepo, Next.js traces from the workspace root, so the server entrypoint
+# lands at apps/web/server.js (not the standalone root) and static assets must
+# sit beside it at apps/web/.next/static.
 COPY --from=builder /workspace/apps/web/.next/standalone ./
 COPY --from=builder /workspace/apps/web/.next/static ./apps/web/.next/static
 

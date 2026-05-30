@@ -1,10 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "builds": [
-    {
-      "src": "apps/web/package.json",
-      "use": "@vercel/next"
+  "buildCommand": "pnpm --filter @mini-commerce/web build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_DEMO_MODE": "true",
+      "NEXT_PUBLIC_API_BASE_URL": "",
+      "NEXT_PUBLIC_VISUALIZER_URL": ""
     }
-  ]
+  }
 }

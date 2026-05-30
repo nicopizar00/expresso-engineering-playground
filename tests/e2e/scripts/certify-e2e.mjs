@@ -1,24 +1,27 @@
-#!/usr/bin/env node
+import { spawn } from 'node:child_process';
 
-import { spawnSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+const forwardedArgs = process.argv.slice(2);
+const testArgs =
+  forwardedArgs[0] === '--' ? forwardedArgs.slice(1) : forwardedArgs;
+const args = ['exec', 'playwright', 'test', ...testArgs];
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const child = spawn('pnpm', args, {
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+  env: process.env,
+});
 
-const steps = [
-  ['typecheck', ['--filter', '@mini-commerce/e2e', 'typecheck']],
-  ['playwright', ['--filter', '@mini-commerce/e2e', 'test:e2e']],
-];
+child.on('error', (error) => {
+  console.error(`Playwright certification could not start: ${error.message}`);
+  process.exit(1);
+});
 
-for (const [label, args] of steps) {
-  console.log(`\n[e2e certify] ${label}\n`);
-  const result = spawnSync('pnpm', args, {
-    cwd: root,
-    stdio: 'inherit',
-    shell: false,
-  });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+child.on('close', (code) => {
+  if (code === 0) {
+    console.log('Playwright certification passed: process exited with code 0.');
+    process.exit(0);
   }
-}
+
+  console.error(`Playwright certification failed: process exited with code ${code}.`);
+  process.exit(code ?? 1);
+});

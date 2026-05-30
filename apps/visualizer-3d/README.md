@@ -74,6 +74,24 @@ If the BFF is unreachable, `scene.js` falls back to two inline mock items
 so the room is still rendered — the network failure is visible in the
 header status pill (`offline · N mock items`).
 
+### Refresh behavior
+
+The scene connects to `GET /visualization-updates` (SSE) on load, so a
+mutation in the web app or via curl — add to cart, place an order, manage an
+order — appears in 3D in tens of milliseconds, without clicking **Reload
+data** and without the 2 s poll delay. The BFF pushes a full snapshot
+immediately on connection and again after each domain mutation.
+
+If SSE is unavailable (unsupported browser, transient BFF error), the scene
+falls back to polling `GET /visualization-data` every 2 s (`POLL_INTERVAL_MS`)
+and retries the SSE connection after 5 s (`SSE_RETRY_MS`). Only one request
+is in flight at a time (overlapping ticks are skipped). Both SSE and polling
+pause while the browser tab is hidden and resume on focus. The **Reload data**
+button reconnects SSE (or resets the poll timer in fallback mode). The status
+pill shows `live (sse) · N items` when streaming, `live · N items` when
+polling succeeds, `polling…` during a tick, and `error · <reason>` on a
+failed tick (the previous scene stays rendered and the next tick retries).
+
 ## Why it does not access the database directly
 
 Three reasons, in priority order:
@@ -95,8 +113,6 @@ Three reasons, in priority order:
   explicitly owned BFF contract rather than direct data-store access.
 - Optional richer geometry (still primitives — no model loaders).
 - A small legend / inspector panel.
-- Improve automatic refresh behavior; the current scene requires manual
-  reload after state changes.
 - A read-heavy k6 load / stress profile for `/visualization-data`. Smoke
   coverage already hits the endpoint via
   `tests/performance/k6/scenarios/smoke/smoke.js`.

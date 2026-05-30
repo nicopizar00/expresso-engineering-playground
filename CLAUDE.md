@@ -130,9 +130,17 @@ Active domain modules (registered in `AppModule`): `HealthModule`, `CatalogModul
 
 ```
 VisualizationModule ← (reads) CatalogModule, CartModule, OrdersModule
-CheckoutModule      ← CartModule + OrdersModule
-CartModule          ← CatalogModule
+                    ← DomainEventsModule (subscribes to changed$ for SSE)
+CheckoutModule      ← CartModule + OrdersModule + DomainEventsModule
+CartModule          ← CatalogModule + DomainEventsModule
+OrdersModule        ← DomainEventsModule
 ```
+
+`DomainEventsModule` lives in `apps/bff/src/core/domain-events/` — a neutral infrastructure
+concern (analogous to `PrismaModule`). Domain modules import it explicitly; the
+visualization layer subscribes to its `changed$` observable to push SSE snapshots.
+It is NOT `@Global()` — each module that needs it declares the import, keeping
+test isolation clean.
 
 To add a dependency: import the provider module in `imports: [...]` and constructor-inject the exported service.
 
@@ -202,6 +210,7 @@ Quality gates (CI vision, `docs/quality-strategy/`): lint → unit → build →
   - ✅ Catalog and orders persistence: Prisma + Postgres, with seeded data and order listing
   - ✅ OpenTelemetry SDK: OTLP HTTP trace export, auto-instrumentation, and order spans
   - ✅ Shared TypeScript HTTP contracts consumed by `apps/web`
+  - ✅ Visualizer real-time SSE: `GET /visualization-updates` pushes snapshots on domain mutations; polling fallback when SSE unavailable
   - ⏳ Domain events and cart/session evolution; cart remains in-memory intentionally
 - **Phase 3**: Extract modules into independent services; expand contract
   enforcement (OpenAPI/Pact); replace in-process events with a broker.
