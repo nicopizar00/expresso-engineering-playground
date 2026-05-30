@@ -23,17 +23,17 @@
  * | GET  /health                 | health.controller    | VERIFIED  |
  * | GET  /catalog/products       | catalog.controller   | VERIFIED  |
  * | GET  /catalog/products/:id   | catalog.controller   | VERIFIED  |
- * | GET  /cart                   | cart.controller      | VERIFIED  |
- * | POST /cart/items             | cart.controller      | VERIFIED  |
+ * | GET    /cart                 | cart.controller      | VERIFIED  |
+ * | POST   /cart/items           | cart.controller      | VERIFIED  |
+ * | PATCH  /cart/items/:itemId   | cart.controller      | VERIFIED  |
+ * | DELETE /cart/items/:itemId   | cart.controller      | VERIFIED  |
  * | POST /checkout               | checkout.controller  | VERIFIED  |
  * | GET  /orders/:id             | orders.controller    | VERIFIED  |
  * | POST /orders/:id/manage      | orders.controller    | VERIFIED  |
  * | GET  /orders                 | orders.controller    | VERIFIED  |
  *
- * ## Missing Endpoints (frontend has workarounds)
- *
- * - DELETE /cart/items/:itemId - Not implemented in BFF
- * - PATCH  /cart/items/:itemId - Not implemented in BFF
+ * Browser traffic uses the same-origin /api/bff proxy by default. Server-side
+ * code can reach the BFF directly through BFF_INTERNAL_URL.
  */
 
 import {
@@ -41,6 +41,8 @@ import {
   getMockCart,
   getMockProducts,
   addMockCartItem,
+  updateMockCartItem,
+  removeMockCartItem,
   createMockOrder,
   getMockOrder,
   getAllMockOrders,
@@ -68,6 +70,7 @@ import type {
   CartItem,
   Cart,
   AddCartItemRequest,
+  UpdateCartItemRequest,
   CheckoutRequest,
   CheckoutResponse,
   OrderStatus,
@@ -99,6 +102,7 @@ export type {
 
 // Legacy aliases retained for callers in apps/web.
 export type AddCartItemInput = AddCartItemRequest;
+export type UpdateCartItemInput = UpdateCartItemRequest;
 export type CheckoutInput = CheckoutRequest;
 export type ManageOrderInput = ManageOrderRequest;
 
@@ -145,12 +149,19 @@ export { setMockScenario, getMockScenario, getSampleOrderId, type MockScenario }
 // HTTP Client
 // ---------------------------------------------------------------------------
 
-const DEFAULT_BASE_URL = 'http://localhost:3001';
+const BROWSER_PROXY_BASE = '/api/bff';
+const SERVER_BASE_FALLBACK = 'http://localhost:3001';
 
 function resolveBaseUrl(): string {
   // Read at call time, not module load time, so SSR + test overrides work.
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-  return raw && raw.length > 0 ? raw.replace(/\/$/, '') : DEFAULT_BASE_URL;
+  const override = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (override && override.length > 0) {
+    return override.replace(/\/$/, '');
+  }
+  if (typeof window === 'undefined') {
+    return (process.env.BFF_INTERNAL_URL || SERVER_BASE_FALLBACK).replace(/\/$/, '');
+  }
+  return BROWSER_PROXY_BASE;
 }
 
 export class ExpressoApiError extends Error {
@@ -236,6 +247,16 @@ const mockApi = {
   async addCartItem(input: AddCartItemInput): Promise<Cart> {
     await simulateLatency();
     return addMockCartItem(input.productId, input.quantity);
+  },
+
+  async updateCartItem(itemId: string, input: UpdateCartItemInput): Promise<Cart> {
+    await simulateLatency();
+    return updateMockCartItem(itemId, input.quantity);
+  },
+
+  async removeCartItem(itemId: string): Promise<Cart> {
+    await simulateLatency();
+    return removeMockCartItem(itemId);
   },
 
   async getCart(): Promise<Cart> {
@@ -335,6 +356,18 @@ const realApi = {
     return request<Cart>('POST', '/cart/items', input);
   },
 
+  updateCartItem(itemId: string, input: UpdateCartItemInput): Promise<Cart> {
+    return request<Cart>(
+      'PATCH',
+      `/cart/items/${encodeURIComponent(itemId)}`,
+      input
+    );
+  },
+
+  removeCartItem(itemId: string): Promise<Cart> {
+    return request<Cart>('DELETE', `/cart/items/${encodeURIComponent(itemId)}`);
+  },
+
   getCart(): Promise<Cart> {
     // TODO(api-wire): BFF cart is session-based; consider cookie/header strategy
     return request<Cart>('GET', '/cart');
@@ -385,6 +418,18 @@ export const expressoApi = {
 
   addCartItem(input: AddCartItemInput): Promise<Cart> {
     return isDemoMode() ? mockApi.addCartItem(input) : realApi.addCartItem(input);
+  },
+
+  updateCartItem(itemId: string, input: UpdateCartItemInput): Promise<Cart> {
+    return isDemoMode()
+      ? mockApi.updateCartItem(itemId, input)
+      : realApi.updateCartItem(itemId, input);
+  },
+
+  removeCartItem(itemId: string): Promise<Cart> {
+    return isDemoMode()
+      ? mockApi.removeCartItem(itemId)
+      : realApi.removeCartItem(itemId);
   },
 
   getCart(): Promise<Cart> {

@@ -550,6 +550,17 @@ session after full-stack startup.
   from `targetToProfiles()` and pass them through the existing `compose(...,
   { profiles })` helper, or otherwise place profile flags before `up`.
 
+Resolution update on 2026-05-29:
+
+- `[RESOLVED] env-1`: `scripts/playground.mjs` now returns profile names from
+  `targetToProfiles()` and passes them through `compose(..., { profiles })`, so
+  Docker Compose receives `--profile` before the `up` subcommand.
+- `pnpm pg:up full` passed on this machine with bff, web, visualizer-3d,
+  postgres, and otel-collector healthy; it no longer fails with
+  `unknown flag: --profile`.
+- `pnpm pg:smoke` passed 10/10 checks, including the SSE
+  `/visualization-updates` smoke check.
+
 ## Failure Detail
 
 ### route-5 - Order Detail Route Returns 500

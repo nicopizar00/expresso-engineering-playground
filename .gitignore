@@ -145,6 +145,10 @@ vite.config.ts.timestamp-*
 # Turborepo local cache
 .turbo/
 
+# Playwright artifacts
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+
 # Performance test reports — generated artifacts are not committed,
 # but keep the directory tracked via its .gitkeep.
 tests/performance/k6/reports/*

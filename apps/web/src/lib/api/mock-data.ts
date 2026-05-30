@@ -247,6 +247,31 @@ export function addMockCartItem(productId: string, quantity: number): Cart {
   return buildMockCart();
 }
 
+export function updateMockCartItem(itemId: string, quantity: number): Cart {
+  const idx = mockCartItems.findIndex((item) => item.itemId === itemId);
+  if (idx < 0) {
+    throw new Error(`Cart item not found: ${itemId}`);
+  }
+
+  const existing = mockCartItems[idx]!;
+  mockCartItems[idx] = {
+    ...existing,
+    quantity,
+    lineTotal: money(existing.unitPrice.amountMinor * quantity),
+  };
+  return buildMockCart();
+}
+
+export function removeMockCartItem(itemId: string): Cart {
+  const exists = mockCartItems.some((item) => item.itemId === itemId);
+  if (!exists) {
+    throw new Error(`Cart item not found: ${itemId}`);
+  }
+
+  mockCartItems = mockCartItems.filter((item) => item.itemId !== itemId);
+  return buildMockCart();
+}
+
 export function clearMockCart(): void {
   mockCartItems = [];
 }

@@ -57,9 +57,15 @@ services:
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
+      args:
+        BFF_INTERNAL_URL: ${BFF_INTERNAL_URL:-http://bff:3001}
+        VISUALIZER_INTERNAL_URL: ${VISUALIZER_INTERNAL_URL:-http://visualizer-3d:80}
+        NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
     environment:
       PORT: "${WEB_PORT:-3000}"
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+      BFF_INTERNAL_URL: ${BFF_INTERNAL_URL:-http://bff:3001}
+      VISUALIZER_INTERNAL_URL: ${VISUALIZER_INTERNAL_URL:-http://visualizer-3d:80}
+      NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:

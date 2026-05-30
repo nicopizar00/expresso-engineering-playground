@@ -250,7 +250,7 @@ async function up(targetOverride) {
   // 4. Start BFF and any additional services for the requested target
   const profiles = targetToProfiles(target);
   const extra = additionalServices(target);
-  compose(['up', '-d', '--wait', ...profiles, 'bff', ...extra]);
+  compose(['up', '-d', '--wait', 'bff', ...extra], { profiles });
 
   log('');
   pass(`BFF is running on http://localhost:${BFF_PORT}`);
@@ -365,6 +365,11 @@ async function smoke() {
       }
     }),
   );
+  results.push(
+    await check('GET  /visualization-updates (SSE)', () =>
+      fetchSseFrame(`${API_BASE}/visualization-updates`),
+    ),
+  );
 
   log('');
   const passed = results.filter(Boolean).length;
@@ -402,6 +407,43 @@ async function fetchJson(url, { method = 'GET', body, expectStatus } = {}) {
     throw new Error(`Expected HTTP ${expectStatus}, got ${res.status}`);
   }
   return res.json();
+}
+
+async function fetchSseFrame(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+  let sawDataFrame = false;
+  try {
+    const res = await fetch(url, {
+      headers: { accept: 'text/event-stream' },
+      signal: controller.signal,
+    });
+    if (res.status !== 200) {
+      throw new Error(`Expected HTTP 200, got ${res.status}`);
+    }
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('text/event-stream')) {
+      throw new Error(`Expected text/event-stream, got ${contentType || '<empty>'}`);
+    }
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error('SSE response body is not readable');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (!sawDataFrame) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      sawDataFrame = buffer.includes('data:');
+    }
+
+    if (!sawDataFrame) {
+      throw new Error('Expected at least one SSE data frame');
+    }
+  } finally {
+    clearTimeout(timeout);
+    controller.abort();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -777,10 +819,10 @@ function getPidOnPort(port) {
 }
 
 function targetToProfiles(target) {
-  const flags = [];
-  if (target === 'web' || target === 'full') flags.push('--profile', 'web');
-  if (target === 'viz' || target === 'full') flags.push('--profile', 'viz');
-  return flags;
+  const profiles = [];
+  if (target === 'web' || target === 'full') profiles.push('web');
+  if (target === 'viz' || target === 'full') profiles.push('viz');
+  return profiles;
 }
 
 function additionalServices(target) {

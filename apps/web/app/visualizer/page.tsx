@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   Box,
   ExternalLink,
-  AlertCircle,
   RefreshCw,
   Info,
   Server,
@@ -18,14 +17,13 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-const VISUALIZER_URL = process.env.NEXT_PUBLIC_VISUALIZER_URL || '';
+const EMBED_SRC = '/viz/index.html';
+const STANDALONE_URL = process.env.NEXT_PUBLIC_VISUALIZER_URL || 'http://localhost:3002';
 
-type IframeStatus = 'loading' | 'loaded' | 'error' | 'not-configured';
+type IframeStatus = 'loading' | 'loaded' | 'error';
 
 export default function VisualizerPage() {
-  const [iframeStatus, setIframeStatus] = useState<IframeStatus>(
-    VISUALIZER_URL ? 'loading' : 'not-configured'
-  );
+  const [iframeStatus, setIframeStatus] = useState<IframeStatus>('loading');
   const [showDevInfo, setShowDevInfo] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
 
@@ -41,8 +39,8 @@ export default function VisualizerPage() {
   useEffect(() => {
     if (iframeStatus !== 'loading') return;
     const timeout = setTimeout(() => {
-      // Leave as loading - user can see iframe state
-    }, 10000);
+      setIframeStatus((current) => (current === 'loading' ? 'error' : current));
+    }, 12000);
     return () => clearTimeout(timeout);
   }, [iframeStatus]);
 
@@ -67,31 +65,37 @@ export default function VisualizerPage() {
 
         <div className="flex items-center gap-2">
           <StatusIndicator status={iframeStatus} />
-          {VISUALIZER_URL && (
-            <button onClick={handleRetry} className="btn btn-secondary btn-sm">
-              <RefreshCw className="icon-sm" />
-              Reload
-            </button>
-          )}
+          <button onClick={handleRetry} className="btn btn-secondary btn-sm">
+            <RefreshCw className="icon-sm" />
+            Reload
+          </button>
+          <a
+            href={STANDALONE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primary btn-sm"
+          >
+            <ExternalLink className="icon-sm" />
+            Open Standalone
+          </a>
         </div>
       </div>
 
       {/* Visualizer Container */}
       <div className="card">
         <div className="card-body p-0">
-          {iframeStatus === 'not-configured' ? (
-            <NotConfiguredState />
-          ) : iframeStatus === 'error' ? (
+          {iframeStatus === 'error' ? (
             <ErrorState onRetry={handleRetry} />
           ) : (
             <div className="relative" style={{ minHeight: '500px' }}>
               {iframeStatus === 'loading' && <LoadingOverlay />}
               <iframe
                 key={iframeKey}
-                src={VISUALIZER_URL}
+                src={EMBED_SRC}
                 className="w-full border-0 rounded-lg"
                 style={{ height: '500px' }}
                 onLoad={handleIframeLoad}
+                onError={() => setIframeStatus('error')}
                 title="3D Product Visualizer"
                 sandbox="allow-scripts allow-same-origin"
               />
@@ -124,7 +128,6 @@ function StatusIndicator({ status }: { status: IframeStatus }) {
     loading: { icon: RefreshCw, label: 'Loading', className: 'status-badge-info' },
     loaded: { icon: CheckCircle, label: 'Connected', className: 'status-badge-success' },
     error: { icon: XCircle, label: 'Error', className: 'status-badge-error' },
-    'not-configured': { icon: AlertCircle, label: 'Not Configured', className: 'status-badge-warning' },
   };
 
   const { icon: Icon, label, className } = config[status];
@@ -148,27 +151,6 @@ function LoadingOverlay() {
   );
 }
 
-function NotConfiguredState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-4">
-      <div className="icon-badge icon-badge-lg bg-warning/10 text-warning mb-4">
-        <AlertCircle className="icon-lg" />
-      </div>
-      <h2 className="text-lg font-semibold mb-2">Visualizer Not Configured</h2>
-      <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-        The 3D visualizer requires the <code className="px-1.5 py-0.5 rounded bg-secondary text-primary">NEXT_PUBLIC_VISUALIZER_URL</code> environment variable to be set.
-      </p>
-      <div className="p-4 rounded-lg bg-secondary/50 border border-border/50 text-xs font-mono max-w-md w-full">
-        <p className="text-muted-foreground mb-1"># Local development (Docker)</p>
-        <p className="text-foreground">NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002</p>
-      </div>
-      <Link href="/dev" className="btn btn-secondary mt-6">
-        Back to Developer Tools
-      </Link>
-    </div>
-  );
-}
-
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -177,7 +159,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
       </div>
       <h2 className="text-lg font-semibold mb-2">Failed to Load Visualizer</h2>
       <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-        Could not connect to the visualizer service. Make sure it is running and accessible.
+        Could not connect to the same-origin /viz proxy. Make sure the visualizer service is running.
       </p>
       <div className="flex gap-3">
         <button onClick={onRetry} className="btn btn-primary">
@@ -187,6 +169,15 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         <Link href="/dev" className="btn btn-secondary">
           Developer Tools
         </Link>
+        <a
+          href={STANDALONE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-secondary"
+        >
+          <ExternalLink className="icon-sm" />
+          Open Standalone
+        </a>
       </div>
     </div>
   );
@@ -265,13 +256,13 @@ function DevInfoPanel() {
             <div>
               <p className="font-medium mb-1">Local Development</p>
               <code className="block p-2 rounded bg-secondary/50 text-muted-foreground">
-                NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
+                embed: {EMBED_SRC}
               </code>
             </div>
             <div>
-              <p className="font-medium mb-1">Current Value</p>
+              <p className="font-medium mb-1">Standalone URL</p>
               <code className="block p-2 rounded bg-secondary/50 text-muted-foreground break-all">
-                {VISUALIZER_URL || '(not set)'}
+                {STANDALONE_URL}
               </code>
             </div>
           </div>

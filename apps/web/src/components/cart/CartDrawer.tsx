@@ -7,13 +7,16 @@
  * Redesigned with a clean, modern interface.
  */
 
-import { useEffect } from 'react';
-import { X, ShoppingCart, Minus, Plus, Trash2, ArrowRight, Coffee, ShoppingBag, AlertCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { X, Minus, Plus, Trash2, ArrowRight, Coffee, ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
 import { useCart } from './CartProvider';
 import { EmptyState } from '@/components/system/EmptyState';
 import { LoadingSpinner } from '@/components/system/LoadingSkeleton';
 import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
+import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
 import Link from 'next/link';
+
+const MAX_QUANTITY = 20;
 
 interface CartDrawerProps {
   open: boolean;
@@ -22,29 +25,9 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const { cart, isLoading, isEmpty, formattedTotal, itemCount } = useCart();
+  const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Prevent body scroll when open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open]);
-
-  // Handle escape key
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && open) {
-        onClose();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  useDialogA11y({ open, onClose, containerRef: drawerRef });
 
   if (!open) return null;
 
@@ -60,6 +43,8 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
       {/* Drawer */}
       <div
+        ref={drawerRef}
+        tabIndex={-1}
         className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md flex flex-col animate-slideInRight"
         style={{
           backgroundColor: 'var(--card)',
@@ -199,6 +184,25 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
  * Individual cart item row
  */
 function CartItemRow({ item }: { item: CartItemType }) {
+  const { updateItem, removeItem } = useCart();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(action: () => Promise<void>) {
+    setPending(true);
+    setError(null);
+    try {
+      await action();
+    } catch {
+      setError('Update failed. Please try again.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const atMin = item.quantity <= 1;
+  const atMax = item.quantity >= MAX_QUANTITY;
+
   return (
     <div className="p-5">
       <div className="flex gap-4">
@@ -219,22 +223,16 @@ function CartItemRow({ item }: { item: CartItemType }) {
           >
             {item.name}
           </h3>
-          <p
-            className="text-[10px] font-mono mb-2"
-            style={{ color: 'var(--muted-foreground)' }}
-          >
-            {item.productId}
-          </p>
           
           <div className="flex items-center justify-between">
-            {/* Quantity controls - display only for now */}
             <div className="flex items-center gap-1">
               <button
-                disabled
+                onClick={() => run(() => updateItem(item.itemId, item.quantity - 1))}
+                disabled={pending || atMin}
                 className="flex items-center justify-center w-6 h-6 rounded transition-colors disabled:opacity-30"
                 style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
                 aria-label="Decrease quantity"
-                title="Not available - BFF endpoint not implemented"
+                title={atMin ? 'Use remove to clear this item' : 'Decrease quantity'}
               >
                 <Minus className="h-3 w-3" />
               </button>
@@ -242,14 +240,15 @@ function CartItemRow({ item }: { item: CartItemType }) {
                 className="text-sm font-medium w-8 text-center font-mono"
                 style={{ color: 'var(--foreground)' }}
               >
-                {item.quantity}
+                {pending ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : item.quantity}
               </span>
               <button
-                disabled
+                onClick={() => run(() => updateItem(item.itemId, item.quantity + 1))}
+                disabled={pending || atMax}
                 className="flex items-center justify-center w-6 h-6 rounded transition-colors disabled:opacity-30"
                 style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
                 aria-label="Increase quantity"
-                title="Not available - BFF endpoint not implemented"
+                title={atMax ? 'Maximum quantity reached' : 'Increase quantity'}
               >
                 <Plus className="h-3 w-3" />
               </button>
@@ -260,15 +259,24 @@ function CartItemRow({ item }: { item: CartItemType }) {
               {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
             </span>
           </div>
+          {error && (
+            <p
+              role="alert"
+              className="text-xs mt-2"
+              style={{ color: 'var(--destructive)' }}
+            >
+              {error}
+            </p>
+          )}
         </div>
 
-        {/* Remove button - disabled */}
         <button
-          disabled
+          onClick={() => run(() => removeItem(item.itemId))}
+          disabled={pending}
           className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors disabled:opacity-30"
-          style={{ color: 'var(--muted-foreground)' }}
+          style={{ color: 'var(--destructive)' }}
           aria-label={`Remove ${item.name} from cart`}
-          title="Not available - BFF endpoint not implemented"
+          title="Remove from cart"
         >
           <Trash2 className="h-4 w-4" />
         </button>

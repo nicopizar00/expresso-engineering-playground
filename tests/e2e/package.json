@@ -4,8 +4,16 @@
   "private": true,
   "description": "End-to-end tests (Playwright) for the mini-commerce playground.",
   "scripts": {
-    "test:e2e": "echo 'TODO: wire playwright test'",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "certify": "node scripts/certify-e2e.mjs",
+    "report": "playwright show-report playwright-report",
     "lint": "echo 'TODO: wire eslint'",
-    "typecheck": "echo 'TODO: wire tsc --noEmit'"
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.41.2",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
   }
 }
