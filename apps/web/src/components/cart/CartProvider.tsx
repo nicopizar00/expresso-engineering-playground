@@ -13,7 +13,12 @@
 
 import { createContext, useContext, useCallback, ReactNode } from 'react';
 import useSWR from 'swr';
-import { expressoApi, Cart, AddCartItemInput, formatMoney } from '@/lib/api/expresso-api';
+import {
+  expressoApi,
+  Cart,
+  AddCartItemInput,
+  formatMoney,
+} from '@/lib/api/expresso-api';
 
 // ---------------------------------------------------------------------------
 // Types

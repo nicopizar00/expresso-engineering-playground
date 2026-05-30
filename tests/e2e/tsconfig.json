@@ -1,11 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "noEmit": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
     "lib": ["ES2022", "DOM"],
-    "types": ["node", "@playwright/test"]
+    "types": ["node", "@playwright/test"],
+    "noEmit": true
   },
-  "include": ["playwright.config.ts", "tests/**/*.ts"]
+  "include": ["playwright.config.ts", "fixtures/**/*.ts", "pages/**/*.ts", "tests/**/*.ts"]
 }

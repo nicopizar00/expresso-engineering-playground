@@ -14,12 +14,21 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-// The BFF address is configured at container start via a small runtime shim
-// (window.__VIZ_CONFIG__) injected by nginx; see the Dockerfile entrypoint.
-// In dev or when the shim is missing, default to the host BFF port.
-const API_BASE =
-  (typeof window !== "undefined" && window.__VIZ_CONFIG__?.apiBaseUrl) ||
-  "http://localhost:3001";
+// Resolve the BFF base URL at runtime so the same scene.js works in both
+// access modes without a rebuild:
+//
+//   • Direct (http://localhost:3002): use the absolute URL from the runtime
+//     shim (window.__VIZ_CONFIG__.apiBaseUrl, injected by nginx at container
+//     start) or fall back to the host BFF port.
+//
+//   • Proxied via web app (/viz/index.html → localhost:3000): use the
+//     same-origin /api/bff rewrite (see apps/web/next.config.mjs) to avoid
+//     any cross-origin requests. Detection: the page pathname starts with /viz.
+const API_BASE = (() => {
+  if (typeof window === "undefined") return "http://localhost:3001";
+  if (window.location.pathname.startsWith("/viz")) return "/api/bff";
+  return window.__VIZ_CONFIG__?.apiBaseUrl || "http://localhost:3001";
+})();
 
 const STATUS_COLORS = {
   ok: 0x4caf50,
@@ -38,11 +47,16 @@ const stage = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const reloadBtn = document.getElementById("reload");
 
+// Polling state. Used as the fallback when SSE is unavailable.
+// `inflight` coalesces overlapping ticks; `pollHandle` holds the interval id.
 const POLL_INTERVAL_MS = 2000;
-const SSE_RETRY_MS = 5000;
 let inflight = false;
 let pollHandle = null;
-let sse = null;
+
+// SSE state. Primary data path. Falls back to polling on error; retries SSE
+// after SSE_RETRY_MS so the stream reconnects once the BFF is available again.
+const SSE_RETRY_MS = 5000;
+let sseSource = null;
 let sseRetryHandle = null;
 
 const scene = new THREE.Scene();
@@ -80,19 +94,29 @@ const dataGroup = new THREE.Group();
 scene.add(dataGroup);
 
 reloadBtn.addEventListener("click", () => {
+  // Reconnect SSE (triggers immediate snapshot); falls back to polling if SSE
+  // is unavailable and resets the interval timer.
   connectSse();
 });
 
 window.addEventListener("resize", onResize);
+onResize();
+
+// Pause data transport while the tab is hidden; resume on focus.
+// SSE is closed to avoid unnecessary server-side held connections.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     stopPolling();
-    stopSse();
+    if (sseSource) {
+      sseSource.close();
+      sseSource = null;
+    }
+    clearTimeout(sseRetryHandle);
+    sseRetryHandle = null;
   } else {
     connectSse();
   }
 });
-onResize();
 
 connectSse();
 animate();
@@ -183,106 +207,101 @@ function clearGroup(group) {
   }
 }
 
-function renderItems(items) {
-  clearGroup(dataGroup);
-  for (const item of items) {
-    dataGroup.add(buildItemMesh(item));
-  }
-}
-
-function renderSnapshot(body, mode) {
-  if (!Array.isArray(body?.items)) throw new Error("malformed response");
-  renderItems(body.items);
-  const liveLabel = mode === "sse" ? "live (sse)" : "live";
-  setStatus(
-    `${liveLabel} · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`,
-  );
-}
-
-async function loadAndRender() {
-  if (inflight) return;
-
-  inflight = true;
-  setStatus("polling…");
-
-  try {
-    const body = await fetchItems();
-    renderSnapshot(body, "polling");
-  } catch (err) {
-    if (dataGroup.children.length === 0) {
-      renderItems(FALLBACK_ITEMS);
-      setStatus(`offline · ${FALLBACK_ITEMS.length} mock items`);
-    } else {
-      setStatus(`error · ${err.message ?? "fetch failed"}`);
-    }
-  } finally {
-    inflight = false;
-  }
-}
-
+// SSE — primary data path. Connects to /visualization-updates and renders each
+// pushed snapshot directly. Falls back to polling on error; schedules a retry
+// after SSE_RETRY_MS so reconnection is automatic once the BFF recovers.
 function connectSse() {
-  stopSse();
-
-  if (!("EventSource" in window)) {
+  if (typeof EventSource === "undefined") {
     startPolling();
     return;
   }
 
-  sse = new EventSource(`${API_BASE}/visualization-updates`);
+  if (sseSource) {
+    sseSource.close();
+    sseSource = null;
+  }
+  clearTimeout(sseRetryHandle);
+  sseRetryHandle = null;
 
-  sse.addEventListener("open", () => {
+  sseSource = new EventSource(`${API_BASE}/visualization-updates`);
+
+  sseSource.addEventListener("open", () => {
     stopPolling();
+    clearTimeout(sseRetryHandle);
+    sseRetryHandle = null;
   });
 
-  sse.addEventListener("message", (event) => {
+  sseSource.addEventListener("message", (event) => {
     try {
-      renderSnapshot(JSON.parse(event.data), "sse");
+      const body = JSON.parse(event.data);
+      if (!Array.isArray(body?.items)) throw new Error("malformed");
+      clearGroup(dataGroup);
+      for (const item of body.items) {
+        dataGroup.add(buildItemMesh(item));
+      }
+      setStatus(
+        `live (sse) · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`,
+      );
     } catch {
       void loadAndRender();
     }
   });
 
-  sse.addEventListener("error", () => {
-    if (sse) {
-      sse.close();
-      sse = null;
+  sseSource.addEventListener("error", () => {
+    if (sseSource) {
+      sseSource.close();
+      sseSource = null;
     }
     startPolling();
-    scheduleSseRetry();
+    sseRetryHandle = setTimeout(() => connectSse(), SSE_RETRY_MS);
   });
 }
 
-function scheduleSseRetry() {
-  if (sseRetryHandle || document.hidden) return;
-  sseRetryHandle = window.setTimeout(() => {
-    sseRetryHandle = null;
-    connectSse();
-  }, SSE_RETRY_MS);
-}
-
-function stopSse() {
-  if (sse) {
-    sse.close();
-    sse = null;
-  }
-  if (sseRetryHandle) {
-    window.clearTimeout(sseRetryHandle);
-    sseRetryHandle = null;
-  }
-}
-
+// Polling fallback — used when SSE is unavailable or the browser lacks
+// EventSource. Safe to call repeatedly: clears any existing timer first.
 function startPolling() {
   stopPolling();
   void loadAndRender();
-  pollHandle = window.setInterval(() => {
-    if (!document.hidden) void loadAndRender();
-  }, POLL_INTERVAL_MS);
+  pollHandle = setInterval(() => void loadAndRender(), POLL_INTERVAL_MS);
 }
 
 function stopPolling() {
-  if (pollHandle) {
-    window.clearInterval(pollHandle);
+  if (pollHandle !== null) {
+    clearInterval(pollHandle);
     pollHandle = null;
+  }
+}
+
+async function loadAndRender() {
+  if (inflight) return; // coalesce overlapping poll ticks
+  inflight = true;
+  setStatus("polling…");
+  try {
+    let items = null;
+    try {
+      items = await fetchItems();
+    } catch (err) {
+      // Transient error: keep the already-rendered scene and retry next tick.
+      // Only fall through to the inline fallback on the very first load.
+      if (dataGroup.children.length > 0) {
+        setStatus(`error · ${err.message}`);
+        return;
+      }
+    }
+
+    clearGroup(dataGroup);
+    const source = items ?? FALLBACK_ITEMS;
+    for (const item of source) {
+      dataGroup.add(buildItemMesh(item));
+    }
+
+    setStatus(
+      items
+        ? `live · ${items.length} item${items.length === 1 ? "" : "s"}`
+        : `offline · ${FALLBACK_ITEMS.length} mock items`,
+    );
+  } finally {
+    inflight = false;
   }
 }
 
@@ -293,7 +312,7 @@ async function fetchItems() {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
   if (!Array.isArray(body?.items)) throw new Error("malformed response");
-  return body;
+  return body.items;
 }
 
 function setStatus(text) {

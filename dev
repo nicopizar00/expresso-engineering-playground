@@ -264,7 +264,19 @@ cmd_smoke() {
   smoke_check "GET  /catalog/products/prod_espresso"   GET  "${API_BASE}/catalog/products/prod_espresso" 200
   smoke_check "POST /cart/items" POST "${API_BASE}/cart/items" 201 \
     -H "Content-Type: application/json" -d '{"productId":"prod_espresso","quantity":2}'
+  # Add a second line so the PATCH/DELETE checks can mutate one item while
+  # leaving the cart non-empty for the checkout step below.
+  smoke_check "POST /cart/items (2nd)" POST "${API_BASE}/cart/items" 201 \
+    -H "Content-Type: application/json" -d '{"productId":"prod_espresso","quantity":1}'
   smoke_check "GET  /cart"                             GET  "${API_BASE}/cart"                           200
+  # Resolve a real itemId from the cart so the checks don't depend on the
+  # in-memory sequence counter (robust across repeated runs).
+  local cart_item_id
+  cart_item_id=$(curl -s "${API_BASE}/cart" | grep -o '"itemId":"[^"]*"' | head -1 | cut -d'"' -f4)
+  cart_item_id="${cart_item_id:-ci_001}"
+  smoke_check "PATCH /cart/items/:id" PATCH "${API_BASE}/cart/items/${cart_item_id}" 200 \
+    -H "Content-Type: application/json" -d '{"quantity":3}'
+  smoke_check "DELETE /cart/items/:id"                 DELETE "${API_BASE}/cart/items/${cart_item_id}"   200
   smoke_check "POST /checkout" POST "${API_BASE}/checkout" 201 \
     -H "Content-Type: application/json" -d '{"customerName":"Smoke Customer"}'
   smoke_check "GET  /orders/ord_demo"                  GET  "${API_BASE}/orders/ord_demo"                200
@@ -272,6 +284,17 @@ cmd_smoke() {
     "${API_BASE}/orders/ord_demo/manage" 202 \
     -H "Content-Type: application/json" -d '{"action":"mark_prepared"}'
   smoke_check "GET  /visualization-data"               GET  "${API_BASE}/visualization-data"             200
+
+  # SSE check: open the stream, assert Content-Type and at least one data frame.
+  total=$((total + 1))
+  local sse_output
+  sse_output=$(curl -s -N -H 'Accept: text/event-stream' --max-time 3 \
+    "${API_BASE}/visualization-updates" 2>/dev/null || true)
+  if echo "$sse_output" | grep -q "^data:"; then
+    pass "GET  /visualization-updates (SSE)"; passed=$((passed + 1))
+  else
+    fail "GET  /visualization-updates (SSE) — no data frame received"
+  fi
 
   echo ""
   if [[ "$passed" -eq "$total" ]]; then
@@ -300,9 +323,10 @@ cmd_seed() {
 
 cmd_open() {
   header "Local URLs"
-  printf "  Web app         ${GR}http://localhost:${WEB_PORT}${RS}\n"
+  printf "  Web app         ${GR}http://localhost:${WEB_PORT}${RS}  (entry point — links every surface)\n"
   printf "  BFF / API       ${GR}http://localhost:${BFF_PORT}${RS}\n"
   printf "  Health endpoint ${GR}http://localhost:${BFF_PORT}/health${RS}\n"
+  printf "  3D Visualizer   ${GR}http://localhost:${VIZ_PORT}${RS}  (standalone; embedded at /visualizer, needs 'up viz' or 'up full')\n"
   printf "  OTLP HTTP       ${DM}http://localhost:4318${RS}  (otel-collector)\n"
   printf "  OTLP gRPC       ${DM}http://localhost:4317${RS}  (otel-collector)\n\n"
   printf "${DM}See docs/local-development.md for full setup instructions.${RS}\n\n"

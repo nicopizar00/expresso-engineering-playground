@@ -9,10 +9,10 @@ const skipWebServer = process.env.E2E_SKIP_WEBSERVER === '1';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: 1,
+  workers: isCI ? 2 : undefined,
   timeout: 45_000,
   expect: {
     timeout: 10_000,
@@ -25,6 +25,8 @@ export default defineConfig({
     baseURL,
     actionTimeout: 10_000,
     navigationTimeout: 20_000,
+    // Disable entrance animations (gated behind prefers-reduced-motion in
+    // globals.css) so layout assertions measure settled, final positions.
     contextOptions: { reducedMotion: 'reduce' },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

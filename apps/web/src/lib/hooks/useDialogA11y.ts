@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * useDialogA11y - shared accessibility behavior for modal dialogs / drawers.
+ *
+ * When `open` is true it:
+ *  - closes on the Escape key
+ *  - moves focus into the dialog and traps Tab / Shift+Tab within it
+ *  - restores focus to the previously focused element on close
+ *  - locks background scroll while open
+ *
+ * The dialog container should set `tabIndex={-1}` so it can receive focus when
+ * it contains no focusable children.
+ */
+
 import { useEffect, useRef, type RefObject } from 'react';
 
 const FOCUSABLE_SELECTOR = [
@@ -18,6 +31,7 @@ interface DialogA11yOptions {
 }
 
 export function useDialogA11y({ open, onClose, containerRef }: DialogA11yOptions): void {
+  // Keep the latest onClose without re-binding listeners on every render.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -34,6 +48,7 @@ export function useDialogA11y({ open, onClose, containerRef }: DialogA11yOptions
       ).filter((el) => el.offsetParent !== null || el === document.activeElement);
     }
 
+    // Move focus into the dialog (first focusable, else the container itself).
     (visibleFocusables()[0] ?? container)?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -55,6 +70,7 @@ export function useDialogA11y({ open, onClose, containerRef }: DialogA11yOptions
       }
 
       const active = document.activeElement;
+
       if (event.shiftKey) {
         if (active === first || !container.contains(active)) {
           event.preventDefault();
@@ -66,8 +82,10 @@ export function useDialogA11y({ open, onClose, containerRef }: DialogA11yOptions
       }
     }
 
+    // Lock background scroll while the dialog is open.
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
     document.addEventListener('keydown', handleKeyDown, true);
 
     return () => {

@@ -252,7 +252,6 @@ export function updateMockCartItem(itemId: string, quantity: number): Cart {
   if (idx < 0) {
     throw new Error(`Cart item not found: ${itemId}`);
   }
-
   const existing = mockCartItems[idx]!;
   mockCartItems[idx] = {
     ...existing,
@@ -267,7 +266,6 @@ export function removeMockCartItem(itemId: string): Cart {
   if (!exists) {
     throw new Error(`Cart item not found: ${itemId}`);
   }
-
   mockCartItems = mockCartItems.filter((item) => item.itemId !== itemId);
   return buildMockCart();
 }
