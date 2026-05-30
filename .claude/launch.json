@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@mini-commerce/web", "exec", "next", "dev"],
       "autoPort": true
+    },
+    {
+      "name": "visualizer",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "3002", "apps/visualizer-3d/public"],
+      "port": 3002
     }
   ]
 }
