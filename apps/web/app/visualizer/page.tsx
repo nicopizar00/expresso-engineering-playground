@@ -62,6 +62,7 @@ type IframeStatus = 'loading' | 'loaded' | 'error' | 'not-configured';
 
 export default function VisualizerPage() {
   const [iframeStatus, setIframeStatus] = useState<IframeStatus>('loading');
+  const [retryCount, setRetryCount] = useState(0);
   const [showDevInfo, setShowDevInfo] = useState(true);
 
   const handleIframeLoad = useCallback(() => {
@@ -74,7 +75,7 @@ export default function VisualizerPage() {
 
   const handleRetry = useCallback(() => {
     setIframeStatus('loading');
-    // Force iframe reload by updating key (handled in JSX)
+    setRetryCount((c) => c + 1);
   }, []);
 
   // Iframes don't fire onError for proxy 4xx/5xx, so guard against an infinite
@@ -187,7 +188,7 @@ export default function VisualizerPage() {
                 <>
                   {iframeStatus === 'loading' && <LoadingOverlay />}
                   <iframe
-                    key={iframeStatus} // Force remount on retry
+                    key={retryCount}
                     src={EMBED_SRC}
                     className="w-full h-full border-0"
                     title="3D Visualizer - Hello Room"

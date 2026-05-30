@@ -14,12 +14,21 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-// The BFF address is configured at container start via a small runtime shim
-// (window.__VIZ_CONFIG__) injected by nginx; see the Dockerfile entrypoint.
-// In dev or when the shim is missing, default to the host BFF port.
-const API_BASE =
-  (typeof window !== "undefined" && window.__VIZ_CONFIG__?.apiBaseUrl) ||
-  "http://localhost:3001";
+// Resolve the BFF base URL at runtime so the same scene.js works in both
+// access modes without a rebuild:
+//
+//   • Direct (http://localhost:3002): use the absolute URL from the runtime
+//     shim (window.__VIZ_CONFIG__.apiBaseUrl, injected by nginx at container
+//     start) or fall back to the host BFF port.
+//
+//   • Proxied via web app (/viz/index.html → localhost:3000): use the
+//     same-origin /api/bff rewrite (see apps/web/next.config.mjs) to avoid
+//     any cross-origin requests. Detection: the page pathname starts with /viz.
+const API_BASE = (() => {
+  if (typeof window === "undefined") return "http://localhost:3001";
+  if (window.location.pathname.startsWith("/viz")) return "/api/bff";
+  return window.__VIZ_CONFIG__?.apiBaseUrl || "http://localhost:3001";
+})();
 
 const STATUS_COLORS = {
   ok: 0x4caf50,
