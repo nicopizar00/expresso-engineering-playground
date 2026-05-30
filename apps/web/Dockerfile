@@ -40,6 +40,13 @@ FROM deps AS builder
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 
+ARG BFF_INTERNAL_URL=http://localhost:3001
+ARG VISUALIZER_INTERNAL_URL=http://localhost:3002
+ARG NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
+ENV BFF_INTERNAL_URL=$BFF_INTERNAL_URL
+ENV VISUALIZER_INTERNAL_URL=$VISUALIZER_INTERNAL_URL
+ENV NEXT_PUBLIC_VISUALIZER_URL=$NEXT_PUBLIC_VISUALIZER_URL
+
 RUN pnpm --filter @mini-commerce/web build
 
 # ---- runtime ----------------------------------------------------------------
@@ -50,8 +57,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Standalone output bundles everything needed to run the server.
-# Static assets and public files must be copied separately.
+# Standalone output bundles everything needed to run the server. In this pnpm
+# monorepo the server entrypoint lands under apps/web.
 COPY --from=builder /workspace/apps/web/.next/standalone ./
 COPY --from=builder /workspace/apps/web/.next/static ./apps/web/.next/static
 
@@ -60,4 +67,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=10 \
   CMD node -e "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]

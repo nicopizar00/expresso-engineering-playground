@@ -17,8 +17,14 @@ The stack consists of:
 |-----------------|---------------------|------------------------------|
 | Web app         | Next.js (App Router)| http://localhost:3000        |
 | BFF / API       | NestJS              | http://localhost:3001        |
+| 3D visualizer   | nginx + Three.js    | http://localhost:3002        |
 | PostgreSQL      | Postgres 16 (Docker)| localhost:5432               |
 | OTel Collector  | OpenTelemetry       | localhost:4317 / 4318        |
+
+> The web app is the single browser entry point: the browser calls the
+> same-origin `/api/bff` and `/viz` proxies, and the web server reaches the BFF
+> and visualizer over the internal Docker network. See
+> [architecture/web-entry-point.md](architecture/web-entry-point.md).
 
 > Catalog and orders are persisted through Prisma/PostgreSQL. The cart is
 > intentionally stored in BFF process memory and resets when that process
@@ -73,14 +79,15 @@ The doctor command checks:
 cp .env.example .env
 ```
 
-Edit `.env` if the BFF runs on a non-default port:
+The Compose stack and wrapper commands load this root configuration. You rarely
+need to edit it:
 
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
-```
-
-The Compose stack and wrapper commands load this root configuration. The web
-app falls back to `http://localhost:3001` in host mode.
+- The browser reaches the BFF through the web app's own `/api/bff` proxy, so no
+  `NEXT_PUBLIC_API_BASE_URL` is required (it is an optional override only).
+- Compose sets the internal proxy targets (`BFF_INTERNAL_URL`,
+  `VISUALIZER_INTERNAL_URL`) to the in-container service names automatically.
+  Leave them unset in `.env` so host dev (`pnpm pg:dev:host`) falls back to
+  `localhost`.
 
 ---
 
@@ -131,7 +138,8 @@ The web app exposes the customer flow plus development diagnostics:
 | `/checkout` | Place an order with a fictional customer name. |
 | `/orders` | List persisted orders. |
 | `/orders/<orderId>` | View and manage a persisted order. |
-| `/visualizer` | Embed the standalone Three.js visualizer. |
+| `/visualizer` | Embed the Three.js visualizer via the `/viz` proxy (start with `pnpm pg:up viz` or `full`). |
+| `/performance` | Mock-only Performance Playground (no live telemetry). |
 | `/dev` | Inspect API wiring and demo-mode behavior. |
 
 ### Suggested manual run-through
@@ -166,13 +174,16 @@ Target: http://localhost:3001
   ✓ GET  /catalog/products
   ✓ GET  /catalog/products/prod_espresso
   ✓ POST /cart/items
+  ✓ POST /cart/items (2nd)
   ✓ GET  /cart
+  ✓ PATCH /cart/items/:id
+  ✓ DELETE /cart/items/:id
   ✓ POST /checkout
   ✓ GET  /orders/ord_demo
   ✓ POST /orders/ord_demo/manage (mark_prepared)
   ✓ GET  /visualization-data
 
-All 9 smoke checks passed.
+All 12 smoke checks passed.
 ```
 
 The smoke test requires the BFF to be running (`pnpm pg:dev` or
@@ -294,12 +305,16 @@ orders are unaffected because they persist in PostgreSQL.
 
 Symptom: The web app UI shows an error in the response box.
 
-1. Confirm the BFF is running: `pnpm pg:smoke`
-2. Check `.env` — `NEXT_PUBLIC_API_BASE_URL` must match the
-   BFF port.
-3. CORS is enabled for all origins in development (`CORS_ORIGIN=*`). If you
-   see CORS errors, verify the BFF started without errors:
-   `pnpm --filter @mini-commerce/bff dev`
+The browser calls the web app's own `/api/bff` proxy (same origin), so there is
+no browser CORS dependency for the main app.
+
+1. Confirm the BFF is running: `pnpm pg:smoke`.
+2. Confirm the proxy resolves: `curl -s -o /dev/null -w '%{http_code}'
+   http://localhost:3000/api/bff/health` should return `200`.
+3. In Docker, the proxy target is `BFF_INTERNAL_URL=http://bff:3001`; for host
+   dev it falls back to `http://localhost:3001`. If you set
+   `NEXT_PUBLIC_API_BASE_URL`, it overrides the proxy — unset it to use the
+   proxy.
 
 ---
 

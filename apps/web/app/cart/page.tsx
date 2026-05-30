@@ -7,12 +7,15 @@
  * Redesigned with a clean, modern interface.
  */
 
-import { ShoppingBag, ArrowRight, Coffee, AlertCircle, ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ShoppingBag, ArrowRight, Coffee, AlertCircle, ArrowLeft, Minus, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useCart } from '@/components/cart/CartProvider';
 import { EmptyState } from '@/components/system/EmptyState';
 import { PageLoadingState } from '@/components/system/LoadingSkeleton';
 import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
 import Link from 'next/link';
+
+const MAX_QUANTITY = 20;
 
 export default function CartPage() {
   const { cart, isLoading, isEmpty, formattedTotal } = useCart();
@@ -171,6 +174,25 @@ export default function CartPage() {
  * Cart item row for full cart page
  */
 function CartItemRow({ item }: { item: CartItemType }) {
+  const { updateItem, removeItem } = useCart();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(action: () => Promise<void>) {
+    setPending(true);
+    setError(null);
+    try {
+      await action();
+    } catch {
+      setError('Update failed. Please try again.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const atMin = item.quantity <= 1;
+  const atMax = item.quantity >= MAX_QUANTITY;
+
   return (
     <div className="p-5">
       <div className="flex gap-4">
@@ -188,18 +210,62 @@ function CartItemRow({ item }: { item: CartItemType }) {
           <h3 className="font-medium" style={{ color: 'var(--foreground)' }}>
             {item.name}
           </h3>
-          <p
-            className="text-xs font-mono mt-0.5"
-            style={{ color: 'var(--muted-foreground)' }}
-          >
-            {item.productId}
-          </p>
           <p className="text-sm mt-2" style={{ color: 'var(--muted-foreground)' }}>
             Qty: {item.quantity} x{' '}
             <span className="font-mono">
               {formatMoney(item.unitPrice.amountMinor, item.unitPrice.currency)}
             </span>
           </p>
+
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              onClick={() => run(() => updateItem(item.itemId, item.quantity - 1))}
+              disabled={pending || atMin}
+              className="flex items-center justify-center w-8 h-8 rounded transition-colors disabled:opacity-50"
+              style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
+              aria-label="Decrease quantity"
+              title={atMin ? 'Use remove to clear this item' : 'Decrease quantity'}
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span
+              className="text-sm font-medium w-8 text-center flex items-center justify-center font-mono"
+              style={{ color: 'var(--foreground)' }}
+            >
+              {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : item.quantity}
+            </span>
+            <button
+              onClick={() => run(() => updateItem(item.itemId, item.quantity + 1))}
+              disabled={pending || atMax}
+              className="flex items-center justify-center w-8 h-8 rounded transition-colors disabled:opacity-50"
+              style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
+              aria-label="Increase quantity"
+              title={atMax ? 'Maximum quantity reached' : 'Increase quantity'}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => run(() => removeItem(item.itemId))}
+              disabled={pending}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+              style={{ color: 'var(--destructive)' }}
+              aria-label={`Remove ${item.name} from cart`}
+              title="Remove from cart"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Remove
+            </button>
+          </div>
+
+          {error && (
+            <p
+              role="alert"
+              className="text-xs mt-2"
+              style={{ color: 'var(--destructive)' }}
+            >
+              {error}
+            </p>
+          )}
         </div>
 
         {/* Line total */}

@@ -38,8 +38,12 @@ const stage = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const reloadBtn = document.getElementById("reload");
 
-// TODO(next-steps/visualizer-reactivity): declare POLL_INTERVAL_MS (default 2000),
-// an `inflight` boolean, and a `pollHandle` for the setInterval id here.
+const POLL_INTERVAL_MS = 2000;
+const SSE_RETRY_MS = 5000;
+let inflight = false;
+let pollHandle = null;
+let sse = null;
+let sseRetryHandle = null;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -76,18 +80,21 @@ const dataGroup = new THREE.Group();
 scene.add(dataGroup);
 
 reloadBtn.addEventListener("click", () => {
-  // TODO(next-steps/visualizer-reactivity): clearInterval(pollHandle) then call
-  // startPolling() so the next automatic tick is a full interval after the manual one.
-  void loadAndRender();
+  connectSse();
 });
 
 window.addEventListener("resize", onResize);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopPolling();
+    stopSse();
+  } else {
+    connectSse();
+  }
+});
 onResize();
 
-// TODO(next-steps/visualizer-reactivity): replace this one-shot call with
-// startPolling() — calls loadAndRender() once, then setInterval at POLL_INTERVAL_MS,
-// plus a document.visibilitychange listener that pauses while hidden.
-void loadAndRender();
+connectSse();
 animate();
 
 // ---------------------------------------------------------------------------
@@ -176,23 +183,106 @@ function clearGroup(group) {
   }
 }
 
-async function loadAndRender() {
-  // TODO(next-steps/visualizer-reactivity): short-circuit when `inflight` is true
-  // so overlapping poll ticks coalesce; surface `polling…` / `error · <reason>`
-  // via setStatus() instead of the current "loading…" copy.
-  setStatus("loading…");
-  const items = await fetchItems().catch(() => null);
-
+function renderItems(items) {
   clearGroup(dataGroup);
-  const source = items ?? FALLBACK_ITEMS;
-  for (const item of source) {
+  for (const item of items) {
     dataGroup.add(buildItemMesh(item));
   }
+}
 
-  if (items) {
-    setStatus(`live · ${items.length} item${items.length === 1 ? "" : "s"}`);
-  } else {
-    setStatus(`offline · ${FALLBACK_ITEMS.length} mock items`);
+function renderSnapshot(body, mode) {
+  if (!Array.isArray(body?.items)) throw new Error("malformed response");
+  renderItems(body.items);
+  const liveLabel = mode === "sse" ? "live (sse)" : "live";
+  setStatus(
+    `${liveLabel} · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`,
+  );
+}
+
+async function loadAndRender() {
+  if (inflight) return;
+
+  inflight = true;
+  setStatus("polling…");
+
+  try {
+    const body = await fetchItems();
+    renderSnapshot(body, "polling");
+  } catch (err) {
+    if (dataGroup.children.length === 0) {
+      renderItems(FALLBACK_ITEMS);
+      setStatus(`offline · ${FALLBACK_ITEMS.length} mock items`);
+    } else {
+      setStatus(`error · ${err.message ?? "fetch failed"}`);
+    }
+  } finally {
+    inflight = false;
+  }
+}
+
+function connectSse() {
+  stopSse();
+
+  if (!("EventSource" in window)) {
+    startPolling();
+    return;
+  }
+
+  sse = new EventSource(`${API_BASE}/visualization-updates`);
+
+  sse.addEventListener("open", () => {
+    stopPolling();
+  });
+
+  sse.addEventListener("message", (event) => {
+    try {
+      renderSnapshot(JSON.parse(event.data), "sse");
+    } catch {
+      void loadAndRender();
+    }
+  });
+
+  sse.addEventListener("error", () => {
+    if (sse) {
+      sse.close();
+      sse = null;
+    }
+    startPolling();
+    scheduleSseRetry();
+  });
+}
+
+function scheduleSseRetry() {
+  if (sseRetryHandle || document.hidden) return;
+  sseRetryHandle = window.setTimeout(() => {
+    sseRetryHandle = null;
+    connectSse();
+  }, SSE_RETRY_MS);
+}
+
+function stopSse() {
+  if (sse) {
+    sse.close();
+    sse = null;
+  }
+  if (sseRetryHandle) {
+    window.clearTimeout(sseRetryHandle);
+    sseRetryHandle = null;
+  }
+}
+
+function startPolling() {
+  stopPolling();
+  void loadAndRender();
+  pollHandle = window.setInterval(() => {
+    if (!document.hidden) void loadAndRender();
+  }, POLL_INTERVAL_MS);
+}
+
+function stopPolling() {
+  if (pollHandle) {
+    window.clearInterval(pollHandle);
+    pollHandle = null;
   }
 }
 
@@ -203,7 +293,7 @@ async function fetchItems() {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
   if (!Array.isArray(body?.items)) throw new Error("malformed response");
-  return body.items;
+  return body;
 }
 
 function setStatus(text) {

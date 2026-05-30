@@ -9,6 +9,7 @@
 //     a flat VisualizationItem[] the frontend renders as 3D primitives.
 
 import { Module } from "@nestjs/common";
+import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
 import { CartModule } from "../cart/cart.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { OrdersModule } from "../orders/orders.module";
@@ -16,7 +17,7 @@ import { VisualizationController } from "./visualization.controller";
 import { VisualizationService } from "./visualization.service";
 
 @Module({
-  imports: [CatalogModule, OrdersModule, CartModule],
+  imports: [DomainEventsModule, CatalogModule, OrdersModule, CartModule],
   controllers: [VisualizationController],
   providers: [VisualizationService],
   exports: [VisualizationService],

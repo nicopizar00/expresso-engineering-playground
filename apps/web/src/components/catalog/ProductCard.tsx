@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { Coffee, UtensilsCrossed, Package, Plus, Check, Loader2, Eye } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Package, Plus, Check, Loader2, Eye, AlertCircle } from 'lucide-react';
 import { Product, ProductCategory, formatMoney } from '@/lib/api/expresso-api';
 import { useCart } from '@/components/cart/CartProvider';
 
@@ -45,6 +45,7 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
   const { addItem } = useCart();
   const [isAdding, setIsAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const category = categoryConfig[product.category];
   const CategoryIcon = category.icon;
@@ -55,12 +56,13 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
     if (isAdding || isOutOfStock) return;
 
     setIsAdding(true);
+    setError(null);
     try {
       await addItem({ productId: product.productId, quantity: 1 });
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1500);
-    } catch (error) {
-      console.error('Failed to add item to cart:', error);
+    } catch {
+      setError('Could not add to cart. Please try again.');
     } finally {
       setIsAdding(false);
     }
@@ -75,10 +77,12 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
       }}
     >
       {/* Product visual area */}
-      <div
-        className="relative aspect-[4/3] flex items-center justify-center cursor-pointer overflow-hidden"
-        style={{ backgroundColor: 'var(--secondary)' }}
+      <button
+        type="button"
+        className="relative aspect-[4/3] flex items-center justify-center cursor-pointer overflow-hidden w-full"
+        style={{ backgroundColor: 'var(--secondary)', border: 0, padding: 0 }}
         onClick={() => onQuickView?.(product)}
+        aria-label={`View details for ${product.name}`}
       >
         {/* Category icon */}
         <CategoryIcon
@@ -112,23 +116,19 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
         )}
 
         {/* Quick view button - visible on hover */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuickView?.(product);
-          }}
+        <span
           className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-200"
           style={{
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
             color: 'var(--foreground)',
             backdropFilter: 'blur(4px)',
           }}
-          aria-label={`Quick view ${product.name}`}
+          aria-hidden="true"
         >
           <Eye className="h-3 w-3" />
           <span>Quick View</span>
-        </button>
-      </div>
+        </span>
+      </button>
 
       {/* Content */}
       <div className="p-4">
@@ -187,6 +187,17 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
             )}
           </button>
         </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="flex items-center gap-1.5 text-xs mt-3"
+            style={{ color: 'var(--destructive)' }}
+          >
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            {error}
+          </p>
+        )}
       </div>
     </article>
   );

@@ -6,10 +6,11 @@
  * Redesigned with a clean, modern interface and smooth animations.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { X, Coffee, UtensilsCrossed, Package, Plus, Minus, Check, Loader2, ShoppingBag } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { X, Coffee, UtensilsCrossed, Package, Plus, Minus, Check, Loader2, ShoppingBag, AlertCircle } from 'lucide-react';
 import { Product, ProductCategory, formatMoney } from '@/lib/api/expresso-api';
 import { useCart } from '@/components/cart/CartProvider';
+import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
 
 interface ProductQuickViewProps {
   product: Product;
@@ -27,30 +28,21 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const category = categoryConfig[product.category];
   const CategoryIcon = category.icon;
   const isOutOfStock = product.inventory === 0;
   const maxQuantity = Math.min(20, product.inventory);
 
-  // Handle escape key
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [handleKeyDown]);
+  useDialogA11y({ open: true, onClose, containerRef: modalRef });
 
   async function handleAddToCart() {
     if (isAdding || isOutOfStock) return;
     
     setIsAdding(true);
+    setError(null);
     try {
       await addItem({ productId: product.productId, quantity });
       setJustAdded(true);
@@ -58,8 +50,8 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
         setJustAdded(false);
         onClose();
       }, 1000);
-    } catch (error) {
-      console.error('Failed to add item to cart:', error);
+    } catch {
+      setError('Could not add to cart. Please try again.');
     } finally {
       setIsAdding(false);
     }
@@ -79,10 +71,19 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
       
       {/* Modal */}
       <div 
-        className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 w-auto sm:w-full sm:max-w-md rounded-xl overflow-hidden animate-slideUp"
+        ref={modalRef}
+        tabIndex={-1}
+        className="fixed z-50 rounded-xl overflow-hidden animate-slideUp"
         style={{ 
           backgroundColor: 'var(--card)',
           border: '1px solid var(--border)',
+          inset: 'auto',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'min(calc(100vw - 2rem), 28rem)',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
         }}
         role="dialog"
         aria-modal="true"
@@ -271,6 +272,17 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
               </>
             )}
           </button>
+
+          {error && (
+            <p
+              role="alert"
+              className="flex items-center gap-2 text-sm"
+              style={{ color: 'var(--destructive)' }}
+            >
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </>

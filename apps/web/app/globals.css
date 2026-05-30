@@ -439,6 +439,7 @@ body {
 .bg-transparent { background-color: transparent; }
 
 /* Disabled state */
+.disabled\:opacity-30:disabled { opacity: 0.3; }
 .disabled\:opacity-50:disabled { opacity: 0.5; }
 .disabled\:cursor-not-allowed:disabled { cursor: not-allowed; }
 .disabled\:pointer-events-none:disabled { pointer-events: none; }
@@ -560,6 +561,17 @@ body {
   background: linear-gradient(90deg, var(--secondary) 25%, var(--muted) 50%, var(--secondary) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* Screen reader only */

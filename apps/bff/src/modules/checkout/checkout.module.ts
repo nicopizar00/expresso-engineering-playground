@@ -13,13 +13,14 @@
 //   - Emit order.placed via NotificationsModule (outbox)
 
 import { Module } from "@nestjs/common";
+import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
 import { CartModule } from "../cart/cart.module";
 import { OrdersModule } from "../orders/orders.module";
 import { CheckoutController } from "./checkout.controller";
 import { CheckoutService } from "./checkout.service";
 
 @Module({
-  imports: [CartModule, OrdersModule],
+  imports: [CartModule, OrdersModule, DomainEventsModule],
   controllers: [CheckoutController],
   providers: [CheckoutService],
   exports: [CheckoutService],

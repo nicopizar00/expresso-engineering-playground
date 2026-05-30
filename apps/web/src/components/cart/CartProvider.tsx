@@ -38,6 +38,10 @@ export interface CartViewModel {
   isEmpty: boolean;
   /** Add an item to the cart */
   addItem: (input: AddCartItemInput) => Promise<void>;
+  /** Update an existing line's quantity */
+  updateItem: (itemId: string, quantity: number) => Promise<void>;
+  /** Remove a line from the cart */
+  removeItem: (itemId: string) => Promise<void>;
   /** Trigger a cart refresh from the server */
   refreshCart: () => void;
 }
@@ -76,6 +80,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const updateItem = useCallback(
+    async (itemId: string, quantity: number) => {
+      const updatedCart = await expressoApi.updateCartItem(itemId, { quantity });
+      mutate(updatedCart, false);
+    },
+    [mutate]
+  );
+
+  const removeItem = useCallback(
+    async (itemId: string) => {
+      const updatedCart = await expressoApi.removeCartItem(itemId);
+      mutate(updatedCart, false);
+    },
+    [mutate]
+  );
+
   const refreshCart = useCallback(() => {
     mutate();
   }, [mutate]);
@@ -90,6 +110,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       : '0.00 USD',
     isEmpty: !cart || cart.items.length === 0,
     addItem,
+    updateItem,
+    removeItem,
     refreshCart,
   };
 
