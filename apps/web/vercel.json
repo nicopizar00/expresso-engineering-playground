@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "pnpm --filter @mini-commerce/web build",
-  "installCommand": "pnpm install",
-  "outputDirectory": "apps/web/.next",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
   "build": {
     "env": {
       "NEXT_PUBLIC_DEMO_MODE": "true",
