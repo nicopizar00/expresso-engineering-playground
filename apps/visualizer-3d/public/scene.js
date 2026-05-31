@@ -94,6 +94,17 @@ const STATUS_COLORS = {
 
 const ROOM = { width: 6, depth: 6, height: 3 };
 
+// Hero-vs-history visual language.
+// The latest cart/order event becomes the HERO: scaled up, pulled to
+// centre-stage, brightened, and given a brief spawn-burst animation.
+// All other items recede: smaller scale, desaturated palette, no rotation.
+// This keeps the stage about the LATEST user action, with history present
+// but quiet.
+const HERO_SCALE        = 1.45;
+const HISTORY_SCALE     = 0.55;
+const HERO_FLOOR_Y      = 0.002;
+const SPAWN_DURATION_MS = 700;
+
 const stage    = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const reloadBtn = document.getElementById("reload");
@@ -196,35 +207,80 @@ function buildRoom(scene, { width, depth, height }) {
 // Asset builder dispatch
 // =============================================================================
 
-function buildItemMesh(item) {
+// Pick the "latest user action" item. Only cart/order items are eligible;
+// catalog products never win because their updatedAt is always 0 from the BFF.
+// An empty cart is also ineligible — otherwise checkout (which clears the
+// cart AFTER creating the order) would spotlight an empty placeholder.
+// Returns the item id of the hero, or null when nothing qualifies.
+function pickHero(items) {
+  let heroId   = null;
+  let heroTime = 0;
+  for (const item of items) {
+    const source = item?.metadata?.source;
+    if (source !== "cart" && source !== "orders") continue;
+    if (source === "cart" && (Number(item.metadata?.itemCount) || 0) === 0) continue;
+    const ts = Number(item.metadata?.updatedAt) || 0;
+    if (ts > heroTime) {
+      heroTime = ts;
+      heroId   = item.id;
+    }
+  }
+  return heroId;
+}
+
+// Pull RGB channels toward grey by `mix` ∈ [0,1]. mix=0 → original, mix=1 → grey.
+// Used to recede history items so the hero keeps the visual weight.
+function desaturateHex(hex, mix) {
+  const r    = (hex >> 16) & 255;
+  const g    = (hex >>  8) & 255;
+  const b    =  hex        & 255;
+  const grey = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
+  const nr   = (r * (1 - mix) + grey * mix) | 0;
+  const ng   = (g * (1 - mix) + grey * mix) | 0;
+  const nb   = (b * (1 - mix) + grey * mix) | 0;
+  return (nr << 16) | (ng << 8) | nb;
+}
+
+function buildItemMesh(item, isHero) {
   // Drink category always renders as off-white ceramic — the BFF provides domain
   // meaning (category) and Three.js owns the visual choice (ceramic colour).
   // Status colours are reserved for non-drink items (orders, generic catalog).
   // An explicit metadata.color always wins as a per-item override.
-  const color = item.metadata?.color ??
+  const baseColor = item.metadata?.color ??
     (item.metadata?.category === "drink"
       ? ESPRESSO_PALETTE.lightBeige
       : STATUS_COLORS[item.status] ?? STATUS_COLORS.idle);
+  // History items lose ~55 % of their saturation so they read as backdrop.
+  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
+
+  // Hero items snap to centre-stage regardless of their positionHint —
+  // the positionHint is the BFF's pre-clamped layout for the wider scene,
+  // but the hero deserves the prime spot in front of the camera.
+  const heroOverride = { x: 0, y: 0, z: 0 };
+  const hint = isHero ? heroOverride : (item.positionHint ?? { x: 0, y: 0, z: 0 });
 
   // << EXTEND: add more category dispatches here as the domain catalogue grows.
   //    Pattern: if (item.metadata?.category === "snack") return buildSnackGroup(color);
   if (item.metadata?.category === "drink") {
-    const hint = item.positionHint ?? { x: 0, y: 0, z: 0 };
     const group = buildEspressoGroup(color);
     group.position.set(
       clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-      0.002,  // cups always sit on the floor; hint.y drives x/z layout only
+      HERO_FLOOR_Y,  // cups always sit on the floor; hint.y drives x/z layout only
       clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
     );
+    const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
+    group.scale.setScalar(baseScale);
     group.userData = {
       id: item.id,
       label: item.label,
       type: item.type,
       status: item.status,
-      baseY: 0.002,
-      phase: Math.random() * Math.PI * 2, // staggered start angle when multiple cups shown
-      baseScale: 1,
-      idleRotate: true, // drives the slow Y-axis spin in animate()
+      baseY: HERO_FLOOR_Y,
+      phase: Math.random() * Math.PI * 2,
+      baseScale,
+      // Only the hero spins — history rotation would compete for attention.
+      idleRotate: isHero,
+      isHero,
     };
     return group;
   }
@@ -239,13 +295,22 @@ function buildItemMesh(item) {
     default:       geometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);   break;
   }
   const mesh = new THREE.Mesh(geometry, material);
-  const hint = item.positionHint ?? { x: 0, y: 0.3, z: 0 };
+  // Hero lifts to chest-height; history sits at its hinted y or a floor minimum.
+  const heroLift = item.type === "sphere" ? 0.6 : 0.4;
   mesh.position.set(
     clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-    Math.max(0.3, hint.y),
+    isHero ? heroLift : Math.max(0.3, hint.y),
     clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
   );
-  mesh.userData = { id: item.id, label: item.label };
+  const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
+  mesh.scale.setScalar(baseScale);
+  mesh.userData = {
+    id: item.id,
+    label: item.label,
+    baseScale,
+    idleRotate: isHero,
+    isHero,
+  };
   return mesh;
 }
 
@@ -465,6 +530,44 @@ function clearGroup(group) {
   }
 }
 
+// Single render entry point — both the SSE message handler and the polling
+// fallback flow through here so the hero/history logic stays in one place.
+//
+// Side effects:
+//   • Rebuilds dataGroup from scratch.
+//   • Suppresses the empty-cart placeholder so it no longer dominates the stage.
+//   • Stamps `spawnedAt = performance.now()` on the new hero when the hero id
+//     changes between snapshots; animate() reads that to play a brief burst.
+function renderItems(items) {
+  const heroId      = pickHero(items);
+  const heroChanged = heroId !== null && heroId !== dataGroup.userData.heroId;
+
+  clearGroup(dataGroup);
+
+  for (const item of items) {
+    // Drop the empty-cart marker entirely — when itemCount=0 the cart has no
+    // story to tell and a large grey cone in the foreground used to drown out
+    // the actual hero (the freshly placed order). See the artistic verdict
+    // in CLAUDE.md / next-steps for context.
+    if (
+      item.metadata?.source === "cart" &&
+      (Number(item.metadata?.itemCount) || 0) === 0
+    ) {
+      continue;
+    }
+
+    const isHero = item.id === heroId;
+    const mesh   = buildItemMesh(item, isHero);
+
+    if (isHero && heroChanged) {
+      mesh.userData.spawnedAt = performance.now();
+    }
+    dataGroup.add(mesh);
+  }
+
+  dataGroup.userData.heroId = heroId;
+}
+
 // SSE — primary data path. Connects to /visualization-updates and renders each
 // pushed snapshot directly. Falls back to polling on error.
 function connectSse() {
@@ -486,8 +589,7 @@ function connectSse() {
     try {
       const body = JSON.parse(event.data);
       if (!Array.isArray(body?.items)) throw new Error("malformed");
-      clearGroup(dataGroup);
-      for (const item of body.items) dataGroup.add(buildItemMesh(item));
+      renderItems(body.items);
       setStatus(`live (sse) · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`);
     } catch {
       void loadAndRender();
@@ -522,9 +624,8 @@ async function loadAndRender() {
     } catch (err) {
       if (dataGroup.children.length > 0) { setStatus(`error · ${err.message}`); return; }
     }
-    clearGroup(dataGroup);
     const source = items ?? FALLBACK_ITEMS;
-    for (const item of source) dataGroup.add(buildItemMesh(item));
+    renderItems(source);
     setStatus(
       items
         ? `live · ${items.length} item${items.length === 1 ? "" : "s"}`
@@ -555,12 +656,29 @@ function onResize() {
 }
 
 // Main render loop.
-// idleRotate speed: 0.005 rad/frame ≈ one full rotation every ~20 s at 60 fps.
+// Hero spins faster than history (which doesn't spin at all). On hero promotion
+// a brief scale-burst plays: ease-out cubic toward baseScale with a sinusoidal
+// overshoot so the new item visibly "lands" on the stage.
 // << EXTEND: replace the += with clock-delta maths for frame-rate independence.
 function animate() {
   controls.update();
+  const now = performance.now();
   for (const child of dataGroup.children) {
-    if (child.userData.idleRotate) child.rotation.y += 0.005;
+    const ud = child.userData;
+    if (ud.idleRotate) child.rotation.y += ud.isHero ? 0.008 : 0.0;
+
+    if (ud.spawnedAt !== undefined && ud.spawnedAt > 0) {
+      const t = (now - ud.spawnedAt) / SPAWN_DURATION_MS;
+      if (t < 1) {
+        // Ease-out cubic + small overshoot so the new hero "pops" into place.
+        const ease      = 1 - Math.pow(1 - t, 3);
+        const overshoot = 0.18 * Math.sin(t * Math.PI);
+        child.scale.setScalar(ud.baseScale * (ease + overshoot));
+      } else {
+        child.scale.setScalar(ud.baseScale);
+        ud.spawnedAt = -Infinity; // freeze; subsequent frames skip the math.
+      }
+    }
   }
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
@@ -580,6 +698,10 @@ function clamp(n, lo, hi) {
 //    Convention: metadata.category drives the builder in buildItemMesh();
 //                metadata.color  sets the PS1 texture base colour directly.
 // =============================================================================
+// The offline showcase represents "no backend, single hero cup" — so we
+// mark it as a cart event with a non-zero itemCount and a fresh updatedAt.
+// pickHero then promotes it to the centre-stage hero treatment instead of
+// rendering it as desaturated history.
 const FALLBACK_ITEMS = [
   {
     id: "espresso_classic",
@@ -591,7 +713,9 @@ const FALLBACK_ITEMS = [
     metadata: {
       category: "drink",
       inventory: 45,
-      source: "catalog",
+      source: "cart",
+      itemCount: 1,
+      updatedAt: Date.now(),
       color: ESPRESSO_PALETTE.lightBeige, // 0xF1ECDA — white ceramic
     },
   },

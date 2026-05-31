@@ -55,6 +55,9 @@ function orderStatus(status: Order["status"]): VisualizationItemStatus {
   }
 }
 
+// `updatedAt` is epoch ms. The visualizer compares these across items to pick
+// the "latest user action" hero. Products use 0 so the catalogue can never
+// outrank a cart/order event for the spotlight.
 function fromProduct(product: Product, index: number): VisualizationItem {
   return {
     id: `viz_product_${product.productId}`,
@@ -69,11 +72,13 @@ function fromProduct(product: Product, index: number): VisualizationItem {
       currency: product.price.currency,
       inventory: product.inventory,
       source: "catalog",
+      updatedAt: 0,
     },
   };
 }
 
 function fromOrder(order: Order, index: number): VisualizationItem {
+  const updatedAtEpoch = Date.parse(order.updatedAt);
   return {
     id: `viz_order_${order.orderId}`,
     label: `${order.orderId} · ${order.customerName}`,
@@ -89,6 +94,7 @@ function fromOrder(order: Order, index: number): VisualizationItem {
       currency: order.total.currency,
       placedAt: order.placedAt,
       source: "orders",
+      updatedAt: Number.isFinite(updatedAtEpoch) ? updatedAtEpoch : 0,
     },
   };
 }
@@ -143,6 +149,7 @@ export class VisualizationService {
             total: cart.total.amountMinor,
             currency: cart.total.currency,
             source: "cart",
+            updatedAt: this.cart.lastChangedAt(),
           },
         },
       ];

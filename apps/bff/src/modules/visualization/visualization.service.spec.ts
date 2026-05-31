@@ -73,6 +73,7 @@ function makeSvc({
   };
   const cartService = {
     get: typeof cart === "function" ? vi.fn().mockImplementation(cart) : vi.fn().mockReturnValue(cart),
+    lastChangedAt: vi.fn().mockReturnValue(0),
   };
   return new VisualizationService(catalog as any, ordersService as any, cartService as any);
 }

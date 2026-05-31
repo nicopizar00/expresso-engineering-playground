@@ -133,9 +133,9 @@ export default function CheckoutPage() {
             style={{ borderColor: 'var(--border)' }}
           >
             <ShoppingBag className="h-4 w-4" style={{ color: 'var(--primary)' }} />
-            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+            <h2 className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
               Order Summary
-            </span>
+            </h2>
             <span 
               className="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
               style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
