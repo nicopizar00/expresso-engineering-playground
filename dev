@@ -132,17 +132,19 @@ cmd_up() {
 
   header "Starting local app stack (${target})..."
 
-  # Port collision pre-flight — stop existing Docker services if port is occupied.
+  # Port collision pre-flight. `up` is additive: if our own bff container already
+  # holds the port, `compose up -d` will reconcile in place — no need to tear
+  # down profiled siblings (web/viz) the user may still want running. Only error
+  # out when the port is held by something we don't control.
   if port_in_use "$BFF_PORT"; then
-    warn "Port ${BFF_PORT} in use — stopping existing services..."
-    compose --profile web --profile viz down
-    sleep 2
-    if port_in_use "$BFF_PORT"; then
-      fail "Port ${BFF_PORT} still occupied after stopping Docker services."
+    if compose ps --services --filter status=running 2>/dev/null | grep -qx bff; then
+      info "Port ${BFF_PORT} held by our bff container — reconciling in place"
+    else
+      fail "Port ${BFF_PORT} occupied by a non-Docker process."
       info "Kill the blocking process: lsof -ti:${BFF_PORT} | xargs kill"
+      info "Or stop the stack: ./dev down"
       exit 1
     fi
-    pass "Port ${BFF_PORT} is free"
   fi
 
   # 1. Start postgres + otel-collector and wait for healthy.
@@ -217,12 +219,16 @@ cmd_dev() {
 
 cmd_status() {
   header "Service Status"
-  local running
-  running=$(compose ps --quiet 2>/dev/null) || true
-  if [[ -z "$running" ]]; then
+  # Include the web/viz profiles so containers in those profiles are visible
+  # even when stopped — otherwise a crashed/exited visualizer is silently
+  # hidden and looks identical to "never asked to start it". `-a` shows
+  # exited containers so the user sees the actual state, not a curated view.
+  local containers
+  containers=$(compose --profile web --profile viz ps -a --quiet 2>/dev/null) || true
+  if [[ -z "$containers" ]]; then
     info "No services running. Run ./dev up to start."
   else
-    compose ps
+    compose --profile web --profile viz ps -a
   fi
   echo ""
 }

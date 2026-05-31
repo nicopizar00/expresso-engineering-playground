@@ -229,3 +229,58 @@ Quality gates (CI vision, `docs/quality-strategy/`): lint → unit → build →
 2. Pick a `.md` (e.g., `orders-persistence.md`)
 3. Use `EnterPlanMode` to design, then implement step-by-step
 4. Update this file + memory when complete
+
+---
+
+## 3D Visualizer — PS1 Espresso Cup
+
+**Branch**: `feature/ps1-espresso-cup` · **File**: `apps/visualizer-3d/public/scene.js`
+
+The visualizer renders domain catalogue items as PS1-era low-poly 3D objects.
+The Classic Espresso cup is the first and primary domain asset.
+
+### Stack
+- Vanilla Three.js 0.161.0 via ESM importmap (no build step, no npm install)
+- Single static file: `apps/visualizer-3d/public/scene.js`
+- Served by nginx at port 3002; preview without Docker: `npx serve -p 3002 apps/visualizer-3d/public`
+
+### Current asset state (WIP / Beta)
+The model geometry is technically correct and matches the design spec polygon
+budget. **Artistic approval is pending** — see
+[`docs/next-steps/ps1-espresso-cup.md`](docs/next-steps/ps1-espresso-cup.md)
+for the full deficiency list and approval checklist.
+
+What is working:
+- `buildSquareFrustum(topW, botW, h)` — exact-spec `BufferGeometry` (8 verts / 12 tris)
+- `ESPRESSO_CFG` — single configurable block at top of `scene.js`, all dimensions documented
+- `ESPRESSO_PALETTE` — five named colours from the design spec
+- `MeshLambertMaterial` + `flatShading: true` + 16×16 `NearestFilter` canvas texture
+- Idle Y-axis rotation via `userData.idleRotate`
+- SSE primary + polling fallback data transport
+
+Known deficiencies (do not merge to main until resolved):
+1. Cup colour → white ceramic (`#F1ECDA`), not mid-beige
+2. Saucer → needs angled/sloped top surface, not flat box
+3. Coffee fill → increase visibility (`coffeeShrink` 0.05 → 0.02)
+4. Scale → reduce all dims ~20–25%, re-frame camera
+
+### Art direction rules
+See [`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md) for:
+- Polygon budget tiers
+- Texture rules (NearestFilter always, 16×16 or 32×32)
+- Material rules (Lambert only, no PBR, no smoothing)
+- Geometry rules (square openings, no circles, 90° angles only)
+- Scale reference and silhouette test procedure
+
+### Modelling workflow for Claude Code
+1. Read `docs/next-steps/ps1-espresso-cup.md` for the open issues list
+2. Edit only `ESPRESSO_CFG` and `buildEspressoGroup` — never touch `buildSquareFrustum`
+3. Preview via `npx serve` + browser (no Docker needed for geometry iteration)
+4. Verify silhouette from 4 angles; check at ~200px viewport width for icon readability
+5. Run `preview_screenshot` twice (3 s apart) to confirm idle rotation still works
+
+### Adding new domain assets
+Follow the `buildEspressoGroup` + `ESPRESSO_CFG` pattern. Dispatch via
+`item.metadata?.category` in `buildItemMesh`. Document in `docs/next-steps/`
+before implementing. See the "Extension: future domain assets" section in the
+milestone doc.

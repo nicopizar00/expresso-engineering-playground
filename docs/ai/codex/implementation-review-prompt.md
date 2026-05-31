@@ -12,18 +12,16 @@ READ FIRST
 - docs/ai/codex/current-findings.md
 - CLAUDE.md
 - docs/project-state/current-system.md
+- docs/project-state/visualizer-domain-certification.md
 - docs/architecture/web-entry-point.md
 - docs/local-development.md
 
 CURRENT HIGH-PRIORITY RISKS
-- The `/orders/[orderId]` web route returns 500 in the running app because the
-  order detail page handles route params incorrectly for the active Next.js
-  version. This blocks the user-facing checkout and order-management flow.
-- `pnpm pg:up full` has profile flag drift with the local Docker Compose
-  version. Treat this as runtime drift unless the task explicitly asks to fix
-  the wrapper.
-- Visualizer route and assets are reachable, but rendered scene behavior still
-  needs manual browser verification.
+- Classic Expresso/Espresso is WIP and pending artistic certification.
+- The real BFF-driven visualizer may color drink cups by status unless the
+  visualization contract supplies a ceramic color override.
+- Rendered scene behavior still needs browser verification on standalone :3002
+  and web /visualizer.
 
 BOUNDARIES
 - Preserve the web app as the single browser-facing entry point.
@@ -32,6 +30,8 @@ BOUNDARIES
   `/performance`.
 - Do not modify backend contracts, telemetry, k6, or visualizer internals
   unless the task explicitly authorizes that scope.
+- For artistic certification work, leave implementation to Claude Code and
+  produce a focused handoff for failed gates.
 
 TASK
 Review the requested implementation or draft an implementation handoff. Focus

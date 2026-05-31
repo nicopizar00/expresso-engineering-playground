@@ -33,7 +33,7 @@ function orderPosition(index: number): PositionHint {
   };
 }
 
-const CART_POSITION: PositionHint = { x: 0, y: 0.35, z: 2.0 };
+const CART_POSITION: PositionHint = { x: 0, y: 0.35, z: 1.0 };
 
 function productStatus(inventory: number): VisualizationItemStatus {
   if (inventory === 0) return "error";
@@ -135,6 +135,10 @@ export class VisualizationService {
           status: cart.itemCount === 0 ? "idle" : "ok",
           positionHint: CART_POSITION,
           metadata: {
+            // Non-empty cart: signal "drink" so Three.js renders a ceramic cup
+            // at the cart position instead of a generic cone.
+            // Empty cart: no category — renders as an idle marker placeholder.
+            ...(cart.itemCount > 0 && { category: "drink" }),
             itemCount: cart.itemCount,
             total: cart.total.amountMinor,
             currency: cart.total.currency,

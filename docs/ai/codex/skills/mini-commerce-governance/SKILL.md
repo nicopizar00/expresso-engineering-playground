@@ -20,6 +20,12 @@ Open only the files needed for the request:
 - `docs/ai/codex/current-findings.md` for active UAT and runtime findings.
 - `docs/project-state/current-system.md` for authoritative features and UX
   state.
+- `docs/project-state/visualizer-domain-certification.md` when the request
+  touches visualizer domain meaning or art direction.
+- `docs/next-steps/ps1-espresso-cup.md` when the request touches Classic
+  Expresso/Espresso artistic approval.
+- `docs/next-steps/expresso-order-counter.md` when the request touches the
+  broader visualizer scene direction.
 - `docs/architecture/web-entry-point.md` for `/api/bff` and `/viz` topology.
 - `CLAUDE.md` when creating implementation handoff prompts.
 
@@ -37,9 +43,11 @@ decision points.
    mock-only `/performance`.
 5. Do not introduce backend contracts, telemetry changes, k6 scope, or
    visualizer internals without explicit owner approval.
-6. Include the current UAT blockers when they affect the requested work:
-   `/orders/[orderId]` route failure, Compose profile drift, and unverified
-   3D pixels.
+6. If the request is about visualizer artistic certification, use the dedicated
+   `visualizer-artistic-certification` skill or prompt and leave implementation
+   to Claude Code.
+7. Include only current blockers from `docs/ai/codex/current-findings.md`; do
+   not reintroduce completed UAT blockers from older prompts.
 
 ## Output
 

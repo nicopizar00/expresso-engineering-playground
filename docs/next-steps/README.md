@@ -21,16 +21,30 @@ When the count drops to zero, the topic is done.
      `--profile` drift) are fixed and validated.
    - Remaining: R4 — a human/browser walkthrough of header/footer nav,
      cart-drawer pixels, Demo Mode scenarios, and `/dev` cards (now unblocked).
+2. **[Expresso Order Counter](expresso-order-counter.md)** — *visualizer domain
+   and art-direction evolution*
+   - Turns the current "Hello Room" technical visualizer into a minimal
+     coffee-shop order-counter scene.
+   - Starts with Classic Expresso as the first domain-specific low-poly asset.
+   - Requires semantic visualization data, recent-order focus, and aggregate
+     history before broader arcade-world expansion.
+3. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — *Classic Expresso/Espresso
+   asset certification*
+   - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
+   - Pending artistic approval for ceramic color, saucer depth, coffee
+     visibility, handle readability, scale, and icon-size clarity.
 
 ## Done
 
-✅ **Visualizer reactivity** — *interval polling shipped*
-   - 3D scene polls `GET /visualization-data` every 2 s, so web-app/curl
-     mutations appear without clicking **Reload data**
-   - In-flight guard (no overlapping requests), pause while the tab is hidden,
-     immediate refresh on focus, reload button resets the timer
-   - HUD status: `polling…` / `live · N items` / `error · <reason>` /
-     `offline · N mock items`; all 5 source anchors removed
+✅ **Visualizer reactivity** — *SSE primary, polling fallback shipped*
+   - 3D scene connects to `GET /visualization-updates` and receives a full
+     snapshot on connect and after domain mutations.
+   - Falls back to polling `GET /visualization-data` every 2 s when SSE is
+     unavailable.
+   - In-flight guard, hidden-tab pause, focus reconnect, and reload-triggered
+     reconnect are implemented.
+   - HUD status includes `live (sse) · N items`, `live · N items`, `polling…`,
+     `error · <reason>`, and `offline · N mock items`; source anchors removed.
    - Spec + variants: [visualizer-reactivity.md](visualizer-reactivity.md)
 
 ✅ **Unified web entry point** — *web app as the single browser-facing shell*

@@ -29,12 +29,15 @@ Mark these manual or skipped unless a real browser is available:
 - Demo Mode mock scenarios.
 - `/performance` copy and mock-only labeling.
 - `/dev` card interactions.
-- 3D scene painting, status colors, and reload reactivity.
+- 3D scene painting, Classic Expresso/Espresso readability, SSE status, and
+  reflected commerce interaction.
 
 ## Current Known Findings
 
-- `/orders/[orderId]` returns 500 in the tested runtime and blocks checkout
-  confirmation plus order management UX.
-- `pnpm pg:up full` can fail with Compose profile flag drift.
-- `/viz` proxy assets and visualization-data are reachable; pixel verification
-  remains manual until a browser pass is available.
+- Old order-detail and Compose profile drift blockers are recorded as done in
+  `docs/next-steps/uat-remediation.md`.
+- `/viz` proxy assets and visualization-data are reachable; Classic
+  Expresso/Espresso pixel certification remains manual until a browser pass is
+  available.
+- The visualizer may still need implementation work if real BFF-driven drink
+  products render with status color instead of ceramic color.

@@ -134,7 +134,7 @@ describe("VisualizationService", () => {
     const { items } = makeSvc().list();
     const cart = items.find((i) => i.id === "viz_cart_demo");
     expect(cart?.type).toBe("marker");
-    expect(cart?.positionHint).toEqual({ x: 0, y: 0.35, z: 2.0 });
+    expect(cart?.positionHint).toEqual({ x: 0, y: 0.35, z: 1.0 });
   });
 
   it("empty cart has idle status", () => {
@@ -146,6 +146,17 @@ describe("VisualizationService", () => {
     const filledCart: Cart = { ...EMPTY_CART, itemCount: 2, total: { amountMinor: 360, currency: "EUR" } };
     const { items } = makeSvc({ cart: filledCart }).list();
     expect(items.find((i) => i.id === "viz_cart_demo")?.status).toBe("ok");
+  });
+
+  it("non-empty cart includes drink category so Three.js renders a cup", () => {
+    const filledCart: Cart = { ...EMPTY_CART, itemCount: 1, total: { amountMinor: 180, currency: "EUR" } };
+    const { items } = makeSvc({ cart: filledCart }).list();
+    expect(items.find((i) => i.id === "viz_cart_demo")?.metadata.category).toBe("drink");
+  });
+
+  it("empty cart has no category so Three.js renders a generic marker", () => {
+    const { items } = makeSvc().list();
+    expect(items.find((i) => i.id === "viz_cart_demo")?.metadata.category).toBeUndefined();
   });
 
   it("all positions are within room bounds", () => {

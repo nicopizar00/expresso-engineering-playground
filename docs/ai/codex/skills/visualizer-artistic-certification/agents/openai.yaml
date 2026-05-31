@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visualizer Artistic Certification"
+  short_description: "Certify the 3D cup and reflected web flow."
+  default_prompt: "Use $visualizer-artistic-certification to certify the Classic Expresso 3D visualizer and reflected web interaction."
