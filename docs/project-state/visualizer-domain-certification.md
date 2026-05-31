@@ -2,6 +2,11 @@
 
 Snapshot date: 2026-05-31.
 
+Update note: since the first version of this report, a WIP Classic Espresso
+showcase has appeared in `apps/visualizer-3d/public/scene.js` and
+`docs/next-steps/ps1-espresso-cup.md`. The asset is no longer absent, but it is
+still not artistically certified.
+
 This report reviews the current 3D visualizer, visualization data path, order
 persistence path, and AI guidance files against the desired "Expresso Order
 Counter" direction. It is an analysis and planning artifact only. It does not
@@ -15,7 +20,7 @@ a meaningful coffee-shop commerce visualization.
 
 Technical foundation: conditional pass.
 
-Domain and art direction: fail.
+Domain and art direction: partial, pending browser certification.
 
 Claude Code implementation readiness: conditional pass only if the future
 implementation session starts from this report and
@@ -66,11 +71,11 @@ Ignored source-like duplicates:
 | BFF ownership boundary | Pass | Visualizer consumes BFF endpoints and does not read PostgreSQL directly. |
 | Persisted orders path | Pass | `OrdersService` loads and mutates PostgreSQL rows through Prisma, then serves a warm cache. |
 | Live update path | Partial | `GET /visualization-updates` uses SSE for cart, checkout, and order events, but catalog product creation does not emit the same domain-change signal. |
-| Current visual domain alignment | Fail | The scene is still named "Hello Room" and renders cubes, spheres, and a cone. |
+| Current visual domain alignment | Partial | A WIP Classic Espresso cup builder exists, but the full scene is not yet an Expresso Order Counter. |
 | Data meaning | Partial | Metadata contains product, order, and cart facts, but the top-level DTO is still primitive-rendering shaped. |
 | Scene semantics | Fail | Recent orders, historical orders, product composition, pickup/completed states, and coffee-shop areas are not visually distinguishable. |
 | Three.js architecture | Partial | Transport and clear/rebuild behavior are simple and maintainable, but scene, fetch, mapping, geometry factories, and animation live in one file. |
-| Retro PS1 art direction | Fail | Current materials, lighting, antialiasing, smooth spheres/cones, white room, and grid are generic technical sandbox choices. |
+| Retro PS1 art direction | Partial | The WIP cup uses pixel textures and flat Lambert materials, but browser approval is still pending and non-cup scene elements remain generic. |
 | Performance scaling | Partial | SSE avoids stale UI, but every persisted order becomes a permanent rendered item. No recency window or aggregate summary exists. |
 | AI governance readiness | Partial | Boundaries are strong, but several guidance files are stale or completed prompts rather than current implementation direction. |
 
@@ -81,6 +86,8 @@ Implemented:
 - `GET /visualization-data` returns products, orders, and cart as
   `VisualizationItem[]`.
 - `GET /visualization-updates` streams the same snapshot shape through SSE.
+- `scene.js` contains a WIP Classic Espresso cup builder for drink-category
+  items and an offline fallback showcase item.
 - Cart add/update/remove, checkout, and order management emit domain-change
   signals.
 - Catalog product creation updates the data available to `GET /visualization-data`
@@ -114,10 +121,9 @@ Only implied:
 - A stable semantic visualization contract where the BFF provides meaning and
   Three.js owns representation.
 
-Missing:
+Missing or not yet certified:
 
-- Classic Expresso geometry, texture, palette, saucer, handle, and coffee
-  surface.
+- Classic Expresso/Espresso artistic approval in the real BFF-driven scene.
 - Any room/counter/product shelf/pickup-area/coffee-machine semantics.
 - A recency model for visual orders.
 - Aggregate objects for historical orders.
@@ -129,19 +135,21 @@ Missing:
 
 ## Key Findings
 
-### C1 - The Scene Is Still a Placeholder Sandbox
+### C1 - The Scene Has a WIP Cup, But Is Not Yet an Order Counter
 
 Severity: high.
 
-`scene.js` explicitly describes "Hello Room" and "Placeholder objects". The
-renderer maps item types to a box, high-segment sphere, or cone. The HTML title
-and subtitle also describe a placeholder visualizer.
+`scene.js` now describes a "Classic Espresso showcase" and builds a low-poly
+cup for drink-category items. However, `index.html` still says "Hello Room" and
+"placeholder objects", and non-drink products/orders/cart still fall back to
+generic primitives. The scene is not yet a counter, shelf, pickup area, or
+coffee-shop world.
 
 Impact:
 
-- A user cannot understand a coffee-shop commerce system by looking at the
-  scene.
-- The current visual result conflicts with the requested Expresso Load Arcade
+- The project now has a candidate visual anchor, but a user still cannot
+  understand the commerce system by looking at the full scene.
+- The current result remains short of the requested Expresso Order Counter
   direction.
 
 Recommendation:
@@ -220,17 +228,19 @@ Recommendation:
   `transport`, `scene`, `layout`, `materials`, `objects/classic-expresso`,
   `objects/orders`, and `data-map` are enough.
 
-### C5 - The Current Art Direction Conflicts With PS1 Low-Poly Goals
+### C5 - PS1 Art Direction Exists Only on the WIP Cup
 
 Severity: high.
 
-Current scene choices include antialiasing, `MeshStandardMaterial`, smooth
-spheres/cones with many segments, a white room, a soft grid, and generic status
-colors.
+The WIP cup uses pixel textures, `NearestFilter`, and flat Lambert materials.
+The surrounding room and generic fallback objects still use technical-demo
+choices such as antialiasing, `MeshStandardMaterial`, smooth spheres/cones, a
+white room, a soft grid, and generic status colors.
 
 Impact:
 
-- The scene reads as a clean technical demo, not a rough mid-90s arcade
+- The cup may pass PS1-style review after browser certification, but the wider
+  scene still reads as a technical showcase rather than a rough mid-90s arcade
   coffee-shop world.
 
 Recommendation:
@@ -263,14 +273,15 @@ Drift found:
   appear to be superseded by `docs/next-steps/uat-remediation.md`.
 - `docs/ai/claude/visualizer-sse-prompt.txt` is now a completed implementation
   prompt, not future direction.
-- No repo-local prompt or skill currently captures the Classic Expresso or
-  Expresso Order Counter art direction.
 
 Correction made in this pass:
 
 - `docs/next-steps/README.md` now points to
   `docs/next-steps/expresso-order-counter.md` and describes visualizer
   reactivity as SSE-primary with polling fallback.
+- `docs/ai/codex/artistic-certification-prompt.md` and the repo-local
+  `visualizer-artistic-certification` skill now capture the Codex-side
+  certification workflow.
 
 Recommendation:
 
@@ -278,23 +289,31 @@ Recommendation:
   implementation pass.
 - Use `docs/next-steps/expresso-order-counter.md` as the current handoff source.
 
-### C7 - Classic Expresso Is Absent
+### C7 - Classic Expresso/Espresso Is WIP, Not Certified
 
 Severity: high.
 
-No current source file defines Classic Expresso. There is no square espresso
-cup, four-sided opening, visible coffee surface, square saucer, thin handle,
-pixel texture, or limited palette.
+`scene.js` now contains a WIP Classic Espresso cup builder and fallback item,
+and `docs/next-steps/ps1-espresso-cup.md` records the asset as beta. This is a
+real implementation step, but not artistic approval.
 
 Impact:
 
-- The project lacks its first domain-specific visual anchor.
+- The project now has a candidate business icon, but the visual standard is not
+  yet proven on `http://localhost:3002` or through the web app at
+  `http://localhost:3000/visualizer`.
+- Source inspection suggests the offline fallback uses an off-white
+  `metadata.color`, while real BFF product items may still derive drink cup
+  color from status because `VisualizationService.fromProduct()` does not emit
+  a ceramic color override.
 
 Recommendation:
 
-- Implement Classic Expresso first as a deliberately tiny, readable,
-  low-polygon object factory.
-- Certify it at small scale before building the wider room.
+- Run browser certification against both standalone and proxied visualizer
+  paths.
+- Require the cup to pass the `ps1-espresso-cup.md` artistic approval checklist.
+- Ensure the real BFF-driven scene preserves ceramic cup color rather than
+  inventory-status green/amber/red as the base material.
 
 ### C8 - Catalog Mutations Do Not Push SSE Updates
 

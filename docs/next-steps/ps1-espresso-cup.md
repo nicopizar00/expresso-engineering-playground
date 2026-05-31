@@ -15,13 +15,14 @@ File: `apps/visualizer-3d/public/scene.js`
 
 | Area | Detail |
 |---|---|
-| Polygon budget | 28 triangles / 24 vertices — matches design spec |
+| Geometry budget | Current source uses 40 triangles / 32 vertices because the saucer is now two-piece. This is still low-poly, but it no longer matches the earlier 28-triangle note and needs owner approval. |
 | `buildSquareFrustum` | Custom `BufferGeometry`: 8 verts / 12 tris, exact spec topology |
 | Pixel texture | 16×16 `CanvasTexture`, `NearestFilter`, dither noise — strong PS1 block look |
 | Flat shading | `MeshLambertMaterial` + `flatShading: true` — each face a distinct shade |
 | Idle rotation | 0.005 rad/frame ≈ 20 s/revolution, `userData.idleRotate` flag, all parts rotate as unit |
 | `ESPRESSO_CFG` | Single configurable dev entry point — all dimensions, no magic numbers |
 | `ESPRESSO_PALETTE` | Five named colours from spec reference image |
+| Saucer source shape | Source now uses a two-piece square rim plus raised platform. Browser approval still pending. |
 | Disposal | `clearGroup` traverses sub-meshes and disposes geometry + texture + material |
 | SSE / polling | Primary SSE path with polling fallback; cup renders offline via `FALLBACK_ITEMS` |
 | `metadata.color` | Per-item colour override — separates ceramic tone from inventory status |
@@ -32,66 +33,56 @@ File: `apps/visualizer-3d/public/scene.js`
 
 These are the open issues blocking artistic approval, ordered by visual impact:
 
-### 1. Cup colour — WHITE CERAMIC  *(high impact)*
+### 0. Real BFF data may lose ceramic colour  *(certification blocker)*
+Offline fallback sets `metadata.color` to the off-white ceramic palette value,
+but real product items produced by `VisualizationService.fromProduct()` do not
+currently include a ceramic colour override. In the live BFF-driven scene, drink
+products may therefore render with status colours such as green or amber.
+
+**Suggested fix:** keep status information in data, but provide a separate
+ceramic base colour or visual role for drink products so Three.js can render the
+cup as white/off-white ceramic and show inventory health as a tint, accent, or
+nearby marker.
+
+### 1. Cup colour — WHITE CERAMIC  *(browser approval pending)*
 The cup should render as **white or off-white ceramic** by default.
-The current `ESPRESSO_PALETTE.midBeige` (`#CBBE9A`) is a usable placeholder
-but the reference spec calls for a brighter, cleaner white (`#F1ECDA` or
-pure `0xFFFFFF`). Status-colour overrides (green/amber/red for inventory
-health) should be applied as a **tint or accent**, not replace the base colour.
+The fallback item now uses `ESPRESSO_PALETTE.lightBeige` (`#F1ECDA`), but the
+real BFF-driven scene and the default lighting still need browser approval.
+Status-colour overrides (green/amber/red for inventory health) should be
+applied as a **tint or accent**, not replace the base colour.
 
-**Suggested fix:** change `FALLBACK_ITEMS[0].metadata.color` to
-`ESPRESSO_PALETTE.lightBeige` (`0xF1ECDA`) and test. The final value needs
-visual approval against the PS1 camera / lighting setup.
+**Certification check:** compare standalone `:3002` fallback and live BFF data
+through `/visualizer`. Both must read as ceramic.
 
-### 2. Saucer form — ANGLED TOP SURFACE  *(high impact)*
-The saucer is currently a flat box (`buildSquareFrustum(W, W, H)` with no taper).
-A real espresso saucer has a **shallow concave or domed top** — the surface
-rises from the outer rim up to a raised central platform where the cup sits.
+### 2. Saucer form — ANGLED / STEPPED TOP SURFACE  *(browser approval pending)*
+The source now uses two square frustums: a wide rim and a raised central
+platform. This may solve the old "flat coaster" read, but it still needs browser
+approval from the default camera and at small icon sizes.
 
-The current model reads as a coaster, not a saucer. The silhouette is too
-flat and rectangular at any orbit angle other than directly above.
+**Certification check:** saucer depth must be readable at the 45-degree orbit
+angle. If it still reads as a coaster, Claude Code should tune the two-frustum
+profile or switch to a shallow tapered saucer.
 
-**Suggested geometry:** replace the single saucer box with two frustums:
-- Outer ring: wide + very thin, outer radius `saucerW/2`, inner logic handled by
-  position
-- Inner platform: narrower + slightly taller, sitting in the centre
+### 3. Coffee content — VISIBLE DARK FILL  *(browser approval pending)*
+The current source uses `coffeeShrink: 0.02` and places the dark plane just
+inside the rim. It still needs visual approval from the default camera.
 
-Or: a single frustum that tapers inward from the rim (`topW < botW` for the
-saucer) to create the classic saucer slope.
+**Certification check:** the dark coffee square must be visible without orbiting
+or zooming.
 
-### 3. Coffee content — VISIBLE DARK FILL  *(medium impact)*
-The coffee `PlaneGeometry` is positioned correctly at the cup rim but is barely
-visible from the default camera angle. The cup opening is small relative to the
-camera distance, so the dark square is hard to read.
+### 4. Model scale — SMALL LOW-POLY ICON READ  *(browser approval pending)*
+The current source has already reduced the main dimensions from the earlier
+prototype. It still needs browser approval for default framing and icon-size
+readability.
 
-**Suggested fix:**
-- Increase the coffee plane to fill more of the cup opening
-  (`coffeeShrink` → `0.02` instead of `0.05`)
-- Optionally add a very slight downward offset (2–3 mm below rim) so the dark
-  square is recessed and creates a visible shadow contrast
+**Certification check:** the model should not fill more than 30% of viewport
+width at the default camera.
 
-### 4. Model scale — TOO LARGE FOR LOW-POLY ICON  *(medium impact)*
-At the current dimensions the cup fills ~40% of the viewport from the default
-camera. For a low-poly asset that should "feel like 800×600 PS1", the model
-should be slightly smaller so that the polygon facets and pixel blocks read as
-the dominant texture rather than the shape.
-
-**Suggested fix:** reduce all `ESPRESSO_CFG` dimensions by ~20–25%:
-```
-bodyTopW: 0.26  (was 0.34)
-bodyBotW: 0.32  (was 0.42)
-bodyH:    0.34  (was 0.44)
-saucerW:  0.56  (was 0.72)
-saucerH:  0.055 (was 0.07)
-```
-Then adjust `camera.position` and `controls.target` to re-frame.
-
-### 5. Polygon count — 30% FURTHER REDUCTION  *(low impact)*
-The spec image reference shows only 26 triangles (13 quads). Current model is
-28 triangles. The coffee `PlaneGeometry` adds 2 extra triangles over the spec.
-If the coffee surface can be represented as a vertex colour or material colour
-on the cup top face (no extra geometry), the budget would drop to 26 triangles
-exactly.
+### 5. Geometry budget drift  *(owner decision)*
+The current source is 40 triangles because the saucer was split into rim and
+platform. This is probably acceptable for readability, but it no longer matches
+the earlier 28-triangle target. Owner approval should decide whether the saucer
+depth is worth the extra 12 triangles.
 
 ---
 
@@ -120,12 +111,13 @@ Group pivot = saucer bottom = y=0 (world floor)
 
 Part          Primitive                   Verts  Tris  Y (group-local)
 ────────────  ──────────────────────────  ─────  ────  ──────────────
-Saucer        buildSquareFrustum(W,W,H)    8     12    0 → saucerH
-Cup           buildSquareFrustum(t,b,H)    8     12    saucerH+gap → +bodyH
+Saucer rim    buildSquareFrustum(W,W,H)    8     12    0 → saucerRimH
+Platform      buildSquareFrustum(W,W,H)    8     12    saucerRimH → +platformH
+Cup           buildSquareFrustum(t,b,H)    8     12    rim+platform+gap → +bodyH
 Coffee fill   PlaneGeometry(W,W) rot -X    4      2    cup top − 0.002
 Handle        PlaneGeometry(W,H) DoubleSide 4     2    cup centre Y
 ──────────────────────────────────────────────────────────────────────
-TOTAL                                      24    28
+TOTAL                                      32    40
 ```
 
 ## Dev entry point
@@ -147,22 +139,18 @@ No magic numbers inside `buildEspressoGroup`. To iterate:
 Using docs/next-steps/ps1-espresso-cup.md as the reference,
 iterate on the Classic Espresso cup in apps/visualizer-3d/public/scene.js.
 Focus on artistic deficiency #N from the known-issues list.
-Do not redesign the asset from scratch. Only modify ESPRESSO_CFG values
-and buildEspressoGroup. Verify in the browser preview before reporting done.
+Do not redesign the asset from scratch. For asset-shape/color issues, prefer
+small changes to ESPRESSO_CFG and buildEspressoGroup. For deficiency #0, inspect
+the visualization data contract before changing scene code. Verify in the
+browser preview before reporting done.
 ```
 
-### GitHub Copilot / Codex
+### Codex certification
 ```
-File: apps/visualizer-3d/public/scene.js
-Task: Improve the Classic Espresso 3D cup model.
-Context: see docs/next-steps/ps1-espresso-cup.md and
-         docs/visualizer/art-direction.md
-Constraints:
-- Keep buildSquareFrustum unchanged
-- Keep polygon budget ≤ 28 triangles
-- Keep flatShading: true on MeshLambertMaterial
-- Keep NearestFilter on all textures
-- Only modify ESPRESSO_CFG and buildEspressoGroup
+Use docs/ai/codex/artistic-certification-prompt.md or the
+visualizer-artistic-certification skill. Certify the current visualizer in the
+browser at http://localhost:3002 and http://localhost:3000/visualizer. Report
+PASS / FAIL / DRIFT / SKIP and leave implementation to Claude Code.
 ```
 
 ### v0.app
@@ -179,10 +167,12 @@ Show: saucer with sloped rim, tapered square cup body, flat handle, dark coffee 
 
 ## Next iteration tasks
 
-- [ ] Apply white/off-white ceramic colour (`lightBeige` or `0xF8F4EE`)
-- [ ] Redesign saucer with angled top surface (two-frustum approach)
-- [ ] Increase coffee fill visibility (reduce `coffeeShrink` to 0.02)
-- [ ] Scale down model 20–25% and re-frame camera
+- [ ] Resolve real BFF-driven ceramic colour for drink products
+- [ ] Browser-certify white/off-white ceramic colour (`lightBeige` or `0xF8F4EE`)
+- [ ] Browser-certify saucer depth from the default and 45-degree camera
+- [ ] Browser-certify coffee fill visibility
+- [ ] Browser-certify model scale and default framing
+- [ ] Decide whether the 40-triangle two-piece saucer is approved
 - [ ] Evaluate at 16×16, 32×32, 64×64 icon sizes
 - [ ] Artistic sign-off from project owner
 - [ ] Merge to `main` after approval

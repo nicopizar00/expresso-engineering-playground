@@ -11,6 +11,7 @@ READ FIRST
 - docs/ai/codex/governance.md
 - docs/ai/codex/current-findings.md
 - docs/project-state/current-system.md
+- docs/project-state/visualizer-domain-certification.md
 - docs/architecture/web-entry-point.md
 - docs/local-development.md
 
@@ -29,12 +30,12 @@ FUNCTIONAL TRUTHS
   approved by the repository owner.
 
 CURRENT FINDINGS TO RESPECT
-- `/orders/[orderId]` currently returns 500 in the running web app and blocks
-  checkout confirmation, order detail, order management, and invalid-order UX.
-- `pnpm pg:up full` has Docker Compose profile flag drift on the tested
-  environment.
-- Visualizer proxy/assets and data feed are reachable, but pixels still need a
-  real browser pass.
+- Old order-detail and Compose-profile blockers are recorded as done in
+  docs/next-steps/uat-remediation.md.
+- Visualizer artistic certification is active: Classic Expresso/Espresso is WIP
+  and needs browser approval on :3002 and /visualizer.
+- Codex should certify and frame handoffs; Claude Code should implement
+  Three.js/BFF/web changes.
 
 TASK
 Analyze the requested product, UX, architecture, or prompt change against the

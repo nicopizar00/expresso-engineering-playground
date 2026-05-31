@@ -28,6 +28,11 @@ When the count drops to zero, the topic is done.
    - Starts with Classic Expresso as the first domain-specific low-poly asset.
    - Requires semantic visualization data, recent-order focus, and aggregate
      history before broader arcade-world expansion.
+3. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — *Classic Expresso/Espresso
+   asset certification*
+   - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
+   - Pending artistic approval for ceramic color, saucer depth, coffee
+     visibility, handle readability, scale, and icon-size clarity.
 
 ## Done
 
