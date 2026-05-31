@@ -10,8 +10,8 @@
     {
       "name": "visualizer",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "3002", "apps/visualizer-3d/public"],
-      "port": 3002
+      "runtimeArgs": ["serve", "apps/visualizer-3d/public"],
+      "autoPort": true
     }
   ]
 }
