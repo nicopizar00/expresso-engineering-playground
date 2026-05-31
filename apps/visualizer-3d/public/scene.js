@@ -197,9 +197,14 @@ function buildRoom(scene, { width, depth, height }) {
 // =============================================================================
 
 function buildItemMesh(item) {
-  // metadata.color lets individual items override the status palette.
-  // BFF items without metadata.color fall back to STATUS_COLORS[status].
-  const color = item.metadata?.color ?? STATUS_COLORS[item.status] ?? STATUS_COLORS.idle;
+  // Drink category always renders as off-white ceramic — the BFF provides domain
+  // meaning (category) and Three.js owns the visual choice (ceramic colour).
+  // Status colours are reserved for non-drink items (orders, generic catalog).
+  // An explicit metadata.color always wins as a per-item override.
+  const color = item.metadata?.color ??
+    (item.metadata?.category === "drink"
+      ? ESPRESSO_PALETTE.lightBeige
+      : STATUS_COLORS[item.status] ?? STATUS_COLORS.idle);
 
   // << EXTEND: add more category dispatches here as the domain catalogue grows.
   //    Pattern: if (item.metadata?.category === "snack") return buildSnackGroup(color);
@@ -208,7 +213,7 @@ function buildItemMesh(item) {
     const group = buildEspressoGroup(color);
     group.position.set(
       clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-      Math.max(0.002, hint.y),  // saucer pivot = its own bottom face; 2 mm clearance
+      0.002,  // cups always sit on the floor; hint.y drives x/z layout only
       clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
     );
     group.userData = {
@@ -216,7 +221,7 @@ function buildItemMesh(item) {
       label: item.label,
       type: item.type,
       status: item.status,
-      baseY: Math.max(0.002, hint.y),
+      baseY: 0.002,
       phase: Math.random() * Math.PI * 2, // staggered start angle when multiple cups shown
       baseScale: 1,
       idleRotate: true, // drives the slow Y-axis spin in animate()
