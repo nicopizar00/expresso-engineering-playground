@@ -18,11 +18,12 @@
 
 import { Module } from "@nestjs/common";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
+import { CatalogModule } from "../catalog/catalog.module";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 
 @Module({
-  imports: [DomainEventsModule],
+  imports: [DomainEventsModule, CatalogModule],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],

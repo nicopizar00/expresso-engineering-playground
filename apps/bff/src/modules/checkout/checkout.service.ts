@@ -17,9 +17,22 @@ export class CheckoutService {
 
   // Mocked checkout — no real payment is processed. Consumes the current
   // cart, hands it to OrdersService.create(), then clears the cart so the
-  // playground UI starts fresh.
-  // TODO: real payment + idempotency once persistence is wired.
+  // playground UI starts fresh. When `idempotencyKey` is supplied, a retry
+  // replays the original order without re-validating the (now-empty) cart.
   async checkout(payload: CheckoutDto): Promise<CheckoutResponse> {
+    // Idempotent replay short-circuit. Runs BEFORE the cart-empty check so
+    // a retry after a successful first call (which already cleared the cart)
+    // does not surface a spurious "cart is empty" error.
+    if (payload.idempotencyKey) {
+      const replay = this.orders.findByClientRequestId(payload.idempotencyKey);
+      if (replay) {
+        this.logger.log(
+          `checkout replay key=${payload.idempotencyKey} order=${replay.orderId}`,
+        );
+        return this.toResponse(replay);
+      }
+    }
+
     const items = this.cart.currentItems();
     if (items.length === 0) {
       throw new BadRequestException("cart is empty");
@@ -43,6 +56,7 @@ export class CheckoutService {
       customerName: payload.customerName,
       lines,
       total,
+      clientRequestId: payload.idempotencyKey,
     });
 
     this.cart.clear();
@@ -52,6 +66,13 @@ export class CheckoutService {
       `checkout key=${payload.idempotencyKey ?? "n/a"} order=${order.orderId}`,
     );
 
+    return this.toResponse(order);
+  }
+
+  // Replay returns the original creation receipt. The order's current status
+  // (may now be cancelled/prepared) is intentionally not reflected here —
+  // callers wanting live status should hit GET /orders/:id.
+  private toResponse(order: { orderId: string; customerName: string; total: CheckoutResponse["total"]; placedAt: string }): CheckoutResponse {
     return {
       orderId: order.orderId,
       cartId: "cart_demo",

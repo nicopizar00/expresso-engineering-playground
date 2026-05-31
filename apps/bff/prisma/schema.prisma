@@ -24,6 +24,10 @@ model Product {
 model Order {
   id               Int         @id @default(autoincrement())
   orderId          String      @unique
+  // Caller-supplied idempotency key. NULL when the caller did not provide one
+  // (legacy or fire-and-forget). The unique constraint is the final safety net
+  // against concurrent retries — Postgres allows multiple NULLs.
+  clientRequestId  String?     @unique
   customerName     String
   status           String
   totalAmountMinor Int

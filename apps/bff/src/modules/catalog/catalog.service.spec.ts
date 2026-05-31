@@ -78,6 +78,25 @@ describe("CatalogService", () => {
     });
   });
 
+  describe("applyInventoryDelta()", () => {
+    it("decrements the cached inventory for the matched product", () => {
+      service.applyInventoryDelta("prod_espresso", -5);
+      expect(service.getById("prod_espresso").inventory).toBe(115);
+    });
+
+    it("supports positive deltas (e.g. cancel/refund flows)", () => {
+      service.applyInventoryDelta("prod_espresso", 3);
+      expect(service.getById("prod_espresso").inventory).toBe(123);
+    });
+
+    it("is a no-op for unknown productIds", () => {
+      const before = service.list().items.map((p) => p.inventory);
+      service.applyInventoryDelta("prod_unknown", -10);
+      const after = service.list().items.map((p) => p.inventory);
+      expect(after).toEqual(before);
+    });
+  });
+
   describe("create()", () => {
     const DTO: CreateProductDto = {
       sku: "SKU-NEW-01",
