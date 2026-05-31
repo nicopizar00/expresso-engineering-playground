@@ -25,6 +25,7 @@ Two equivalent CLIs — pick one based on what's installed:
 |---|---|---|
 | Start core stack | `./dev up` | `pnpm pg:up core` |
 | Start + web app | `./dev up web` | `pnpm pg:up web` |
+| Start + admin (Prisma Studio) | `./dev up admin` | `pnpm pg:up admin` |
 | Start everything | `./dev up full` | `pnpm pg:up full` |
 | Hot-reload dev | `./dev dev` | `pnpm pg:dev` |
 | Service status | `./dev status` | `pnpm pg:status` |
@@ -45,7 +46,9 @@ cp .env.example .env
 # Start infrastructure stack (Docker-only path)
 ./dev up            # postgres + otel-collector + bff (auto-migrates + seeds)
 ./dev up web        # + Next.js web app
-./dev up full       # + visualizer-3d (all services)
+./dev up admin      # + Prisma Studio (DB admin GUI on :5555)
+./dev up full       # + visualizer-3d + prisma-studio (all services)
+./dev up full --fresh  # destructive: drops postgres volume, re-migrates + re-seeds (clean state for integration)
 
 # Development: hot-reload via docker compose watch (bff + web in containers)
 ./dev dev           # docker compose watch (recommended)
@@ -174,15 +177,26 @@ DATABASE_URL=postgres://playground:playground@localhost:5432/mini_commerce_playg
 BFF_PORT=3001
 WEB_PORT=3000
 VIZ_PORT=3002
+STUDIO_PORT=5555
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_PRISMA_STUDIO_URL=http://localhost:5555
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```
 All `pnpm pg:*` commands load this automatically.
 
 **Main stack** (`infra/docker/compose.yaml`): 
 - Always-on: `postgres`, `bff`, `otel-collector`
-- Profiled (opt-in): `web` (profile: `web`), `visualizer-3d` (profile: `viz` or `visualizer`)
-- Activated via `pnpm pg:up <target>` where target is `core` | `web` | `viz` | `full`
+- Profiled (opt-in): `web` (profile: `web`), `visualizer-3d` (profile: `viz` or `visualizer`), `prisma-studio` (profile: `admin`)
+- Activated via `pnpm pg:up <target>` where target is `core` | `web` | `viz` | `admin` | `full`
+
+**Admin / Prisma Studio caveat**: `./dev up admin` starts Prisma Studio on
+`http://localhost:${STUDIO_PORT:-5555}`. The web app renders an "Admin" link in
+the header and on `/dev` when `NEXT_PUBLIC_PRISMA_STUDIO_URL` is set. Studio
+writes **directly** to Postgres via the Prisma client — it does NOT flow
+through `CatalogService`/`OrdersService`, so `DomainEventsModule` never
+publishes and the SSE-driven 3D visualizer will not react to edits made there
+until the page is reloaded. Use the `/dev` API console for state-machine-safe
+edits.
 
 **Dev override** (`infra/docker/compose.dev.yaml`):
 - Used only by `pnpm pg:dev` (docker compose watch)

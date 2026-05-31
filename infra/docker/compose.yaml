@@ -67,6 +67,8 @@ services:
         BFF_INTERNAL_URL: ${BFF_INTERNAL_URL:-http://bff:3001}
         VISUALIZER_INTERNAL_URL: ${VISUALIZER_INTERNAL_URL:-http://visualizer-3d:80}
         NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
+        # Gate for the Admin link in the header and /dev page. Empty → hidden.
+        NEXT_PUBLIC_PRISMA_STUDIO_URL: ${NEXT_PUBLIC_PRISMA_STUDIO_URL-}
     environment:
       PORT: "${WEB_PORT:-3000}"
       # Runtime values used by the dev (watch) stage, where `next dev` reads
@@ -75,6 +77,7 @@ services:
       BFF_INTERNAL_URL: ${BFF_INTERNAL_URL:-http://bff:3001}
       VISUALIZER_INTERNAL_URL: ${VISUALIZER_INTERNAL_URL:-http://visualizer-3d:80}
       NEXT_PUBLIC_VISUALIZER_URL: ${NEXT_PUBLIC_VISUALIZER_URL:-http://localhost:3002}
+      NEXT_PUBLIC_PRISMA_STUDIO_URL: ${NEXT_PUBLIC_PRISMA_STUDIO_URL-}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:
@@ -111,6 +114,45 @@ services:
       VIZ_API_BASE_URL: ${VIZ_API_BASE_URL:-http://localhost:3001}
     ports:
       - "${VIZ_PORT:-3002}:80"
+
+  # prisma-studio — opt-in admin GUI for direct DB inspection/editing.
+  # Activated by: pnpm pg:up admin  (or pnpm pg:up full)
+  # Reuses the BFF Dockerfile `dev` stage so prisma client + schema are
+  # already available; no separate image needed.
+  #
+  # WARNING: Studio writes directly to Postgres via the Prisma client. It does
+  # NOT go through CatalogService/OrdersService, so DomainEventsModule never
+  # fires and the SSE-driven visualizer will not react to edits made here
+  # until the page is reloaded. Use the BFF /dev API console for state-machine-
+  # safe edits.
+  prisma-studio:
+    profiles: [admin]
+    build:
+      context: ../..
+      dockerfile: apps/bff/Dockerfile
+      target: dev
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-playground}:${POSTGRES_PASSWORD:-playground}@postgres:5432/${POSTGRES_DB:-mini_commerce_playground}
+    ports:
+      - "${STUDIO_PORT:-5555}:5555"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      [
+        "pnpm",
+        "--filter",
+        "@mini-commerce/bff",
+        "exec",
+        "prisma",
+        "studio",
+        "--port",
+        "5555",
+        "--hostname",
+        "0.0.0.0",
+        "--browser",
+        "none",
+      ]
 
   # TODO (future): prometheus / grafana / tempo / loki for observability stack
 
