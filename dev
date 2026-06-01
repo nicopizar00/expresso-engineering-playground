@@ -232,13 +232,14 @@ cmd_restart() {
 }
 
 # ---------------------------------------------------------------------------
-# dev — docker compose watch (hot-reload for bff + web)
+# dev — docker compose watch (hot-reload for bff + web + visualizer-3d)
 # ---------------------------------------------------------------------------
 
 cmd_dev() {
   header "Starting dev stack (docker compose watch)..."
   printf "${DM}Tip: run ./dev up first so Postgres is healthy and migrations are applied.\n\nCtrl+C to stop.${RS}\n\n"
-  docker compose -f "$COMPOSE_FILE" -f "$COMPOSE_DEV_FILE" --profile web watch
+  docker compose -f "$COMPOSE_FILE" -f "$COMPOSE_DEV_FILE" \
+    --profile web --profile viz watch
 }
 
 # ---------------------------------------------------------------------------

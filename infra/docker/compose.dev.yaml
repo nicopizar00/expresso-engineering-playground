@@ -1,17 +1,23 @@
 # Development override for docker compose watch (pg:dev).
 #
 # Merge with compose.yaml via:
-#   docker compose -f infra/docker/compose.yaml -f infra/docker/compose.dev.yaml --profile web watch
+#   docker compose -f infra/docker/compose.yaml -f infra/docker/compose.dev.yaml \
+#     --profile web --profile viz watch
 #
-# This file is only used by `pnpm pg:dev`. It switches bff and web to their
-# `dev` Dockerfile stages (nest --watch and next dev respectively) and defines
-# the watch rules that tell Docker which file changes to sync into containers.
+# This file is only used by `pnpm pg:dev` / `./dev dev`. It switches bff and web
+# to their `dev` Dockerfile stages (nest --watch and next dev respectively) and
+# defines the watch rules that tell Docker which file changes to sync into
+# containers.
 #
 # Sync rules:
-#   bff  — src/ changes synced into the container; nest --watch picks them up.
-#           package.json changes trigger a full image rebuild.
-#   web  — app/ and public/ changes synced; next dev HMR picks them up.
-#           package.json changes trigger a full image rebuild.
+#   bff           — src/ changes synced; nest --watch picks them up.
+#                   package.json changes trigger a full image rebuild.
+#   web           — app/ and public/ changes synced; next dev HMR picks them up.
+#                   package.json changes trigger a full image rebuild.
+#   visualizer-3d — public/ changes synced into nginx's web root. nginx serves
+#                   from disk, so a browser hard-reload picks them up. No
+#                   build stage swap (the image already ships static files).
+#                   Dockerfile/entrypoint changes trigger a full rebuild.
 
 services:
   bff:
@@ -35,3 +41,14 @@ services:
           target: /workspace/apps/web/app
         - action: rebuild
           path: apps/web/package.json
+
+  visualizer-3d:
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/visualizer-3d/public
+          target: /usr/share/nginx/html
+        - action: rebuild
+          path: ./apps/visualizer-3d/Dockerfile
+        - action: rebuild
+          path: ./apps/visualizer-3d/docker-entrypoint.sh

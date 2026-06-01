@@ -22,40 +22,38 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 // Edit these constants to tune proportions without touching buildEspressoGroup.
 // After saving, hard-reload the visualizer page to see the change.
 //
-// Polygon budget per the design spec:
-//   Cup body         : 6 quads / 12 triangles / 8 vertices  (square frustum)
-//   Saucer rim       : 6 quads / 12 triangles / 8 vertices  (flat box)
-//   Saucer platform  : 6 quads / 12 triangles / 8 vertices  (raised square)
-//   Handle           : 1 quad  /  2 triangles / 4 vertices  (flat vertical plane)
-//   Coffee           : 1 quad  /  2 triangles / 4 vertices  (flat horizontal plane)
-//   TOTAL            : 40 triangles / 32 vertices
+// Polygon budget (certified iteration 4):
+//   Cup body    : 5 quads / 10 triangles / 8 vertices  (open-top frustum — no top face)
+//   Saucer      : 6 quads / 12 triangles / 8 vertices  (tapered dish frustum)
+//   Handle      : 1 quad  /  2 triangles / 4 vertices  (flat vertical plane)
+//   Coffee      : 1 quad  /  2 triangles / 4 vertices  (flat horizontal plane)
+//   TOTAL       : 26 triangles / 28 vertices            (Standard tier ≤ 28 ✓)
 // =============================================================================
 const ESPRESSO_CFG = {
-  // ── Cup body (square frustum: wider at base = classic taper) ──────────────
-  bodyTopW: 0.26,   // top opening side length  (square, 4 edges)
-  bodyBotW: 0.33,   // base side length         (wider = taper)
-  bodyH:    0.34,   // cup height
+  // ── Cup body (open-top, 50 % taper: classic espresso silhouette) ──────────
+  bodyTopW: 0.20,   // top opening side length
+  bodyBotW: 0.30,   // base side length (50 % wider than top)
+  bodyH:    0.36,   // cup height
 
-  // ── Saucer (two-piece: wide flat rim + raised centre platform) ────────────
-  saucerW:         0.56,   // outer rim side length (square, wider than cup base)
-  saucerRimH:      0.02,   // flat base rim thickness
-  saucerPlatformW: 0.36,   // raised centre platform side length
-  saucerPlatformH: 0.037,  // platform height (cup rests on this)
+  // ── Saucer (single tapered piece: wide at top, narrow at foot) ───────────
+  // Wide-top frustum → sloped sides on all 4 faces → reads as a dish from
+  // every angle, not a flat coaster.
+  saucerTopW: 0.60,  // rim width (widest point, at the top)
+  saucerBotW: 0.44,  // foot width (narrower — gives the dish slope)
+  saucerH:    0.06,  // height tall enough to read from the side
 
-  // ── Air gap between saucer platform top and cup base ─────────────────────
-  gap:      0.04,   // increase for more "floating" cup look
+  // ── Air gap between saucer top and cup base ───────────────────────────────
+  gap:      0.04,
 
-  // ── Handle (single flat quad, DoubleSide, no extrusion) ──────────────────
-  handleW:   0.08,  // quad width
-  handleH:   0.20,  // quad height  (~60 % of cup body height)
-  handleGap: 0.02,  // air gap between cup right wall and handle left edge
+  // ── Handle (single flat quad, DoubleSide, sprite-thin — PS1 style) ────────
+  handleW:   0.12,  // quad width
+  handleH:   0.20,  // quad height
+  handleGap: 0.03,  // air gap between cup right wall and handle left edge
 
-  // ── Coffee fill (flat dark quad flush with cup rim) ───────────────────────
-  coffeeShrink: 0.02, // inset from cup top opening on each side
+  // ── Coffee fill (inside the open cup, near the rim) ───────────────────────
+  coffeeShrink: 0.01, // inset from cup top opening on each side
 
   // ── PS1 texture ──────────────────────────────────────────────────────────
-  // 16 → large visible blocks (strong PS1)   32 → finer but still pixelated
-  // Change to 8 for extreme PS1 crunch.
   texSize: 16,
 };
 
@@ -422,87 +420,100 @@ function makePsxTexture(hexColor, size = 16) {
 }
 
 // =============================================================================
-// Classic Espresso — PS1 low-poly cup group
+// Open-top frustum — cup body variant of buildSquareFrustum.
 //
-// Topology matches the design spec exactly:
-//   Saucer rim    : buildSquareFrustum(W, W, rimH)      →  8 verts / 12 tris
-//   Saucer platform: buildSquareFrustum(W, W, platH)   →  8 verts / 12 tris
-//   Cup body      : buildSquareFrustum(topW, botW, H)  →  8 verts / 12 tris
-//   Handle        : PlaneGeometry(W, H)                →  4 verts /  2 tris
-//   Coffee        : PlaneGeometry(W, W)                →  4 verts /  2 tris
+// Identical topology and UVs, but the top face (indices 0-5) is omitted so
+// the cup opening is transparent and the coffee fill plane inside is visible
+// from above and from the default camera.  8 verts / 10 tris.
+//
+// Do NOT modify buildSquareFrustum — this is a companion, not a replacement.
+// =============================================================================
+function buildOpenFrustum(topW, botW, h) {
+  const t = topW / 2;
+  const b = botW / 2;
+  const pos = new Float32Array([
+    -t, h, -t,   t, h, -t,   t, h,  t,  -t, h,  t,   // top ring  (verts 0-3)
+    -b, 0, -b,   b, 0, -b,   b, 0,  b,  -b, 0,  b,   // bot ring  (verts 4-7)
+  ]);
+  const uv = new Float32Array([
+    0, 1,  1, 1,  1, 0,  0, 0,
+    0, 0,  1, 0,  1, 1,  0, 1,
+  ]);
+  const idx = new Uint16Array([
+    // top face intentionally absent — cup is open
+    4, 5, 6,   4, 6, 7,   // bottom → −Y
+    0, 1, 5,   0, 5, 4,   // front  → −Z
+    1, 2, 6,   1, 6, 5,   // right  → +X
+    2, 3, 7,   2, 7, 6,   // back   → +Z
+    3, 0, 4,   3, 4, 7,   // left   → −X
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('uv',       new THREE.BufferAttribute(uv,  2));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// =============================================================================
+// Classic Espresso — PS1 low-poly cup group  (certified iteration 4)
+//
+// Topology:
+//   Saucer  : buildSquareFrustum(topW, botW, H)  →  8 verts / 12 tris
+//             topW > botW → wide-at-top dish silhouette from all angles
+//   Cup body: buildOpenFrustum(topW, botW, H)    →  8 verts / 10 tris
+//             open top lets coffee fill read through the rim
+//   Coffee  : PlaneGeometry(W, W)                →  4 verts /  2 tris
+//   Handle  : PlaneGeometry(W, H)                →  4 verts /  2 tris
 //   ─────────────────────────────────────────────────────────────────────────
-//   TOTAL                                                 32 verts / 40 tris
+//   TOTAL                                          28 verts / 26 tris
 //
-// Group pivot = bottom of saucer (y = 0 in group space).
-// Place the group at world y ≈ 0 to sit the saucer flush on the floor.
-//
-// Y-position derivation (all in group-local space):
-//   saucer bottom   y = 0
-//   saucer top      y = saucerH
-//   gap             y = saucerH  →  saucerH + gap
-//   cup bottom      y = saucerH + gap
-//   cup top         y = saucerH + gap + bodyH
-//   coffee fill     y ≈ cup top  (just inside rim)
-//   handle centre   y = saucerH + gap + bodyH / 2
+// Group pivot = saucer bottom = y = 0 (world floor).
 //
 // << EXTEND: add new drink variants (latte glass, americano mug) by
-//    calling buildSquareFrustum with different topW / botW / bodyH values
+//    calling buildOpenFrustum with different topW / botW / bodyH values
 //    and routing via a second category flag in metadata.
 // =============================================================================
 function buildEspressoGroup(color) {
   const {
     bodyTopW, bodyBotW, bodyH,
-    saucerW, saucerRimH, saucerPlatformW, saucerPlatformH, gap,
+    saucerTopW, saucerBotW, saucerH, gap,
     handleW, handleH, handleGap,
     coffeeShrink, texSize,
   } = ESPRESSO_CFG;
 
-  const tex    = makePsxTexture(color, texSize);
-  // Each mesh gets its own material instance so clearGroup can dispose them
-  // independently without double-freeing a shared reference.
-  const mkMat  = () => new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
-  const group  = new THREE.Group();
+  const tex   = makePsxTexture(color, texSize);
+  const mkMat = () => new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
+  const group = new THREE.Group();
 
-  // ── Saucer — two-piece: flat outer rim + raised centre platform ──────────
-  // Rim: wide flat base sitting at group y = 0 (floor contact).
-  // Platform: narrower raised square centred on the rim; cup rests on top.
-  const saucerRim = new THREE.Mesh(
-    buildSquareFrustum(saucerW, saucerW, saucerRimH),
+  // ── Saucer — single tapered piece: wide at top, narrow at foot ───────────
+  // saucerTopW > saucerBotW → four sloped side faces read as a dish from any
+  // angle, replacing the old two-piece flat coaster.
+  const saucer = new THREE.Mesh(
+    buildSquareFrustum(saucerTopW, saucerBotW, saucerH),
     mkMat(),
   );
-  group.add(saucerRim);
-  const saucerPlatform = new THREE.Mesh(
-    buildSquareFrustum(saucerPlatformW, saucerPlatformW, saucerPlatformH),
-    mkMat(),
-  );
-  saucerPlatform.position.y = saucerRimH;
-  group.add(saucerPlatform);
+  group.add(saucer);
 
-  // ── Cup body ─────────────────────────────────────────────────────────────
-  // Tapered square frustum: top opening smaller than base (classic cup shape).
-  const cupBotY = saucerRimH + saucerPlatformH + gap;
-  const cup     = new THREE.Mesh(buildSquareFrustum(bodyTopW, bodyBotW, bodyH), mkMat());
+  // ── Cup body — open-top so the coffee fill is visible through the rim ─────
+  const cupBotY = saucerH + gap;
+  const cup     = new THREE.Mesh(buildOpenFrustum(bodyTopW, bodyBotW, bodyH), mkMat());
   cup.position.y = cupBotY;
   group.add(cup);
 
   // ── Coffee fill ───────────────────────────────────────────────────────────
-  // Flat unlit dark quad, horizontal, flush with the cup rim.
-  // PlaneGeometry lies in XY; rotate −90° around X to make it horizontal.
   const coffeeW = bodyTopW - coffeeShrink;
   const coffee  = new THREE.Mesh(
     new THREE.PlaneGeometry(coffeeW, coffeeW),
     new THREE.MeshBasicMaterial({ color: ESPRESSO_PALETTE.coffee }),
   );
   coffee.rotation.x = -Math.PI / 2;
-  coffee.position.y = cupBotY + bodyH - 0.002; // just inside the cup rim
+  coffee.position.y = cupBotY + bodyH - 0.01; // inside the open cup, near the rim
   group.add(coffee);
 
   // ── Handle ────────────────────────────────────────────────────────────────
-  // Single flat vertical quad (DoubleSide so it renders on both orbit passes).
-  // Positioned to the right of the cup with a small visible air gap.
-  // PlaneGeometry in the XY plane faces ±Z by default — visible from the front.
   const handleX = bodyBotW / 2 + handleGap + handleW / 2;
-  const handleY = cupBotY + bodyH / 2; // vertically centred on the cup body
+  const handleY = cupBotY + bodyH / 2;
   const handle  = new THREE.Mesh(
     new THREE.PlaneGeometry(handleW, handleH),
     new THREE.MeshLambertMaterial({ map: tex, flatShading: true, side: THREE.DoubleSide }),

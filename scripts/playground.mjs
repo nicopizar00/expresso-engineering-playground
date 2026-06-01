@@ -287,7 +287,7 @@ async function up(targetOverride) {
 }
 
 // ---------------------------------------------------------------------------
-// dev — docker compose watch (hot-reload for bff + web)
+// dev — docker compose watch (hot-reload for bff + web + visualizer-3d)
 // ---------------------------------------------------------------------------
 
 async function dev() {
@@ -296,7 +296,14 @@ async function dev() {
   log(c.dim('Ctrl+C to stop.\n'));
   const result = spawnSync(
     'docker',
-    ['compose', '-f', COMPOSE_FILE, '-f', COMPOSE_DEV_FILE, '--profile', 'web', 'watch'],
+    [
+      'compose',
+      '-f', COMPOSE_FILE,
+      '-f', COMPOSE_DEV_FILE,
+      '--profile', 'web',
+      '--profile', 'viz',
+      'watch',
+    ],
     { stdio: 'inherit' },
   );
   if (result.status !== 0) process.exit(result.status ?? 1);
