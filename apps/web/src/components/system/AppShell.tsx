@@ -21,18 +21,37 @@ import {
   FlaskConical,
   Box,
   Gauge,
+  Database,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useCart } from '@/components/cart/CartProvider';
 import { HealthBadge } from './HealthBadge';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { getDemoModeStatus, setDemoMode } from '@/lib/api/expresso-api';
 
-const navLinks = [
+type NavLink = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  // When true, render as <a target="_blank"> instead of next/link. Used for
+  // links that point outside the web app (e.g. the Prisma Studio admin GUI).
+  external?: boolean;
+};
+
+// The Prisma Studio admin link is only rendered when NEXT_PUBLIC_PRISMA_STUDIO_URL
+// is set. Studio writes directly to Postgres — it bypasses DomainEventsModule,
+// so the SSE visualizer won't react to edits made there until a reload.
+const PRISMA_STUDIO_URL = process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL;
+
+const navLinks: NavLink[] = [
   { href: '/', label: 'Catalog', icon: Coffee },
   { href: '/orders', label: 'Orders', icon: Package },
   { href: '/performance', label: 'Performance', icon: Gauge },
   { href: '/visualizer', label: '3D', icon: Box },
   { href: '/dev', label: 'API', icon: Activity },
+  ...(PRISMA_STUDIO_URL
+    ? [{ href: PRISMA_STUDIO_URL, label: 'Admin', icon: Database, external: true } as NavLink]
+    : []),
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -110,10 +129,32 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-label="Main"
             >
               {navLinks.map((link) => {
+                const Icon = link.icon;
+                if (link.external) {
+                  // External links (e.g. Prisma Studio) open in a new tab and
+                  // never participate in the active-route highlight.
+                  return (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                      style={{
+                        backgroundColor: 'transparent',
+                        color: 'var(--muted-foreground)',
+                      }}
+                      title="Direct DB · bypasses domain events"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {link.label}
+                      <ExternalLink className="h-3 w-3 opacity-60" />
+                    </a>
+                  );
+                }
                 const isActive =
                   pathname === link.href ||
                   (link.href !== '/' && pathname.startsWith(link.href));
-                const Icon = link.icon;
                 return (
                   <Link
                     key={link.href}
@@ -206,10 +247,30 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <div className="flex flex-col gap-1">
                 {navLinks.map((link) => {
+                  const Icon = link.icon;
+                  if (link.external) {
+                    return (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium transition-colors"
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: 'var(--muted-foreground)',
+                        }}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="flex-1">{link.label}</span>
+                        <ExternalLink className="h-3.5 w-3.5 opacity-60" />
+                      </a>
+                    );
+                  }
                   const isActive =
                     pathname === link.href ||
                     (link.href !== '/' && pathname.startsWith(link.href));
-                  const Icon = link.icon;
                   return (
                     <Link
                       key={link.href}

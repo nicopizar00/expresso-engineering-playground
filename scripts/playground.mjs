@@ -42,6 +42,7 @@ const PERF_REPORTS_DIR = `${PERF_DIR}/reports`;
 const BFF_PORT = Number(process.env.BFF_PORT ?? 3001);
 const WEB_PORT = Number(process.env.WEB_PORT ?? 3000);
 const VIZ_PORT = Number(process.env.VIZ_PORT ?? 3002);
+const STUDIO_PORT = Number(process.env.STUDIO_PORT ?? 5555);
 const API_BASE = `http://localhost:${BFF_PORT}`;
 
 // ANSI helpers — degrade gracefully when NO_COLOR is set.
@@ -196,11 +197,31 @@ async function doctor() {
 // ---------------------------------------------------------------------------
 
 async function up(targetOverride) {
-  const target = targetOverride ?? process.argv[3] ?? 'core';
-  const validTargets = ['core', 'web', 'viz', 'full'];
-  if (!validTargets.includes(target)) {
-    log(c.red(`Unknown target "${target}". Use: ${validTargets.join(' | ')}`));
-    process.exit(1);
+  // Parse positional target + optional flags (order-agnostic), e.g.
+  //   pnpm pg:up full --fresh
+  //   pnpm pg:up --fresh full
+  const validTargets = ['core', 'web', 'viz', 'admin', 'full'];
+  const rawArgs = targetOverride ? [targetOverride] : process.argv.slice(3);
+  let target = 'core';
+  let fresh = false;
+  for (const arg of rawArgs) {
+    if (arg === '--fresh') fresh = true;
+    else if (validTargets.includes(arg)) target = arg;
+    else if (arg) {
+      log(c.red(`Unknown argument "${arg}". Use: ${validTargets.join(' | ')} [--fresh]`));
+      process.exit(1);
+    }
+  }
+
+  if (fresh) {
+    log(c.bold(`\nFresh start (${target}) — dropping postgres volume...\n`));
+    warn('This will delete all database data (catalog, orders). Cart is already in-memory.');
+    // --profile flags + down -v removes containers, the postgres-data named
+    // volume, and any orphans across web/viz/admin. The next compose up
+    // recreates the volume empty; migrate + seed below repopulate the schema.
+    compose(['down', '-v', '--remove-orphans'], { profiles: ['web', 'viz', 'admin'] });
+    pass('Volumes removed');
+    log('');
   }
 
   log(c.bold(`\nStarting local app stack (${target})...\n`));
@@ -212,7 +233,7 @@ async function up(targetOverride) {
   // Port collision pre-flight — stop existing Docker services if port is occupied.
   if (await portInUse(BFF_PORT)) {
     warn(`Port ${BFF_PORT} is in use — stopping existing services...`);
-    compose(['down'], { profiles: ['web', 'viz'] });
+    compose(['down'], { profiles: ['web', 'viz', 'admin'] });
     // Give the port a moment to free after container shutdown.
     await new Promise((r) => setTimeout(r, 1500));
     if (await portInUse(BFF_PORT)) {
@@ -258,14 +279,15 @@ async function up(targetOverride) {
   log('');
   pass(`BFF is running on http://localhost:${BFF_PORT}`);
   if (extra.includes('web')) pass(`Web is running on http://localhost:${WEB_PORT}`);
-  if (extra.includes('visualizer-3d')) pass('Visualizer is running on http://localhost:3002');
+  if (extra.includes('visualizer-3d')) pass(`Visualizer is running on http://localhost:${VIZ_PORT}`);
+  if (extra.includes('prisma-studio')) pass(`Prisma Studio is running on http://localhost:${STUDIO_PORT}`);
   log('');
   info(`Run ${c.bold('pnpm pg:dev')} for hot-reload (docker compose watch)`);
   info(`Run ${c.bold('pnpm pg:status')} to check service health`);
 }
 
 // ---------------------------------------------------------------------------
-// dev — docker compose watch (hot-reload for bff + web)
+// dev — docker compose watch (hot-reload for bff + web + visualizer-3d)
 // ---------------------------------------------------------------------------
 
 async function dev() {
@@ -274,7 +296,14 @@ async function dev() {
   log(c.dim('Ctrl+C to stop.\n'));
   const result = spawnSync(
     'docker',
-    ['compose', '-f', COMPOSE_FILE, '-f', COMPOSE_DEV_FILE, '--profile', 'web', 'watch'],
+    [
+      'compose',
+      '-f', COMPOSE_FILE,
+      '-f', COMPOSE_DEV_FILE,
+      '--profile', 'web',
+      '--profile', 'viz',
+      'watch',
+    ],
     { stdio: 'inherit' },
   );
   if (result.status !== 0) process.exit(result.status ?? 1);
@@ -529,8 +558,8 @@ async function status() {
 async function reset() {
   log(c.bold('\nResetting local environment...\n'));
   log(c.yellow('This stops all containers. Postgres data volumes are preserved.'));
-  log(c.dim('To also remove volumes (destructive): docker compose --profile web --profile viz -f infra/docker/compose.yaml down -v\n'));
-  compose(['down'], { profiles: ['web', 'viz'] });
+  log(c.dim('To also remove volumes (destructive): docker compose --profile web --profile viz --profile admin -f infra/docker/compose.yaml down -v\n'));
+  compose(['down'], { profiles: ['web', 'viz', 'admin'] });
   log('');
   pass('All containers stopped.');
   info(`Run ${c.bold('pnpm pg:up')} to bring infrastructure back up.`);
@@ -542,7 +571,7 @@ async function reset() {
 
 async function down() {
   log(c.bold('\nStopping services...\n'));
-  compose(['down'], { profiles: ['web', 'viz'] });
+  compose(['down'], { profiles: ['web', 'viz', 'admin'] });
   log('');
   pass('Services stopped.');
 }
@@ -554,7 +583,7 @@ async function down() {
 async function restart() {
   const target = process.argv[3] ?? 'full';
   log(c.bold(`\nRestarting local app stack (${target})...\n`));
-  compose(['down'], { profiles: ['web', 'viz'] });
+  compose(['down'], { profiles: ['web', 'viz', 'admin'] });
   pass('Services stopped');
   log('');
   await up(target);
@@ -585,6 +614,7 @@ async function open() {
   log(`  BFF / API           ${c.green(`http://localhost:${BFF_PORT}`)}`);
   log(`  Health endpoint     ${c.green(`http://localhost:${BFF_PORT}/health`)}`);
   log(`  3D Visualizer       ${c.green(`http://localhost:${VIZ_PORT}`)}  (standalone; embedded at /visualizer, needs 'up viz' or 'up full')`);
+  log(`  Prisma Studio       ${c.green(`http://localhost:${STUDIO_PORT}`)}  (admin DB GUI; needs 'up admin' or 'up full' — direct DB, no events)`);
   log(`  OTLP HTTP           ${c.dim('http://localhost:4318')}  (otel-collector)`);
   log(`  OTLP gRPC           ${c.dim('http://localhost:4317')}  (otel-collector)`);
   log('');
@@ -851,13 +881,15 @@ function targetToProfileNames(target) {
   const names = [];
   if (target === 'web' || target === 'full') names.push('web');
   if (target === 'viz' || target === 'full') names.push('viz');
+  if (target === 'admin' || target === 'full') names.push('admin');
   return names;
 }
 
 function additionalServices(target) {
   if (target === 'web') return ['web'];
   if (target === 'viz') return ['visualizer-3d'];
-  if (target === 'full') return ['web', 'visualizer-3d'];
+  if (target === 'admin') return ['prisma-studio'];
+  if (target === 'full') return ['web', 'visualizer-3d', 'prisma-studio'];
   return [];
 }
 

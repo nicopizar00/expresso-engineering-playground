@@ -57,6 +57,53 @@ async function main() {
     },
   });
   console.log("Seeded ord_demo order.");
+
+  const drinkParams = {
+    bodyTopW: 0.25, bodyBotW: 0.30, bodyH: 0.28,
+    saucerTopW: 0.48, saucerBotW: 0.32, saucerH: 0.06,
+    gap: 0.04,
+    handleW: 0.16, handleH: 0.22, handleGap: 0.03,
+    coffeeShrink: 0.01, texSize: 16,
+  };
+  await prisma.assetConfig.upsert({
+    where: { category: "drink" },
+    update: { params: drinkParams },
+    create: { category: "drink", params: drinkParams },
+  });
+  console.log("Seeded drink AssetConfig.");
+
+  const foodParams = { width: 0.30, depth: 0.20, height: 0.10, texSize: 16 };
+  await prisma.assetConfig.upsert({
+    where: { category: "food" },
+    update: { params: foodParams },
+    create: { category: "food", params: foodParams },
+  });
+  console.log("Seeded food AssetConfig.");
+
+  const accessoryParams = { width: 0.25, depth: 0.15, height: 0.35, texSize: 16 };
+  await prisma.assetConfig.upsert({
+    where: { category: "accessory" },
+    update: { params: accessoryParams },
+    create: { category: "accessory", params: accessoryParams },
+  });
+  console.log("Seeded accessory AssetConfig.");
+
+  await prisma.assetModel.upsert({
+    where: { category_variant: { category: "drink", variant: "default" } },
+    update: {
+      assetUrl: "/viz/models/classic_espreso_cup.glb",
+      assetFormat: "glb",
+      isPrimary: true,
+    },
+    create: {
+      category: "drink",
+      variant: "default",
+      assetUrl: "/viz/models/classic_espreso_cup.glb",
+      assetFormat: "glb",
+      isPrimary: true,
+    },
+  });
+  console.log("Seeded drink AssetModel.");
 }
 
 main()

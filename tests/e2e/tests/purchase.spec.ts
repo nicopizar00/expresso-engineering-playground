@@ -132,7 +132,7 @@ test.describe('End-to-end purchase flow', () => {
     await cart.removeProduct(classicEspresso.name);
     await expect(cart.emptyCartState()).toBeVisible();
     await expect(cart.emptyCartState()).toHaveText(
-      /Your cart is empty[\s\S]*Add some products to your cart to get started\.[\s\S]*Browse Products/
+      /Your cart is empty[\s\S]*Browse the catalog to find something you love\.[\s\S]*Browse Products/
     );
     await expect(catalog.cartButton()).toHaveAccessibleName(
       'Shopping cart with 0 items'

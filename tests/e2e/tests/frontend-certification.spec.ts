@@ -302,7 +302,7 @@ test('certifies catalog, cart CRUD, checkout, and order management', async ({ pa
   const cartButton = page.getByRole('button', { name: 'Shopping cart with 2 items' });
   await expect(cartButton).toBeVisible();
   await cartButton.click();
-  const cartDrawer = page.getByRole('dialog', { name: 'Shopping Cart' });
+  const cartDrawer = page.getByRole('dialog', { name: 'Cart' });
   await expect(cartDrawer).toBeVisible();
   await cartDrawer.getByRole('button', { name: 'Increase quantity' }).click();
   await expect(page.getByRole('button', { name: 'Shopping cart with 3 items' })).toBeVisible();
@@ -320,7 +320,10 @@ test('certifies catalog, cart CRUD, checkout, and order management', async ({ pa
   await page.getByRole('button', { name: 'Mark as Prepared' }).click();
   await expect(page.getByText('Prepared')).toBeVisible();
 
-  await page.getByRole('link', { name: 'All Orders' }).click();
+  await page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('link', { name: 'Orders' })
+    .click();
   await expect(page.getByText('UAT Browser Customer')).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
@@ -352,25 +355,25 @@ test('certifies dialog focus restore, shell navigation, performance copy, and vi
 
   const cartButton = page.getByRole('button', { name: 'Shopping cart with 0 items' });
   await cartButton.click();
-  await expect(page.getByRole('dialog', { name: 'Shopping Cart' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Cart' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Shopping Cart' })).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Cart' })).toBeHidden();
   await expect(cartButton).toBeFocused();
 
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Performance' }).click();
   await expect(page).toHaveURL(/\/performance$/);
   await expect(page.getByText(/simulated/i)).toBeVisible();
 
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: '3D View' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: '3D' }).click();
   await expect(page).toHaveURL(/\/visualizer$/);
   await expect(page.getByRole('heading', { name: '3D Visualizer' })).toBeVisible();
-  await expect(page.frameLocator('iframe[title="3D Product Visualizer"]').getByText('Visualizer Ready')).toBeVisible();
+  await expect(page.frameLocator('iframe[title="3D Visualizer - Hello Room"]').getByText('Visualizer Ready')).toBeVisible();
   await expect(page.getByRole('link', { name: /Open Standalone/ })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Toggle menu' }).click();
-  await page.getByRole('navigation', { name: 'Mobile' }).getByRole('link', { name: /Developer/ }).click();
+  await page.getByRole('navigation', { name: 'Mobile' }).getByRole('link', { name: 'API' }).click();
   await expect(page).toHaveURL(/\/dev$/);
-  await expect(page.getByRole('heading', { name: /Developer/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Developer Tools' })).toBeVisible();
   expect(browserErrors).toEqual([]);
 });

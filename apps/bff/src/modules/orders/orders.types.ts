@@ -26,6 +26,9 @@ export interface CreateOrderInput {
   readonly customerName: string;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
+  // Optional caller-supplied idempotency key. When set, a retry with the same
+  // key returns the original order without re-decrementing inventory.
+  readonly clientRequestId?: string;
 }
 
 export interface ManageOrderResponse {

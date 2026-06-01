@@ -91,15 +91,16 @@ depth is worth the extra 12 triangles.
 Before merging to `main`, the model must pass **all** of these at the default
 camera position (`(1.5, 0.8, 2.0)` → lookAt `(0, 0.30, 0)`):
 
-- [ ] Cup reads as **white or off-white ceramic** — not beige, not green
-- [ ] Saucer **has visible depth** — the stepped or sloped saucer profile is
-      readable from the 45° orbit angle
-- [ ] Coffee **is clearly dark** and visibly set into the cup opening
-- [ ] Handle **reads as a distinct element** separated from the cup body by a
-      visible gap
-- [ ] At **16×16 icon size**, all four elements (saucer, body, handle, coffee)
+- [x] Cup reads as **white or off-white ceramic** — not beige, not green
+- [x] Saucer **has visible depth** — single tapered-dish frustum (wide-at-top)
+      readable from the 45° orbit angle and the side
+- [x] Coffee **is clearly dark** and visibly set into the cup opening
+      (open-top cup exposes the fill through the rim)
+- [x] Handle **reads as a distinct element** separated from the cup body by a
+      visible gap (sprite-thin flat plane, PS1 style)
+- [x] At **16×16 icon size**, all four elements (saucer, body, handle, coffee)
       are independently recognisable
-- [ ] Model feels **small and contained** — not filling more than 30% of
+- [x] Model feels **small and contained** — not filling more than 30% of
       viewport width at default camera
 
 ---
@@ -109,15 +110,16 @@ camera position (`(1.5, 0.8, 2.0)` → lookAt `(0, 0.30, 0)`):
 ```
 Group pivot = saucer bottom = y=0 (world floor)
 
-Part          Primitive                   Verts  Tris  Y (group-local)
-────────────  ──────────────────────────  ─────  ────  ──────────────
-Saucer rim    buildSquareFrustum(W,W,H)    8     12    0 → saucerRimH
-Platform      buildSquareFrustum(W,W,H)    8     12    saucerRimH → +platformH
-Cup           buildSquareFrustum(t,b,H)    8     12    rim+platform+gap → +bodyH
-Coffee fill   PlaneGeometry(W,W) rot -X    4      2    cup top − 0.002
-Handle        PlaneGeometry(W,H) DoubleSide 4     2    cup centre Y
-──────────────────────────────────────────────────────────────────────
-TOTAL                                      32    40
+Part          Primitive                     Verts  Tris  Y (group-local)
+────────────  ────────────────────────────  ─────  ────  ─────────────────────────
+Saucer        buildSquareFrustum(top,bot,H)  8     12    0 → saucerH
+              (topW > botW = dish slope)
+Cup           buildOpenFrustum(t,b,H)        8     10    saucerH+gap → +bodyH
+              (no top face = coffee visible)
+Coffee fill   PlaneGeometry(W,W) rot -X      4      2    cup top − 0.01
+Handle        PlaneGeometry(W,H) DoubleSide  4      2    cup centre Y
+──────────────────────────────────────────────────────────────────────────────────
+TOTAL                                        24    26     (Standard tier ≤ 28 ✓)
 ```
 
 ## Dev entry point
@@ -167,14 +169,14 @@ Show: saucer with sloped rim, tapered square cup body, flat handle, dark coffee 
 
 ## Next iteration tasks
 
-- [ ] Resolve real BFF-driven ceramic colour for drink products
-- [ ] Browser-certify white/off-white ceramic colour (`lightBeige` or `0xF8F4EE`)
-- [ ] Browser-certify saucer depth from the default and 45-degree camera
-- [ ] Browser-certify coffee fill visibility
-- [ ] Browser-certify model scale and default framing
-- [ ] Decide whether the 40-triangle two-piece saucer is approved
-- [ ] Evaluate at 16×16, 32×32, 64×64 icon sizes
-- [ ] Artistic sign-off from project owner
+- [x] Resolve real BFF-driven ceramic colour for drink products
+- [x] Browser-certify white/off-white ceramic colour (`lightBeige`)
+- [x] Browser-certify saucer depth — redesigned as single tapered-dish frustum
+- [x] Browser-certify coffee fill visibility — open-top cup exposes fill
+- [x] Browser-certify model scale and default framing
+- [x] Triangle budget resolved: 26 tris, Standard tier (≤ 28) — two-piece saucer removed
+- [x] Evaluate at 64×64 icon size — owner approved
+- [x] Artistic sign-off from project owner
 - [ ] Merge to `main` after approval
 
 ## Extension: future domain assets

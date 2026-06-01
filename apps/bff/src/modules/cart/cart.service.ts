@@ -21,11 +21,20 @@ export class CartService {
   // Frozen clock keeps responses deterministic so smoke/contract tests are
   // stable across runs.
   private updatedAt = "2026-05-14T12:00:00.000Z";
+  // Live epoch (ms) of the last mutation. Used by the visualizer to
+  // identify the cart as the "latest user action" item without breaking
+  // the frozen `updatedAt` contract that smoke/contract tests assert on.
+  // 0 means "never changed in this process lifetime".
+  private lastChangedEpoch = 0;
 
   constructor(
     private readonly catalog: CatalogService,
     private readonly domainEvents: DomainEventsService,
   ) {}
+
+  lastChangedAt(): number {
+    return this.lastChangedEpoch;
+  }
 
   add(payload: AddCartItemDto): Cart {
     // Re-uses CatalogService through its public surface — same access path a
@@ -45,6 +54,7 @@ export class CartService {
     };
     this.nextItemSeq += 1;
     this.items = [...this.items, item];
+    this.lastChangedEpoch = Date.now();
     this.logger.log(
       `cart add product=${product.productId} qty=${payload.quantity}`,
     );
@@ -74,6 +84,7 @@ export class CartService {
       },
     };
     this.items = this.items.map((item, i) => (i === index ? updated : item));
+    this.lastChangedEpoch = Date.now();
     this.logger.log(`cart update item=${itemId} qty=${quantity}`);
     const cart = this.snapshot();
     this.domainEvents.emit();
@@ -87,6 +98,7 @@ export class CartService {
       throw new NotFoundException(`Cart item ${itemId} not found`);
     }
     this.items = this.items.filter((item) => item.itemId !== itemId);
+    this.lastChangedEpoch = Date.now();
     this.logger.log(`cart remove item=${itemId}`);
     const cart = this.snapshot();
     this.domainEvents.emit();

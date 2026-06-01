@@ -14,6 +14,32 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+// Module-scoped GLTF loader + per-URL cache. The cache keys on the
+// resolved fetch URL so the same GLB is only fetched once per session,
+// even when many VisualizationItems share an assetUrl.
+const gltfLoader = new GLTFLoader();
+const gltfCache = new Map(); // url → Promise<THREE.Group>
+
+// The BFF emits paths prefixed with `/viz/` because the web app proxies
+// /viz/* → visualizer container. When the visualizer is reached directly
+// (e.g. http://localhost:3002), the same file is at /<path>. Strip the
+// prefix so both deployment shapes resolve the same asset.
+function resolveAssetUrl(rawUrl) {
+  if (typeof rawUrl !== "string") return null;
+  if (rawUrl.startsWith("/viz/")) return rawUrl.slice(4);
+  return rawUrl;
+}
+
+function loadGltfScene(url) {
+  let pending = gltfCache.get(url);
+  if (!pending) {
+    pending = gltfLoader.loadAsync(url).then((gltf) => gltf.scene);
+    gltfCache.set(url, pending);
+  }
+  return pending;
+}
 
 // =============================================================================
 // DEV ENTRY POINT — Classic Expresso geometry & texture configuration.
@@ -22,40 +48,36 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 // Edit these constants to tune proportions without touching buildEspressoGroup.
 // After saving, hard-reload the visualizer page to see the change.
 //
-// Polygon budget per the design spec:
-//   Cup body         : 6 quads / 12 triangles / 8 vertices  (square frustum)
-//   Saucer rim       : 6 quads / 12 triangles / 8 vertices  (flat box)
-//   Saucer platform  : 6 quads / 12 triangles / 8 vertices  (raised square)
-//   Handle           : 1 quad  /  2 triangles / 4 vertices  (flat vertical plane)
-//   Coffee           : 1 quad  /  2 triangles / 4 vertices  (flat horizontal plane)
-//   TOTAL            : 40 triangles / 32 vertices
+// Polygon budget (certified iteration 4):
+//   Cup body    : 5 quads / 10 triangles / 8 vertices  (open-top frustum — no top face)
+//   Saucer      : 6 quads / 12 triangles / 8 vertices  (tapered dish frustum)
+//   Handle      : 1 quad  /  2 triangles / 4 vertices  (flat vertical plane)
+//   Coffee      : 1 quad  /  2 triangles / 4 vertices  (flat horizontal plane)
+//   TOTAL       : 26 triangles / 28 vertices            (Standard tier ≤ 28 ✓)
 // =============================================================================
 const ESPRESSO_CFG = {
-  // ── Cup body (square frustum: wider at base = classic taper) ──────────────
-  bodyTopW: 0.26,   // top opening side length  (square, 4 edges)
-  bodyBotW: 0.33,   // base side length         (wider = taper)
-  bodyH:    0.34,   // cup height
+  // ── Cup body (open-top, slight taper: squat PS1 silhouette) ──────────────
+  bodyTopW: 0.25,   // top opening side length
+  bodyBotW: 0.30,   // base side length (83 % taper — matches v2 Blender geometry)
+  bodyH:    0.28,   // cup height (squat: nearly 1:1 width:height)
 
-  // ── Saucer (two-piece: wide flat rim + raised centre platform) ────────────
-  saucerW:         0.56,   // outer rim side length (square, wider than cup base)
-  saucerRimH:      0.02,   // flat base rim thickness
-  saucerPlatformW: 0.36,   // raised centre platform side length
-  saucerPlatformH: 0.037,  // platform height (cup rests on this)
+  // ── Saucer (single tapered piece: wide at top, narrow at foot) ───────────
+  saucerTopW: 0.48,  // rim width (1.6 × cup base — compact dish)
+  saucerBotW: 0.32,  // foot width (steeper slope for legibility at small sizes)
+  saucerH:    0.06,  // height tall enough to read from the side
 
-  // ── Air gap between saucer platform top and cup base ─────────────────────
-  gap:      0.04,   // increase for more "floating" cup look
+  // ── Air gap between saucer top and cup base ───────────────────────────────
+  gap:      0.04,
 
-  // ── Handle (single flat quad, DoubleSide, no extrusion) ──────────────────
-  handleW:   0.08,  // quad width
-  handleH:   0.20,  // quad height  (~60 % of cup body height)
-  handleGap: 0.02,  // air gap between cup right wall and handle left edge
+  // ── Handle (single flat quad, DoubleSide, sprite-thin — PS1 style) ────────
+  handleW:   0.16,  // quad width
+  handleH:   0.22,  // quad height
+  handleGap: 0.03,  // air gap between cup right wall and handle left edge
 
-  // ── Coffee fill (flat dark quad flush with cup rim) ───────────────────────
-  coffeeShrink: 0.02, // inset from cup top opening on each side
+  // ── Coffee fill (inside the open cup, near the rim) ───────────────────────
+  coffeeShrink: 0.01, // inset from cup top opening on each side
 
   // ── PS1 texture ──────────────────────────────────────────────────────────
-  // 16 → large visible blocks (strong PS1)   32 → finer but still pixelated
-  // Change to 8 for extreme PS1 crunch.
   texSize: 16,
 };
 
@@ -93,6 +115,17 @@ const STATUS_COLORS = {
 };
 
 const ROOM = { width: 6, depth: 6, height: 3 };
+
+// Hero-vs-history visual language.
+// The latest cart/order event becomes the HERO: scaled up, pulled to
+// centre-stage, brightened, and given a brief spawn-burst animation.
+// All other items recede: smaller scale, desaturated palette, no rotation.
+// This keeps the stage about the LATEST user action, with history present
+// but quiet.
+const HERO_SCALE        = 1.45;
+const HISTORY_SCALE     = 0.55;
+const HERO_FLOOR_Y      = 0.002;
+const SPAWN_DURATION_MS = 700;
 
 const stage    = document.getElementById("stage");
 const statusEl = document.getElementById("status");
@@ -196,36 +229,124 @@ function buildRoom(scene, { width, depth, height }) {
 // Asset builder dispatch
 // =============================================================================
 
-function buildItemMesh(item) {
+// Pick the "latest user action" item. Only cart/order items are eligible;
+// catalog products never win because their updatedAt is always 0 from the BFF.
+// An empty cart is also ineligible — otherwise checkout (which clears the
+// cart AFTER creating the order) would spotlight an empty placeholder.
+// Returns the item id of the hero, or null when nothing qualifies.
+function pickHero(items) {
+  let heroId   = null;
+  let heroTime = 0;
+  for (const item of items) {
+    const source = item?.metadata?.source;
+    if (source !== "cart" && source !== "orders") continue;
+    if (source === "cart" && (Number(item.metadata?.itemCount) || 0) === 0) continue;
+    const ts = Number(item.metadata?.updatedAt) || 0;
+    if (ts > heroTime) {
+      heroTime = ts;
+      heroId   = item.id;
+    }
+  }
+  return heroId;
+}
+
+// Pull RGB channels toward grey by `mix` ∈ [0,1]. mix=0 → original, mix=1 → grey.
+// Used to recede history items so the hero keeps the visual weight.
+function desaturateHex(hex, mix) {
+  const r    = (hex >> 16) & 255;
+  const g    = (hex >>  8) & 255;
+  const b    =  hex        & 255;
+  const grey = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
+  const nr   = (r * (1 - mix) + grey * mix) | 0;
+  const ng   = (g * (1 - mix) + grey * mix) | 0;
+  const nb   = (b * (1 - mix) + grey * mix) | 0;
+  return (nr << 16) | (ng << 8) | nb;
+}
+
+function buildItemMesh(item, isHero) {
   // Drink category always renders as off-white ceramic — the BFF provides domain
   // meaning (category) and Three.js owns the visual choice (ceramic colour).
   // Status colours are reserved for non-drink items (orders, generic catalog).
   // An explicit metadata.color always wins as a per-item override.
-  const color = item.metadata?.color ??
+  const baseColor = item.metadata?.color ??
     (item.metadata?.category === "drink"
       ? ESPRESSO_PALETTE.lightBeige
       : STATUS_COLORS[item.status] ?? STATUS_COLORS.idle);
+  // History items lose ~55 % of their saturation so they read as backdrop.
+  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
+
+  // Hero items snap to centre-stage regardless of their positionHint —
+  // the positionHint is the BFF's pre-clamped layout for the wider scene,
+  // but the hero deserves the prime spot in front of the camera.
+  const heroOverride = { x: 0, y: 0, z: 0 };
+  const hint = isHero ? heroOverride : (item.positionHint ?? { x: 0, y: 0, z: 0 });
+
+  // Per-item geometry config from the BFF (AssetConfig row). Merged over
+  // ESPRESSO_CFG so DB knobs override locals while missing keys fall back.
+  let cfg = ESPRESSO_CFG;
+  const rawCfg = item.metadata?.assetConfig;
+  if (typeof rawCfg === "string") {
+    try { cfg = { ...ESPRESSO_CFG, ...JSON.parse(rawCfg) }; } catch { /* keep default */ }
+  }
 
   // << EXTEND: add more category dispatches here as the domain catalogue grows.
   //    Pattern: if (item.metadata?.category === "snack") return buildSnackGroup(color);
   if (item.metadata?.category === "drink") {
-    const hint = item.positionHint ?? { x: 0, y: 0, z: 0 };
-    const group = buildEspressoGroup(color);
-    group.position.set(
-      clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-      0.002,  // cups always sit on the floor; hint.y drives x/z layout only
-      clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
-    );
-    group.userData = {
+    const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
+    const placement = {
+      x: clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
+      y: HERO_FLOOR_Y,
+      z: clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
+    };
+    const userData = {
       id: item.id,
       label: item.label,
       type: item.type,
       status: item.status,
-      baseY: 0.002,
-      phase: Math.random() * Math.PI * 2, // staggered start angle when multiple cups shown
-      baseScale: 1,
-      idleRotate: true, // drives the slow Y-axis spin in animate()
+      baseY: HERO_FLOOR_Y,
+      phase: Math.random() * Math.PI * 2,
+      baseScale,
+      // Only the hero spins — history rotation would compete for attention.
+      idleRotate: isHero,
+      isHero,
     };
+
+    const assetUrl = resolveAssetUrl(item.metadata?.assetUrl);
+    if (assetUrl && assetUrl.endsWith(".glb")) {
+      // GLB pipeline: return a placeholder Group immediately to preserve
+      // the synchronous buildItemMesh contract, then swap in the loaded
+      // scene when the fetch resolves. On failure, fall back to the
+      // procedural cup so the user never sees an empty stage.
+      const group = new THREE.Group();
+      group.position.set(placement.x, placement.y, placement.z);
+      group.scale.setScalar(baseScale);
+      group.userData = userData;
+      loadGltfScene(assetUrl).then((scene) => {
+        const clone = scene.clone(true);
+        clone.traverse((node) => {
+          if (node.isMesh) {
+            if (node.material) {
+              node.material.flatShading = true;
+              if (node.material.map) {
+                node.material.map.magFilter = THREE.NearestFilter;
+                node.material.map.minFilter = THREE.NearestFilter;
+              }
+              node.material.needsUpdate = true;
+            }
+          }
+        });
+        group.add(clone);
+      }).catch((err) => {
+        console.warn("[viz] GLB load failed; falling back to procedural cup:", assetUrl, err);
+        group.add(buildEspressoGroup(color, cfg));
+      });
+      return group;
+    }
+
+    const group = buildEspressoGroup(color, cfg);
+    group.position.set(placement.x, placement.y, placement.z);
+    group.scale.setScalar(baseScale);
+    group.userData = userData;
     return group;
   }
 
@@ -239,13 +360,22 @@ function buildItemMesh(item) {
     default:       geometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);   break;
   }
   const mesh = new THREE.Mesh(geometry, material);
-  const hint = item.positionHint ?? { x: 0, y: 0.3, z: 0 };
+  // Hero lifts to chest-height; history sits at its hinted y or a floor minimum.
+  const heroLift = item.type === "sphere" ? 0.6 : 0.4;
   mesh.position.set(
     clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-    Math.max(0.3, hint.y),
+    isHero ? heroLift : Math.max(0.3, hint.y),
     clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
   );
-  mesh.userData = { id: item.id, label: item.label };
+  const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
+  mesh.scale.setScalar(baseScale);
+  mesh.userData = {
+    id: item.id,
+    label: item.label,
+    baseScale,
+    idleRotate: isHero,
+    isHero,
+  };
   return mesh;
 }
 
@@ -357,87 +487,100 @@ function makePsxTexture(hexColor, size = 16) {
 }
 
 // =============================================================================
-// Classic Espresso — PS1 low-poly cup group
+// Open-top frustum — cup body variant of buildSquareFrustum.
 //
-// Topology matches the design spec exactly:
-//   Saucer rim    : buildSquareFrustum(W, W, rimH)      →  8 verts / 12 tris
-//   Saucer platform: buildSquareFrustum(W, W, platH)   →  8 verts / 12 tris
-//   Cup body      : buildSquareFrustum(topW, botW, H)  →  8 verts / 12 tris
-//   Handle        : PlaneGeometry(W, H)                →  4 verts /  2 tris
-//   Coffee        : PlaneGeometry(W, W)                →  4 verts /  2 tris
+// Identical topology and UVs, but the top face (indices 0-5) is omitted so
+// the cup opening is transparent and the coffee fill plane inside is visible
+// from above and from the default camera.  8 verts / 10 tris.
+//
+// Do NOT modify buildSquareFrustum — this is a companion, not a replacement.
+// =============================================================================
+function buildOpenFrustum(topW, botW, h) {
+  const t = topW / 2;
+  const b = botW / 2;
+  const pos = new Float32Array([
+    -t, h, -t,   t, h, -t,   t, h,  t,  -t, h,  t,   // top ring  (verts 0-3)
+    -b, 0, -b,   b, 0, -b,   b, 0,  b,  -b, 0,  b,   // bot ring  (verts 4-7)
+  ]);
+  const uv = new Float32Array([
+    0, 1,  1, 1,  1, 0,  0, 0,
+    0, 0,  1, 0,  1, 1,  0, 1,
+  ]);
+  const idx = new Uint16Array([
+    // top face intentionally absent — cup is open
+    4, 5, 6,   4, 6, 7,   // bottom → −Y
+    0, 1, 5,   0, 5, 4,   // front  → −Z
+    1, 2, 6,   1, 6, 5,   // right  → +X
+    2, 3, 7,   2, 7, 6,   // back   → +Z
+    3, 0, 4,   3, 4, 7,   // left   → −X
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('uv',       new THREE.BufferAttribute(uv,  2));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// =============================================================================
+// Classic Espresso — PS1 low-poly cup group  (certified iteration 4)
+//
+// Topology:
+//   Saucer  : buildSquareFrustum(topW, botW, H)  →  8 verts / 12 tris
+//             topW > botW → wide-at-top dish silhouette from all angles
+//   Cup body: buildOpenFrustum(topW, botW, H)    →  8 verts / 10 tris
+//             open top lets coffee fill read through the rim
+//   Coffee  : PlaneGeometry(W, W)                →  4 verts /  2 tris
+//   Handle  : PlaneGeometry(W, H)                →  4 verts /  2 tris
 //   ─────────────────────────────────────────────────────────────────────────
-//   TOTAL                                                 32 verts / 40 tris
+//   TOTAL                                          28 verts / 26 tris
 //
-// Group pivot = bottom of saucer (y = 0 in group space).
-// Place the group at world y ≈ 0 to sit the saucer flush on the floor.
-//
-// Y-position derivation (all in group-local space):
-//   saucer bottom   y = 0
-//   saucer top      y = saucerH
-//   gap             y = saucerH  →  saucerH + gap
-//   cup bottom      y = saucerH + gap
-//   cup top         y = saucerH + gap + bodyH
-//   coffee fill     y ≈ cup top  (just inside rim)
-//   handle centre   y = saucerH + gap + bodyH / 2
+// Group pivot = saucer bottom = y = 0 (world floor).
 //
 // << EXTEND: add new drink variants (latte glass, americano mug) by
-//    calling buildSquareFrustum with different topW / botW / bodyH values
+//    calling buildOpenFrustum with different topW / botW / bodyH values
 //    and routing via a second category flag in metadata.
 // =============================================================================
-function buildEspressoGroup(color) {
+function buildEspressoGroup(color, cfg = ESPRESSO_CFG) {
   const {
     bodyTopW, bodyBotW, bodyH,
-    saucerW, saucerRimH, saucerPlatformW, saucerPlatformH, gap,
+    saucerTopW, saucerBotW, saucerH, gap,
     handleW, handleH, handleGap,
     coffeeShrink, texSize,
-  } = ESPRESSO_CFG;
+  } = cfg;
 
-  const tex    = makePsxTexture(color, texSize);
-  // Each mesh gets its own material instance so clearGroup can dispose them
-  // independently without double-freeing a shared reference.
-  const mkMat  = () => new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
-  const group  = new THREE.Group();
+  const tex   = makePsxTexture(color, texSize);
+  const mkMat = () => new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
+  const group = new THREE.Group();
 
-  // ── Saucer — two-piece: flat outer rim + raised centre platform ──────────
-  // Rim: wide flat base sitting at group y = 0 (floor contact).
-  // Platform: narrower raised square centred on the rim; cup rests on top.
-  const saucerRim = new THREE.Mesh(
-    buildSquareFrustum(saucerW, saucerW, saucerRimH),
+  // ── Saucer — single tapered piece: wide at top, narrow at foot ───────────
+  // saucerTopW > saucerBotW → four sloped side faces read as a dish from any
+  // angle, replacing the old two-piece flat coaster.
+  const saucer = new THREE.Mesh(
+    buildSquareFrustum(saucerTopW, saucerBotW, saucerH),
     mkMat(),
   );
-  group.add(saucerRim);
-  const saucerPlatform = new THREE.Mesh(
-    buildSquareFrustum(saucerPlatformW, saucerPlatformW, saucerPlatformH),
-    mkMat(),
-  );
-  saucerPlatform.position.y = saucerRimH;
-  group.add(saucerPlatform);
+  group.add(saucer);
 
-  // ── Cup body ─────────────────────────────────────────────────────────────
-  // Tapered square frustum: top opening smaller than base (classic cup shape).
-  const cupBotY = saucerRimH + saucerPlatformH + gap;
-  const cup     = new THREE.Mesh(buildSquareFrustum(bodyTopW, bodyBotW, bodyH), mkMat());
+  // ── Cup body — open-top so the coffee fill is visible through the rim ─────
+  const cupBotY = saucerH + gap;
+  const cup     = new THREE.Mesh(buildOpenFrustum(bodyTopW, bodyBotW, bodyH), mkMat());
   cup.position.y = cupBotY;
   group.add(cup);
 
   // ── Coffee fill ───────────────────────────────────────────────────────────
-  // Flat unlit dark quad, horizontal, flush with the cup rim.
-  // PlaneGeometry lies in XY; rotate −90° around X to make it horizontal.
   const coffeeW = bodyTopW - coffeeShrink;
   const coffee  = new THREE.Mesh(
     new THREE.PlaneGeometry(coffeeW, coffeeW),
     new THREE.MeshBasicMaterial({ color: ESPRESSO_PALETTE.coffee }),
   );
   coffee.rotation.x = -Math.PI / 2;
-  coffee.position.y = cupBotY + bodyH - 0.002; // just inside the cup rim
+  coffee.position.y = cupBotY + bodyH - 0.01; // inside the open cup, near the rim
   group.add(coffee);
 
   // ── Handle ────────────────────────────────────────────────────────────────
-  // Single flat vertical quad (DoubleSide so it renders on both orbit passes).
-  // Positioned to the right of the cup with a small visible air gap.
-  // PlaneGeometry in the XY plane faces ±Z by default — visible from the front.
   const handleX = bodyBotW / 2 + handleGap + handleW / 2;
-  const handleY = cupBotY + bodyH / 2; // vertically centred on the cup body
+  const handleY = cupBotY + bodyH / 2;
   const handle  = new THREE.Mesh(
     new THREE.PlaneGeometry(handleW, handleH),
     new THREE.MeshLambertMaterial({ map: tex, flatShading: true, side: THREE.DoubleSide }),
@@ -465,6 +608,44 @@ function clearGroup(group) {
   }
 }
 
+// Single render entry point — both the SSE message handler and the polling
+// fallback flow through here so the hero/history logic stays in one place.
+//
+// Side effects:
+//   • Rebuilds dataGroup from scratch.
+//   • Suppresses the empty-cart placeholder so it no longer dominates the stage.
+//   • Stamps `spawnedAt = performance.now()` on the new hero when the hero id
+//     changes between snapshots; animate() reads that to play a brief burst.
+function renderItems(items) {
+  const heroId      = pickHero(items);
+  const heroChanged = heroId !== null && heroId !== dataGroup.userData.heroId;
+
+  clearGroup(dataGroup);
+
+  for (const item of items) {
+    // Drop the empty-cart marker entirely — when itemCount=0 the cart has no
+    // story to tell and a large grey cone in the foreground used to drown out
+    // the actual hero (the freshly placed order). See the artistic verdict
+    // in CLAUDE.md / next-steps for context.
+    if (
+      item.metadata?.source === "cart" &&
+      (Number(item.metadata?.itemCount) || 0) === 0
+    ) {
+      continue;
+    }
+
+    const isHero = item.id === heroId;
+    const mesh   = buildItemMesh(item, isHero);
+
+    if (isHero && heroChanged) {
+      mesh.userData.spawnedAt = performance.now();
+    }
+    dataGroup.add(mesh);
+  }
+
+  dataGroup.userData.heroId = heroId;
+}
+
 // SSE — primary data path. Connects to /visualization-updates and renders each
 // pushed snapshot directly. Falls back to polling on error.
 function connectSse() {
@@ -486,8 +667,7 @@ function connectSse() {
     try {
       const body = JSON.parse(event.data);
       if (!Array.isArray(body?.items)) throw new Error("malformed");
-      clearGroup(dataGroup);
-      for (const item of body.items) dataGroup.add(buildItemMesh(item));
+      renderItems(body.items);
       setStatus(`live (sse) · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`);
     } catch {
       void loadAndRender();
@@ -522,9 +702,8 @@ async function loadAndRender() {
     } catch (err) {
       if (dataGroup.children.length > 0) { setStatus(`error · ${err.message}`); return; }
     }
-    clearGroup(dataGroup);
     const source = items ?? FALLBACK_ITEMS;
-    for (const item of source) dataGroup.add(buildItemMesh(item));
+    renderItems(source);
     setStatus(
       items
         ? `live · ${items.length} item${items.length === 1 ? "" : "s"}`
@@ -555,12 +734,29 @@ function onResize() {
 }
 
 // Main render loop.
-// idleRotate speed: 0.005 rad/frame ≈ one full rotation every ~20 s at 60 fps.
+// Hero spins faster than history (which doesn't spin at all). On hero promotion
+// a brief scale-burst plays: ease-out cubic toward baseScale with a sinusoidal
+// overshoot so the new item visibly "lands" on the stage.
 // << EXTEND: replace the += with clock-delta maths for frame-rate independence.
 function animate() {
   controls.update();
+  const now = performance.now();
   for (const child of dataGroup.children) {
-    if (child.userData.idleRotate) child.rotation.y += 0.005;
+    const ud = child.userData;
+    if (ud.idleRotate) child.rotation.y += ud.isHero ? 0.008 : 0.0;
+
+    if (ud.spawnedAt !== undefined && ud.spawnedAt > 0) {
+      const t = (now - ud.spawnedAt) / SPAWN_DURATION_MS;
+      if (t < 1) {
+        // Ease-out cubic + small overshoot so the new hero "pops" into place.
+        const ease      = 1 - Math.pow(1 - t, 3);
+        const overshoot = 0.18 * Math.sin(t * Math.PI);
+        child.scale.setScalar(ud.baseScale * (ease + overshoot));
+      } else {
+        child.scale.setScalar(ud.baseScale);
+        ud.spawnedAt = -Infinity; // freeze; subsequent frames skip the math.
+      }
+    }
   }
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
@@ -580,6 +776,10 @@ function clamp(n, lo, hi) {
 //    Convention: metadata.category drives the builder in buildItemMesh();
 //                metadata.color  sets the PS1 texture base colour directly.
 // =============================================================================
+// The offline showcase represents "no backend, single hero cup" — so we
+// mark it as a cart event with a non-zero itemCount and a fresh updatedAt.
+// pickHero then promotes it to the centre-stage hero treatment instead of
+// rendering it as desaturated history.
 const FALLBACK_ITEMS = [
   {
     id: "espresso_classic",
@@ -591,7 +791,9 @@ const FALLBACK_ITEMS = [
     metadata: {
       category: "drink",
       inventory: 45,
-      source: "catalog",
+      source: "cart",
+      itemCount: 1,
+      updatedAt: Date.now(),
       color: ESPRESSO_PALETTE.lightBeige, // 0xF1ECDA — white ceramic
     },
   },

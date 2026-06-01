@@ -37,6 +37,7 @@ function makeCart(items = CART_ITEMS) {
 function makeOrders() {
   return {
     create: vi.fn().mockResolvedValue(ORDER),
+    findByClientRequestId: vi.fn().mockReturnValue(undefined),
   };
 }
 
@@ -125,6 +126,34 @@ describe("CheckoutService", () => {
     it("emits a domain event after clearing the cart", async () => {
       await service.checkout(PAYLOAD);
       expect(domainEvents.emit).toHaveBeenCalledOnce();
+    });
+
+    it("passes idempotencyKey through to orders.create as clientRequestId", async () => {
+      await service.checkout({ ...PAYLOAD, idempotencyKey: "key-fresh" });
+      expect(orders.create).toHaveBeenCalledWith(
+        expect.objectContaining({ clientRequestId: "key-fresh" }),
+      );
+    });
+
+    it("replays an existing order on a known key without touching cart or emitting", async () => {
+      orders.findByClientRequestId.mockReturnValue(ORDER);
+
+      const response = await service.checkout({ ...PAYLOAD, idempotencyKey: "key-replay" });
+
+      expect(response.orderId).toBe(ORDER.orderId);
+      expect(orders.create).not.toHaveBeenCalled();
+      expect(cart.currentItems).not.toHaveBeenCalled();
+      expect(cart.clear).not.toHaveBeenCalled();
+      expect(domainEvents.emit).not.toHaveBeenCalled();
+    });
+
+    it("does not surface 'cart is empty' on idempotent replay after a prior successful checkout", async () => {
+      cart = makeCart([]);
+      orders.findByClientRequestId.mockReturnValue(ORDER);
+      service = await makeService(cart, orders, domainEvents);
+
+      const response = await service.checkout({ ...PAYLOAD, idempotencyKey: "key-replay" });
+      expect(response.orderId).toBe(ORDER.orderId);
     });
 
     it("returns the expected CheckoutResponse shape", async () => {

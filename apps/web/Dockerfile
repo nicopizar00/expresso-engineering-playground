@@ -50,9 +50,13 @@ ARG VISUALIZER_INTERNAL_URL=http://localhost:3002
 # NEXT_PUBLIC_VISUALIZER_URL is the host-reachable link used to open the
 # visualizer standalone in a new tab; it is inlined into the client bundle.
 ARG NEXT_PUBLIC_VISUALIZER_URL=http://localhost:3002
+# NEXT_PUBLIC_PRISMA_STUDIO_URL gates the "Admin" link in the header and the
+# Prisma Studio link on /dev. Empty default = link hidden in the built bundle.
+ARG NEXT_PUBLIC_PRISMA_STUDIO_URL=
 ENV BFF_INTERNAL_URL=$BFF_INTERNAL_URL
 ENV VISUALIZER_INTERNAL_URL=$VISUALIZER_INTERNAL_URL
 ENV NEXT_PUBLIC_VISUALIZER_URL=$NEXT_PUBLIC_VISUALIZER_URL
+ENV NEXT_PUBLIC_PRISMA_STUDIO_URL=$NEXT_PUBLIC_PRISMA_STUDIO_URL
 
 RUN pnpm --filter @mini-commerce/web build
 

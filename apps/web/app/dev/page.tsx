@@ -26,6 +26,7 @@ import {
   Heart,
   ExternalLink,
   Gauge,
+  Database,
 } from 'lucide-react';
 import {
   expressoApi,
@@ -248,7 +249,34 @@ function DemoGuidePanel() {
           <a href="/visualizer" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
             <Zap className="h-3 w-3" /> 3D Visualizer
           </a>
+          {process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL && (
+            <a
+              href={process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium"
+              style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
+              title="Prisma Studio — direct DB access (bypasses domain events)"
+            >
+              <Database className="h-3 w-3" /> Prisma Studio
+              <ExternalLink className="h-3 w-3 opacity-60" />
+            </a>
+          )}
         </div>
+        {process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL && (
+          <p
+            className="mt-2 text-[11px] flex items-start gap-1.5"
+            style={{ color: 'var(--muted-foreground)' }}
+          >
+            <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" style={{ color: 'var(--warning)' }} />
+            <span>
+              Prisma Studio writes directly to Postgres. It does <strong>not</strong> go
+              through the BFF domain services, so changes do not fire domain events — the
+              SSE-driven 3D visualizer won&apos;t react until you reload. Use the API debug
+              console below for state-machine-safe edits.
+            </span>
+          </p>
+        )}
       </div>
 
       {/* Visualizer Note */}

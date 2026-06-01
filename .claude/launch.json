@@ -12,6 +12,18 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "apps/visualizer-3d/public"],
       "autoPort": true
+    },
+    {
+      "name": "visualizer-3d",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "infra/docker/compose.yaml", "logs", "-f", "visualizer-3d"],
+      "port": 3002
+    },
+    {
+      "name": "web-docker",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "infra/docker/compose.yaml", "logs", "-f", "web"],
+      "port": 3000
     }
   ]
 }

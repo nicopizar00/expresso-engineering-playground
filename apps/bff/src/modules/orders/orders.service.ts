@@ -1,10 +1,18 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+} from "@nestjs/common";
 // TODO(vercel-build): @prisma/client types require `prisma generate` — ensured by package.json#build
 import type { Order as DbOrder, OrderLine as DbOrderLine } from "@prisma/client";
 import type { OrderStatus } from "@mini-commerce/shared-types";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { PrismaService } from "../../prisma.service";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
+import { CatalogService } from "../catalog/catalog.service";
 import type { ManageOrderDto } from "./orders.dto";
 import type {
   CreateOrderInput,
@@ -33,15 +41,28 @@ function toOrder(row: DbOrder & { lines: DbOrderLine[] }): Order {
   };
 }
 
+// Prisma raises P2002 when a unique constraint is violated. We catch it on
+// `clientRequestId` to detect concurrent retries that lost the race to insert.
+function isUniqueViolation(err: unknown, target: string): boolean {
+  const e = err as { code?: string; meta?: { target?: string[] | string } };
+  if (e?.code !== "P2002") return false;
+  const t = e.meta?.target;
+  return Array.isArray(t) ? t.includes(target) : t === target;
+}
+
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
   private cache: Order[] = [];
+  // Idempotency index: clientRequestId → orderId. Lets a retried checkout
+  // short-circuit before the seq/tx/decrement work even runs.
+  private idempotencyIndex = new Map<string, string>();
   private nextOrderSeq = 1;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly domainEvents: DomainEventsService,
+    private readonly catalog: CatalogService,
   ) {}
 
   async onModuleInit() {
@@ -50,6 +71,11 @@ export class OrdersService implements OnModuleInit {
       orderBy: { placedAt: "asc" },
     });
     this.cache = rows.map(toOrder);
+    for (const row of rows) {
+      if (row.clientRequestId) {
+        this.idempotencyIndex.set(row.clientRequestId, row.orderId);
+      }
+    }
     const maxSeq = this.cache
       .map((o) => {
         const m = o.orderId.match(/^ord_(\d+)$/);
@@ -57,6 +83,14 @@ export class OrdersService implements OnModuleInit {
       })
       .reduce((a, b) => Math.max(a, b), 0);
     this.nextOrderSeq = maxSeq + 1;
+  }
+
+  // Lookup for idempotent replay. Returns undefined when the key is unknown
+  // or has not been associated with an order yet.
+  findByClientRequestId(clientRequestId: string): Order | undefined {
+    const orderId = this.idempotencyIndex.get(clientRequestId);
+    if (!orderId) return undefined;
+    return this.cache.find((o) => o.orderId === orderId);
   }
 
   listAll(): ReadonlyArray<Order> {
@@ -74,36 +108,104 @@ export class OrdersService implements OnModuleInit {
   async create(input: CreateOrderInput): Promise<Order> {
     return tracer.startActiveSpan("orders.create", async (span) => {
       try {
+        // Fast-path idempotent replay: caller retried with the same key.
+        // No seq allocation, no transaction, no inventory work.
+        if (input.clientRequestId) {
+          const replay = this.findByClientRequestId(input.clientRequestId);
+          if (replay) {
+            span.setAttribute("order.id", replay.orderId);
+            span.setAttribute("order.idempotent_replay", true);
+            this.logger.log(
+              `idempotent replay key=${input.clientRequestId} order=${replay.orderId}`,
+            );
+            return replay;
+          }
+        }
+
         const orderId = `ord_${String(this.nextOrderSeq).padStart(3, "0")}`;
         this.nextOrderSeq += 1;
         span.setAttribute("order.id", orderId);
         span.setAttribute("order.line_count", input.lines.length);
 
-        const row = await this.prisma.order.create({
-          data: {
-            orderId,
-            customerName: input.customerName,
-            status: "pending",
-            totalAmountMinor: input.total.amountMinor,
-            totalCurrency: input.total.currency,
-            placedAt: new Date(),
-            lines: {
-              create: input.lines.map((line) => ({
-                productId: line.productId,
-                name: line.name,
-                quantity: line.quantity,
-                unitAmountMinor: line.unitPrice.amountMinor,
-                unitCurrency: line.unitPrice.currency,
-                lineAmountMinor: line.lineTotal.amountMinor,
-                lineCurrency: line.lineTotal.currency,
-              })),
-            },
-          },
-          include: { lines: true },
-        });
+        // Atomic per-line CAS: `inventory >= quantity` is checked in the same
+        // UPDATE that decrements, so concurrent checkouts cannot oversell.
+        // A failed guard (count !== 1) throws inside the transaction so the
+        // order row and any prior decrements roll back together.
+        let row: DbOrder & { lines: DbOrderLine[] };
+        try {
+          row = await this.prisma.$transaction(async (tx) => {
+            for (const line of input.lines) {
+              const result = await tx.product.updateMany({
+                where: {
+                  productId: line.productId,
+                  inventory: { gte: line.quantity },
+                },
+                data: { inventory: { decrement: line.quantity } },
+              });
+              if (result.count !== 1) {
+                throw new ConflictException(
+                  `insufficient inventory for product ${line.productId}`,
+                );
+              }
+            }
+            return tx.order.create({
+              data: {
+                orderId,
+                clientRequestId: input.clientRequestId ?? null,
+                customerName: input.customerName,
+                status: "pending",
+                totalAmountMinor: input.total.amountMinor,
+                totalCurrency: input.total.currency,
+                placedAt: new Date(),
+                lines: {
+                  create: input.lines.map((line) => ({
+                    productId: line.productId,
+                    name: line.name,
+                    quantity: line.quantity,
+                    unitAmountMinor: line.unitPrice.amountMinor,
+                    unitCurrency: line.unitPrice.currency,
+                    lineAmountMinor: line.lineTotal.amountMinor,
+                    lineCurrency: line.lineTotal.currency,
+                  })),
+                },
+              },
+              include: { lines: true },
+            });
+          });
+        } catch (err) {
+          // Concurrent-retry race: another transaction committed the same key
+          // first. Our transaction (including any decrements) rolled back, so
+          // it's safe to return the winner without touching inventory.
+          if (input.clientRequestId && isUniqueViolation(err, "clientRequestId")) {
+            const winner = await this.prisma.order.findUnique({
+              where: { clientRequestId: input.clientRequestId },
+              include: { lines: true },
+            });
+            if (winner) {
+              const replay = toOrder(winner);
+              if (!this.cache.find((o) => o.orderId === replay.orderId)) {
+                this.cache.push(replay);
+              }
+              this.idempotencyIndex.set(input.clientRequestId, replay.orderId);
+              span.setAttribute("order.id", replay.orderId);
+              span.setAttribute("order.idempotent_replay", true);
+              this.logger.log(
+                `idempotent replay (race) key=${input.clientRequestId} order=${replay.orderId}`,
+              );
+              return replay;
+            }
+          }
+          throw err;
+        }
 
+        for (const line of input.lines) {
+          this.catalog.applyInventoryDelta(line.productId, -line.quantity);
+        }
         const order = toOrder(row);
         this.cache.push(order);
+        if (input.clientRequestId) {
+          this.idempotencyIndex.set(input.clientRequestId, order.orderId);
+        }
         this.logger.log(`order created id=${orderId} total=${input.total.amountMinor}`);
         this.domainEvents.emit();
         return order;

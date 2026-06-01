@@ -60,10 +60,14 @@ function makeSvc({
   products = PRODUCTS,
   orders = ORDERS,
   cart = EMPTY_CART,
+  assetConfig = null,
+  assetModel = null,
 }: {
   products?: Product[] | (() => never);
   orders?: Order[] | (() => never);
   cart?: Cart | (() => never);
+  assetConfig?: Record<string, number> | null;
+  assetModel?: { assetUrl: string; assetFormat: string } | null;
 } = {}) {
   const catalog = {
     list: typeof products === "function" ? vi.fn().mockImplementation(products) : vi.fn().mockReturnValue({ items: products }),
@@ -73,8 +77,13 @@ function makeSvc({
   };
   const cartService = {
     get: typeof cart === "function" ? vi.fn().mockImplementation(cart) : vi.fn().mockReturnValue(cart),
+    lastChangedAt: vi.fn().mockReturnValue(0),
   };
-  return new VisualizationService(catalog as any, ordersService as any, cartService as any);
+  const assets = {
+    getConfig: vi.fn().mockReturnValue(assetConfig),
+    getPrimaryModel: vi.fn().mockReturnValue(assetModel),
+  };
+  return new VisualizationService(catalog as any, ordersService as any, cartService as any, assets as any);
 }
 
 describe("VisualizationService", () => {
@@ -200,5 +209,51 @@ describe("VisualizationService", () => {
     expect(items.some((i) => i.id.startsWith("viz_product_"))).toBe(true);
     expect(items.some((i) => i.id.startsWith("viz_order_"))).toBe(true);
     expect(items.some((i) => i.id === "viz_cart_demo")).toBe(false);
+  });
+
+  it("attaches assetConfig as a JSON string to drink products", () => {
+    const params = { bodyH: 0.36, texSize: 16 };
+    const { items } = makeSvc({ assetConfig: params }).list();
+    const espresso = items.find((i) => i.id === "viz_product_prod_espresso");
+    expect(espresso?.metadata.assetConfig).toBe(JSON.stringify(params));
+  });
+
+  it("attaches GLB assetUrl + assetFormat to drink products when a primary model exists", () => {
+    const { items } = makeSvc({
+      assetModel: { assetUrl: "/viz/models/cup.glb", assetFormat: "glb" },
+    }).list();
+    const espresso = items.find((i) => i.id === "viz_product_prod_espresso");
+    expect(espresso?.metadata.assetUrl).toBe("/viz/models/cup.glb");
+    expect(espresso?.metadata.assetFormat).toBe("glb");
+  });
+
+  it("omits asset metadata when no config or model is registered", () => {
+    const { items } = makeSvc().list();
+    const espresso = items.find((i) => i.id === "viz_product_prod_espresso");
+    expect(espresso?.metadata.assetConfig).toBeUndefined();
+    expect(espresso?.metadata.assetUrl).toBeUndefined();
+  });
+
+  it("propagates drink assetConfig + GLB to a non-empty cart marker", () => {
+    const filledCart: Cart = { ...EMPTY_CART, itemCount: 1, total: { amountMinor: 180, currency: "EUR" } };
+    const params = { bodyH: 0.36 };
+    const { items } = makeSvc({
+      cart: filledCart,
+      assetConfig: params,
+      assetModel: { assetUrl: "/viz/models/cup.glb", assetFormat: "glb" },
+    }).list();
+    const cart = items.find((i) => i.id === "viz_cart_demo");
+    expect(cart?.metadata.assetConfig).toBe(JSON.stringify(params));
+    expect(cart?.metadata.assetUrl).toBe("/viz/models/cup.glb");
+  });
+
+  it("does not attach drink assets to an empty cart marker", () => {
+    const { items } = makeSvc({
+      assetConfig: { bodyH: 0.36 },
+      assetModel: { assetUrl: "/viz/models/cup.glb", assetFormat: "glb" },
+    }).list();
+    const cart = items.find((i) => i.id === "viz_cart_demo");
+    expect(cart?.metadata.assetConfig).toBeUndefined();
+    expect(cart?.metadata.assetUrl).toBeUndefined();
   });
 });

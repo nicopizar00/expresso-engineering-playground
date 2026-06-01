@@ -24,6 +24,10 @@ model Product {
 model Order {
   id               Int         @id @default(autoincrement())
   orderId          String      @unique
+  // Caller-supplied idempotency key. NULL when the caller did not provide one
+  // (legacy or fire-and-forget). The unique constraint is the final safety net
+  // against concurrent retries — Postgres allows multiple NULLs.
+  clientRequestId  String?     @unique
   customerName     String
   status           String
   totalAmountMinor Int
@@ -44,4 +48,33 @@ model OrderLine {
   unitCurrency    String
   lineAmountMinor Int
   lineCurrency    String
+}
+
+// Parametric geometry config for a domain category (e.g. "drink").
+// Mirrors the shape of ESPRESSO_CFG in apps/visualizer-3d/public/scene.js
+// so the visualizer can tune proportions without a redeploy.
+model AssetConfig {
+  id        Int      @id @default(autoincrement())
+  category  String   @unique
+  params    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Reference to a pre-baked 3D asset (GLB/glTF) produced by the offline
+// Blender pipeline (scripts/blender/export_glb.py). The visualizer prefers
+// the primary model when present and falls back to AssetConfig + procedural
+// geometry when not. Multiple variants per category support future LODs.
+model AssetModel {
+  id          Int      @id @default(autoincrement())
+  category    String
+  variant     String   @default("default")
+  assetUrl    String
+  assetFormat String   @default("glb")
+  isPrimary   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([category, variant])
+  @@index([category, isPrimary])
 }

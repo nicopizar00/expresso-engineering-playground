@@ -43,6 +43,19 @@ export class CatalogService implements OnModuleInit {
     return product;
   }
 
+  // Mirror a committed inventory change into the in-memory cache so reads
+  // (catalog list, visualization) reflect it without a DB round-trip. Called
+  // by OrdersService.create after its transaction commits. No-op for unknown
+  // productIds — the DB is the source of truth and may legitimately know
+  // about products this process has not yet cached.
+  applyInventoryDelta(productId: string, delta: number): void {
+    this.cache = this.cache.map((p) =>
+      p.productId === productId
+        ? { ...p, inventory: p.inventory + delta }
+        : p,
+    );
+  }
+
   async create(dto: CreateProductDto): Promise<Product> {
     const productId = `prod_${randomUUID().slice(0, 8)}`;
     const row = await this.prisma.product.create({

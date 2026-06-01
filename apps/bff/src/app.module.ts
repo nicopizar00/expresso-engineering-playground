@@ -8,6 +8,7 @@
 // Not yet wired here: CustomersModule, NotificationsModule (placeholders only).
 
 import { Module } from "@nestjs/common";
+import { AssetsModule } from "./modules/assets/assets.module";
 import { CartModule } from "./modules/cart/cart.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { CheckoutModule } from "./modules/checkout/checkout.module";
@@ -24,6 +25,7 @@ import { PrismaModule } from "./prisma.module";
     CartModule,
     CheckoutModule,
     OrdersModule,
+    AssetsModule,
     VisualizationModule,
   ],
 })
