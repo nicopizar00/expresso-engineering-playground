@@ -12,6 +12,10 @@ export class AssetsService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
+    await this.refreshAssets();
+  }
+
+  async refreshAssets(): Promise<void> {
     const [configs, models] = await Promise.all([
       this.prisma.assetConfig.findMany(),
       this.prisma.assetModel.findMany({
@@ -27,14 +31,16 @@ export class AssetsService implements OnModuleInit {
     );
     // First primary per category wins (orderBy desc keeps the freshest).
     const seen = new Set<string>();
+    const freshModels = new Map<string, AssetModelRef>();
     for (const row of models as DbAssetModel[]) {
       if (seen.has(row.category)) continue;
       seen.add(row.category);
-      this.primaryModelByCategory.set(row.category, {
+      freshModels.set(row.category, {
         assetUrl: row.assetUrl,
         assetFormat: row.assetFormat,
       });
     }
+    this.primaryModelByCategory = freshModels;
   }
 
   // Sync reads — both caches are warmed at startup so VisualizationService

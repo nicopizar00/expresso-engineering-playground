@@ -78,4 +78,34 @@ describe("AssetsService", () => {
       expect.objectContaining({ where: { isPrimary: true } }),
     );
   });
+
+  it("refreshAssets() re-warms caches so newly seeded rows become visible", async () => {
+    const { svc, prisma } = makeService({
+      configs: [{ category: "drink", params: { bodyH: 0.28 } }],
+    });
+    await svc.onModuleInit();
+    expect(svc.getConfig("food")).toBeNull();
+
+    // Simulate a new row appearing in the DB after startup.
+    prisma.assetConfig.findMany.mockResolvedValue([
+      { category: "drink", params: { bodyH: 0.28 } },
+      { category: "food", params: { width: 0.3 } },
+    ]);
+    await svc.refreshAssets();
+    expect(svc.getConfig("food")).toEqual({ width: 0.3 });
+  });
+
+  it("refreshAssets() replaces the model cache atomically", async () => {
+    const { svc, prisma } = makeService({
+      models: [{ category: "drink", assetUrl: "/viz/models/old.glb" }],
+    });
+    await svc.onModuleInit();
+    expect(svc.getPrimaryModel("drink")?.assetUrl).toBe("/viz/models/old.glb");
+
+    prisma.assetModel.findMany.mockResolvedValue([
+      { category: "drink", variant: "default", assetFormat: "glb", isPrimary: true, updatedAt: new Date(), assetUrl: "/viz/models/new.glb" },
+    ]);
+    await svc.refreshAssets();
+    expect(svc.getPrimaryModel("drink")?.assetUrl).toBe("/viz/models/new.glb");
+  });
 });
