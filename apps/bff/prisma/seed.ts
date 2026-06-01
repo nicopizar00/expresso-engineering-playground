@@ -91,14 +91,14 @@ async function main() {
   await prisma.assetModel.upsert({
     where: { category_variant: { category: "drink", variant: "default" } },
     update: {
-      assetUrl: "/viz/models/espresso_cup_v2.glb",
+      assetUrl: "/viz/models/classic_espreso_cup.glb",
       assetFormat: "glb",
       isPrimary: true,
     },
     create: {
       category: "drink",
       variant: "default",
-      assetUrl: "/viz/models/espresso_cup_v2.glb",
+      assetUrl: "/viz/models/classic_espreso_cup.glb",
       assetFormat: "glb",
       isPrimary: true,
     },

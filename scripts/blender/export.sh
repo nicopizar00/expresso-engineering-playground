@@ -13,8 +13,8 @@
 
 set -euo pipefail
 
-DEFAULT_INPUT="/tmp/espresso_cup_renders/espresso_cup_v2.blend"
-DEFAULT_OUTPUT="apps/visualizer-3d/public/models/espresso_cup_v2.glb"
+DEFAULT_INPUT="/tmp/espresso_cup_renders/classic_espreso_cup.blend"
+DEFAULT_OUTPUT="apps/visualizer-3d/public/models/classic_espreso_cup.glb"
 
 INPUT="$DEFAULT_INPUT"
 OUTPUT="$DEFAULT_OUTPUT"

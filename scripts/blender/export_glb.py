@@ -10,8 +10,8 @@ Typical invocation (see scripts/blender/export.sh for the wrapper):
     blender --background \
       --python scripts/blender/export_glb.py \
       -- \
-      --input  /tmp/espresso_cup_renders/espresso_cup_v1.blend \
-      --output apps/visualizer-3d/public/models/espresso_cup_v1.glb
+      --input  /tmp/espresso_cup_renders/classic_espreso_cup.blend \
+      --output apps/visualizer-3d/public/models/classic_espreso_cup.glb
 
 Pipeline steps:
   1. Parse `--input` / `--output` and validate filesystem access.
