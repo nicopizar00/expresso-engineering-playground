@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import { AssetsService } from "../assets/assets.service";
+import type { AssetModelRef, AssetParams } from "../assets/assets.types";
 import { CartService } from "../cart/cart.service";
 import { CatalogService } from "../catalog/catalog.service";
 import type { Product } from "../catalog/catalog.types";
@@ -10,6 +12,22 @@ import type {
   VisualizationItem,
   VisualizationItemStatus,
 } from "./visualization.types";
+
+// `metadata` is Readonly<Record<string, string | number>>, so AssetConfig
+// rides as a JSON string and the GLB ref is split into two string fields.
+function assetMetadata(
+  category: string,
+  config: AssetParams | null,
+  model: AssetModelRef | null,
+): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  if (config) out.assetConfig = JSON.stringify(config);
+  if (model) {
+    out.assetUrl = model.assetUrl;
+    out.assetFormat = model.assetFormat;
+  }
+  return out;
+}
 
 // Layout: three non-overlapping sectors within the 6×6 room.
 //   Products (cubes)  — back-left quadrant,  x ∈ [-2.2, 0.6],  z ∈ [-2.2, 0.6]
@@ -58,7 +76,12 @@ function orderStatus(status: Order["status"]): VisualizationItemStatus {
 // `updatedAt` is epoch ms. The visualizer compares these across items to pick
 // the "latest user action" hero. Products use 0 so the catalogue can never
 // outrank a cart/order event for the spotlight.
-function fromProduct(product: Product, index: number): VisualizationItem {
+function fromProduct(
+  product: Product,
+  index: number,
+  config: AssetParams | null,
+  model: AssetModelRef | null,
+): VisualizationItem {
   return {
     id: `viz_product_${product.productId}`,
     label: product.name,
@@ -73,6 +96,7 @@ function fromProduct(product: Product, index: number): VisualizationItem {
       inventory: product.inventory,
       source: "catalog",
       updatedAt: 0,
+      ...assetMetadata(product.category, config, model),
     },
   };
 }
@@ -105,6 +129,7 @@ export class VisualizationService {
     private readonly catalog: CatalogService,
     private readonly orders: OrdersService,
     private readonly cart: CartService,
+    private readonly assets: AssetsService,
   ) {}
 
   list(): VisualizationDataResponse {
@@ -115,7 +140,14 @@ export class VisualizationService {
 
   private catalogItems(): VisualizationItem[] {
     try {
-      return this.catalog.list().items.map(fromProduct);
+      return this.catalog.list().items.map((product, index) =>
+        fromProduct(
+          product,
+          index,
+          this.assets.getConfig(product.category),
+          this.assets.getPrimaryModel(product.category),
+        ),
+      );
     } catch {
       return [];
     }
@@ -132,6 +164,11 @@ export class VisualizationService {
   private cartItems(): VisualizationItem[] {
     try {
       const cart = this.cart.get();
+      // Non-empty cart: signal "drink" so Three.js renders a ceramic cup
+      // at the cart position instead of a generic cone.
+      const filled = cart.itemCount > 0;
+      const drinkConfig = filled ? this.assets.getConfig("drink") : null;
+      const drinkModel = filled ? this.assets.getPrimaryModel("drink") : null;
       return [
         {
           id: "viz_cart_demo",
@@ -141,15 +178,14 @@ export class VisualizationService {
           status: cart.itemCount === 0 ? "idle" : "ok",
           positionHint: CART_POSITION,
           metadata: {
-            // Non-empty cart: signal "drink" so Three.js renders a ceramic cup
-            // at the cart position instead of a generic cone.
             // Empty cart: no category — renders as an idle marker placeholder.
-            ...(cart.itemCount > 0 && { category: "drink" }),
+            ...(filled && { category: "drink" }),
             itemCount: cart.itemCount,
             total: cart.total.amountMinor,
             currency: cart.total.currency,
             source: "cart",
             updatedAt: this.cart.lastChangedAt(),
+            ...assetMetadata("drink", drinkConfig, drinkModel),
           },
         },
       ];

@@ -14,6 +14,32 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+// Module-scoped GLTF loader + per-URL cache. The cache keys on the
+// resolved fetch URL so the same GLB is only fetched once per session,
+// even when many VisualizationItems share an assetUrl.
+const gltfLoader = new GLTFLoader();
+const gltfCache = new Map(); // url → Promise<THREE.Group>
+
+// The BFF emits paths prefixed with `/viz/` because the web app proxies
+// /viz/* → visualizer container. When the visualizer is reached directly
+// (e.g. http://localhost:3002), the same file is at /<path>. Strip the
+// prefix so both deployment shapes resolve the same asset.
+function resolveAssetUrl(rawUrl) {
+  if (typeof rawUrl !== "string") return null;
+  if (rawUrl.startsWith("/viz/")) return rawUrl.slice(4);
+  return rawUrl;
+}
+
+function loadGltfScene(url) {
+  let pending = gltfCache.get(url);
+  if (!pending) {
+    pending = gltfLoader.loadAsync(url).then((gltf) => gltf.scene);
+    gltfCache.set(url, pending);
+  }
+  return pending;
+}
 
 // =============================================================================
 // DEV ENTRY POINT — Classic Expresso geometry & texture configuration.
@@ -30,24 +56,22 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 //   TOTAL       : 26 triangles / 28 vertices            (Standard tier ≤ 28 ✓)
 // =============================================================================
 const ESPRESSO_CFG = {
-  // ── Cup body (open-top, 50 % taper: classic espresso silhouette) ──────────
-  bodyTopW: 0.20,   // top opening side length
-  bodyBotW: 0.30,   // base side length (50 % wider than top)
-  bodyH:    0.36,   // cup height
+  // ── Cup body (open-top, slight taper: squat PS1 silhouette) ──────────────
+  bodyTopW: 0.25,   // top opening side length
+  bodyBotW: 0.30,   // base side length (83 % taper — matches v2 Blender geometry)
+  bodyH:    0.28,   // cup height (squat: nearly 1:1 width:height)
 
   // ── Saucer (single tapered piece: wide at top, narrow at foot) ───────────
-  // Wide-top frustum → sloped sides on all 4 faces → reads as a dish from
-  // every angle, not a flat coaster.
-  saucerTopW: 0.60,  // rim width (widest point, at the top)
-  saucerBotW: 0.44,  // foot width (narrower — gives the dish slope)
+  saucerTopW: 0.48,  // rim width (1.6 × cup base — compact dish)
+  saucerBotW: 0.32,  // foot width (steeper slope for legibility at small sizes)
   saucerH:    0.06,  // height tall enough to read from the side
 
   // ── Air gap between saucer top and cup base ───────────────────────────────
   gap:      0.04,
 
   // ── Handle (single flat quad, DoubleSide, sprite-thin — PS1 style) ────────
-  handleW:   0.12,  // quad width
-  handleH:   0.20,  // quad height
+  handleW:   0.16,  // quad width
+  handleH:   0.22,  // quad height
   handleGap: 0.03,  // air gap between cup right wall and handle left edge
 
   // ── Coffee fill (inside the open cup, near the rim) ───────────────────────
@@ -257,18 +281,24 @@ function buildItemMesh(item, isHero) {
   const heroOverride = { x: 0, y: 0, z: 0 };
   const hint = isHero ? heroOverride : (item.positionHint ?? { x: 0, y: 0, z: 0 });
 
+  // Per-item geometry config from the BFF (AssetConfig row). Merged over
+  // ESPRESSO_CFG so DB knobs override locals while missing keys fall back.
+  let cfg = ESPRESSO_CFG;
+  const rawCfg = item.metadata?.assetConfig;
+  if (typeof rawCfg === "string") {
+    try { cfg = { ...ESPRESSO_CFG, ...JSON.parse(rawCfg) }; } catch { /* keep default */ }
+  }
+
   // << EXTEND: add more category dispatches here as the domain catalogue grows.
   //    Pattern: if (item.metadata?.category === "snack") return buildSnackGroup(color);
   if (item.metadata?.category === "drink") {
-    const group = buildEspressoGroup(color);
-    group.position.set(
-      clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-      HERO_FLOOR_Y,  // cups always sit on the floor; hint.y drives x/z layout only
-      clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
-    );
     const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
-    group.scale.setScalar(baseScale);
-    group.userData = {
+    const placement = {
+      x: clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
+      y: HERO_FLOOR_Y,
+      z: clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
+    };
+    const userData = {
       id: item.id,
       label: item.label,
       type: item.type,
@@ -280,6 +310,43 @@ function buildItemMesh(item, isHero) {
       idleRotate: isHero,
       isHero,
     };
+
+    const assetUrl = resolveAssetUrl(item.metadata?.assetUrl);
+    if (assetUrl && assetUrl.endsWith(".glb")) {
+      // GLB pipeline: return a placeholder Group immediately to preserve
+      // the synchronous buildItemMesh contract, then swap in the loaded
+      // scene when the fetch resolves. On failure, fall back to the
+      // procedural cup so the user never sees an empty stage.
+      const group = new THREE.Group();
+      group.position.set(placement.x, placement.y, placement.z);
+      group.scale.setScalar(baseScale);
+      group.userData = userData;
+      loadGltfScene(assetUrl).then((scene) => {
+        const clone = scene.clone(true);
+        clone.traverse((node) => {
+          if (node.isMesh) {
+            if (node.material) {
+              node.material.flatShading = true;
+              if (node.material.map) {
+                node.material.map.magFilter = THREE.NearestFilter;
+                node.material.map.minFilter = THREE.NearestFilter;
+              }
+              node.material.needsUpdate = true;
+            }
+          }
+        });
+        group.add(clone);
+      }).catch((err) => {
+        console.warn("[viz] GLB load failed; falling back to procedural cup:", assetUrl, err);
+        group.add(buildEspressoGroup(color, cfg));
+      });
+      return group;
+    }
+
+    const group = buildEspressoGroup(color, cfg);
+    group.position.set(placement.x, placement.y, placement.z);
+    group.scale.setScalar(baseScale);
+    group.userData = userData;
     return group;
   }
 
@@ -474,13 +541,13 @@ function buildOpenFrustum(topW, botW, h) {
 //    calling buildOpenFrustum with different topW / botW / bodyH values
 //    and routing via a second category flag in metadata.
 // =============================================================================
-function buildEspressoGroup(color) {
+function buildEspressoGroup(color, cfg = ESPRESSO_CFG) {
   const {
     bodyTopW, bodyBotW, bodyH,
     saucerTopW, saucerBotW, saucerH, gap,
     handleW, handleH, handleGap,
     coffeeShrink, texSize,
-  } = ESPRESSO_CFG;
+  } = cfg;
 
   const tex   = makePsxTexture(color, texSize);
   const mkMat = () => new THREE.MeshLambertMaterial({ map: tex, flatShading: true });

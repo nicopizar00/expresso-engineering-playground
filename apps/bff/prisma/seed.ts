@@ -57,6 +57,43 @@ async function main() {
     },
   });
   console.log("Seeded ord_demo order.");
+
+  await prisma.assetConfig.upsert({
+    where: { category: "drink" },
+    update: {
+      params: {
+        bodyTopW: 0.25, bodyBotW: 0.30, bodyH: 0.28,
+        saucerTopW: 0.48, saucerBotW: 0.32, saucerH: 0.06,
+        gap: 0.04,
+        handleW: 0.16, handleH: 0.22, handleGap: 0.03,
+        coffeeShrink: 0.01, texSize: 16,
+      },
+    },
+    create: {
+      category: "drink",
+      params: {
+        bodyTopW: 0.25, bodyBotW: 0.30, bodyH: 0.28,
+        saucerTopW: 0.48, saucerBotW: 0.32, saucerH: 0.06,
+        gap: 0.04,
+        handleW: 0.16, handleH: 0.22, handleGap: 0.03,
+        coffeeShrink: 0.01, texSize: 16,
+      },
+    },
+  });
+  console.log("Seeded drink AssetConfig.");
+
+  await prisma.assetModel.upsert({
+    where: { category_variant: { category: "drink", variant: "default" } },
+    update: {},
+    create: {
+      category: "drink",
+      variant: "default",
+      assetUrl: "/viz/models/espresso_cup_v2.glb",
+      assetFormat: "glb",
+      isPrimary: true,
+    },
+  });
+  console.log("Seeded drink AssetModel.");
 }
 
 main()
