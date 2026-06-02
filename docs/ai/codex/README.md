@@ -2,6 +2,9 @@
 
 Portable Codex guidance for the mini-commerce engineering playground.
 
+This is the **Codex lane**. For the cross-assistant roster and the "which AI
+for which job" decision tree, start at [`../README.md`](../README.md).
+
 This directory keeps repository-owned prompts and skills in the codebase while
 leaving machine-local Codex defaults untouched. Use these files as source
 material for Codex sessions, local skill installs, or future prompt updates.

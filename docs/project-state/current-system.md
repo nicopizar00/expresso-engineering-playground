@@ -11,13 +11,19 @@ The **web app is the single browser-facing entry point**. The browser only ever
 talks to the web app's origin; the web server proxies to the other containers
 over the internal Docker network.
 
-| Service | Tech | Host URL | Role |
-|---|---|---|---|
-| Web app | Next.js (App Router, standalone) | `http://localhost:3000` | Product shell + browser entry point |
-| BFF / API | NestJS | `http://localhost:3001` | Domain API (catalog, cart, checkout, orders, visualization) |
-| 3D visualizer | nginx + vanilla Three.js | `http://localhost:3002` | Standalone scene; embedded via proxy |
-| PostgreSQL | Postgres 16 | `localhost:5432` | Catalog + orders persistence |
-| OTel Collector | OpenTelemetry | `localhost:4317/4318` | Trace export sink |
+| Service | Tech | Host URL | Profile | Role |
+|---|---|---|---|---|
+| Web app | Next.js (App Router, standalone) | `http://localhost:3000` | `web` | Product shell + browser entry point |
+| BFF / API | NestJS | `http://localhost:3001` | core | Domain API (catalog, cart, checkout, orders, visualization) |
+| 3D visualizer | nginx + vanilla Three.js | `http://localhost:3002` | `viz` | Standalone scene; embedded via proxy |
+| PostgreSQL | Postgres 16 | `localhost:5432` | core | Catalog + orders persistence |
+| OTel Collector | OpenTelemetry (`otel-contrib:0.110`) | `localhost:4317/4318` | core | OTLP ingest → Tempo + Prometheus exporter |
+| Prisma Studio | Prisma Studio | `http://localhost:5555` | `admin` | DB admin (direct writes — bypasses domain events) |
+| Tempo | Grafana Tempo 2.6 | `http://localhost:3200` | `obs` | Trace storage |
+| Prometheus | Prometheus 2.55 | `http://localhost:9090` | `obs` | Metrics scrape + storage |
+| Grafana | Grafana 11.3 | `http://localhost:3030` (admin/admin) | `obs` | Dashboards, Tempo + Prom datasources pre-provisioned |
+
+For the full container map see [`../architecture/containers.md`](../architecture/containers.md).
 
 Browser-facing request paths, all same-origin to the web app:
 
@@ -66,6 +72,9 @@ depend on that host exposure.
 ### Performance Playground (mock-only)
 - `/performance` renders simulated request activity for design evaluation.
 - It does **not** consume live telemetry, Grafana data, or k6 output.
+- The underlying infra Grafana stack now exists separately under `./dev up obs`
+  (Tempo + Prometheus + Grafana). The `/performance` page is intentionally
+  decoupled from it; see [`../architecture/observability.md`](../architecture/observability.md).
 
 ### Developer diagnostics
 - `/dev` provides an API debug console (including a Cart Update/Remove card),
@@ -117,8 +126,9 @@ the web-frontend consumer state.
 
 ## 6. Validation status
 
-- BFF smoke: **12/12** checks pass (`./dev smoke` / `pnpm pg:smoke`), including
-  `POST`, `PATCH`, and `DELETE` cart operations.
+- BFF smoke: **13/13** checks pass (`./dev smoke` / `pnpm pg:smoke`), including
+  `POST`, `PATCH`, `DELETE` cart operations and an SSE frame assertion against
+  `/visualization-updates`.
 - Typecheck passes for `@mini-commerce/web`, `@mini-commerce/bff`, and contracts.
 - The web production build (Next.js standalone) builds and runs in Docker; all
   feature routes and both proxies return `200` from the host.

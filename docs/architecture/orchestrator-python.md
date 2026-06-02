@@ -32,11 +32,17 @@ scripts/pg/
 
 ## Entry points
 
-- `./dev <cmd>` — bash trampoline; `exec`s `python3 -m pg`.
-- `pnpm pg:<cmd>` — same; each script in `package.json` calls `./dev <cmd>`.
-- `task <cmd>` — Taskfile wraps `pnpm pg:*`.
+```mermaid
+flowchart LR
+  Dev["./dev &lt;cmd&gt;<br/>bash trampoline"] --> Py["python3 -m pg<br/>(scripts/pg/)"]
+  Pnpm["pnpm pg:&lt;cmd&gt;<br/>(package.json scripts)"] --> Dev
+  Task["task &lt;cmd&gt;<br/>(Taskfile.yml)"] --> Pnpm
+  Py --> Compose["docker compose<br/>-f compose.yaml<br/>+ profile flags"]
+  Compose --> Stack[("postgres / bff / web /<br/>viz / admin / obs")]
+```
 
-All three remain valid; pick whichever fits your muscle memory.
+All three user-facing entrypoints converge on `python3 -m pg`. Pick whichever
+fits your muscle memory; the behaviour is identical.
 
 ## Command map
 

@@ -1,5 +1,10 @@
 # Orchestrator wire-up
 
+> **Archived 2026-06-02 — superseded by the Python orchestrator.**
+> Every sub-task below shipped. The canonical reference is now
+> [`../architecture/orchestrator-python.md`](../architecture/orchestrator-python.md).
+> This file is kept for historical context of the Phase-2 milestone.
+
 ## Goal
 
 Make `pnpm pg:*` the **single canonical interface** for the local stack.

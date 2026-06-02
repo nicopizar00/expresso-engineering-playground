@@ -36,6 +36,26 @@ When the count drops to zero, the topic is done.
 
 ## Done
 
+✅ **Observability — Tempo + Prometheus + Grafana minimum** — *shipped under
+   `./dev up obs`*
+   - `otel-collector` swapped to `otel-contrib:0.110.0`; traces fan out to
+     Tempo, metrics to a Prometheus exporter scraped by Prometheus
+   - Grafana 11.3 with pre-provisioned datasources and `BFF Overview` dashboard
+   - `./dev hack trace` queries Tempo via its HTTP API
+   - Topology: [`../architecture/observability.md`](../architecture/observability.md)
+   - Remaining follow-ups (Loki, BFF metrics reader, alert rules):
+     [observability-grafana.md](observability-grafana.md)
+
+✅ **Python orchestrator** — *replaces `scripts/playground.mjs`*
+   - Stdlib-only Python package at `scripts/pg/`
+   - `./dev` is now a bash trampoline to `python3 -m pg`; `pnpm pg:*` and
+     `task` chain into the same dispatcher
+   - Adds `pg hack {exec,env,sql,trace}` debugging affordances
+   - 13-check smoke (with SSE frame) replaces the previous 12-check version
+   - CI adds a `python` job (ruff + unittest) and `lint-docker` (hadolint)
+   - Doc: [`../architecture/orchestrator-python.md`](../architecture/orchestrator-python.md)
+   - Original thread (kept for history): [orchestrator.md](orchestrator.md)
+
 ✅ **Visualizer reactivity** — *SSE primary, polling fallback shipped*
    - 3D scene connects to `GET /visualization-updates` and receives a full
      snapshot on connect and after domain mutations.

@@ -1,35 +1,53 @@
 # Architecture
 
-This folder documents the architecture of the mini-commerce engineering
-playground. The goal is to keep documentation **just ahead** of the code,
-not behind it.
+> Current-state architecture of the mini-commerce engineering playground.
+> Keep documentation **just ahead** of the code, not behind it.
 
-## Documents
+## C4 map
 
-- [`web-entry-point.md`](web-entry-point.md) — the web app as the single
-  browser entry point and its internal proxy to the BFF and 3D visualizer.
+```mermaid
+flowchart TD
+  subgraph L2["C4 L2 — Containers"]
+    Containers["containers.md"]
+    Web["web-entry-point.md"]
+    Obs["observability.md"]
+    Orch["orchestrator-python.md"]
+  end
+  subgraph L3["C4 L3 — Components"]
+    BFF["bff-modules.md"]
+  end
+  L2 --> L3
+  classDef now fill:#dff7df,stroke:#2a8a2a,color:#000;
+  class Containers,Web,Obs,Orch,BFF now;
+```
 
-## Documents (planned)
+## Current spokes
 
-- `context.md`     — C4 Level 1: system context.
-- `containers.md`  — C4 Level 2: containers (web, bff, db, otel).
-- `components.md`  — C4 Level 3: modules inside the BFF (catalog, cart,
-  checkout, orders, customers, notifications).
-- `data-model.md`  — high-level domain entities and relationships.
-- `events.md`      — domain events crossing module boundaries
-  (order.placed, order.prepared, order.cancelled).
-- `security.md`    — trust boundaries, auth model (fictional).
+| Doc | View |
+|---|---|
+| [`containers.md`](containers.md) | C4 L2 — container map across all Compose profiles |
+| [`web-entry-point.md`](web-entry-point.md) | Browser → web → BFF/visualizer proxy topology |
+| [`bff-modules.md`](bff-modules.md) | C4 L3 — BFF module graph + invariants |
+| [`observability.md`](observability.md) | OTel SDK → collector → Tempo + Prometheus + Grafana |
+| [`orchestrator-python.md`](orchestrator-python.md) | Local orchestrator — `./dev` → `python -m pg` → `docker compose` |
+
+## Planned
+
+- `context.md` — C4 L1 system context (actors).
+- `data-model.md` — domain entities and relationships.
+- `events.md` — domain events crossing module boundaries.
+- `security.md` — trust boundaries, auth model (fictional).
 
 ## Authoring rules
 
-- No real company, product, or service names.
-- No real URLs, IPs, or credentials.
-- Diagrams are authored as Mermaid in the markdown files themselves — keep
-  the source diff-able.
+- No real company, product, or service names. No real URLs, IPs, or
+  credentials.
+- Diagrams are Mermaid, authored inline in the markdown — keep the source
+  diff-able.
+- Each spoke owns its facts once. Other docs link instead of restating.
 
 ## Relationship to ADRs
 
-This folder describes **the current state** of the architecture. ADRs in
+This folder describes **the current state**. ADRs in
 [`../adr/`](../adr/README.md) describe **why we got here**. If a decision is
-reversed, both must be updated: the architecture doc reflects the new state,
-the ADR records why the previous decision was superseded.
+reversed, both must be updated.

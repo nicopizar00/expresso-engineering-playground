@@ -1,310 +1,114 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-## Working agreements
+This file is the **entry pointer** for a Claude Code session. The full
+playbook lives at [`docs/ai/claude/playbook.md`](docs/ai/claude/playbook.md);
+the cross-assistant frame lives at [`docs/ai/README.md`](docs/ai/README.md).
+Read those before non-trivial work.
 
-- **Commit authorship**: Never add `Co-Authored-By: Claude`, `Generated with Claude Code`, or any other Claude/Anthropic attribution to commit messages, PR descriptions, or generated docs. The repo owner authors all attribution.
+## Working agreements (durable)
+
+- **No AI attribution.** Never add `Co-Authored-By: Claude`,
+  `Generated with Claude Code`, or any other Claude/Anthropic marker to
+  commits, PR descriptions, or generated docs.
+- **English** for committed content. Conversation with the owner may be
+  Spanish.
+- **No real names, URLs, IPs, or credentials** in committed content. The
+  domain is fictional.
 
 ## What this repo is
 
-An engineering playground for a fictional mini-commerce store (catalog → cart → checkout → orders). Despite the directory name, there is no travel booking domain — see `docs/adr/0002-mini-commerce-domain.md`. The goal is to iterate software engineering practices (modularity, testing, observability, distributed systems) in a realistic but low-stakes context.
-
-The codebase is an evolving **modular monolith**: catalog and orders are
-Prisma/PostgreSQL-backed, the cart is intentionally in-memory and
-single-user, and remaining stubs/TODOs mark mechanical next steps toward
-Phase 3 distributed services.
+An engineering playground for a fictional mini-commerce store (catalog →
+cart → checkout → orders → 3D visualizer). A modular monolith today; Phase 3
+extracts modules into services. Container inventory lives in
+[`docs/architecture/containers.md`](docs/architecture/containers.md); BFF
+module pattern in
+[`docs/architecture/bff-modules.md`](docs/architecture/bff-modules.md).
 
 ## Commands
 
 ### Developer loop
 
-Two equivalent CLIs — pick one based on what's installed:
-
-| Goal | Docker-only (`./dev`) | pnpm wrapper |
-|---|---|---|
-| Start core stack | `./dev up` | `pnpm pg:up core` |
-| Start + web app | `./dev up web` | `pnpm pg:up web` |
-| Start + admin (Prisma Studio) | `./dev up admin` | `pnpm pg:up admin` |
-| Start everything | `./dev up full` | `pnpm pg:up full` |
-| Hot-reload dev | `./dev dev` | `pnpm pg:dev` |
-| Service status | `./dev status` | `pnpm pg:status` |
-| Follow logs | `./dev logs` | `pnpm pg:logs` |
-| Smoke test | `./dev smoke` | `pnpm pg:smoke` |
-| Seed database | `./dev seed` | `pnpm pg:seed` |
-| Stop services | `./dev down` | `pnpm pg:down` |
-| Print URLs | `./dev open` | `pnpm pg:open` |
-
-**`./dev`** — Docker Desktop + Python ≥ 3.9 (system Python on macOS works). Implementation in `scripts/pg/` (stdlib only). Migrations and seeds run inside containers; no Node, pnpm, or pip install needed on the host.
-
-**`pnpm pg:*`** — sugar over `./dev`; requires Node ≥ 20 + pnpm 9 on the host in addition to Docker + Python.
-
-See [`docs/architecture/orchestrator-python.md`](docs/architecture/orchestrator-python.md) for the full command map and `pg hack` reference.
-
 ```bash
-# Fresh setup: copy .env template to .env (gitignored)
 cp .env.example .env
 
-# Start infrastructure stack (Docker-only path)
-./dev up            # postgres + otel-collector + bff (auto-migrates + seeds)
-./dev up web        # + Next.js web app
-./dev up admin      # + Prisma Studio (DB admin GUI on :5555)
-./dev up obs        # + Tempo + Prometheus + Grafana (queryable traces/metrics)
-./dev up full       # + visualizer-3d + prisma-studio + obs (all services)
-./dev up full --fresh  # destructive: drops postgres volume, re-migrates + re-seeds (clean state for integration)
-
-# Development: hot-reload via docker compose watch (bff + web in containers)
-./dev dev           # docker compose watch (recommended)
-pnpm pg:dev:host    # turbo run dev on host (escape hatch — requires pnpm)
-
-# Inspection
-./dev status        # service health table
-./dev logs          # follow docker compose logs
-./dev open          # print local URLs
-
-# Testing + cleanup
-./dev smoke         # hit all 13 endpoints and assert 200/201 (+ SSE frame)
-./dev seed          # run prisma db seed
-./dev down          # stop services cleanly
-
-# Debugging affordances (require ./dev up obs for `trace`)
-./dev hack exec bff                    # interactive shell in a service
-./dev hack env web                     # diff container env vs .env
-./dev hack sql --query 'SELECT count(*) FROM "Product";'
-./dev hack trace GET /catalog/products # trace tree from Tempo
+./dev up            # postgres + otel-collector + bff (auto-migrate + seed)
+./dev up web        # + Next.js
+./dev up obs        # + Tempo + Prometheus + Grafana
+./dev up full       # everything
+./dev dev           # docker compose watch (BFF + web hot reload)
+./dev smoke         # 13 endpoint checks (+ SSE frame)
+./dev down          # stop
 ```
+
+Full CLI matrix (with `pnpm pg:*` and `task` equivalents and the `hack`
+debugging affordances) lives in
+[`docs/cli-reference.md`](docs/cli-reference.md). Orchestrator internals are
+documented in
+[`docs/architecture/orchestrator-python.md`](docs/architecture/orchestrator-python.md).
 
 ### Build / test / check
 
 ```bash
-pnpm build        # turbo run build (all packages)
-pnpm test         # turbo run test (Vitest unit tests across all packages)
-pnpm typecheck    # turbo run typecheck (tsc --noEmit across all packages)
+pnpm build          # turbo run build (all packages)
+pnpm test           # turbo run test (Vitest across packages)
+pnpm typecheck      # turbo run typecheck (tsc --noEmit)
+pnpm lint           # ESLint flat config (gates CI)
+pnpm format         # Prettier (gates CI)
+pnpm pg:test        # Python orchestrator unittest suite
 ```
-
-`pnpm lint` runs ESLint (flat config in `packages/config/eslint.config.mjs`); `pnpm format` runs Prettier. Both gate CI — no longer stubs. After pulling, run `pnpm install` once to pick up the new lint/format deps.
-
-### Task wrappers (optional)
-
-`Taskfile.yml` at the repo root mirrors the commands above for users with [`go-task`](https://taskfile.dev) installed (`brew install go-task`). It is a thin shell-out to the `pnpm pg:*` and turbo scripts — `package.json` remains the source of truth. Use `pnpm pg:*` in docs, CI, and agent instructions; `task` is for human convenience only. Examples: `task up` → `pnpm pg:up core`, `task dev` → `pnpm pg:dev`, `task smoke` → `pnpm pg:smoke`. Run `task --list` to discover all wrappers.
 
 ### Single app / single test
 
 ```bash
-pnpm --filter @mini-commerce/bff test             # BFF unit tests only
-pnpm --filter @mini-commerce/bff test:watch       # Watch mode
-pnpm --filter @mini-commerce/bff typecheck        # Type-check BFF
-pnpm --filter @mini-commerce/web dev              # Next.js dev server (port 3000)
+pnpm --filter @mini-commerce/bff test
+pnpm --filter @mini-commerce/bff test:watch
+pnpm --filter @mini-commerce/bff exec vitest run path/to/file.spec.ts
+pnpm --filter @mini-commerce/web dev
 ```
 
-To run a single test file: `pnpm --filter @mini-commerce/bff exec vitest run path/to/file.spec.ts`
+## Architecture pointers
 
-### Performance
+| For | Read |
+|---|---|
+| Container map across compose profiles | [`docs/architecture/containers.md`](docs/architecture/containers.md) |
+| BFF module pattern, dependency rules, invariants | [`docs/architecture/bff-modules.md`](docs/architecture/bff-modules.md) |
+| Browser → web → BFF/visualizer proxy | [`docs/architecture/web-entry-point.md`](docs/architecture/web-entry-point.md) |
+| OTel pipeline | [`docs/architecture/observability.md`](docs/architecture/observability.md) |
+| Local orchestrator (`./dev` / `pnpm pg:*` / `task`) | [`docs/architecture/orchestrator-python.md`](docs/architecture/orchestrator-python.md) |
 
-```bash
-pnpm pg:perf:smoke       # k6 smoke profile in Docker (5–10 s)
-pnpm pg:perf:open-report # Open k6 HTML report
-pnpm pg:perf:clean       # Delete k6 reports
-```
+## Phase context
 
-### Validation
+- **Phase 1** (shipped): NestJS modular monolith.
+- **Phase 2** (in progress, ~done): Prisma+Postgres persistence, OpenTelemetry,
+  unified Python orchestrator, observability stack, SSE for the visualizer,
+  shared HTTP contracts. Open: cart/session evolution.
+- **Phase 3** (planned): Extract modules into services, expand contract
+  enforcement, replace in-process events with a broker.
 
-```bash
-pnpm pg:doctor    # Validate Docker, Python, .env, ports (host Node/pnpm informational only)
-pnpm pg:test      # Run the Python orchestrator's unittest suite
-```
+## Next-steps workflow
 
-## Architecture
+- Each open thread has a self-contained `.md` under `docs/next-steps/`.
+- Anchor source TODOs with `TODO(next-steps/<topic>)` so `grep` finds them.
+- To pick the next iteration, read
+  [`docs/next-steps/README.md`](docs/next-steps/README.md), then use
+  `EnterPlanMode` to design before editing.
 
-### Monorepo layout
+## 3D Visualizer — Classic Espresso cup (active feature)
 
-Turbo + pnpm workspaces. Three scopes:
+File: `apps/visualizer-3d/public/scene.js`. Owner artistic approval is
+pending. Working agreements and open issues are in
+[`docs/ai/claude/playbook.md`](docs/ai/claude/playbook.md#3d-visualizer-active-feature)
+and
+[`docs/next-steps/ps1-espresso-cup.md`](docs/next-steps/ps1-espresso-cup.md).
+Art rules: [`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md).
 
-- `apps/` — runnable services: `bff` (NestJS, port 3001), `web` (Next.js, port 3000), `visualizer-3d` (nginx/Three.js, port 3002, optional Docker profile)
-- `packages/` — shared libraries: `shared-types` (branded domain types, Money), `contracts` (canonical HTTP TypeScript wire shapes; OpenAPI/Pact follow-ups), `config` (eslint/tsconfig), `test-utils`
-- `tests/` — cross-app test suites: `integration/`, `contract/`, `e2e/` (all stubbed), `performance/k6/` (smoke runnable)
+**Hard rule**: edit only `ESPRESSO_CFG` and `buildEspressoGroup`. Never touch
+`buildSquareFrustum`, `makePsxTexture`, `clearGroup`, or the SSE/polling
+infrastructure.
 
-### BFF module pattern
+## Tooling efficiency
 
-Every domain feature lives in `apps/bff/src/modules/<domain>/` with four files:
-
-```
-<domain>.module.ts      # NestJS @Module — wires providers, imports, exports
-<domain>.service.ts     # Business logic (@Injectable)
-<domain>.controller.ts  # HTTP routes (@Controller)
-<domain>.types.ts       # DTOs / wire-format types
-```
-
-Modules only depend on each other through `exports: [Service]`. Never import a service from another module's internal files — only from the module's barrel or the module itself.
-
-Active domain modules (registered in `AppModule`): `HealthModule`, `CatalogModule`, `CartModule`, `CheckoutModule`, `OrdersModule`, `VisualizationModule`. `CustomersModule` and `NotificationsModule` are placeholders.
-
-### Inter-module dependencies
-
-```
-VisualizationModule ← (reads) CatalogModule, CartModule, OrdersModule
-                    ← DomainEventsModule (subscribes to changed$ for SSE)
-CheckoutModule      ← CartModule + OrdersModule + DomainEventsModule
-CartModule          ← CatalogModule + DomainEventsModule
-OrdersModule        ← DomainEventsModule
-```
-
-`DomainEventsModule` lives in `apps/bff/src/core/domain-events/` — a neutral infrastructure
-concern (analogous to `PrismaModule`). Domain modules import it explicitly; the
-visualization layer subscribes to its `changed$` observable to push SSE snapshots.
-It is NOT `@Global()` — each module that needs it declares the import, keeping
-test isolation clean.
-
-To add a dependency: import the provider module in `imports: [...]` and constructor-inject the exported service.
-
-### Cross-cutting concerns (BFF)
-
-Applied globally in `main.ts`:
-- `LoggingInterceptor` — logs every request (method, path, status)
-- `HttpExceptionFilter` — normalizes error responses
-- `ValidationPipe` (`class-validator`) — validates all incoming DTOs
-- `initTelemetry()` — configures OpenTelemetry auto-instrumentation and OTLP
-  trace export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set
-
-### Data model invariants
-
-- **Money**: always `{ amountMinor: number, currency: string }` — integer cents, never floats.
-- **Branded types** in `@mini-commerce/shared-types`: `ProductId`, `CartItemId`, `OrderId`, `CustomerId`. Use them; don't substitute plain `string`.
-- **Cart** is single-user, in-process, resets on BFF restart (no DB). This is intentional for Phase 1.
-
-### Visualization endpoint
-
-`GET /visualization-data` is a read-only aggregator: the BFF pulls from domain services and reshapes into `VisualizationItem[]`. The `visualizer-3d` frontend **never reads the database directly** — all data flows through this endpoint. This boundary is load-bearing for Phase 3 service extraction.
-
-### Docker Compose & local env
-
-**Root `.env`** (gitignored, copy from `.env.example`):
-```env
-POSTGRES_USER=playground
-POSTGRES_PASSWORD=playground
-POSTGRES_DB=mini_commerce_playground
-DATABASE_URL=postgres://playground:playground@localhost:5432/mini_commerce_playground
-BFF_PORT=3001
-WEB_PORT=3000
-VIZ_PORT=3002
-STUDIO_PORT=5555
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
-NEXT_PUBLIC_PRISMA_STUDIO_URL=http://localhost:5555
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-```
-All `pnpm pg:*` commands load this automatically.
-
-**Main stack** (`infra/docker/compose.yaml`): 
-- Always-on: `postgres`, `bff`, `otel-collector`
-- Profiled (opt-in): `web` (profile: `web`), `visualizer-3d` (profile: `viz` or `visualizer`), `prisma-studio` (profile: `admin`)
-- Activated via `pnpm pg:up <target>` where target is `core` | `web` | `viz` | `admin` | `full`
-
-**Admin / Prisma Studio caveat**: `./dev up admin` starts Prisma Studio on
-`http://localhost:${STUDIO_PORT:-5555}`. The web app renders an "Admin" link in
-the header and on `/dev` when `NEXT_PUBLIC_PRISMA_STUDIO_URL` is set. Studio
-writes **directly** to Postgres via the Prisma client — it does NOT flow
-through `CatalogService`/`OrdersService`, so `DomainEventsModule` never
-publishes and the SSE-driven 3D visualizer will not react to edits made there
-until the page is reloaded. Use the `/dev` API console for state-machine-safe
-edits.
-
-**Dev override** (`infra/docker/compose.dev.yaml`):
-- Used only by `pnpm pg:dev` (docker compose watch)
-- Switches bff + web to dev stages (nest --watch, next dev)
-- Syncs source changes into containers for hot-reload
-
-**Performance stack** (`infra/docker/compose.performance.yaml`):
-- Separate file (doesn't mutate main stack)
-- k6 containers join `mini_commerce_default` network to reach otel-collector
-
-### Testing approach
-
-- **Unit tests**: Vitest, colocated as `*.spec.ts` next to source. NestJS `Test.createTestingModule` for service/controller tests with mocked dependencies.
-- **Integration, contract (Pact), E2E (Playwright)**: infrastructure wired but test bodies are TODOs.
-- **Performance**: k6 runnable smoke, checkout-flow, and read-heavy scenarios
-  live in `tests/performance/k6/`; the larger load/stress tracks remain future work.
-
-Quality gates (CI vision, `docs/quality-strategy/`): lint → unit → build → contract → E2E smoke → perf smoke.
-
-### Phase roadmap context
-
-- **Phase 1** (shipped): NestJS modular monolith and deterministic commerce flow.
-- **Phase 2** (in progress): 
-  - ✅ Orchestrator: `pnpm pg:*` unified CLI, Docker-first dev loop (`pg:dev` = docker compose watch), auto-migrate + seed on `pg:up`
-  - ✅ Catalog and orders persistence: Prisma + Postgres, with seeded data and order listing
-  - ✅ OpenTelemetry SDK: OTLP HTTP trace export, auto-instrumentation, and order spans
-  - ✅ Shared TypeScript HTTP contracts consumed by `apps/web`
-  - ✅ Visualizer real-time SSE: `GET /visualization-updates` pushes snapshots on domain mutations; polling fallback when SSE unavailable
-  - ⏳ Domain events and cart/session evolution; cart remains in-memory intentionally
-- **Phase 3**: Extract modules into independent services; expand contract
-  enforcement (OpenAPI/Pact); replace in-process events with a broker.
-
-### Next steps workflow
-
-**Track iterations in `docs/next-steps/`:**
-- Each iteration (orders-persistence, etc.) has a detailed `.md` with sub-tasks, critical files, and verification steps
-- Anchor inline TODOs to specific docs: `TODO(next-steps/<topic>)` — grep to find them
-  ```bash
-  grep -rn "next-steps/" .  # Find all anchored TODOs
-  ```
-
-**To pick the next iteration:**
-1. Read `docs/next-steps/README.md` for overview
-2. Pick a `.md` (e.g., `orders-persistence.md`)
-3. Use `EnterPlanMode` to design, then implement step-by-step
-4. Update this file + memory when complete
-
----
-
-## 3D Visualizer — PS1 Espresso Cup
-
-**Branch**: `feature/ps1-espresso-cup` · **File**: `apps/visualizer-3d/public/scene.js`
-
-The visualizer renders domain catalogue items as PS1-era low-poly 3D objects.
-The Classic Espresso cup is the first and primary domain asset.
-
-### Stack
-- Vanilla Three.js 0.161.0 via ESM importmap (no build step, no npm install)
-- Single static file: `apps/visualizer-3d/public/scene.js`
-- Served by nginx at port 3002; preview without Docker: `npx serve -p 3002 apps/visualizer-3d/public`
-
-### Current asset state (WIP / Beta)
-The model geometry is technically correct and matches the design spec polygon
-budget. **Artistic approval is pending** — see
-[`docs/next-steps/ps1-espresso-cup.md`](docs/next-steps/ps1-espresso-cup.md)
-for the full deficiency list and approval checklist.
-
-What is working:
-- `buildSquareFrustum(topW, botW, h)` — exact-spec `BufferGeometry` (8 verts / 12 tris)
-- `ESPRESSO_CFG` — single configurable block at top of `scene.js`, all dimensions documented
-- `ESPRESSO_PALETTE` — five named colours from the design spec
-- `MeshLambertMaterial` + `flatShading: true` + 16×16 `NearestFilter` canvas texture
-- Idle Y-axis rotation via `userData.idleRotate`
-- SSE primary + polling fallback data transport
-
-Known deficiencies (do not merge to main until resolved):
-1. Cup colour → white ceramic (`#F1ECDA`), not mid-beige
-2. Saucer → needs angled/sloped top surface, not flat box
-3. Coffee fill → increase visibility (`coffeeShrink` 0.05 → 0.02)
-4. Scale → reduce all dims ~20–25%, re-frame camera
-
-### Art direction rules
-See [`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md) for:
-- Polygon budget tiers
-- Texture rules (NearestFilter always, 16×16 or 32×32)
-- Material rules (Lambert only, no PBR, no smoothing)
-- Geometry rules (square openings, no circles, 90° angles only)
-- Scale reference and silhouette test procedure
-
-### Modelling workflow for Claude Code
-1. Read `docs/next-steps/ps1-espresso-cup.md` for the open issues list
-2. Edit only `ESPRESSO_CFG` and `buildEspressoGroup` — never touch `buildSquareFrustum`
-3. Preview via `npx serve` + browser (no Docker needed for geometry iteration)
-4. Verify silhouette from 4 angles; check at ~200px viewport width for icon readability
-5. Run `preview_screenshot` twice (3 s apart) to confirm idle rotation still works
-
-### Adding new domain assets
-Follow the `buildEspressoGroup` + `ESPRESSO_CFG` pattern. Dispatch via
-`item.metadata?.category` in `buildItemMesh`. Document in `docs/next-steps/`
-before implementing. See the "Extension: future domain assets" section in the
-milestone doc.
+Subagent choice, parallel tool calls, `/loop` cadence, memory rules:
+[`docs/ai/tooling-efficiency.md`](docs/ai/tooling-efficiency.md).

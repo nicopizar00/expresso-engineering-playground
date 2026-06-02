@@ -55,15 +55,15 @@ From a freshly cloned repo, in the repo root:
 
 ```bash
 cp .env.example .env       # one-time setup — gitignored local config
-./dev doctor               # validate prerequisites
+./dev doctor               # validate prerequisites (Docker + Python ≥ 3.9)
 ./dev up                   # postgres + otel-collector + bff
-./dev smoke                # hit every BFF endpoint and assert 200/201/202
+./dev smoke                # hit every BFF endpoint, assert 200/201, and check an SSE frame
 ```
 
 Expected final line:
 
 ```
-All 9 smoke checks passed.
+All 13 smoke checks passed.
 ```
 
 If you got that, the stack is live at <http://localhost:3001>. Open the
@@ -163,21 +163,31 @@ Then open <http://localhost:3000> and walk this path:
 ### Step 4 — Add the 3D visualizer
 
 ```bash
-./dev up full
+./dev up viz       # only the visualizer
+./dev up full      # visualizer + Prisma Studio + observability
 ```
 
-Open <http://localhost:3002>. The HUD shows products as cubes, the cart
-as a cone, and orders as spheres — coloured by status (green ok,
-orange warn, red error). The visualizer **does not auto-poll**: after
-adding cart items or placing an order in Step 2 or 3, click
-**Reload data** in the HUD to rebuild the scene.
+Open <http://localhost:3002>. The visualizer connects to SSE for live
+domain-state updates; the HUD reports `live (sse) · N items` or falls
+back to polling if the SSE stream is unavailable.
 
-The visualizer reads only `GET /visualization-data`; it never connects
-to Postgres directly. This boundary is load-bearing for the Phase 3
-service extraction described in
-[`docs/architecture/`](./docs/architecture/).
+The visualizer reads only `GET /visualization-data` and `GET /visualization-updates`;
+it never connects to Postgres directly. This boundary is load-bearing for the
+Phase 3 service extraction — see
+[`docs/architecture/bff-modules.md`](./docs/architecture/bff-modules.md).
 
-### Step 5 — Inner-loop development with hot reload
+### Step 5 — Add the observability stack (optional)
+
+```bash
+./dev up obs
+./dev hack trace GET /catalog/products    # span tree from Tempo
+```
+
+Open <http://localhost:3030> (admin/admin) for Grafana with the `BFF
+Overview` dashboard. Topology and current limits are in
+[`docs/architecture/observability.md`](./docs/architecture/observability.md).
+
+### Step 6 — Inner-loop development with hot reload
 
 ```bash
 ./dev dev
@@ -197,7 +207,7 @@ curl -s http://localhost:3001/health | jq
 
 `Ctrl+C` to exit watch mode (containers keep running).
 
-### Step 6 — Run the performance smoke
+### Step 7 — Run the performance smoke
 
 ```bash
 ./dev perf:smoke
@@ -214,7 +224,7 @@ for how to run them and what their thresholds mean.
 ./dev perf:clean           # remove generated reports when done
 ```
 
-### Step 7 — Teardown
+### Step 8 — Teardown
 
 ```bash
 ./dev down                 # stop all containers (postgres volume preserved)
@@ -238,7 +248,7 @@ docker compose --profile web --profile viz \
 | `Port 3001 still occupied`                       | `lsof -ti:3001 \| xargs kill` — or change `BFF_PORT` in `.env`. |
 | `./dev smoke` shows `fetch failed`               | Run `./dev status` — the bff service should be `running` + `healthy`. |
 | Web app shows `ECONNREFUSED` calling the BFF     | Set `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001` in `.env`. |
-| Stale containers after a crash                   | `./dev down` then `./dev up`. For a full reset, use the `down -v` command in Step 7. |
+| Stale containers after a crash                   | `./dev down` then `./dev up`. For a full reset, use the `down -v` command in Step 8. |
 | Need to read logs                                | `./dev logs` (Ctrl+C to stop following).                   |
 
 ---
@@ -247,33 +257,32 @@ docker compose --profile web --profile viz \
 
 ```
 apps/
-  bff/             NestJS API. Modules: catalog, cart, checkout, orders, visualization, health.
-  web/             Next.js 14 App Router frontend (`/`, `/cart`, `/checkout`, `/orders/*`, `/visualizer`).
-  visualizer-3d/   Static Three.js scene served via nginx, fed by GET /visualization-data.
-packages/          Shared TypeScript: domain types, HTTP wire contracts, config, test utils.
-tests/             Cross-app suites: integration, contract (Pact), e2e (Playwright), performance (k6).
-infra/             Docker Compose stacks (core, dev override, perf) + OTel collector config.
-docs/              Architecture, ADRs, quality strategy, lifecycle, project state.
-scripts/           Host-mode pnpm wrapper (scripts/playground.mjs) and small helpers.
+  bff/             NestJS API
+  web/             Next.js 14 App Router frontend
+  visualizer-3d/   Static Three.js scene served via nginx
+packages/          Shared TypeScript libraries
+tests/             Cross-app test suites (integration, contract, e2e, performance)
+infra/             Docker Compose stacks + observability configs
+scripts/pg/        Python orchestrator package (driven by `./dev`)
+docs/              Documentation hub — start at docs/README.md
 ```
 
 The current iteration is a **modular monolith**: catalog and orders are
 persisted with Prisma/PostgreSQL, while the intentionally single-user cart
 remains in process memory. The folder structure is designed so the Phase 3
-jump to distributed services is a relocation, not a rewrite.
+jump to distributed services is a relocation, not a rewrite. Full container
+inventory: [`docs/architecture/containers.md`](./docs/architecture/containers.md).
 
 ---
 
 ## Further reading
 
-- [`docs/architecture/`](./docs/architecture/) — planned C4 views and architecture authoring rules.
-- [`docs/quality-strategy/`](./docs/quality-strategy/README.md) — test pyramid, ownership, CI quality gates.
-- [`docs/lifecycle/README.md`](./docs/lifecycle/README.md) — SDLC, branching, PR conventions.
-- [`docs/adr/`](./docs/adr/) — Architecture Decision Records (numbered, append-only).
-- [`docs/cli-reference.md`](./docs/cli-reference.md) — `./dev` vs `pnpm pg:*` vs `task` side by side.
-- [`docs/local-development.md`](./docs/local-development.md) — host-mode setup (Node + pnpm).
-- [`tests/performance/k6/README.md`](./tests/performance/k6/README.md) — perf engineering layer.
-- [`CLAUDE.md`](./CLAUDE.md) — project conventions and module patterns for contributors.
+- [`docs/README.md`](./docs/README.md) — documentation hub (start here for
+  any non-walkthrough question).
+- [`docs/cli-reference.md`](./docs/cli-reference.md) — `./dev`, `pnpm pg:*`,
+  `task` side by side, plus the `hack` debugging affordances.
+- [`CLAUDE.md`](./CLAUDE.md) — Claude Code execution rules.
+- [`docs/ai/README.md`](./docs/ai/README.md) — which AI assistant for which job.
 
 ---
 

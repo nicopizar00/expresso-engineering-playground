@@ -7,24 +7,15 @@ locally, validate the environment, and interact with the web app.
 
 ## Purpose
 
-The playground ships both a Docker-only `./dev` command and a host-enabled
-`pnpm pg:*` utility layer. Both cover starting applications, validating
-endpoints, and tearing down the stack from the **repository root**.
+The playground ships a Docker-only `./dev` command and a host-enabled
+`pnpm pg:*` utility layer. Both converge on `python3 -m pg` and cover the same
+local-stack operations from the **repository root**.
 
-The stack consists of:
-
-| Component       | Technology          | Default URL                  |
-|-----------------|---------------------|------------------------------|
-| Web app         | Next.js (App Router)| http://localhost:3000        |
-| BFF / API       | NestJS              | http://localhost:3001        |
-| 3D visualizer   | nginx + Three.js    | http://localhost:3002        |
-| PostgreSQL      | Postgres 16 (Docker)| localhost:5432               |
-| OTel Collector  | OpenTelemetry       | localhost:4317 / 4318        |
-
-> The web app is the single browser entry point: the browser calls the
-> same-origin `/api/bff` and `/viz` proxies, and the web server reaches the BFF
-> and visualizer over the internal Docker network. See
-> [architecture/web-entry-point.md](architecture/web-entry-point.md).
+For the full container inventory see
+[`architecture/containers.md`](architecture/containers.md). For the request
+topology see
+[`architecture/web-entry-point.md`](architecture/web-entry-point.md). This
+guide focuses on **host-mode operations** and troubleshooting.
 
 > Catalog and orders are persisted through Prisma/PostgreSQL. The cart is
 > intentionally stored in BFF process memory and resets when that process
@@ -34,17 +25,22 @@ The stack consists of:
 
 ## Prerequisites
 
-| Tool             | Version       | Install reference                            |
-|------------------|---------------|----------------------------------------------|
-| Node.js          | >= 20.0.0     | https://nodejs.org or use `nvm`              |
-| pnpm             | 9.x           | `npm install -g pnpm@9`                      |
-| Docker Desktop   | >= 4.x        | https://docs.docker.com/desktop              |
+| Tool | Version | Required for | Install |
+|---|---|---|---|
+| Docker Desktop | ≥ 4.x | The stack (always) | https://docs.docker.com/desktop |
+| Python | ≥ 3.9 | The orchestrator (always) | System Python on macOS works |
+| Node.js | ≥ 20 | Host-mode dev + `pnpm pg:*` (optional) | https://nodejs.org or `nvm` |
+| pnpm | 9.x | Same as above | `npm install -g pnpm@9` |
 
-Verify all prerequisites at once:
+Verify everything at once:
 
 ```bash
-pnpm pg:doctor
+pnpm pg:doctor       # or: ./dev doctor
 ```
+
+The doctor checks Docker reachability, Python version, root `.env`, and port
+collisions on `BFF_PORT` / `WEB_PORT`. Node and pnpm are reported as
+informational — they only matter for the host-mode path below.
 
 ---
 
@@ -59,21 +55,7 @@ single command via pnpm workspaces.
 
 ---
 
-## Validate the environment
-
-```bash
-pnpm pg:doctor
-```
-
-The doctor command checks:
-
-- Node.js version (>= 20 required)
-- pnpm availability
-- Docker and Docker Compose availability
-- `apps/web/.env.local` existence (warns if missing)
-- Whether ports 3000 and 3001 are already occupied
-
-### Set up environment
+## Set up environment
 
 ```bash
 cp .env.example .env
@@ -182,8 +164,9 @@ Target: http://localhost:3001
   ✓ GET  /orders/ord_demo
   ✓ POST /orders/ord_demo/manage (mark_prepared)
   ✓ GET  /visualization-data
+  ✓ GET  /visualization-updates (SSE frame)
 
-All 12 smoke checks passed.
+All 13 smoke checks passed.
 ```
 
 The smoke test requires the BFF to be running (`pnpm pg:dev` or
@@ -331,15 +314,6 @@ If pnpm is missing: `npm install -g pnpm@9`
 
 ## Reference
 
-| Command          | What it does                                    |
-|------------------|-------------------------------------------------|
-| `pnpm pg:doctor` | Validate local prerequisites                    |
-| `pnpm pg:up`     | Start Postgres, OTel Collector, and BFF         |
-| `pnpm pg:up web` | Add the containerized web app                   |
-| `pnpm pg:dev`    | Run web app and BFF with Compose watch          |
-| `pnpm pg:smoke`  | Run endpoint smoke validation                   |
-| `pnpm pg:seed`   | Seed persisted catalog and order demo data      |
-| `pnpm pg:reset`  | Stop containers, keep volumes                   |
-| `pnpm pg:down`   | Stop Docker Compose services                    |
-| `pnpm pg:logs`   | Stream Docker Compose logs                      |
-| `pnpm pg:open`   | Print local URLs                                |
+Full command matrix (with `./dev`, `pnpm pg:*`, `task` side by side, plus the
+`hack` debugging affordances) lives in
+[`cli-reference.md`](cli-reference.md).

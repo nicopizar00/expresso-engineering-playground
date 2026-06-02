@@ -31,30 +31,61 @@ shortcut — that pushes cost up.
 
 ## 3. Quality gates
 
-Current CI coverage:
+```mermaid
+flowchart LR
+  Setup["setup<br/>(pnpm install)"] --> Lint["lint + format +<br/>typecheck"]
+  Setup --> Python["python<br/>(ruff + unittest)"]
+  Setup --> Hadolint["lint-docker<br/>(hadolint)"]
+  Lint --> Unit["test-unit<br/>(vitest + integration)"]
+  Unit --> Build["build<br/>(turbo run build)"]
+  Build --> Contract["contract<br/>(Pact — stub body)"]
+  Build --> E2E["e2e-smoke<br/>(BFF stack + curl)"]
+  Build --> Perf["perf-smoke<br/>(k6 smoke profile)"]
 
-1. **Typecheck and build** run through the workspace pipeline. Lint commands
-   remain stubs until ESLint configuration lands.
-2. **Unit tests** run for packages with implemented suites, including the
-   active BFF module tests.
-3. **Performance smoke** boots the Compose BFF stack and executes the k6 smoke
-   profile.
+  classDef real fill:#dff7df,stroke:#2a8a2a,color:#000;
+  classDef stub fill:#fff5e6,stroke:#c47a2a,color:#000;
+  class Setup,Lint,Python,Hadolint,Unit,Build,E2E,Perf real;
+  class Contract stub;
+```
 
-Planned gates, not yet enforced:
+### Enforced today
 
-- Integration tests under `tests/integration`.
-- Pact contract verification under `tests/contract`.
-- Playwright E2E smoke under `tests/e2e`.
-- Nightly load/stress execution and dependency scanning.
+1. **Setup** — `pnpm install --frozen-lockfile`.
+2. **Lint + format + typecheck** — `pnpm lint` (ESLint flat config),
+   `pnpm format` (Prettier), `pnpm typecheck` (`tsc --noEmit`). No more
+   `|| true` escape hatches.
+3. **Python orchestrator** — `ruff check scripts/pg` + `unittest discover`
+   under `scripts/pg/tests/`.
+4. **Hadolint** — every Dockerfile under `apps/*/Dockerfile` (DL3018 ignored
+   on workspace bases).
+5. **Unit + integration** — `pnpm test` (Vitest) and `pnpm test:integration`.
+6. **Build** — `pnpm build` across the workspace.
+7. **E2E smoke** — boots the Compose BFF stack, waits for `/health`, runs
+   `pnpm test:e2e` (stub body), tears down.
+8. **Performance smoke** — `pnpm pg:perf:smoke` (k6 smoke profile).
+
+### Stubbed (job runs, body is a TODO)
+
+- **Contract verification** under `tests/contract` (Pact).
+- **Playwright E2E** under `tests/e2e`.
+
+### Planned
+
+- Nightly load/stress (k6 `checkout-flow`, `read-heavy`) outside the per-PR
+  pipeline.
+- Dependency scanning.
+- SLO-based alerting rules in Prometheus (see
+  [`../architecture/observability.md`](../architecture/observability.md)).
 
 ## 4. Local developer validation
 
-Before any of the layers above, `pnpm pg:smoke` provides a fast
-developer-loop validation: it calls the active BFF endpoints
-(`/health`, `/catalog/products`, `/catalog/products/:id`, `/cart/items`,
-`/cart`, `/checkout`, `/orders/:id`, `/orders/:id/manage`) and asserts a
-200/201/202 status. It is the local equivalent of a smoke E2E test and is
-what the rest of the pipeline plugs into.
+Before any of the layers above, `pnpm pg:smoke` (alias `./dev smoke`)
+provides a fast developer-loop validation: 13 checks across the active BFF
+endpoints (`/health`, `/catalog/*`, cart CRUD, `/checkout`, `/orders/*`,
+`/visualization-data`) **plus a Server-Sent Events frame assertion** against
+`/visualization-updates`. Asserts `200/201/202` and a non-empty `data:` frame
+within a deadline. It is the local equivalent of a smoke E2E test and is what
+the rest of the pipeline plugs into.
 
 ## 5. Testability principles
 
