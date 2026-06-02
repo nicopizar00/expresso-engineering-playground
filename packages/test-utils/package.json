@@ -7,7 +7,8 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "echo 'TODO: wire tsc'",
-    "lint": "echo 'TODO: wire eslint'",
+    "lint": "eslint .",
+    "format": "prettier --check .",
     "typecheck": "echo 'TODO: wire tsc --noEmit'",
     "test": "echo 'TODO: wire vitest'"
   }

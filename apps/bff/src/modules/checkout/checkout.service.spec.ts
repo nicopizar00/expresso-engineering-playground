@@ -112,7 +112,7 @@ describe("CheckoutService", () => {
 
     it("clears the cart after creating the order", async () => {
       const callOrder: string[] = [];
-      orders.create.mockImplementation(async (...args) => {
+      orders.create.mockImplementation(async () => {
         callOrder.push("create");
         return ORDER;
       });

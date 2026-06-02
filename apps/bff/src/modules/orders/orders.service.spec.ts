@@ -6,7 +6,7 @@ import { DomainEventsService } from "../../core/domain-events/domain-events.serv
 import { PrismaService } from "../../prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { OrdersService } from "./orders.service";
-import type { CreateOrderInput, ManageOrderResponse } from "./orders.types";
+import type { CreateOrderInput } from "./orders.types";
 
 const DB_ORDER: DbOrder & { lines: DbOrderLine[] } = {
   id: 1,

@@ -1,0 +1,41 @@
+# Grafana Tempo configuration — local trace storage.
+#
+# Single-binary mode. Traces are kept in /var/tempo (volume) so they
+# survive container restarts within a dev session. The HTTP API on :3200
+# is what `./dev hack trace` queries to fetch span trees by trace ID.
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+
+# Accept OTLP from the otel-collector via gRPC and HTTP.
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  trace_idle_period: 10s
+  max_block_duration: 1m
+
+compactor:
+  compaction:
+    block_retention: 24h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+# No metrics generator — Prometheus scrapes the otel-collector directly.
+overrides:
+  defaults:
+    metrics_generator:
+      processors: []

@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Money } from "@mini-commerce/shared-types";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
-import type { AddCartItemDto, UpdateCartItemDto } from "./cart.dto";
+import type { AddCartItemDto } from "./cart.dto";
 import type { Cart, CartItem } from "./cart.types";
 
 // Single-user in-memory cart. Sufficient for a playground where the BFF runs

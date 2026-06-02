@@ -1,0 +1,29 @@
+# Grafana datasources provisioned at container start. Pre-wired Tempo and
+# Prometheus so users can open Grafana and explore without configuring.
+# Trace-to-metrics correlation in Tempo points at the Prometheus datasource
+# by UID.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: true
+    jsonData:
+      tracesToMetrics:
+        datasourceUid: prometheus
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true

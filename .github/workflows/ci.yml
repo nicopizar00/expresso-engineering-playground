@@ -1,10 +1,8 @@
 # Continuous Integration — mini-commerce engineering playground.
 #
-# This is a PLACEHOLDER pipeline. It declares the gates we plan to enforce
-# and wires up the workspace, but most jobs are stubs that print TODOs.
-# No deployment, no secrets, no real registries are referenced.
-#
-# Jobs map 1:1 to the quality-gate plan in docs/quality-strategy/README.md.
+# Quality gates map 1:1 to docs/quality-strategy/README.md.
+# Lint, build, and unit tests now run for real (no `|| true`). Contract and
+# E2E job bodies remain stubs — they'll fail loudly until wired.
 
 name: ci
 
@@ -32,10 +30,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile || echo 'TODO: lockfile not yet committed'
+        run: pnpm install --frozen-lockfile
 
   lint:
-    name: Lint + typecheck
+    name: Lint + format + typecheck
     needs: setup
     runs-on: ubuntu-latest
     steps:
@@ -46,8 +44,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm format
       - run: pnpm typecheck
 
   test-unit:
@@ -62,7 +61,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm test:integration
 
@@ -78,8 +77,46 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+  python:
+    name: Python orchestrator (pg) — ruff + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ruff
+        run: pip install --quiet "ruff==0.7.4"
+      - name: Lint
+        run: ruff check scripts/pg
+      - name: Unit tests
+        # unittest discover requires the start dir to be the parent so the
+        # `pg` package is importable.
+        run: cd scripts && python -m unittest discover -s pg/tests -p 'test_*.py' -v
+
+  lint-docker:
+    name: Hadolint Dockerfiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint BFF Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: apps/bff/Dockerfile
+          # DL3018 (pin apk versions) is overly strict for a workspace base.
+          ignore: DL3018
+      - name: Lint web Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: apps/web/Dockerfile
+          ignore: DL3018
+      - name: Lint visualizer-3d Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: apps/visualizer-3d/Dockerfile
 
   contract:
     name: Contract verification
@@ -93,7 +130,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm install --frozen-lockfile
       - run: pnpm test:contract
 
   e2e-smoke:
@@ -117,13 +154,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile || true
+      - run: pnpm install --frozen-lockfile
       - name: Start BFF stack
         run: |
           docker compose -f infra/docker/compose.yaml up -d
-          # Poll /health on the BFF until it returns 200 or we hit the budget.
-          # 60s ceiling: image build + postgres healthcheck typically settle
-          # well inside that on hosted runners.
           for i in $(seq 1 60); do
             if curl -fsS http://localhost:3001/health >/dev/null; then
               echo "BFF is healthy after ${i}s"

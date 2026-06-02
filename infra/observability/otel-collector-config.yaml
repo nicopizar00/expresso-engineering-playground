@@ -1,8 +1,12 @@
-# OpenTelemetry collector placeholder configuration.
+# OpenTelemetry Collector pipeline.
 #
-# This is intentionally minimal: it accepts OTLP over gRPC/HTTP and logs
-# everything to the collector's stdout. Real exporters (Tempo, Prometheus,
-# Loki) will be wired in the next iteration.
+# Traces  → Tempo (OTLP gRPC) when the `obs` profile is up.
+# Metrics → Prometheus exporter on :8889. Prometheus scrapes that endpoint.
+# Logs    → debug exporter (stdout). Loki is a future iteration.
+#
+# When the `obs` profile is NOT up, the otlp/tempo exporter cannot connect
+# and silently drops traces. The collector keeps running so the rest of the
+# stack is unaffected — `./dev up obs` is required for trace querying.
 
 receivers:
   otlp:
@@ -16,7 +20,23 @@ processors:
   batch: {}
 
 exporters:
-  # TODO: replace with real backends (Tempo, Prometheus, Loki).
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 5m
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    # Resource attributes flow through to Prometheus labels so we can filter
+    # by service_name in queries.
+    resource_to_telemetry_conversion:
+      enabled: true
   debug:
     verbosity: basic
 
@@ -25,18 +45,11 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
-    # k6 pushes OTLP metrics into this pipeline when scenarios are run via
-    # the `k6-otel` service in infra/docker/compose.performance.yaml (which
-    # passes `--out experimental-opentelemetry` and points
-    # K6_OTEL_GRPC_EXPORTER_ENDPOINT at this collector). Today they land in
-    # the debug exporter and show up in collector stdout; the next
-    # iteration should swap `debug` for Prometheus + Grafana so the metrics
-    # are queryable and can be correlated with BFF traces on a dashboard.
+      exporters: [otlp/tempo]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [prometheus]
     logs:
       receivers: [otlp]
       processors: [batch]

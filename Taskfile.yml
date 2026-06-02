@@ -34,8 +34,13 @@ tasks:
     cmds:
       - pnpm pg:up viz
 
+  up:obs:
+    desc: Start observability stack (tempo + prometheus + grafana)
+    cmds:
+      - pnpm pg:up obs
+
   up:full:
-    desc: Start all services (core + web + viz)
+    desc: Start all services (core + web + viz + admin + obs)
     cmds:
       - pnpm pg:up full
 

@@ -27,7 +27,7 @@
 
 services:
   k6:
-    image: grafana/k6:latest
+    image: grafana/k6:0.54.0
     container_name: mini-commerce-k6
     working_dir: /scripts
     # The whole performance folder is mounted into the container so
@@ -48,7 +48,7 @@ services:
   # plain `k6` service; this service is invoked manually when you want to
   # see metrics land in the collector.
   k6-otel:
-    image: grafana/k6:latest
+    image: grafana/k6:0.54.0
     container_name: mini-commerce-k6-otel
     working_dir: /scripts
     volumes:

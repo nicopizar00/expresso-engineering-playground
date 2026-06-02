@@ -35,9 +35,11 @@ Two equivalent CLIs — pick one based on what's installed:
 | Stop services | `./dev down` | `pnpm pg:down` |
 | Print URLs | `./dev open` | `pnpm pg:open` |
 
-**`./dev`** — requires Docker Desktop only (bash is built-in on macOS). Migrations and seeds run inside containers; no Node or pnpm on the host.
+**`./dev`** — Docker Desktop + Python ≥ 3.9 (system Python on macOS works). Implementation in `scripts/pg/` (stdlib only). Migrations and seeds run inside containers; no Node, pnpm, or pip install needed on the host.
 
-**`pnpm pg:*`** — requires Node ≥ 20 + pnpm 9 on the host in addition to Docker.
+**`pnpm pg:*`** — sugar over `./dev`; requires Node ≥ 20 + pnpm 9 on the host in addition to Docker + Python.
+
+See [`docs/architecture/orchestrator-python.md`](docs/architecture/orchestrator-python.md) for the full command map and `pg hack` reference.
 
 ```bash
 # Fresh setup: copy .env template to .env (gitignored)
@@ -47,7 +49,8 @@ cp .env.example .env
 ./dev up            # postgres + otel-collector + bff (auto-migrates + seeds)
 ./dev up web        # + Next.js web app
 ./dev up admin      # + Prisma Studio (DB admin GUI on :5555)
-./dev up full       # + visualizer-3d + prisma-studio (all services)
+./dev up obs        # + Tempo + Prometheus + Grafana (queryable traces/metrics)
+./dev up full       # + visualizer-3d + prisma-studio + obs (all services)
 ./dev up full --fresh  # destructive: drops postgres volume, re-migrates + re-seeds (clean state for integration)
 
 # Development: hot-reload via docker compose watch (bff + web in containers)
@@ -60,9 +63,15 @@ pnpm pg:dev:host    # turbo run dev on host (escape hatch — requires pnpm)
 ./dev open          # print local URLs
 
 # Testing + cleanup
-./dev smoke         # hit all 9 endpoints and assert 200/201
+./dev smoke         # hit all 13 endpoints and assert 200/201 (+ SSE frame)
 ./dev seed          # run prisma db seed
 ./dev down          # stop services cleanly
+
+# Debugging affordances (require ./dev up obs for `trace`)
+./dev hack exec bff                    # interactive shell in a service
+./dev hack env web                     # diff container env vs .env
+./dev hack sql --query 'SELECT count(*) FROM "Product";'
+./dev hack trace GET /catalog/products # trace tree from Tempo
 ```
 
 ### Build / test / check
@@ -73,7 +82,7 @@ pnpm test         # turbo run test (Vitest unit tests across all packages)
 pnpm typecheck    # turbo run typecheck (tsc --noEmit across all packages)
 ```
 
-`pnpm lint` and `pnpm format` are stubbed (TODOs).
+`pnpm lint` runs ESLint (flat config in `packages/config/eslint.config.mjs`); `pnpm format` runs Prettier. Both gate CI — no longer stubs. After pulling, run `pnpm install` once to pick up the new lint/format deps.
 
 ### Task wrappers (optional)
 
@@ -101,7 +110,8 @@ pnpm pg:perf:clean       # Delete k6 reports
 ### Validation
 
 ```bash
-pnpm pg:doctor    # Validate Node, pnpm, Docker, .env prerequisites
+pnpm pg:doctor    # Validate Docker, Python, .env, ports (host Node/pnpm informational only)
+pnpm pg:test      # Run the Python orchestrator's unittest suite
 ```
 
 ## Architecture

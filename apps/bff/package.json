@@ -8,7 +8,8 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "build": "prisma generate && nest build",
-    "lint": "echo 'TODO: wire eslint'",
+    "lint": "eslint .",
+    "format": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,6 +19,7 @@
     "prisma:seed": "ts-node --project tsconfig.json --transpile-only prisma/seed.ts"
   },
   "dependencies": {
+    "@mini-commerce/config": "workspace:*",
     "@mini-commerce/shared-types": "workspace:*",
     "@nestjs/common": "^10.3.0",
     "@nestjs/core": "^10.3.0",

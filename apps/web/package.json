@@ -7,11 +7,13 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "echo 'TODO: wire eslint'",
+    "lint": "eslint .",
+    "format": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "echo 'TODO: wire vitest for component tests'"
   },
   "dependencies": {
+    "@mini-commerce/config": "workspace:*",
     "@mini-commerce/contracts": "workspace:*",
     "lucide-react": "^1.16.0",
     "next": "^14.2.0",

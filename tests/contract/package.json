@@ -5,7 +5,8 @@
   "description": "Consumer/provider contract tests (Pact) for the mini-commerce playground.",
   "scripts": {
     "test:contract": "echo 'TODO: wire pact consumer + provider verification'",
-    "lint": "echo 'TODO: wire eslint'",
+    "lint": "eslint .",
+    "format": "prettier --check .",
     "typecheck": "echo 'TODO: wire tsc --noEmit'"
   }
 }

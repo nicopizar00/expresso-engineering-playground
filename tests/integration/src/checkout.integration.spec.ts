@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { ConflictException } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CatalogService } from "../../../apps/bff/src/modules/catalog/catalog.service";
 import { DomainEventsService } from "../../../apps/bff/src/core/domain-events/domain-events.service";
 import { OrdersService } from "../../../apps/bff/src/modules/orders/orders.service";

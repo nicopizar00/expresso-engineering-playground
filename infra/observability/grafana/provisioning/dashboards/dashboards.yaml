@@ -1,0 +1,14 @@
+# Dashboard provisioning — picks up everything under /var/lib/grafana/dashboards.
+
+apiVersion: 1
+
+providers:
+  - name: mini-commerce
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

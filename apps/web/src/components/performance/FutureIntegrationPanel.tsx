@@ -16,7 +16,6 @@ import {
   FileJson,
   Link2,
   Database,
-  Activity,
   FlaskConical,
 } from 'lucide-react';
 
@@ -137,7 +136,7 @@ export function FutureIntegrationPanel() {
 function IntegrationCard({
   icon: Icon,
   title,
-  status,
+  status: _status,
 }: {
   icon: typeof FileJson;
   title: string;

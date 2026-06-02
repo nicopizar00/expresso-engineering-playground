@@ -39,7 +39,11 @@ services:
     environment:
       PORT: "${BFF_PORT:-3001}"
       DATABASE_URL: postgres://${POSTGRES_USER:-playground}:${POSTGRES_PASSWORD:-playground}@postgres:5432/${POSTGRES_DB:-mini_commerce_playground}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      # In-container Docker network address; root .env may set this to
+      # localhost for host-side processes (k6 host-mode etc.) but the BFF
+      # container must reach the collector by service name. Hardcoded so
+      # a user-supplied .env value does not silently break tracing.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - "${BFF_PORT:-3001}:3001"
     depends_on:
@@ -91,14 +95,16 @@ services:
       start_period: 15s
 
   otel-collector:
-    # TODO: switch to the contrib image once a concrete pipeline is defined.
-    image: otel/opentelemetry-collector:latest
+    # contrib image carries the prometheus exporter we need for the metrics
+    # pipeline. Pinned to a known-good tag — bump deliberately.
+    image: otel/opentelemetry-collector-contrib:0.110.0
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ../observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     ports:
       - "4317:4317"  # OTLP gRPC
       - "4318:4318"  # OTLP HTTP
+      - "8889:8889"  # prometheus exporter (scraped by prometheus svc)
 
   # visualizer-3d — opt-in static frontend that renders a Three.js room and
   # consumes /visualization-data from the BFF.
@@ -154,10 +160,83 @@ services:
         "none",
       ]
 
-  # TODO (future): prometheus / grafana / tempo / loki for observability stack
+  # ── Observability profile (opt-in via `./dev up obs` or `./dev up full`) ──
+  #
+  # Tempo stores traces locally; Prometheus scrapes the otel-collector;
+  # Grafana auto-provisions Tempo + Prometheus datasources and a starter
+  # BFF dashboard. None of these services are required for the BFF to run —
+  # they only kick in when the user opts in.
+
+  tempo:
+    profiles: [obs]
+    image: grafana/tempo:2.6.0
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ../observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"  # HTTP API (used by `./dev hack trace`)
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3200/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  prometheus:
+    profiles: [obs]
+    image: prom/prometheus:v2.55.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=6h"
+    volumes:
+      - ../observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  grafana:
+    profiles: [obs]
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor"
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3030}:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
 volumes:
   postgres-data:
+  tempo-data:
+  prometheus-data:
+  grafana-data:
 
 # The default network is named explicitly so it can be referenced as
 # `external: true` from infra/docker/compose.performance.yaml. The

@@ -37,7 +37,6 @@
  */
 
 import {
-  MOCK_PRODUCTS,
   getMockCart,
   getMockProducts,
   addMockCartItem,
