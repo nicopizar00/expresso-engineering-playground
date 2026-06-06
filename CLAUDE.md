@@ -108,6 +108,64 @@ Art rules: [`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md
 `buildSquareFrustum`, `makePsxTexture`, `clearGroup`, or the SSE/polling
 infrastructure.
 
+## Claude Code configuration
+
+Claude Code is the primary AI implementation environment for this phase.
+The full operating protocol lives at
+[`docs/ai/claude-code-operating-protocol.md`](docs/ai/claude-code-operating-protocol.md);
+the executable configuration lives under `.claude/`.
+
+| Surface | Path | Purpose |
+|---|---|---|
+| Skills | `.claude/skills/<name>/SKILL.md` | User-invokable workflows |
+| Subagents | `.claude/agents/<name>.md` | Read-only review agents |
+| Commands | `.claude/commands/<name>.md` | Short slash-command workflows |
+
+### Skills
+
+| Skill | Invoke when |
+|---|---|
+| `expresso-repo-orientation` | Cold session start; ground yourself before editing. |
+| `expresso-performance-orchestrator` | Designing or extending the Python-first k6 Docker layer. |
+| `expresso-k6-review` | Reviewing a new or modified k6 scenario / threshold. |
+| `expresso-docker-compose-review` | Reviewing Compose changes (profiles, ports, volumes). |
+| `expresso-visualizer-review` | Reviewing `scene.js` against the PS1 art rules. |
+| `expresso-validation-audit` | Before reporting a change "done". |
+| `expresso-documentation-audit` | When docs are touched or a code change crosses an architecture spoke. |
+
+### Subagents
+
+| Subagent | Reach for it when |
+|---|---|
+| `performance-engineering-reviewer` | Second-opinion read of a perf change before merging. |
+| `python-orchestrator-reviewer` | Auditing `scripts/pg/` correctness and stdlib-only contract. |
+| `threejs-visual-design-reviewer` | Auditing `scene.js` art compliance and SSE boundary. |
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `/perf-smoke` | Run k6 smoke through Docker and summarize. |
+| `/validate-change` | Pick the narrowest validation row from the playbook matrix and run it. |
+
+## Performance engineering
+
+The Python-first k6 Docker layer is the repo's native performance
+orchestration capability.
+
+- Design + invariants: [`docs/performance/orchestrator.md`](docs/performance/orchestrator.md)
+- Validation evidence rules: [`docs/performance/validation.md`](docs/performance/validation.md)
+- Scenario library: [`tests/performance/k6/README.md`](tests/performance/k6/README.md)
+- Run from a fresh checkout: `./dev perf:smoke`
+
+## Out of scope for this phase
+
+VS Code + GitHub Copilot Chat configuration (instructions files, prompt
+files, Copilot-specific skills) is **deferred to a future track**. The
+existing `.github/copilot-instructions.md` stays as a tiny pointer; no
+Copilot-specific work happens here. See the Roadmap section in
+[`docs/ai/claude-code-operating-protocol.md`](docs/ai/claude-code-operating-protocol.md#roadmap).
+
 ## Tooling efficiency
 
 Subagent choice, parallel tool calls, `/loop` cadence, memory rules:
