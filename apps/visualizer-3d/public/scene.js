@@ -14,6 +14,15 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { clamp } from "./utils.js";
+import {
+  ESPRESSO_PALETTE,
+  STATUS_COLORS,
+  desaturateHex,
+  makePsxTexture,
+} from "./materials.js";
+import { buildSquareFrustum, buildOpenFrustum } from "./geometry/frustum.js";
+import { FALLBACK_SCENE } from "./fallback.js";
 
 // =============================================================================
 // DEV ENTRY POINT — Classic Expresso geometry & texture configuration.
@@ -55,17 +64,6 @@ const ESPRESSO_CFG = {
   texSize: 16,
 };
 
-// PS1 colour palette — extracted from the design spec reference image.
-// All domain-object colours should draw from here.
-// << EXTEND: add accent, highlight, or seasonal tones as the catalogue grows.
-const ESPRESSO_PALETTE = {
-  lightBeige: 0xF1ECDA,  // brightest surface / top faces
-  midBeige:   0xCBBE9A,  // default cup/saucer body colour
-  darkBeige:  0xA29272,  // shadow / underside faces
-  coffee:     0x5B3A1E,  // espresso fill colour
-  shadow:     0x2E251C,  // deepest shadow
-};
-
 // =============================================================================
 // Runtime config — URLs, polling, SSE
 // =============================================================================
@@ -78,15 +76,6 @@ const API_BASE = (() => {
   if (window.location.pathname.startsWith("/viz")) return "/api/bff";
   return window.__VIZ_CONFIG__?.apiBaseUrl || "http://localhost:3001";
 })();
-
-// Inventory-status → mesh colour. Items that carry metadata.color bypass this.
-// << EXTEND: add "featured", "new", "lowStock" etc. as the UI evolves.
-const STATUS_COLORS = {
-  ok:   0x4caf50,
-  warn: 0xf2a200,
-  error: 0xd64545,
-  idle: 0x9aa0a6,
-};
 
 const ROOM = { width: 6, depth: 6, height: 3 };
 
@@ -197,166 +186,6 @@ function buildRoom(scene, { width, depth, height }) {
   const grid = new THREE.GridHelper(width, 12, 0xdddddd, 0xeeeeee);
   grid.position.y = 0.001;
   scene.add(grid);
-}
-
-// =============================================================================
-// Asset builder dispatch
-// =============================================================================
-
-// Pull RGB channels toward grey by `mix` ∈ [0,1]. mix=0 → original, mix=1 → grey.
-// Used to recede history items so the hero keeps the visual weight.
-function desaturateHex(hex, mix) {
-  const r    = (hex >> 16) & 255;
-  const g    = (hex >>  8) & 255;
-  const b    =  hex        & 255;
-  const grey = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
-  const nr   = (r * (1 - mix) + grey * mix) | 0;
-  const ng   = (g * (1 - mix) + grey * mix) | 0;
-  const nb   = (b * (1 - mix) + grey * mix) | 0;
-  return (nr << 16) | (ng << 8) | nb;
-}
-
-// =============================================================================
-// Geometry primitive — square frustum
-//
-// Builds a box or tapered box with EXACTLY 8 vertices and 12 triangles,
-// matching the design-spec polygon budget for both the cup and the saucer.
-//
-//   topW === botW  →  standard box (use for saucer)
-//   topW  <  botW  →  tapered frustum (use for cup body)
-//
-// Pivot: bottom face sits at local y = 0; top face at local y = h.
-// This means placing the mesh at y = 0 (in the group) puts its base on the
-// group floor — group root = saucer bottom = world floor.
-//
-// UV notes: each corner vertex carries ONE UV shared across all adjacent faces.
-// This produces the characteristic PS1 texture-distortion at corners (no
-// perspective-correct texture mapping), which is an intentional retro artefact.
-//
-// Winding: all faces wound CCW when viewed from outside (right-hand outward normal).
-// =============================================================================
-function buildSquareFrustum(topW, botW, h) {
-  const t = topW / 2;  // half-width top
-  const b = botW / 2;  // half-width bottom
-
-  // 8 unique vertex positions
-  //   top ring (y = h):  v0 front-left, v1 front-right, v2 back-right, v3 back-left
-  //   bot ring (y = 0):  v4 front-left, v5 front-right, v6 back-right, v7 back-left
-  const pos = new Float32Array([
-    -t, h, -t,   // 0  top  front-left   (-X, +Y, -Z)
-     t, h, -t,   // 1  top  front-right  (+X, +Y, -Z)
-     t, h,  t,   // 2  top  back-right   (+X, +Y, +Z)
-    -t, h,  t,   // 3  top  back-left    (-X, +Y, +Z)
-    -b, 0, -b,   // 4  bot  front-left   (-X,  0, -Z)
-     b, 0, -b,   // 5  bot  front-right  (+X,  0, -Z)
-     b, 0,  b,   // 6  bot  back-right   (+X,  0, +Z)
-    -b, 0,  b,   // 7  bot  back-left    (-X,  0, +Z)
-  ]);
-
-  // UV: one coordinate per vertex, shared across faces.
-  // Top ring maps to [0-1, 0-1]; bottom ring mirrors it.
-  // Corner-shared UVs cause the deliberate PS1 per-face stretch artefact.
-  const uv = new Float32Array([
-    0, 1,  1, 1,  1, 0,  0, 0,   // verts 0-3 (top)
-    0, 0,  1, 0,  1, 1,  0, 1,   // verts 4-7 (bottom)
-  ]);
-
-  // 12 triangles = 6 faces × 2 triangles per quad.
-  // Each triple is one triangle; pairs share a face.
-  // Normal direction verified for each face (see comment → direction):
-  const idx = new Uint16Array([
-    0, 2, 1,   0, 3, 2,   // top    → +Y
-    4, 5, 6,   4, 6, 7,   // bottom → −Y
-    0, 1, 5,   0, 5, 4,   // front  → −Z  (tapered: also +Y lean)
-    1, 2, 6,   1, 6, 5,   // right  → +X  (tapered: also +Y lean)
-    2, 3, 7,   2, 7, 6,   // back   → +Z  (tapered: also +Y lean)
-    3, 0, 4,   3, 4, 7,   // left   → −X  (tapered: also +Y lean)
-  ]);
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("uv",       new THREE.BufferAttribute(uv,  2));
-  geo.setIndex(new THREE.BufferAttribute(idx, 1));
-  geo.computeVertexNormals(); // used by Lambert for Gouraud; flatShading overrides in shader
-  return geo;
-}
-
-// =============================================================================
-// PS1 pixel texture factory
-//
-// Paints a tiny canvas (ESPRESSO_CFG.texSize × texSize, default 16×16) with
-// the base colour and scatters dither-noise pixels at ~35 % density.
-// NearestFilter + no mipmaps = zero interpolation → sharp visible blocks.
-//
-// Each call returns a NEW CanvasTexture so callers can share or dispose
-// independently. The canvas element is GC'd once all references drop.
-//
-// << EXTEND: pass a patternFn(ctx, r, g, b, size) to stamp different surface
-//    treatments (wood grain, metal scratches, label text) without changing
-//    the filter setup.
-// =============================================================================
-function makePsxTexture(hexColor, size = 16) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const r = (hexColor >> 16) & 255;
-  const g = (hexColor >>  8) & 255;
-  const b =  hexColor        & 255;
-
-  // Solid base fill
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  ctx.fillRect(0, 0, size, size);
-
-  // Dither noise — scatters ~35 % of pixels with ±20 brightness jitter.
-  // This recreates the quantisation noise visible on PS1 VRAM textures.
-  const count = (size * size * 0.35) | 0;
-  for (let i = 0; i < count; i++) {
-    const v = ((Math.random() * 40 - 20) | 0);
-    ctx.fillStyle = `rgb(${clamp(r+v,0,255)},${clamp(g+v,0,255)},${clamp(b+v,0,255)})`;
-    ctx.fillRect((Math.random() * size) | 0, (Math.random() * size) | 0, 1, 1);
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.magFilter       = THREE.NearestFilter;  // no interpolation → pixel blocks
-  tex.minFilter       = THREE.NearestFilter;
-  tex.generateMipmaps = false;
-  return tex;
-}
-
-// =============================================================================
-// Open-top frustum — cup body variant of buildSquareFrustum.
-//
-// Identical topology and UVs, but the top face (indices 0-5) is omitted so
-// the cup opening is transparent and the coffee fill plane inside is visible
-// from above and from the default camera.  8 verts / 10 tris.
-//
-// Do NOT modify buildSquareFrustum — this is a companion, not a replacement.
-// =============================================================================
-function buildOpenFrustum(topW, botW, h) {
-  const t = topW / 2;
-  const b = botW / 2;
-  const pos = new Float32Array([
-    -t, h, -t,   t, h, -t,   t, h,  t,  -t, h,  t,   // top ring  (verts 0-3)
-    -b, 0, -b,   b, 0, -b,   b, 0,  b,  -b, 0,  b,   // bot ring  (verts 4-7)
-  ]);
-  const uv = new Float32Array([
-    0, 1,  1, 1,  1, 0,  0, 0,
-    0, 0,  1, 0,  1, 1,  0, 1,
-  ]);
-  const idx = new Uint16Array([
-    // top face intentionally absent — cup is open
-    4, 5, 6,   4, 6, 7,   // bottom → −Y
-    0, 1, 5,   0, 5, 4,   // front  → −Z
-    1, 2, 6,   1, 6, 5,   // right  → +X
-    2, 3, 7,   2, 7, 6,   // back   → +Z
-    3, 0, 4,   3, 4, 7,   // left   → −X
-  ]);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('uv',       new THREE.BufferAttribute(uv,  2));
-  geo.setIndex(new THREE.BufferAttribute(idx, 1));
-  geo.computeVertexNormals();
-  return geo;
 }
 
 // =============================================================================
@@ -725,28 +554,3 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-function clamp(n, lo, hi) {
-  return Math.max(lo, Math.min(hi, n));
-}
-
-// =============================================================================
-// Fallback data — offline showcase, no backend required.
-//
-// Typed scene with a single non-empty cart → ceramic cup rendered as hero;
-// exercises the same dispatcher as a live BFF.
-// =============================================================================
-const FALLBACK_SCENE = {
-  products: [],
-  recentOrders: [],
-  orderAggregates: {
-    totalCount: 0,
-    olderCount: 0,
-    statusCounts: { pending: 0, preparing: 0, prepared: 0, cancelled: 0 },
-  },
-  cart: {
-    itemCount: 1,
-    total: { amountMinor: 180, currency: "EUR" },
-    updatedAt: Date.now(),
-  },
-  latestActivityAt: Date.now(),
-};
