@@ -15,54 +15,15 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { clamp } from "./utils.js";
-import {
-  ESPRESSO_PALETTE,
-  STATUS_COLORS,
-  desaturateHex,
-  makePsxTexture,
-} from "./materials.js";
-import { buildSquareFrustum, buildOpenFrustum } from "./geometry/frustum.js";
 import { FALLBACK_SCENE } from "./fallback.js";
-
-// =============================================================================
-// DEV ENTRY POINT — Classic Expresso geometry & texture configuration.
-//
-// All dimensions are in Three.js world units (arbitrary; 1 ≈ "one cup height").
-// Edit these constants to tune proportions without touching buildEspressoGroup.
-// After saving, hard-reload the visualizer page to see the change.
-//
-// Polygon budget (certified iteration 4):
-//   Cup body    : 5 quads / 10 triangles / 8 vertices  (open-top frustum — no top face)
-//   Saucer      : 6 quads / 12 triangles / 8 vertices  (tapered dish frustum)
-//   Handle      : 1 quad  /  2 triangles / 4 vertices  (flat vertical plane)
-//   Coffee      : 1 quad  /  2 triangles / 4 vertices  (flat horizontal plane)
-//   TOTAL       : 26 triangles / 28 vertices            (Standard tier ≤ 28 ✓)
-// =============================================================================
-const ESPRESSO_CFG = {
-  // ── Cup body (open-top, slight taper: squat PS1 silhouette) ──────────────
-  bodyTopW: 0.25,   // top opening side length
-  bodyBotW: 0.30,   // base side length (83 % taper — matches v2 Blender geometry)
-  bodyH:    0.28,   // cup height (squat: nearly 1:1 width:height)
-
-  // ── Saucer (single tapered piece: wide at top, narrow at foot) ───────────
-  saucerTopW: 0.48,  // rim width (1.6 × cup base — compact dish)
-  saucerBotW: 0.32,  // foot width (steeper slope for legibility at small sizes)
-  saucerH:    0.06,  // height tall enough to read from the side
-
-  // ── Air gap between saucer top and cup base ───────────────────────────────
-  gap:      0.04,
-
-  // ── Handle (single flat quad, DoubleSide, sprite-thin — PS1 style) ────────
-  handleW:   0.16,  // quad width
-  handleH:   0.22,  // quad height
-  handleGap: 0.03,  // air gap between cup right wall and handle left edge
-
-  // ── Coffee fill (inside the open cup, near the rim) ───────────────────────
-  coffeeShrink: 0.01, // inset from cup top opening on each side
-
-  // ── PS1 texture ──────────────────────────────────────────────────────────
-  texSize: 16,
-};
+import { ROOM, buildRoom } from "./objects/room.js";
+import { clearGroup } from "./objects/disposal.js";
+import {
+  buildProductMesh,
+  buildOrderMesh,
+  buildAggregateMesh,
+  buildCartMesh,
+} from "./objects/scene-meshes.js";
 
 // =============================================================================
 // Runtime config — URLs, polling, SSE
@@ -76,8 +37,6 @@ const API_BASE = (() => {
   if (window.location.pathname.startsWith("/viz")) return "/api/bff";
   return window.__VIZ_CONFIG__?.apiBaseUrl || "http://localhost:3001";
 })();
-
-const ROOM = { width: 6, depth: 6, height: 3 };
 
 // Hero-vs-history visual language.
 // The latest cart/order event becomes the HERO: scaled up, pulled to
@@ -162,119 +121,6 @@ connectSse();
 animate();
 
 // =============================================================================
-// Room
-// =============================================================================
-
-function buildRoom(scene, { width, depth, height }) {
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, side: THREE.DoubleSide });
-  const wallMat  = new THREE.MeshStandardMaterial({ color: 0xfafafa, side: THREE.BackSide });
-  const ceilMat  = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
-
-  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), ceilMat);
-  ceiling.position.y = height;
-  ceiling.rotation.x = Math.PI / 2;
-  scene.add(ceiling);
-
-  const walls = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
-  walls.position.y = height / 2;
-  scene.add(walls);
-
-  const grid = new THREE.GridHelper(width, 12, 0xdddddd, 0xeeeeee);
-  grid.position.y = 0.001;
-  scene.add(grid);
-}
-
-// =============================================================================
-// Classic Espresso — PS1 low-poly cup group  (certified iteration 4)
-//
-// Topology:
-//   Saucer  : buildSquareFrustum(topW, botW, H)  →  8 verts / 12 tris
-//             topW > botW → wide-at-top dish silhouette from all angles
-//   Cup body: buildOpenFrustum(topW, botW, H)    →  8 verts / 10 tris
-//             open top lets coffee fill read through the rim
-//   Coffee  : PlaneGeometry(W, W)                →  4 verts /  2 tris
-//   Handle  : PlaneGeometry(W, H)                →  4 verts /  2 tris
-//   ─────────────────────────────────────────────────────────────────────────
-//   TOTAL                                          28 verts / 26 tris
-//
-// Group pivot = saucer bottom = y = 0 (world floor).
-//
-// << EXTEND: add new drink variants (latte glass, americano mug) by
-//    calling buildOpenFrustum with different topW / botW / bodyH values
-//    and routing via a second category flag in metadata.
-// =============================================================================
-function buildEspressoGroup(color, cfg = ESPRESSO_CFG) {
-  const {
-    bodyTopW, bodyBotW, bodyH,
-    saucerTopW, saucerBotW, saucerH, gap,
-    handleW, handleH, handleGap,
-    coffeeShrink, texSize,
-  } = cfg;
-
-  const tex   = makePsxTexture(color, texSize);
-  const mkMat = () => new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
-  const group = new THREE.Group();
-
-  // ── Saucer — single tapered piece: wide at top, narrow at foot ───────────
-  // saucerTopW > saucerBotW → four sloped side faces read as a dish from any
-  // angle, replacing the old two-piece flat coaster.
-  const saucer = new THREE.Mesh(
-    buildSquareFrustum(saucerTopW, saucerBotW, saucerH),
-    mkMat(),
-  );
-  group.add(saucer);
-
-  // ── Cup body — open-top so the coffee fill is visible through the rim ─────
-  const cupBotY = saucerH + gap;
-  const cup     = new THREE.Mesh(buildOpenFrustum(bodyTopW, bodyBotW, bodyH), mkMat());
-  cup.position.y = cupBotY;
-  group.add(cup);
-
-  // ── Coffee fill ───────────────────────────────────────────────────────────
-  const coffeeW = bodyTopW - coffeeShrink;
-  const coffee  = new THREE.Mesh(
-    new THREE.PlaneGeometry(coffeeW, coffeeW),
-    new THREE.MeshBasicMaterial({ color: ESPRESSO_PALETTE.coffee }),
-  );
-  coffee.rotation.x = -Math.PI / 2;
-  coffee.position.y = cupBotY + bodyH - 0.01; // inside the open cup, near the rim
-  group.add(coffee);
-
-  // ── Handle ────────────────────────────────────────────────────────────────
-  const handleX = bodyBotW / 2 + handleGap + handleW / 2;
-  const handleY = cupBotY + bodyH / 2;
-  const handle  = new THREE.Mesh(
-    new THREE.PlaneGeometry(handleW, handleH),
-    new THREE.MeshLambertMaterial({ map: tex, flatShading: true, side: THREE.DoubleSide }),
-  );
-  handle.position.set(handleX, handleY, 0);
-  group.add(handle);
-
-  return group;
-}
-
-// =============================================================================
-// Scene lifecycle helpers
-// =============================================================================
-
-function clearGroup(group) {
-  while (group.children.length > 0) {
-    const child = group.children.pop();
-    child.traverse((obj) => {
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) {
-        if (obj.material.map) obj.material.map.dispose(); // release canvas GPU texture
-        obj.material.dispose();
-      }
-    });
-  }
-}
-
-// =============================================================================
 // renderScene — EOC-2 semantic dispatch.
 //
 // Consumes the typed `VisualizationScene` shape (products, recentOrders,
@@ -288,52 +134,6 @@ function clearGroup(group) {
 //   • Aggregate  — single low-poly stack in the back-right corner when
 //                  orderAggregates.olderCount > 0.
 // =============================================================================
-
-function buildProductMesh(product, isHero) {
-  const isDrink = product.category === "drink";
-  const baseColor = isDrink
-    ? ESPRESSO_PALETTE.lightBeige
-    : STATUS_COLORS[product.status] ?? STATUS_COLORS.idle;
-  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
-  if (isDrink) {
-    const cfg = product.assetConfig ? { ...ESPRESSO_CFG, ...product.assetConfig } : ESPRESSO_CFG;
-    return buildEspressoGroup(color, cfg);
-  }
-  // Non-drink products: small low-poly cube via the shared frustum primitive.
-  const tex = makePsxTexture(color, ESPRESSO_CFG.texSize);
-  const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
-  return new THREE.Mesh(buildSquareFrustum(0.45, 0.45, 0.45), mat);
-}
-
-function buildOrderMesh(order, isHero) {
-  const baseColor = STATUS_COLORS[order.vizStatus] ?? STATUS_COLORS.idle;
-  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
-  const tex = makePsxTexture(color, ESPRESSO_CFG.texSize);
-  const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
-  // Thin slab — reads as a "ticket" on the counter.
-  return new THREE.Mesh(buildSquareFrustum(0.28, 0.28, 0.10), mat);
-}
-
-function buildAggregateMesh() {
-  const color = desaturateHex(STATUS_COLORS.idle, 0.4);
-  const tex = makePsxTexture(color, ESPRESSO_CFG.texSize);
-  const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
-  const group = new THREE.Group();
-  // Three stacked thin slabs to suggest "many older orders".
-  for (let i = 0; i < 3; i++) {
-    const slab = new THREE.Mesh(buildSquareFrustum(0.40, 0.40, 0.07), mat);
-    slab.position.y = i * 0.08;
-    group.add(slab);
-  }
-  return group;
-}
-
-function buildCartMesh(cart, isHero) {
-  const baseColor = ESPRESSO_PALETTE.lightBeige;
-  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
-  const cfg = cart.assetConfig ? { ...ESPRESSO_CFG, ...cart.assetConfig } : ESPRESSO_CFG;
-  return buildEspressoGroup(color, cfg);
-}
 
 // EOC-2 hero priority: cart wins, else newest recent order, else first product.
 function pickSceneHero(scene) {
