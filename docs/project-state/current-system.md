@@ -114,7 +114,7 @@ the web-frontend consumer state.
 | `GET /orders` | Lists persisted orders | Wired |
 | `GET /orders/:id` | Reads persisted order | Wired |
 | `POST /orders/:id/manage` | Persists status change | Wired |
-| `GET /visualization-data` | Projects current domain state | Visualizer consumer |
+| `GET /visualization-data` | Projects current domain state; carries the semantic `scene` payload (products, recentOrders capped at 10, orderAggregates, cart, latestActivityAt) plus a deprecated `items[]` for back-compat | Visualizer consumer |
 
 ## 5. Demo mode
 

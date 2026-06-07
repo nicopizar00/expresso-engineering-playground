@@ -608,6 +608,155 @@ function clearGroup(group) {
   }
 }
 
+// =============================================================================
+// renderScene — EOC-2 semantic dispatch.
+//
+// Consumes the typed `VisualizationScene` shape (products, recentOrders,
+// orderAggregates, cart) and chooses meshes locally. The BFF stays out of
+// representation decisions; the visualizer owns mesh/color/position.
+//
+// Layout (this iteration — minimal, EOC-5 will turn it into a real counter):
+//   • Hero       — cart > newest recent order > first product, centre stage.
+//   • Products   — back-left grid (excluding the hero if a product was picked).
+//   • Orders     — right column, newest at the front.
+//   • Aggregate  — single low-poly stack in the back-right corner when
+//                  orderAggregates.olderCount > 0.
+// =============================================================================
+
+function buildProductMesh(product, isHero) {
+  const isDrink = product.category === "drink";
+  const baseColor = isDrink
+    ? ESPRESSO_PALETTE.lightBeige
+    : STATUS_COLORS[product.status] ?? STATUS_COLORS.idle;
+  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
+  if (isDrink) {
+    const cfg = product.assetConfig ? { ...ESPRESSO_CFG, ...product.assetConfig } : ESPRESSO_CFG;
+    return buildEspressoGroup(color, cfg);
+  }
+  // Non-drink products: small low-poly cube via the shared frustum primitive.
+  const tex = makePsxTexture(color, ESPRESSO_CFG.texSize);
+  const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
+  return new THREE.Mesh(buildSquareFrustum(0.45, 0.45, 0.45), mat);
+}
+
+function buildOrderMesh(order, isHero) {
+  const baseColor = STATUS_COLORS[order.vizStatus] ?? STATUS_COLORS.idle;
+  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
+  const tex = makePsxTexture(color, ESPRESSO_CFG.texSize);
+  const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
+  // Thin slab — reads as a "ticket" on the counter.
+  return new THREE.Mesh(buildSquareFrustum(0.28, 0.28, 0.10), mat);
+}
+
+function buildAggregateMesh() {
+  const color = desaturateHex(STATUS_COLORS.idle, 0.4);
+  const tex = makePsxTexture(color, ESPRESSO_CFG.texSize);
+  const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
+  const group = new THREE.Group();
+  // Three stacked thin slabs to suggest "many older orders".
+  for (let i = 0; i < 3; i++) {
+    const slab = new THREE.Mesh(buildSquareFrustum(0.40, 0.40, 0.07), mat);
+    slab.position.y = i * 0.08;
+    group.add(slab);
+  }
+  return group;
+}
+
+function buildCartMesh(cart, isHero) {
+  const baseColor = ESPRESSO_PALETTE.lightBeige;
+  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
+  const cfg = cart.assetConfig ? { ...ESPRESSO_CFG, ...cart.assetConfig } : ESPRESSO_CFG;
+  return buildEspressoGroup(color, cfg);
+}
+
+// EOC-2 hero priority: cart wins, else newest recent order, else first product.
+function pickSceneHero(scene) {
+  if (scene?.cart) return { kind: "cart" };
+  if (scene?.recentOrders?.length > 0) return { kind: "order", id: scene.recentOrders[0].orderId };
+  if (scene?.products?.length > 0) return { kind: "product", id: scene.products[0].productId };
+  return null;
+}
+
+function sceneHeroKey(hero) {
+  if (!hero) return null;
+  if (hero.kind === "cart") return "cart";
+  return `${hero.kind}:${hero.id}`;
+}
+
+function placeMesh(mesh, position, isHero, userData) {
+  const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
+  mesh.position.set(position.x, position.y, position.z);
+  mesh.scale.setScalar(baseScale);
+  mesh.userData = { ...userData, baseScale, idleRotate: isHero, isHero };
+  return mesh;
+}
+
+function renderScene(scene) {
+  const hero = pickSceneHero(scene);
+  const heroKey = sceneHeroKey(hero);
+  const heroChanged = heroKey !== null && heroKey !== dataGroup.userData.heroKey;
+
+  clearGroup(dataGroup);
+
+  // Cart — when present, takes the centre stage as hero.
+  if (scene.cart) {
+    const isHero = hero?.kind === "cart";
+    const mesh = buildCartMesh(scene.cart, isHero);
+    const pos = isHero
+      ? { x: 0, y: HERO_FLOOR_Y, z: 0 }
+      : { x: 0, y: 0.35, z: 1.0 };
+    placeMesh(mesh, pos, isHero, { id: "cart", label: `Cart · ${scene.cart.itemCount}` });
+    if (isHero && heroChanged) mesh.userData.spawnedAt = performance.now();
+    dataGroup.add(mesh);
+  }
+
+  // Recent orders — newest at front of the right column.
+  for (let i = 0; i < scene.recentOrders.length; i++) {
+    const order = scene.recentOrders[i];
+    const isHero = hero?.kind === "order" && hero.id === order.orderId;
+    const mesh = buildOrderMesh(order, isHero);
+    const pos = isHero
+      ? { x: 0, y: HERO_FLOOR_Y, z: 0 }
+      : { x: clamp(1.6, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
+          y: 0.05,
+          z: clamp(-2.0 + i * 0.5, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5) };
+    placeMesh(mesh, pos, isHero, { id: `order:${order.orderId}`, label: order.orderId });
+    if (isHero && heroChanged) mesh.userData.spawnedAt = performance.now();
+    dataGroup.add(mesh);
+  }
+
+  // Aggregate stack — at most one mesh; signals "older history exists".
+  if (scene.orderAggregates && scene.orderAggregates.olderCount > 0) {
+    const mesh = buildAggregateMesh();
+    const pos = { x: clamp(2.0, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
+                  y: 0.05,
+                  z: clamp(1.5, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5) };
+    placeMesh(mesh, pos, false, {
+      id: "aggregate",
+      label: `+${scene.orderAggregates.olderCount} older`,
+    });
+    dataGroup.add(mesh);
+  }
+
+  // Products — back-left grid.
+  for (let i = 0; i < scene.products.length; i++) {
+    const product = scene.products[i];
+    const isHero = hero?.kind === "product" && hero.id === product.productId;
+    const mesh = buildProductMesh(product, isHero);
+    const pos = isHero
+      ? { x: 0, y: HERO_FLOOR_Y, z: 0 }
+      : { x: clamp(-2.0 + (i % 3) * 1.2, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
+          y: 0.05,
+          z: clamp(-2.2 + Math.floor(i / 3) * 1.2, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5) };
+    placeMesh(mesh, pos, isHero, { id: `product:${product.productId}`, label: product.name });
+    if (isHero && heroChanged) mesh.userData.spawnedAt = performance.now();
+    dataGroup.add(mesh);
+  }
+
+  dataGroup.userData.heroKey = heroKey;
+  dataGroup.userData.heroId = null; // Reset legacy marker so a switch back to items[] re-fires.
+}
+
 // Single render entry point — both the SSE message handler and the polling
 // fallback flow through here so the hero/history logic stays in one place.
 //
@@ -666,6 +815,13 @@ function connectSse() {
   sseSource.addEventListener("message", (event) => {
     try {
       const body = JSON.parse(event.data);
+      // EOC-2: prefer the typed scene payload; fall back to legacy items[].
+      if (body && typeof body.scene === "object" && body.scene !== null) {
+        renderScene(body.scene);
+        const count = sceneObjectCount(body.scene);
+        setStatus(`live (sse) · ${count} object${count === 1 ? "" : "s"}`);
+        return;
+      }
       if (!Array.isArray(body?.items)) throw new Error("malformed");
       renderItems(body.items);
       setStatus(`live (sse) · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`);
@@ -696,30 +852,49 @@ async function loadAndRender() {
   inflight = true;
   setStatus("polling…");
   try {
-    let items = null;
+    let payload = null;
     try {
-      items = await fetchItems();
+      payload = await fetchPayload();
     } catch (err) {
       if (dataGroup.children.length > 0) { setStatus(`error · ${err.message}`); return; }
     }
-    const source = items ?? FALLBACK_ITEMS;
-    renderItems(source);
-    setStatus(
-      items
-        ? `live · ${items.length} item${items.length === 1 ? "" : "s"}`
-        : `offline · ${FALLBACK_ITEMS.length} mock item${FALLBACK_ITEMS.length === 1 ? "" : "s"}`,
-    );
+    // EOC-2: prefer the typed scene payload; fall back to legacy items[]
+    // for older BFFs and the offline showcase.
+    if (payload && typeof payload.scene === "object" && payload.scene !== null) {
+      renderScene(payload.scene);
+      const count = sceneObjectCount(payload.scene);
+      setStatus(`live · ${count} object${count === 1 ? "" : "s"}`);
+      return;
+    }
+    if (payload && Array.isArray(payload.items)) {
+      renderItems(payload.items);
+      setStatus(`live · ${payload.items.length} item${payload.items.length === 1 ? "" : "s"}`);
+      return;
+    }
+    // Offline: render the typed fallback scene so the showcase exercises the
+    // same dispatcher as a live BFF.
+    renderScene(FALLBACK_SCENE);
+    const count = sceneObjectCount(FALLBACK_SCENE);
+    setStatus(`offline · ${count} mock object${count === 1 ? "" : "s"}`);
   } finally {
     inflight = false;
   }
 }
 
-async function fetchItems() {
+async function fetchPayload() {
   const res  = await fetch(`${API_BASE}/visualization-data`, { headers: { accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
-  if (!Array.isArray(body?.items)) throw new Error("malformed response");
-  return body.items;
+  if (!body || typeof body !== "object") throw new Error("malformed response");
+  if (!body.scene && !Array.isArray(body.items)) throw new Error("malformed response");
+  return body;
+}
+
+function sceneObjectCount(scene) {
+  return (scene.products?.length ?? 0)
+    + (scene.recentOrders?.length ?? 0)
+    + (scene.cart ? 1 : 0)
+    + (scene.orderAggregates?.olderCount > 0 ? 1 : 0);
 }
 
 function setStatus(text) {
@@ -798,3 +973,21 @@ const FALLBACK_ITEMS = [
     },
   },
 ];
+
+// EOC-2 typed offline showcase — exercises the same dispatcher as a live BFF.
+// A single non-empty cart → ceramic cup as hero; no orders, no aggregate.
+const FALLBACK_SCENE = {
+  products: [],
+  recentOrders: [],
+  orderAggregates: {
+    totalCount: 0,
+    olderCount: 0,
+    statusCounts: { pending: 0, preparing: 0, prepared: 0, cancelled: 0 },
+  },
+  cart: {
+    itemCount: 1,
+    total: { amountMinor: 180, currency: "EUR" },
+    updatedAt: Date.now(),
+  },
+  latestActivityAt: Date.now(),
+};
