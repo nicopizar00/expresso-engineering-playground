@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * ProductCard - Individual product display card
@@ -7,10 +7,19 @@
  * Redesigned with a clean card-based interface and smooth interactions.
  */
 
-import { useState } from 'react';
-import { Coffee, UtensilsCrossed, Package, Plus, Check, Loader2, Eye, AlertCircle } from 'lucide-react';
-import { Product, ProductCategory, formatMoney } from '@/lib/api/expresso-api';
-import { useCart } from '@/components/cart/CartProvider';
+import { useState } from "react";
+import {
+  Coffee,
+  UtensilsCrossed,
+  Package,
+  Plus,
+  Check,
+  Loader2,
+  Eye,
+  AlertCircle,
+} from "lucide-react";
+import { Product, ProductCategory, formatMoney } from "@/lib/api/expresso-api";
+import { useCart } from "@/components/cart/CartProvider";
 
 interface ProductCardProps {
   product: Product;
@@ -23,21 +32,21 @@ const categoryConfig: Record<
 > = {
   drink: {
     icon: Coffee,
-    color: 'var(--drink)',
-    bgColor: 'rgba(0, 212, 170, 0.1)',
-    label: 'Drink',
+    color: "var(--drink)",
+    bgColor: "rgba(0, 212, 170, 0.1)",
+    label: "Drink",
   },
   food: {
     icon: UtensilsCrossed,
-    color: 'var(--food)',
-    bgColor: 'rgba(34, 197, 94, 0.1)',
-    label: 'Food',
+    color: "var(--food)",
+    bgColor: "rgba(34, 197, 94, 0.1)",
+    label: "Food",
   },
   accessory: {
     icon: Package,
-    color: 'var(--accessory)',
-    bgColor: 'rgba(139, 92, 246, 0.1)',
-    label: 'Accessory',
+    color: "var(--accessory)",
+    bgColor: "rgba(139, 92, 246, 0.1)",
+    label: "Accessory",
   },
 };
 
@@ -62,7 +71,7 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1500);
     } catch {
-      setError('Could not add to cart. Please try again.');
+      setError("Could not add to cart. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -72,15 +81,15 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
     <article
       className="group rounded-xl border overflow-hidden transition-all duration-200"
       style={{
-        backgroundColor: 'var(--card)',
-        borderColor: 'var(--border)',
+        backgroundColor: "var(--card)",
+        borderColor: "var(--border)",
       }}
     >
       {/* Product visual area */}
       <button
         type="button"
         className="relative aspect-[4/3] flex items-center justify-center cursor-pointer overflow-hidden w-full"
-        style={{ backgroundColor: 'var(--secondary)', border: 0, padding: 0 }}
+        style={{ backgroundColor: "var(--secondary)", border: 0, padding: 0 }}
         onClick={() => onQuickView?.(product)}
         aria-label={`View details for ${product.name}`}
       >
@@ -107,8 +116,8 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
           <span
             className="absolute top-3 right-3 px-2 py-1 text-[10px] font-medium rounded-md uppercase tracking-wider"
             style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              color: 'var(--destructive)',
+              backgroundColor: "rgba(239, 68, 68, 0.15)",
+              color: "var(--destructive)",
             }}
           >
             Out of Stock
@@ -119,9 +128,9 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
         <span
           className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-200"
           style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            color: 'var(--foreground)',
-            backdropFilter: 'blur(4px)',
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            color: "var(--foreground)",
+            backdropFilter: "blur(4px)",
           }}
           aria-hidden="true"
         >
@@ -135,28 +144,34 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
         <div className="mb-3">
           <h3
             className="font-medium text-sm leading-tight mb-1 line-clamp-1"
-            style={{ color: 'var(--foreground)' }}
+            style={{ color: "var(--foreground)" }}
           >
             {product.name}
           </h3>
           <p
             className="text-xs line-clamp-2"
-            style={{ color: 'var(--muted-foreground)' }}
+            style={{ color: "var(--muted-foreground)" }}
           >
             {product.description}
           </p>
         </div>
 
-        <div className="flex items-end justify-between gap-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div
+          className="flex items-end justify-between gap-3 pt-3 border-t"
+          style={{ borderColor: "var(--border)" }}
+        >
           <div>
             <p
               className="text-lg font-semibold font-mono"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: "var(--foreground)" }}
             >
               {formatMoney(product.price.amountMinor, product.price.currency)}
             </p>
             {!isOutOfStock && (
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              <p
+                className="text-[10px] mt-0.5"
+                style={{ color: "var(--muted-foreground)" }}
+              >
                 {product.inventory} in stock
               </p>
             )}
@@ -165,23 +180,26 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
           <button
             onClick={handleAddToCart}
             disabled={isAdding || isOutOfStock}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[32px]"
             style={{
-              backgroundColor: justAdded ? 'var(--success)' : 'var(--primary)',
-              color: justAdded ? 'var(--success-foreground)' : 'var(--primary-foreground)',
+              backgroundColor: justAdded ? "var(--success)" : "var(--primary)",
+              color: justAdded
+                ? "var(--success-foreground)"
+                : "var(--primary-foreground)",
             }}
             aria-label={`Add ${product.name} to cart`}
+            data-testid="product-add-button"
           >
             {isAdding ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-3 w-3 animate-spin" />
             ) : justAdded ? (
               <>
-                <Check className="h-3.5 w-3.5" />
+                <Check className="h-3 w-3" />
                 <span>Added</span>
               </>
             ) : (
               <>
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3 w-3" />
                 <span>Add</span>
               </>
             )}
@@ -192,7 +210,7 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
           <p
             role="alert"
             className="flex items-center gap-1.5 text-xs mt-3"
-            style={{ color: 'var(--destructive)' }}
+            style={{ color: "var(--destructive)" }}
           >
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             {error}

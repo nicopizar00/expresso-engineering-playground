@@ -1,28 +1,28 @@
-import { expect, type Locator, type Page } from '@playwright/test';
-import { CartDrawer } from './CartDrawer';
+import { expect, type Locator, type Page } from "@playwright/test";
+import { CartDrawer } from "./CartDrawer";
 
-const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3100';
+const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3100";
 
 export class CatalogPage {
   readonly cartDrawer: CartDrawer;
 
   constructor(
     readonly page: Page,
-    private readonly baseUrl: string = DEFAULT_BASE_URL
+    private readonly baseUrl: string = DEFAULT_BASE_URL,
   ) {
     this.cartDrawer = new CartDrawer(page);
   }
 
   async goto(): Promise<void> {
-    await this.page.goto(this.url('/'));
+    await this.page.goto(this.url("/"));
   }
 
   heading(): Locator {
-    return this.page.getByRole('heading', { name: 'Product Catalog' });
+    return this.page.getByRole("heading", { name: "Catalog", exact: true });
   }
 
   productName(productName: string): Locator {
-    return this.page.getByRole('heading', { name: productName });
+    return this.page.getByRole("heading", { name: productName });
   }
 
   productDescription(description: string | RegExp): Locator {
@@ -30,21 +30,23 @@ export class CatalogPage {
   }
 
   addToCartButton(productName: string): Locator {
-    return this.page.getByRole('button', {
-      name: new RegExp(`^Add ${escapeRegExp(productName)} to cart$`, 'i'),
+    return this.page.getByRole("button", {
+      name: new RegExp(`^Add ${escapeRegExp(productName)} to cart$`, "i"),
     });
   }
 
   cartButton(): Locator {
-    return this.page.getByRole('button', { name: /Shopping cart with \d+ items/i });
+    return this.page.getByRole("button", {
+      name: /Shopping cart with \d+ items/i,
+    });
   }
 
   getApiStatus(): Locator {
-    return this.page.getByRole('button', { name: /API status:/i });
+    return this.page.getByRole("button", { name: /API status:/i });
   }
 
   errorState(): Locator {
-    return this.page.getByRole('alert').filter({ hasText: /\S/ }).first();
+    return this.page.getByRole("alert").filter({ hasText: /\S/ }).first();
   }
 
   async addItemToCart(productName: string): Promise<void> {
@@ -69,5 +71,5 @@ export class CatalogPage {
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

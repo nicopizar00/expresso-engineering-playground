@@ -88,6 +88,11 @@ button:hover {
   overflow: hidden;
 }
 
+/* Embed mode: hide the HUD when mounted inside the web app workspace. */
+body.embed .hud {
+  display: none;
+}
+
 #stage canvas {
   display: block;
   width: 100%;

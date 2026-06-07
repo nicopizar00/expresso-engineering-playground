@@ -22,6 +22,15 @@
     </script>
   </head>
   <body>
+    <script>
+      // Embed mode (?embed=1) hides the HUD via CSS so the visualizer can be
+      // mounted inside the web app's homepage workspace without the standalone
+      // header taking visual space. Scene logic is untouched — the HUD nodes
+      // remain in the DOM so scene.js can still attach its reload listener.
+      if (new URLSearchParams(window.location.search).get('embed') === '1') {
+        document.body.classList.add('embed');
+      }
+    </script>
     <header class="hud">
       <div>
         <h1>Expresso Engineering · 3D Visualizer</h1>

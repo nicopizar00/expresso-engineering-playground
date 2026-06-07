@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from "@playwright/test";
 import {
   clickVisualCenter,
   expectCenterHits,
@@ -6,13 +6,13 @@ import {
   expectInViewport,
   expectNoHorizontalOverflow,
   expectVisualActionable,
-} from '../fixtures/visual-ui';
+} from "../fixtures/visual-ui";
 
-test.describe.configure({ mode: 'parallel' });
+test.describe.configure({ mode: "parallel" });
 
 type Money = {
   amountMinor: number;
-  currency: 'USD';
+  currency: "USD";
 };
 
 type Product = {
@@ -20,7 +20,7 @@ type Product = {
   sku: string;
   name: string;
   description: string;
-  category: 'drink' | 'food' | 'accessory';
+  category: "drink" | "food" | "accessory";
   price: Money;
   inventory: number;
 };
@@ -42,7 +42,7 @@ type Cart = {
   updatedAt: string;
 };
 
-type OrderStatus = 'pending' | 'preparing' | 'prepared' | 'cancelled';
+type OrderStatus = "pending" | "preparing" | "prepared" | "cancelled";
 
 type Order = {
   orderId: string;
@@ -60,33 +60,33 @@ type Order = {
   updatedAt: string;
 };
 
-const now = '2026-05-29T12:00:00.000Z';
+const now = "2026-05-29T12:00:00.000Z";
 
 const products: Product[] = [
   {
-    productId: 'prod_espresso_visual',
-    sku: 'VIS-ESP-01',
-    name: 'Classic Espresso',
-    description: 'Rich single-shot espresso for visual regression coverage.',
-    category: 'drink',
+    productId: "prod_espresso_visual",
+    sku: "VIS-ESP-01",
+    name: "Classic Espresso",
+    description: "Rich single-shot espresso for visual regression coverage.",
+    category: "drink",
     price: money(350),
     inventory: 50,
   },
   {
-    productId: 'prod_cookie_visual',
-    sku: 'VIS-COO-01',
-    name: 'Chocolate Cookie',
-    description: 'Chocolate cookie used to keep the catalog grid non-empty.',
-    category: 'food',
+    productId: "prod_cookie_visual",
+    sku: "VIS-COO-01",
+    name: "Chocolate Cookie",
+    description: "Chocolate cookie used to keep the catalog grid non-empty.",
+    category: "food",
     price: money(300),
     inventory: 30,
   },
   {
-    productId: 'prod_notebook_visual',
-    sku: 'VIS-NOT-01',
-    name: 'Expresso Notebook',
-    description: 'Notebook used to exercise accessory category styling.',
-    category: 'accessory',
+    productId: "prod_notebook_visual",
+    sku: "VIS-NOT-01",
+    name: "Expresso Notebook",
+    description: "Notebook used to exercise accessory category styling.",
+    category: "accessory",
     price: money(1200),
     inventory: 25,
   },
@@ -94,49 +94,61 @@ const products: Product[] = [
 
 const productUnderTest = products[0]!;
 
-test.describe('visual UI integrity - desktop', () => {
+test.describe("visual UI integrity - desktop", () => {
   test.use({ viewport: { width: 1280, height: 720 } });
 
-  test('keeps the CSS utility contract and desktop header hitboxes intact', async ({
+  test("keeps the CSS utility contract and desktop header hitboxes intact", async ({
     page,
   }) => {
     await installVisualMocks(page);
-    await page.goto('/');
+    await page.goto("/");
 
     await expectCssUtilityContract(page);
     await expectNoHorizontalOverflow(page);
 
-    for (const label of ['Catalog', 'Orders', 'Performance', '3D', 'API']) {
+    for (const label of ["Catalog", "Orders", "Performance", "3D", "API"]) {
       const navLink = page
-        .getByRole('navigation', { name: 'Main' })
-        .getByRole('link', { name: label });
+        .getByRole("navigation", { name: "Main" })
+        .getByRole("link", { name: label });
       await expectVisualActionable(navLink, { minHeight: 32, minWidth: 32 });
     }
 
-    await expectVisualActionable(cartButton(page), { minHeight: 40, minWidth: 40 });
-    await expect(page.getByRole('button', { name: 'Toggle menu' })).toBeHidden();
+    await expectVisualActionable(cartButton(page), {
+      minHeight: 40,
+      minWidth: 40,
+    });
+    await expect(
+      page.getByRole("button", { name: "Toggle menu" }),
+    ).toBeHidden();
 
     await clickVisualCenter(
-      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: '3D' })
+      page
+        .getByRole("navigation", { name: "Main" })
+        .getByRole("link", { name: "3D" }),
     );
     await expect(page).toHaveURL(/\/visualizer$/);
 
     await clickVisualCenter(
-      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'API' })
+      page
+        .getByRole("navigation", { name: "Main" })
+        .getByRole("link", { name: "API" }),
     );
     await expect(page).toHaveURL(/\/dev$/);
   });
 
-  test('opens product quick view and keeps modal controls visually actionable', async ({
+  test("opens product quick view and keeps modal controls visually actionable", async ({
     page,
   }) => {
     await installVisualMocks(page);
-    await page.goto('/');
+    await page.goto("/");
 
-    const productVisual = page.getByRole('button', {
+    const productVisual = page.getByRole("button", {
       name: `View details for ${productUnderTest.name}`,
     });
-    await expectVisualActionable(productVisual, { minHeight: 180, minWidth: 240 });
+    await expectVisualActionable(productVisual, {
+      minHeight: 180,
+      minWidth: 240,
+    });
 
     const visualBox = await productVisual.boundingBox();
     expect(visualBox).not.toBeNull();
@@ -145,36 +157,49 @@ test.describe('visual UI integrity - desktop', () => {
 
     await clickVisualCenter(productVisual);
 
-    const dialog = page.getByRole('dialog', { name: productUnderTest.name });
+    const dialog = page.getByRole("dialog", { name: productUnderTest.name });
     await expect(dialog).toBeVisible();
     await expectInViewport(dialog);
 
-    await expectVisualActionable(dialog.getByRole('button', { name: 'Close' }));
-    await expectVisualActionable(dialog.getByRole('button', { name: 'Increase quantity' }));
-    await expectVisualActionable(dialog.getByRole('button', { name: 'Add to Cart' }), {
-      minHeight: 40,
-      minWidth: 160,
-    });
+    await expectVisualActionable(dialog.getByRole("button", { name: "Close" }));
+    await expectVisualActionable(
+      dialog.getByRole("button", { name: "Increase quantity" }),
+    );
+    await expectVisualActionable(
+      dialog.getByRole("button", { name: "Add to Cart" }),
+      {
+        minHeight: 40,
+        minWidth: 160,
+      },
+    );
 
-    await clickVisualCenter(dialog.getByRole('button', { name: 'Add to Cart' }));
-    await expect(cartButton(page)).toHaveAccessibleName('Shopping cart with 1 items');
+    await clickVisualCenter(
+      dialog.getByRole("button", { name: "Add to Cart" }),
+    );
+    await expect(cartButton(page)).toHaveAccessibleName(
+      "Shopping cart with 1 items",
+    );
     await expect(dialog).toBeHidden({ timeout: 2_500 });
   });
 
-  test('opens cart drawer from a coordinate click and reaches checkout', async ({
+  test("opens cart drawer from a coordinate click and reaches checkout", async ({
     page,
   }) => {
     await installVisualMocks(page);
-    await page.goto('/');
+    await page.goto("/");
 
     await clickVisualCenter(
-      page.getByRole('button', { name: `Add ${productUnderTest.name} to cart` })
+      page.getByRole("button", {
+        name: `Add ${productUnderTest.name} to cart`,
+      }),
     );
-    await expect(cartButton(page)).toHaveAccessibleName('Shopping cart with 1 items');
+    await expect(cartButton(page)).toHaveAccessibleName(
+      "Shopping cart with 1 items",
+    );
 
     await clickVisualCenter(cartButton(page));
 
-    const drawer = page.getByRole('dialog', { name: 'Cart' });
+    const drawer = page.getByRole("dialog", { name: "Cart" });
     await expect(drawer).toBeVisible();
     await expectInViewport(drawer);
     await expectCenterHits(drawer);
@@ -183,83 +208,106 @@ test.describe('visual UI integrity - desktop', () => {
     const viewport = page.viewportSize();
     expect(drawerBox).not.toBeNull();
     expect(viewport).not.toBeNull();
-    expect(drawerBox!.y, 'drawer must be fixed to the top of the viewport').toBe(0);
+    expect(
+      drawerBox!.y,
+      "drawer must be fixed to the top of the viewport",
+    ).toBe(0);
     expect(
       drawerBox!.x + drawerBox!.width,
-      'drawer must be right-aligned in the viewport'
+      "drawer must be right-aligned in the viewport",
     ).toBeCloseTo(viewport!.width, 0);
 
-    await expectVisualActionable(drawer.getByRole('button', { name: 'Close cart' }));
-    await expectVisualActionable(drawer.getByRole('button', { name: 'Increase quantity' }));
     await expectVisualActionable(
-      drawer.getByRole('button', {
+      drawer.getByRole("button", { name: "Close cart" }),
+    );
+    await expectVisualActionable(
+      drawer.getByRole("button", { name: "Increase quantity" }),
+    );
+    await expectVisualActionable(
+      drawer.getByRole("button", {
         name: `Remove ${productUnderTest.name} from cart`,
-      })
+      }),
     );
 
-    const checkout = drawer.getByRole('link', { name: /Proceed to Checkout/i });
+    const checkout = drawer.getByRole("link", { name: /Proceed to Checkout/i });
     await expectVisualActionable(checkout, { minHeight: 40, minWidth: 200 });
     await clickVisualCenter(checkout);
     await expect(page).toHaveURL(/\/checkout$/);
   });
 
-  test('places an order and manages status through visual controls', async ({
+  test("places an order and manages status through visual controls", async ({
     page,
   }) => {
     await installVisualMocks(page);
     await addProductAndOpenCheckout(page);
 
-    await expectVisualActionable(page.getByLabel('Your Name'), {
+    await expectVisualActionable(page.getByLabel("Your Name"), {
       minHeight: 32,
       minWidth: 240,
     });
-    await page.getByLabel('Your Name').fill('Visual TDD Customer');
+    await page.getByLabel("Your Name").fill("Visual TDD Customer");
 
-    const placeOrder = page.getByRole('button', { name: 'Place Order' });
+    const placeOrder = page.getByRole("button", { name: "Place Order" });
     await expectVisualActionable(placeOrder, { minHeight: 40, minWidth: 240 });
     await clickVisualCenter(placeOrder);
 
     await expect(page).toHaveURL(/\/orders\/ord_visual_1001$/);
-    await expect(page.getByRole('heading', { name: 'Order Details' })).toBeVisible();
-    await expect(page.getByText('Pending', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Order Details" }),
+    ).toBeVisible();
+    await expect(page.getByText("Pending", { exact: true })).toBeVisible();
 
-    const startPreparing = page.getByRole('button', { name: 'Start Preparing' });
+    const startPreparing = page.getByRole("button", {
+      name: "Start Preparing",
+    });
     await startPreparing.scrollIntoViewIfNeeded();
-    await expectVisualActionable(startPreparing, { minHeight: 36, minWidth: 120 });
+    await expectVisualActionable(startPreparing, {
+      minHeight: 36,
+      minWidth: 120,
+    });
     await clickVisualCenter(startPreparing);
-    await expect(page.getByText('Preparing', { exact: true })).toBeVisible();
+    await expect(page.getByText("Preparing", { exact: true })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText('Preparing', { exact: true })).toBeVisible();
+    await expect(page.getByText("Preparing", { exact: true })).toBeVisible();
   });
 
-  test('renders visualizer shell with a mocked iframe document', async ({ page }) => {
+  test("renders visualizer shell with a mocked iframe document", async ({
+    page,
+  }) => {
     await installVisualMocks(page);
-    await page.goto('/visualizer');
+    await page.goto("/visualizer");
 
     const frame = page.locator('iframe[title="3D Visualizer - Hello Room"]');
-    await expect(frame).toHaveAttribute('src', '/viz/index.html');
+    await expect(frame).toHaveAttribute("src", "/viz/index.html");
 
     const frameBox = await frame.boundingBox();
     expect(frameBox).not.toBeNull();
-    expect(frameBox!.height, 'visualizer iframe should be inspectable').toBeGreaterThanOrEqual(
-      360
-    );
+    expect(
+      frameBox!.height,
+      "visualizer iframe should be inspectable",
+    ).toBeGreaterThanOrEqual(360);
 
-    await expectVisualActionable(page.getByRole('button', { name: /Reload/i }), {
-      minHeight: 32,
-      minWidth: 32,
-    });
-    await expectVisualActionable(page.getByRole('link', { name: /Open Standalone/i }), {
-      minHeight: 32,
-      minWidth: 120,
-    });
+    await expectVisualActionable(
+      page.getByRole("button", { name: /Reload/i }),
+      {
+        minHeight: 32,
+        minWidth: 32,
+      },
+    );
+    await expectVisualActionable(
+      page.getByRole("link", { name: /Open Standalone/i }),
+      {
+        minHeight: 32,
+        minWidth: 120,
+      },
+    );
   });
 });
 
 for (const viewport of [
-  { height: 844, label: 'mobile 390', width: 390 },
-  { height: 568, label: 'mobile 320', width: 320 },
+  { height: 844, label: "mobile 390", width: 390 },
+  { height: 568, label: "mobile 320", width: 320 },
 ]) {
   test.describe(`visual UI integrity - ${viewport.label}`, () => {
     test.use({
@@ -268,26 +316,32 @@ for (const viewport of [
       viewport: { width: viewport.width, height: viewport.height },
     });
 
-    test('keeps mobile header controls in viewport and navigates from menu', async ({
+    test("keeps mobile header controls in viewport and navigates from menu", async ({
       page,
     }) => {
       await installVisualMocks(page);
-      await page.goto('/');
+      await page.goto("/");
 
       await expectNoHorizontalOverflow(page);
-      await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+      await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden();
 
-      await expectVisualActionable(cartButton(page), { minHeight: 40, minWidth: 40 });
+      await expectVisualActionable(cartButton(page), {
+        minHeight: 40,
+        minWidth: 40,
+      });
 
-      const menuButton = page.getByRole('button', { name: 'Toggle menu' });
+      const menuButton = page.getByRole("button", { name: "Toggle menu" });
       await expectVisualActionable(menuButton, { minHeight: 40, minWidth: 40 });
       await clickVisualCenter(menuButton);
 
-      const mobileNav = page.getByRole('navigation', { name: 'Mobile' });
+      const mobileNav = page.getByRole("navigation", { name: "Mobile" });
       await expect(mobileNav).toBeVisible();
 
-      const visualizerLink = mobileNav.getByRole('link', { name: '3D' });
-      await expectVisualActionable(visualizerLink, { minHeight: 40, minWidth: 120 });
+      const visualizerLink = mobileNav.getByRole("link", { name: "3D" });
+      await expectVisualActionable(visualizerLink, {
+        minHeight: 40,
+        minWidth: 120,
+      });
       await clickVisualCenter(visualizerLink);
       await expect(page).toHaveURL(/\/visualizer$/);
     });
@@ -295,12 +349,14 @@ for (const viewport of [
 }
 
 async function addProductAndOpenCheckout(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto("/");
   await clickVisualCenter(
-    page.getByRole('button', { name: `Add ${productUnderTest.name} to cart` })
+    page.getByRole("button", { name: `Add ${productUnderTest.name} to cart` }),
   );
   await clickVisualCenter(cartButton(page));
-  await clickVisualCenter(page.getByRole('link', { name: /Proceed to Checkout/i }));
+  await clickVisualCenter(
+    page.getByRole("link", { name: /Proceed to Checkout/i }),
+  );
   await expect(page).toHaveURL(/\/checkout$/);
 }
 
@@ -309,58 +365,61 @@ async function installVisualMocks(page: Page): Promise<void> {
   let order: Order | null = null;
 
   await page.addInitScript(() => {
-    localStorage.removeItem('expresso_demo_mode');
+    localStorage.removeItem("expresso_demo_mode");
   });
 
-  await page.route('**/viz/index.html', (route) =>
+  await page.route(/\/viz\/index\.html(\?.*)?$/, (route) =>
     route.fulfill({
       body: [
-        '<!doctype html>',
-        '<html><head><title>Mock Visualizer</title></head>',
+        "<!doctype html>",
+        "<html><head><title>Mock Visualizer</title></head>",
         '<body style="margin:0;font-family:sans-serif;background:#fff;color:#111;">',
         '<main style="min-height:360px;display:grid;place-items:center;">',
         '<canvas width="640" height="360" aria-label="mock 3D scene"></canvas>',
-        '<p>live · 4 items</p>',
-        '</main>',
-        '</body></html>',
-      ].join(''),
-      contentType: 'text/html',
+        "<p>live · 4 items</p>",
+        "</main>",
+        "</body></html>",
+      ].join(""),
+      contentType: "text/html",
       status: 200,
-    })
+    }),
   );
 
-  await page.route('**/api/bff/**', async (route) => {
+  await page.route("**/api/bff/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    const path = url.pathname.replace(/^\/api\/bff/, '') || '/';
+    const path = url.pathname.replace(/^\/api\/bff/, "") || "/";
     const method = request.method();
 
-    if (method === 'GET' && path === '/health') {
+    if (method === "GET" && path === "/health") {
       return fulfillJson(route, 200, {
-        checks: { db: 'ok' },
-        service: 'bff',
-        status: 'ok',
+        checks: { db: "ok" },
+        service: "bff",
+        status: "ok",
         uptimeSeconds: 100,
-        version: 'visual-e2e',
+        version: "visual-e2e",
       });
     }
 
-    if (method === 'GET' && path === '/catalog/products') {
+    if (method === "GET" && path === "/catalog/products") {
       return fulfillJson(route, 200, { items: products });
     }
 
-    if (method === 'GET' && path === '/cart') {
+    if (method === "GET" && path === "/cart") {
       return fulfillJson(route, 200, buildCart(cartItems));
     }
 
-    if (method === 'POST' && path === '/cart/items') {
-      const body = request.postDataJSON() as
-        | { productId?: string; quantity?: number }
-        | null;
-      const product = products.find((item) => item.productId === body?.productId);
+    if (method === "POST" && path === "/cart/items") {
+      const body = request.postDataJSON() as {
+        productId?: string;
+        quantity?: number;
+      } | null;
+      const product = products.find(
+        (item) => item.productId === body?.productId,
+      );
 
       if (!product) {
-        return fulfillJson(route, 404, { message: 'Product not found' });
+        return fulfillJson(route, 404, { message: "Product not found" });
       }
 
       cartItems = upsertCartItem(cartItems, product, body?.quantity ?? 1);
@@ -368,60 +427,70 @@ async function installVisualMocks(page: Page): Promise<void> {
     }
 
     const cartItemMatch = path.match(/^\/cart\/items\/([^/]+)$/);
-    if (cartItemMatch?.[1] && method === 'PATCH') {
+    if (cartItemMatch?.[1] && method === "PATCH") {
       const body = request.postDataJSON() as { quantity?: number } | null;
       cartItems = cartItems.map((item) =>
         item.itemId === cartItemMatch[1]
           ? {
               ...item,
-              lineTotal: money(item.unitPrice.amountMinor * (body?.quantity ?? item.quantity)),
+              lineTotal: money(
+                item.unitPrice.amountMinor * (body?.quantity ?? item.quantity),
+              ),
               quantity: body?.quantity ?? item.quantity,
             }
-          : item
+          : item,
       );
       return fulfillJson(route, 200, buildCart(cartItems));
     }
 
-    if (cartItemMatch?.[1] && method === 'DELETE') {
+    if (cartItemMatch?.[1] && method === "DELETE") {
       cartItems = cartItems.filter((item) => item.itemId !== cartItemMatch[1]);
       return fulfillJson(route, 200, buildCart(cartItems));
     }
 
-    if (method === 'POST' && path === '/checkout') {
+    if (method === "POST" && path === "/checkout") {
       const body = request.postDataJSON() as { customerName?: string } | null;
-      order = buildOrder(body?.customerName ?? 'Visual Customer', cartItems, 'pending');
+      order = buildOrder(
+        body?.customerName ?? "Visual Customer",
+        cartItems,
+        "pending",
+      );
       cartItems = [];
       return fulfillJson(route, 200, {
-        cartId: 'cart_visual',
+        cartId: "cart_visual",
         orderId: order.orderId,
         status: order.status,
         total: order.total,
       });
     }
 
-    if (method === 'GET' && path === '/orders') {
+    if (method === "GET" && path === "/orders") {
       return fulfillJson(route, 200, { items: order ? [order] : [] });
     }
 
     const orderMatch = path.match(/^\/orders\/([^/]+)$/);
-    if (orderMatch?.[1] && method === 'GET') {
+    if (orderMatch?.[1] && method === "GET") {
       if (!order || order.orderId !== orderMatch[1]) {
-        return fulfillJson(route, 404, { message: 'Order not found' });
+        return fulfillJson(route, 404, { message: "Order not found" });
       }
       return fulfillJson(route, 200, order);
     }
 
     const manageMatch = path.match(/^\/orders\/([^/]+)\/manage$/);
-    if (manageMatch?.[1] && method === 'POST') {
+    if (manageMatch?.[1] && method === "POST") {
       if (!order || order.orderId !== manageMatch[1]) {
-        return fulfillJson(route, 404, { message: 'Order not found' });
+        return fulfillJson(route, 404, { message: "Order not found" });
       }
 
       const previousStatus = order.status;
-      order = { ...order, status: 'preparing', updatedAt: '2026-05-29T12:01:00.000Z' };
+      order = {
+        ...order,
+        status: "preparing",
+        updatedAt: "2026-05-29T12:01:00.000Z",
+      };
       return fulfillJson(route, 200, {
         acceptedAt: order.updatedAt,
-        action: 'update_status',
+        action: "update_status",
         orderId: order.orderId,
         previousStatus,
         status: order.status,
@@ -433,9 +502,12 @@ async function installVisualMocks(page: Page): Promise<void> {
 }
 
 function buildCart(items: CartItem[]): Cart {
-  const amountMinor = items.reduce((sum, item) => sum + item.lineTotal.amountMinor, 0);
+  const amountMinor = items.reduce(
+    (sum, item) => sum + item.lineTotal.amountMinor,
+    0,
+  );
   return {
-    cartId: 'cart_visual',
+    cartId: "cart_visual",
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
     items,
     total: money(amountMinor),
@@ -443,14 +515,18 @@ function buildCart(items: CartItem[]): Cart {
   };
 }
 
-function upsertCartItem(items: CartItem[], product: Product, quantity: number): CartItem[] {
+function upsertCartItem(
+  items: CartItem[],
+  product: Product,
+  quantity: number,
+): CartItem[] {
   const existing = items.find((item) => item.productId === product.productId);
 
   if (!existing) {
     return [
       ...items,
       {
-        itemId: 'ci_visual_001',
+        itemId: "ci_visual_001",
         lineTotal: money(product.price.amountMinor * quantity),
         name: product.name,
         productId: product.productId,
@@ -475,7 +551,7 @@ function upsertCartItem(items: CartItem[], product: Product, quantity: number): 
 function buildOrder(
   customerName: string,
   cartItems: CartItem[],
-  status: OrderStatus
+  status: OrderStatus,
 ): Order {
   return {
     customerName,
@@ -486,7 +562,7 @@ function buildOrder(
       quantity: item.quantity,
       unitPrice: item.unitPrice,
     })),
-    orderId: 'ord_visual_1001',
+    orderId: "ord_visual_1001",
     placedAt: now,
     status,
     total: buildCart(cartItems).total,
@@ -495,17 +571,21 @@ function buildOrder(
 }
 
 function cartButton(page: Page) {
-  return page.getByRole('button', { name: /Shopping cart with \d+ items/i });
+  return page.getByRole("button", { name: /Shopping cart with \d+ items/i });
 }
 
-function fulfillJson(route: Route, status: number, body: unknown): Promise<void> {
+function fulfillJson(
+  route: Route,
+  status: number,
+  body: unknown,
+): Promise<void> {
   return route.fulfill({
     body: JSON.stringify(body),
-    contentType: 'application/json',
+    contentType: "application/json",
     status,
   });
 }
 
 function money(amountMinor: number): Money {
-  return { amountMinor, currency: 'USD' };
+  return { amountMinor, currency: "USD" };
 }

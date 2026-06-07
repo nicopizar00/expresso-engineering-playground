@@ -18,18 +18,11 @@
    - [`../../architecture/web-entry-point.md`](../../architecture/web-entry-point.md)
    - [`../../architecture/orchestrator-python.md`](../../architecture/orchestrator-python.md)
 
-## Prompt library
+## Prompt shape
 
-Repo-versioned long-form prompts for specific Claude Code tasks. Reference
-material; not auto-loaded.
-
-| File | Purpose |
-|---|---|
-| [`visualizer-sse-prompt.txt`](visualizer-sse-prompt.txt) | Upgrade the 3D visualizer to SSE (shipped — kept as a shape reference). |
-| [`uat-remediation-effort-prompt.txt`](uat-remediation-effort-prompt.txt) | UAT remediation framing for Claude Code. |
-
-New prompts follow the **ROLE / GOAL / READ FIRST / CONFIRM IN CODE / DESIGN
-/ VALIDATE** shape and link to architecture spokes instead of inlining facts.
+Long-form prompts for specific Claude Code tasks follow the
+**ROLE / GOAL / READ FIRST / CONFIRM IN CODE / DESIGN / VALIDATE** shape and
+link to architecture spokes instead of inlining facts.
 
 ## When NOT to use Claude
 

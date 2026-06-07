@@ -6,12 +6,12 @@ NestJS Backend-for-Frontend / API for the mini-commerce engineering playground.
 
 - Aggregates domain modules behind a single HTTP surface for `apps/web`.
 - Hosts the domain modules of the modular monolith:
-  - `health`        — liveness status; database readiness follow-up.
-  - `catalog`       — persisted product catalog and product creation.
-  - `cart`          — single-user in-memory cart.
-  - `checkout`      — converts the current cart into an order.
-  - `orders`        — persisted order listing, lookup, and management.
-  - `customers`     — customer profile (placeholder only).
+  - `health` — liveness status; database readiness follow-up.
+  - `catalog` — persisted product catalog and product creation.
+  - `cart` — single-user in-memory cart.
+  - `checkout` — converts the current cart into an order.
+  - `orders` — persisted order listing, lookup, and management.
+  - `customers` — customer profile (placeholder only).
   - `notifications` — outbound notifications (placeholder only).
 - Owns catalog and order persistence through Prisma/PostgreSQL. Cart storage
   deliberately remains in BFF process memory.
@@ -44,19 +44,21 @@ src/
 
 ## HTTP surface
 
-| Method | Path                       | Notes                                                     |
-| ------ | -------------------------- | --------------------------------------------------------- |
-| GET    | `/health`                  | Liveness; `checks.db` is `"skipped"` for now.             |
-| GET    | `/catalog/products`        | Deterministic catalog of seven products.                  |
-| GET    | `/catalog/products/:id`    | `prod_unknown` returns 404 for error-path tests.          |
-| POST   | `/catalog/products`        | Creates a persisted product.                              |
-| GET    | `/cart`                    | Current cart snapshot.                                    |
-| POST   | `/cart/items`              | Adds a product line; returns the updated cart.            |
-| POST   | `/checkout`                | Converts the cart to an order; resets the cart.           |
-| GET    | `/orders`                  | Lists persisted orders, including seeded `ord_demo`.      |
-| GET    | `/orders/:id`              | Finds a persisted order; unknown ids return 404.          |
-| POST   | `/orders/:id/manage`       | Persists `cancel`, `update_status`, `mark_prepared`.      |
-| GET    | `/visualization-data`      | Aggregates catalog, orders, and cart for the 3D client.   |
+| Method | Path                    | Notes                                                   |
+| ------ | ----------------------- | ------------------------------------------------------- |
+| GET    | `/health`               | Liveness; `checks.db` is `"skipped"` for now.           |
+| GET    | `/catalog/products`     | Deterministic catalog of seven products.                |
+| GET    | `/catalog/products/:id` | `prod_unknown` returns 404 for error-path tests.        |
+| POST   | `/catalog/products`     | Creates a persisted product.                            |
+| GET    | `/cart`                 | Current cart snapshot.                                  |
+| POST   | `/cart/items`           | Adds a product line; returns the updated cart.          |
+| PATCH  | `/cart/items/:itemId`   | Updates a line's quantity (clamped 1–20).               |
+| DELETE | `/cart/items/:itemId`   | Removes a line; returns the updated cart.               |
+| POST   | `/checkout`             | Converts the cart to an order; resets the cart.         |
+| GET    | `/orders`               | Lists persisted orders, including seeded `ord_demo`.    |
+| GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.        |
+| POST   | `/orders/:id/manage`    | Persists `cancel`, `update_status`, `mark_prepared`.    |
+| GET    | `/visualization-data`   | Aggregates catalog, orders, and cart for the 3D client. |
 
 ## Local run
 

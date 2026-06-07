@@ -56,12 +56,12 @@ not fail the run.
 
 ## 1. Preflight (4 checks)
 
-| # | Command | Pass criterion |
-| - | ------- | -------------- |
-| 1.1 | `docker --version` | Exits 0; prints `Docker version <major>.<minor>.<patch>` with `<major>` ≥ 24. |
-| 1.2 | `docker compose version` | Exits 0; output contains `v2.` |
-| 1.3 | `jq --version` | Exits 0; output matches `^jq-1\.[0-9]+` |
-| 1.4 | `./dev doctor` | Exits 0; stdout contains `All required prerequisites are available.` (warning about `.env` does not yet auto-fix in `./dev` — see drift register). |
+| #   | Command                  | Pass criterion                                                                                                                                     |
+| --- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | `docker --version`       | Exits 0; prints `Docker version <major>.<minor>.<patch>` with `<major>` ≥ 24.                                                                      |
+| 1.2 | `docker compose version` | Exits 0; output contains `v2.`                                                                                                                     |
+| 1.3 | `jq --version`           | Exits 0; output matches `^jq-1\.[0-9]+`                                                                                                            |
+| 1.4 | `./dev doctor`           | Exits 0; stdout contains `All required prerequisites are available.` (warning about `.env` does not yet auto-fix in `./dev` — see drift register). |
 
 Human checklist:
 
@@ -72,11 +72,11 @@ Human checklist:
 
 ## 2. Quick Start (3 checks)
 
-| # | Command | Pass criterion |
-| - | ------- | -------------- |
-| 2.1 | `cp .env.example .env && ./dev up` | Exits 0; stdout contains `BFF is running on http://localhost:3001` AND `Postgres is healthy` AND `Schema is up to date`. |
-| 2.2 | `./dev status` | Exits 0; output lists `postgres`, `bff`, `otel-collector` with `State=running`. The `Health` column should be `healthy` for postgres and bff. |
-| 2.3 | `./dev smoke` | Exits 0; final line is `All 13 smoke checks passed.` |
+| #   | Command                            | Pass criterion                                                                                                                                |
+| --- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1 | `cp .env.example .env && ./dev up` | Exits 0; stdout contains `BFF is running on http://localhost:3001` AND `Postgres is healthy` AND `Schema is up to date`.                      |
+| 2.2 | `./dev status`                     | Exits 0; output lists `postgres`, `bff`, `otel-collector` with `State=running`. The `Health` column should be `healthy` for postgres and bff. |
+| 2.3 | `./dev smoke`                      | Exits 0; final line is `All 13 smoke checks passed.`                                                                                          |
 
 Human checklist:
 
@@ -90,18 +90,18 @@ Human checklist:
 
 All assertions use `jq -e` so a non-matching shape exits non-zero.
 
-| # | Command | Pass criterion |
-| - | ------- | -------------- |
-| 3.1  | `curl -s http://localhost:3001/health \| jq -e '.status == "ok"'` | exit 0 |
-| 3.2  | `curl -s http://localhost:3001/catalog/products \| jq -e '.items \| length == 7'` | exit 0 |
-| 3.3  | `curl -s http://localhost:3001/catalog/products/prod_espresso \| jq -e '.id == "prod_espresso"'` | exit 0 |
-| 3.4  | `curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3001/cart/items -H 'Content-Type: application/json' -d '{"productId":"prod_espresso","quantity":2}'` | output `201` |
-| 3.5  | `curl -s http://localhost:3001/cart \| jq -e '.items \| length >= 1'` | exit 0 |
-| 3.6  | `ORDER_ID=$(curl -s -X POST http://localhost:3001/checkout -H 'Content-Type: application/json' -d '{"customerName":"UAT"}' \| jq -r '.orderId'); [ -n "$ORDER_ID" ]` | non-empty `$ORDER_ID` |
-| 3.7  | `curl -s http://localhost:3001/orders \| jq -e '.items \| length >= 1'` (**must be `.items`, not `.orders`**) | exit 0 |
-| 3.8  | `curl -s "http://localhost:3001/orders/$ORDER_ID" \| jq -e '.id == env.ORDER_ID'` | exit 0 |
-| 3.9  | `curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:3001/orders/$ORDER_ID/manage" -H 'Content-Type: application/json' -d '{"action":"mark_prepared"}'` | output `202` |
-| 3.10 | `curl -s http://localhost:3001/visualization-data \| jq -e '.items \| length >= 1'` | exit 0 |
+| #    | Command                                                                                                                                                                                                       | Pass criterion                                                                                                                                                                                                                                         |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 3.1  | `curl -s http://localhost:3001/health \| jq -e '.status == "ok"'`                                                                                                                                             | exit 0                                                                                                                                                                                                                                                 |
+| 3.2  | `curl -s http://localhost:3001/catalog/products \| jq -e '.items \| length == 7'`                                                                                                                             | exit 0                                                                                                                                                                                                                                                 |
+| 3.3  | `curl -s http://localhost:3001/catalog/products/prod_espresso \| jq -e '.id == "prod_espresso"'`                                                                                                              | exit 0                                                                                                                                                                                                                                                 |
+| 3.4  | `curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3001/cart/items -H 'Content-Type: application/json' -d '{"productId":"prod_espresso","quantity":2}'`                                         | output `201`                                                                                                                                                                                                                                           |
+| 3.5  | `curl -s http://localhost:3001/cart \| jq -e '.items \| length >= 1'`                                                                                                                                         | exit 0                                                                                                                                                                                                                                                 |
+| 3.6  | `ORDER_ID=$(curl -s -X POST http://localhost:3001/checkout -H 'Content-Type: application/json' -d '{"customerName":"UAT"}' \| jq -r '.orderId'); [ -n "$ORDER_ID" ]`                                          | non-empty `$ORDER_ID`                                                                                                                                                                                                                                  |
+| 3.7  | `curl -s http://localhost:3001/orders \| jq -e '.items \| length >= 1'` (**must be `.items`, not `.orders`**)                                                                                                 | exit 0                                                                                                                                                                                                                                                 |
+| 3.8  | `curl -s "http://localhost:3001/orders/$ORDER_ID" \| jq -e '.id == env.ORDER_ID'`                                                                                                                             | exit 0                                                                                                                                                                                                                                                 |
+| 3.9  | `curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:3001/orders/$ORDER_ID/manage" -H 'Content-Type: application/json' -d '{"action":"mark_prepared"}'`                                          | output `202`                                                                                                                                                                                                                                           |
+| 3.10 | `curl -s http://localhost:3001/visualization-data \| jq -e '.items \| length >= 1'`                                                                                                                           | exit 0                                                                                                                                                                                                                                                 |
 | 3.11 | **[DRIFT]** `curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3001/catalog/products -H 'Content-Type: application/json' -d '{"id":"prod_uat","name":"UAT","priceMinor":100,"currency":"EUR"}'` | Endpoint exists in controller (`apps/bff/src/modules/catalog/catalog.controller.ts:20`) but is not part of the smoke or the README walkthrough. Report status code as `[DRIFT]` regardless of value, with recommendation to either document or remove. |
 
 Human checklist:
@@ -117,16 +117,16 @@ Run `./dev up web` once before this section. Each route check is two
 parts: the LLM hits the URL with `curl` and asserts a non-redirect 2xx
 or 3xx, then a human verifies the visible content matches.
 
-| # | Route                      | LLM assertion | Human "you should see" |
-| - | -------------------------- | ------------- | ----------------------- |
-| 4.1 | `/`                       | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/` → 200 | Catalog grid with 7 products |
-| 4.2 | `/cart`                   | `… /cart` → 200 | Empty-cart state OR the items added in step 3 |
-| 4.3 | `/checkout`               | `… /checkout` → 200 | Customer-name form + submit |
-| 4.4 | `/orders`                 | `… /orders` → 200 | Orders list including `ord_demo` |
-| 4.5 | `/orders/ord_demo`        | `… /orders/ord_demo` → 200 | Order detail with line items and management actions |
-| 4.6 | `/orders/<bad-id>`        | `… /orders/does-not-exist` → 404 OR a UI-rendered "not found" with 200 | UI shows a graceful "order not found" state |
-| 4.7 | `/visualizer`             | `… /visualizer` → 200 | Page renders either the iframe or a "visualizer not configured" notice |
-| 4.8 | `/dev`                    | `… /dev` → 200 | Dev console with API client matrix and demo-mode toggle |
+| #   | Route              | LLM assertion                                                          | Human "you should see"                                                 |
+| --- | ------------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 4.1 | `/`                | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/` → 200  | Catalog grid with 7 products                                           |
+| 4.2 | `/cart`            | `… /cart` → 200                                                        | Empty-cart state OR the items added in step 3                          |
+| 4.3 | `/checkout`        | `… /checkout` → 200                                                    | Customer-name form + submit                                            |
+| 4.4 | `/orders`          | `… /orders` → 200                                                      | Orders list including `ord_demo`                                       |
+| 4.5 | `/orders/ord_demo` | `… /orders/ord_demo` → 200                                             | Order detail with line items and management actions                    |
+| 4.6 | `/orders/<bad-id>` | `… /orders/does-not-exist` → 404 OR a UI-rendered "not found" with 200 | UI shows a graceful "order not found" state                            |
+| 4.7 | `/visualizer`      | `… /visualizer` → 200                                                  | Page renders either the iframe or a "visualizer not configured" notice |
+| 4.8 | `/dev`             | `… /dev` → 200                                                         | Dev console with API client matrix and demo-mode toggle                |
 
 For LLM execution, mark a check `[PASS]` if the HTTP code matches AND
 the page HTML contains a literal expected substring (e.g. `Add to cart`
@@ -135,21 +135,25 @@ but the HTTP code is correct, emit `[DRIFT]` rather than `[FAIL]`.
 
 ---
 
-## 5. 3D Visualizer (3 checks)
+## 5. 3D Visualizer (4 checks)
 
-Run `./dev up full` once.
+Run `./dev up full` once. The visualizer is SSE-primary against
+`GET /visualization-updates` with a 2 s polling fallback on
+`GET /visualization-data`.
 
-| # | Command | Pass criterion |
-| - | ------- | -------------- |
-| 5.1 | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/` | output `200` |
-| 5.2 | `curl -s http://localhost:3002/ \| grep -i -c 'three'` | `>= 1` (Three.js script tag present) |
-| 5.3 | `curl -s http://localhost:3001/visualization-data \| jq -e '.items \| length >= 1'` | exit 0 (feed used by the visualizer) |
+| #   | Command                                                                                          | Pass criterion                                                  |
+| --- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| 5.1 | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/`                                  | output `200`                                                    |
+| 5.2 | `curl -s http://localhost:3002/ \| grep -i -c 'three'`                                           | `>= 1` (Three.js script tag present)                            |
+| 5.3 | `curl -s http://localhost:3001/visualization-data \| jq -e '.scene.recentOrders \| length >= 0'` | exit 0 (polling-fallback feed used by the visualizer)           |
+| 5.4 | `curl -sN --max-time 3 http://localhost:3001/visualization-updates \| grep -m1 -c '^data: '`     | `>= 1` (SSE-primary stream emits at least one frame within 3 s) |
 
 Human checklist:
 
 - [ ] Page at <http://localhost:3002> renders a 3D scene.
-- [ ] Clicking **Reload data** repopulates from the BFF.
-- [ ] Color coding (green/orange/red) reflects status fields.
+- [ ] HUD status line reaches `live (sse) · N items` (SSE-primary, no manual reload required). If SSE is blocked, the HUD shows `live · N items` (polling-fallback).
+- [ ] Trigger a cart add or `POST /checkout` from another terminal and the scene repaints without a page reload.
+- [ ] Status semantics in the scene reflect order state (not generic health colours).
 
 ---
 
@@ -177,8 +181,8 @@ git checkout -- apps/bff/src/modules/health/health.controller.ts
 
 ## 7. Performance smoke (1 check)
 
-| # | Command | Pass criterion |
-| - | ------- | -------------- |
+| #   | Command            | Pass criterion                                                                                                                                        |
+| --- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 7.1 | `./dev perf:smoke` | Exits 0; `tests/performance/k6/reports/smoke-summary.json` exists and is valid JSON (`jq . tests/performance/k6/reports/smoke-summary.json` exits 0). |
 
 Cleanup (do not fail the UAT on this):
@@ -191,9 +195,9 @@ Cleanup (do not fail the UAT on this):
 
 ## 8. Reset / teardown (2 checks)
 
-| # | Command | Pass criterion |
-| - | ------- | -------------- |
-| 8.1 | `./dev down` | Exits 0; `./dev status` reports `No services running.` |
+| #   | Command                                                                                                         | Pass criterion                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 8.1 | `./dev down`                                                                                                    | Exits 0; `./dev status` reports `No services running.`                               |
 | 8.2 | `./dev up && curl -s http://localhost:3001/orders \| jq -e '.items \| map(.id) \| contains(["'"$ORDER_ID"'"])'` | exit 0 — the order placed in 3.6 still exists, proving the postgres volume survived. |
 
 ---

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * AppShell - Main application layout wrapper
@@ -7,9 +7,10 @@
  * Includes demo mode toggle for frontend exploration without backend.
  */
 
-import { ReactNode, useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { ReactNode, useState, useEffect } from "react";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Coffee,
   ShoppingCart,
@@ -22,12 +23,12 @@ import {
   Box,
   Gauge,
   Database,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { useCart } from '@/components/cart/CartProvider';
-import { HealthBadge } from './HealthBadge';
-import { CartDrawer } from '@/components/cart/CartDrawer';
-import { getDemoModeStatus, setDemoMode } from '@/lib/api/expresso-api';
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useCart } from "@/components/cart/CartProvider";
+import { HealthBadge } from "./HealthBadge";
+import { CartDrawer } from "@/components/cart/CartDrawer";
+import { getDemoModeStatus, setDemoMode } from "@/lib/api/expresso-api";
 
 type NavLink = {
   href: string;
@@ -44,21 +45,28 @@ type NavLink = {
 const PRISMA_STUDIO_URL = process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL;
 
 const navLinks: NavLink[] = [
-  { href: '/', label: 'Catalog', icon: Coffee },
-  { href: '/orders', label: 'Orders', icon: Package },
-  { href: '/performance', label: 'Performance', icon: Gauge },
-  { href: '/visualizer', label: '3D', icon: Box },
-  { href: '/dev', label: 'API', icon: Activity },
+  { href: "/", label: "Catalog", icon: Coffee },
+  { href: "/orders", label: "Orders", icon: Package },
+  { href: "/performance", label: "Performance", icon: Gauge },
+  { href: "/visualizer", label: "3D", icon: Box },
+  { href: "/dev", label: "API", icon: Activity },
   ...(PRISMA_STUDIO_URL
-    ? [{ href: PRISMA_STUDIO_URL, label: 'Admin', icon: Database, external: true } as NavLink]
+    ? [
+        {
+          href: PRISMA_STUDIO_URL,
+          label: "Admin",
+          icon: Database,
+          external: true,
+        } as NavLink,
+      ]
     : []),
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { itemCount } = useCart();
+  const { itemCount, isCartDrawerOpen, openCartDrawer, closeCartDrawer } =
+    useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Check demo mode status on mount (client-side only)
@@ -77,8 +85,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div
           className="py-2 px-4 text-center text-xs font-medium"
           style={{
-            backgroundColor: 'var(--warning)',
-            color: 'var(--warning-foreground)',
+            backgroundColor: "var(--warning)",
+            color: "var(--warning-foreground)",
           }}
           role="status"
         >
@@ -97,8 +105,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header
         className="sticky top-0 z-50 border-b"
         style={{
-          backgroundColor: 'var(--card)',
-          borderColor: 'var(--border)',
+          backgroundColor: "var(--card)",
+          borderColor: "var(--border)",
         }}
       >
         <div className="container">
@@ -107,15 +115,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link
               href="/"
               className="flex items-center gap-2 font-semibold text-lg transition-opacity hover:opacity-80"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: "var(--foreground)" }}
             >
-              <Coffee className="h-5 w-5" style={{ color: 'var(--primary)' }} />
+              <Coffee className="h-5 w-5" style={{ color: "var(--primary)" }} />
               <span>Expresso</span>
               <span
                 className="hidden sm:inline text-xs font-normal px-2 py-0.5 rounded-full ml-1"
                 style={{
-                  backgroundColor: 'var(--secondary)',
-                  color: 'var(--muted-foreground)',
+                  backgroundColor: "var(--secondary)",
+                  color: "var(--muted-foreground)",
                 }}
               >
                 Playground
@@ -141,8 +149,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                       style={{
-                        backgroundColor: 'transparent',
-                        color: 'var(--muted-foreground)',
+                        backgroundColor: "transparent",
+                        color: "var(--muted-foreground)",
                       }}
                       title="Direct DB · bypasses domain events"
                     >
@@ -154,17 +162,21 @@ export function AppShell({ children }: { children: ReactNode }) {
                 }
                 const isActive =
                   pathname === link.href ||
-                  (link.href !== '/' && pathname.startsWith(link.href));
+                  (link.href !== "/" && pathname.startsWith(link.href));
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
                     className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     style={{
-                      backgroundColor: isActive ? 'var(--secondary)' : 'transparent',
-                      color: isActive ? 'var(--foreground)' : 'var(--muted-foreground)',
+                      backgroundColor: isActive
+                        ? "var(--secondary)"
+                        : "transparent",
+                      color: isActive
+                        ? "var(--foreground)"
+                        : "var(--muted-foreground)",
                     }}
-                    aria-current={isActive ? 'page' : undefined}
+                    aria-current={isActive ? "page" : undefined}
                   >
                     <Icon className="h-4 w-4" />
                     {link.label}
@@ -181,8 +193,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   onClick={handleToggleDemoMode}
                   className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
                   style={{
-                    backgroundColor: 'var(--secondary)',
-                    color: 'var(--muted-foreground)',
+                    backgroundColor: "var(--secondary)",
+                    color: "var(--muted-foreground)",
                   }}
                   title="Enable demo mode to explore without backend"
                 >
@@ -195,11 +207,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
               {/* Cart button */}
               <button
-                onClick={() => setCartOpen(true)}
+                onClick={openCartDrawer}
                 className="relative flex items-center justify-center w-10 h-10 rounded-md transition-colors"
                 style={{
-                  backgroundColor: 'var(--secondary)',
-                  color: 'var(--foreground)',
+                  backgroundColor: "var(--secondary)",
+                  color: "var(--foreground)",
                 }}
                 aria-label={`Shopping cart with ${itemCount} items`}
               >
@@ -208,11 +220,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span
                     className="absolute -top-1 -right-1 flex items-center justify-center h-5 min-w-[1.25rem] px-1 text-xs font-semibold rounded-full"
                     style={{
-                      backgroundColor: 'var(--primary)',
-                      color: 'var(--primary-foreground)',
+                      backgroundColor: "var(--primary)",
+                      color: "var(--primary-foreground)",
                     }}
                   >
-                    {itemCount > 99 ? '99+' : itemCount}
+                    {itemCount > 99 ? "99+" : itemCount}
                   </span>
                 )}
               </button>
@@ -222,8 +234,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="md:hidden flex items-center justify-center w-10 h-10 rounded-md transition-colors"
                 style={{
-                  backgroundColor: 'var(--secondary)',
-                  color: 'var(--foreground)',
+                  backgroundColor: "var(--secondary)",
+                  color: "var(--foreground)",
                 }}
                 aria-label="Toggle menu"
                 aria-expanded={mobileMenuOpen}
@@ -241,7 +253,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {mobileMenuOpen && (
             <nav
               className="md:hidden py-4 border-t animate-fadeIn"
-              style={{ borderColor: 'var(--border)' }}
+              style={{ borderColor: "var(--border)" }}
               role="navigation"
               aria-label="Mobile"
             >
@@ -258,8 +270,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium transition-colors"
                         style={{
-                          backgroundColor: 'transparent',
-                          color: 'var(--muted-foreground)',
+                          backgroundColor: "transparent",
+                          color: "var(--muted-foreground)",
                         }}
                       >
                         <Icon className="h-4 w-4" />
@@ -270,7 +282,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }
                   const isActive =
                     pathname === link.href ||
-                    (link.href !== '/' && pathname.startsWith(link.href));
+                    (link.href !== "/" && pathname.startsWith(link.href));
                   return (
                     <Link
                       key={link.href}
@@ -278,12 +290,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-3 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium transition-colors"
                       style={{
-                        backgroundColor: isActive ? 'var(--secondary)' : 'transparent',
+                        backgroundColor: isActive
+                          ? "var(--secondary)"
+                          : "transparent",
                         color: isActive
-                          ? 'var(--foreground)'
-                          : 'var(--muted-foreground)',
+                          ? "var(--foreground)"
+                          : "var(--muted-foreground)",
                       }}
-                      aria-current={isActive ? 'page' : undefined}
+                      aria-current={isActive ? "page" : undefined}
                     >
                       <Icon className="h-4 w-4" />
                       {link.label}
@@ -296,15 +310,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                   onClick={handleToggleDemoMode}
                   className="flex items-center gap-3 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium transition-colors mt-2 border-t pt-4"
                   style={{
-                    backgroundColor: isDemoMode ? 'var(--warning)' : 'var(--secondary)',
+                    backgroundColor: isDemoMode
+                      ? "var(--warning)"
+                      : "var(--secondary)",
                     color: isDemoMode
-                      ? 'var(--warning-foreground)'
-                      : 'var(--muted-foreground)',
-                    borderColor: 'var(--border)',
+                      ? "var(--warning-foreground)"
+                      : "var(--muted-foreground)",
+                    borderColor: "var(--border)",
                   }}
                 >
                   <FlaskConical className="h-4 w-4" />
-                  {isDemoMode ? 'Disable Demo Mode' : 'Enable Demo Mode'}
+                  {isDemoMode ? "Disable Demo Mode" : "Enable Demo Mode"}
                 </button>
               </div>
             </nav>
@@ -319,19 +335,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       <footer
         className="border-t py-6"
         style={{
-          backgroundColor: 'var(--card)',
-          borderColor: 'var(--border)',
+          backgroundColor: "var(--card)",
+          borderColor: "var(--border)",
         }}
       >
         <div className="container">
           <div
             className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm"
-            style={{ color: 'var(--muted-foreground)' }}
+            style={{ color: "var(--muted-foreground)" }}
           >
             <p>
               Engineering Playground
               <span className="mx-2">·</span>
-              <span style={{ color: 'var(--foreground)' }}>Mini Commerce</span>
+              <span style={{ color: "var(--foreground)" }}>Mini Commerce</span>
             </p>
             <div className="flex items-center gap-4">
               <a
@@ -339,7 +355,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 transition-colors hover:opacity-80"
-                style={{ color: 'var(--muted-foreground)' }}
+                style={{ color: "var(--muted-foreground)" }}
               >
                 <ExternalLink className="h-4 w-4" />
                 <span>Source</span>
@@ -347,7 +363,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 href="/dev"
                 className="transition-colors hover:opacity-80"
-                style={{ color: 'var(--muted-foreground)' }}
+                style={{ color: "var(--muted-foreground)" }}
               >
                 API Debug
               </Link>
@@ -357,7 +373,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </footer>
 
       {/* Cart Drawer */}
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CartDrawer open={isCartDrawerOpen} onClose={closeCartDrawer} />
     </div>
   );
 }
