@@ -1,45 +1,45 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page } from "@playwright/test";
 
-const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3100';
+const DEFAULT_BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3100";
 
 export class StorefrontPage {
   constructor(
     readonly page: Page,
-    private readonly baseUrl: string = DEFAULT_BASE_URL
+    private readonly baseUrl: string = DEFAULT_BASE_URL,
   ) {}
 
   async gotoCatalog(): Promise<void> {
-    await this.page.goto(this.url('/'));
+    await this.page.goto(this.url("/"));
   }
 
   catalogHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Product Catalog' });
+    return this.page.getByRole("heading", { name: "Catalog", exact: true });
   }
 
   categoryTab(label: string): Locator {
-    return this.page.getByRole('tab', {
+    return this.page.getByRole("tab", {
       name: new RegExp(`^${escapeRegExp(label)}\\b`),
     });
   }
 
   productHeading(productName: string): Locator {
-    return this.page.getByRole('heading', { name: productName });
+    return this.page.getByRole("heading", { name: productName });
   }
 
   addToCartButton(productName: string): Locator {
-    return this.page.getByRole('button', {
+    return this.page.getByRole("button", {
       name: `Add ${productName} to cart`,
     });
   }
 
   cartButton(): Locator {
-    return this.page.getByRole('button', {
+    return this.page.getByRole("button", {
       name: /Shopping cart with \d+ items/,
     });
   }
 
   cartDialog(): Locator {
-    return this.page.getByRole('dialog', { name: 'Cart' });
+    return this.page.getByRole("dialog", { name: "Cart" });
   }
 
   cartLineItem(productName: string): Locator {
@@ -47,17 +47,17 @@ export class StorefrontPage {
   }
 
   proceedToCheckoutLink(): Locator {
-    return this.cartDialog().getByRole('link', {
+    return this.cartDialog().getByRole("link", {
       name: /Proceed to Checkout/i,
     });
   }
 
   checkoutHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Checkout' });
+    return this.page.getByRole("heading", { name: "Checkout" });
   }
 
   checkoutSummaryHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Order Summary' });
+    return this.page.getByRole("heading", { name: "Order Summary" });
   }
 
   checkoutLineItem(productName: string): Locator {
@@ -65,25 +65,25 @@ export class StorefrontPage {
   }
 
   customerNameInput(): Locator {
-    return this.page.getByLabel('Your Name');
+    return this.page.getByLabel("Your Name");
   }
 
   placeOrderButton(): Locator {
-    return this.page.getByRole('button', { name: 'Place Order' });
+    return this.page.getByRole("button", { name: "Place Order" });
   }
 
   checkoutAlert(): Locator {
-    return this.page.getByRole('alert').filter({ hasText: /\S/ }).first();
+    return this.page.getByRole("alert").filter({ hasText: /\S/ }).first();
   }
 
   orderDetailsHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Order Details' });
+    return this.page.getByRole("heading", { name: "Order Details" });
   }
 
   orderSuccessAlert(): Locator {
     return this.page
-      .getByRole('alert')
-      .filter({ hasText: 'Order placed successfully!' });
+      .getByRole("alert")
+      .filter({ hasText: "Order placed successfully!" });
   }
 
   visibleOrderId(orderId: string): Locator {
@@ -98,16 +98,18 @@ export class StorefrontPage {
     return this.page.getByText(productName, { exact: true });
   }
 
-  orderStatus(status: 'Pending' | 'Preparing' | 'Prepared' | 'Cancelled'): Locator {
+  orderStatus(
+    status: "Pending" | "Preparing" | "Prepared" | "Cancelled",
+  ): Locator {
     return this.page.getByText(status, { exact: true });
   }
 
   startPreparingButton(): Locator {
-    return this.page.getByRole('button', { name: 'Start Preparing' });
+    return this.page.getByRole("button", { name: "Start Preparing" });
   }
 
   markPreparedButton(): Locator {
-    return this.page.getByRole('button', { name: 'Mark as Prepared' });
+    return this.page.getByRole("button", { name: "Mark as Prepared" });
   }
 
   async filterProductsByCategory(label: string): Promise<void> {
@@ -141,7 +143,9 @@ export class StorefrontPage {
   currentOrderId(): string {
     const match = this.page.url().match(/\/orders\/([^/?#]+)/);
     if (!match?.[1]) {
-      throw new Error(`Expected an order detail URL, received ${this.page.url()}`);
+      throw new Error(
+        `Expected an order detail URL, received ${this.page.url()}`,
+      );
     }
     return decodeURIComponent(match[1]);
   }
@@ -152,5 +156,5 @@ export class StorefrontPage {
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

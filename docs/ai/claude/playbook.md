@@ -1,7 +1,7 @@
 # Claude Code — Execution Playbook
 
 > The rules Claude Code follows when editing this repo. CLAUDE.md (root) is a
-> thin pointer to this file. Conventions that belong to the *architecture* live
+> thin pointer to this file. Conventions that belong to the _architecture_ live
 > in `docs/architecture/`; this playbook only covers **execution discipline**.
 
 ## Working agreements (durable)
@@ -45,14 +45,14 @@ the BFF module rules see
 
 Run before reporting done. Pick the narrowest applicable row.
 
-| Change scope | Required |
-|---|---|
-| One file, no public API change | `pnpm --filter <pkg> test` for that package |
-| Cross-package or new public API | `pnpm typecheck` + `pnpm test` |
-| BFF endpoint added or shape changed | + `./dev smoke` |
-| Compose / `scripts/pg/` change | + `pnpm pg:test` + `./dev doctor` |
-| UI change | + open the page in a browser (real or screenshot tool); do not infer success from types alone |
-| Anything touching CI | `pnpm lint` + `pnpm format` + impacted job locally |
+| Change scope                        | Required                                                                                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| One file, no public API change      | `pnpm --filter <pkg> test` for that package                                                   |
+| Cross-package or new public API     | `pnpm typecheck` + `pnpm test`                                                                |
+| BFF endpoint added or shape changed | + `./dev smoke`                                                                               |
+| Compose / `scripts/pg/` change      | + `pnpm pg:test` + `./dev doctor`                                                             |
+| UI change                           | + open the page in a browser (real or screenshot tool); do not infer success from types alone |
+| Anything touching CI                | `pnpm lint` + `pnpm format` + impacted job locally                                            |
 
 If you can't run a check, **say so explicitly** in the wrap-up — don't claim
 success.
@@ -77,20 +77,15 @@ New domain assets follow the `buildEspressoGroup` + `ESPRESSO_CFG` pattern
 and dispatch from `buildItemMesh` on `item.metadata?.category`. Add a
 `docs/next-steps/<topic>.md` before implementing.
 
-## Prompt library
+## Prompt shape
 
-Long-form Claude Code prompts that survived past tasks live alongside this
-file as `.txt`. They share the shape:
+Long-form Claude Code prompts follow this shape:
 
 ```text
 ROLE / GOAL / READ FIRST / CONFIRM IN CODE / DESIGN / VALIDATE
 ```
 
-New prompts should follow that shape and reference architecture spokes by
-link, not by inlined copy. Existing references:
-
-- `visualizer-sse-prompt.txt`
-- `uat-remediation-effort-prompt.txt`
+Reference architecture spokes by link, not by inlined copy.
 
 ## Tooling efficiency
 

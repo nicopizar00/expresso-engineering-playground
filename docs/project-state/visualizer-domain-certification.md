@@ -1,6 +1,8 @@
 # Visualizer Domain Certification
 
-Snapshot date: 2026-05-31.
+Snapshot date: 2026-05-31. Refreshed 2026-06-07 — EOC-2 shipped, so finding
+C8 (catalog mutations do not push SSE updates) is now resolved; the
+`Live update path` row in the certification matrix is upgraded to Pass.
 
 Update note: since the first version of this report, a WIP Classic Espresso
 showcase has appeared in `apps/visualizer-3d/public/scene.js` and
@@ -51,9 +53,7 @@ AI, governance, and planning material:
 - `docs/ai/codex/current-findings.md`
 - `docs/ai/codex/*.md`
 - `docs/ai/codex/skills/**/SKILL.md`
-- `docs/ai/claude/*.txt`
 - `docs/project-state/current-system.md`
-- `docs/project-state/state-driven-visualization.md`
 - `docs/next-steps/visualizer-reactivity.md`
 - `docs/next-steps/uat-remediation.md`
 - `apps/visualizer-3d/README.md`
@@ -66,18 +66,18 @@ Ignored source-like duplicates:
 
 ## Certification Matrix
 
-| Area | Status | Evidence |
-| --- | --- | --- |
-| BFF ownership boundary | Pass | Visualizer consumes BFF endpoints and does not read PostgreSQL directly. |
-| Persisted orders path | Pass | `OrdersService` loads and mutates PostgreSQL rows through Prisma, then serves a warm cache. |
-| Live update path | Partial | `GET /visualization-updates` uses SSE for cart, checkout, and order events, but catalog product creation does not emit the same domain-change signal. |
-| Current visual domain alignment | Partial | A WIP Classic Espresso cup builder exists, but the full scene is not yet an Expresso Order Counter. |
-| Data meaning | Partial | Metadata contains product, order, and cart facts, but the top-level DTO is still primitive-rendering shaped. |
-| Scene semantics | Fail | Recent orders, historical orders, product composition, pickup/completed states, and coffee-shop areas are not visually distinguishable. |
-| Three.js architecture | Partial | Transport and clear/rebuild behavior are simple and maintainable, but scene, fetch, mapping, geometry factories, and animation live in one file. |
-| Retro PS1 art direction | Partial | The WIP cup uses pixel textures and flat Lambert materials, but browser approval is still pending and non-cup scene elements remain generic. |
-| Performance scaling | Partial | SSE avoids stale UI, but every persisted order becomes a permanent rendered item. No recency window or aggregate summary exists. |
-| AI governance readiness | Partial | Boundaries are strong, but several guidance files are stale or completed prompts rather than current implementation direction. |
+| Area                            | Status  | Evidence                                                                                                                                                        |
+| ------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BFF ownership boundary          | Pass    | Visualizer consumes BFF endpoints and does not read PostgreSQL directly.                                                                                        |
+| Persisted orders path           | Pass    | `OrdersService` loads and mutates PostgreSQL rows through Prisma, then serves a warm cache.                                                                     |
+| Live update path                | Pass    | `GET /visualization-updates` uses SSE for cart, checkout, order, and catalog events. EOC-2 wired `CatalogService.create()` into `DomainEventsService.changed$`. |
+| Current visual domain alignment | Partial | A WIP Classic Espresso cup builder exists, but the full scene is not yet an Expresso Order Counter.                                                             |
+| Data meaning                    | Partial | Metadata contains product, order, and cart facts, but the top-level DTO is still primitive-rendering shaped.                                                    |
+| Scene semantics                 | Fail    | Recent orders, historical orders, product composition, pickup/completed states, and coffee-shop areas are not visually distinguishable.                         |
+| Three.js architecture           | Partial | Transport and clear/rebuild behavior are simple and maintainable, but scene, fetch, mapping, geometry factories, and animation live in one file.                |
+| Retro PS1 art direction         | Partial | The WIP cup uses pixel textures and flat Lambert materials, but browser approval is still pending and non-cup scene elements remain generic.                    |
+| Performance scaling             | Partial | SSE avoids stale UI, but every persisted order becomes a permanent rendered item. No recency window or aggregate summary exists.                                |
+| AI governance readiness         | Partial | Boundaries are strong, but several guidance files are stale or completed prompts rather than current implementation direction.                                  |
 
 ## Current Implementation State
 
@@ -88,10 +88,8 @@ Implemented:
 - `GET /visualization-updates` streams the same snapshot shape through SSE.
 - `scene.js` contains a WIP Classic Espresso cup builder for drink-category
   items and an offline fallback showcase item.
-- Cart add/update/remove, checkout, and order management emit domain-change
-  signals.
-- Catalog product creation updates the data available to `GET /visualization-data`
-  but does not currently emit an SSE change signal.
+- Cart add/update/remove, checkout, order management, and catalog product
+  creation all emit domain-change signals on `DomainEventsService.changed$`.
 - Orders are persisted in PostgreSQL and loaded into an in-memory cache on BFF
   startup.
 - The visualizer reconnects SSE, falls back to polling, pauses data transport
@@ -267,12 +265,8 @@ Drift found:
 
 - Root `README.md` still says the visualizer does not auto-poll and requires
   Reload Data after changes.
-- `docs/project-state/state-driven-visualization.md` still says there is no
-  polling, websocket, or push mechanism.
 - `docs/ai/codex/current-findings.md` still carries old UAT blockers that
   appear to be superseded by `docs/next-steps/uat-remediation.md`.
-- `docs/ai/claude/visualizer-sse-prompt.txt` is now a completed implementation
-  prompt, not future direction.
 
 Correction made in this pass:
 
@@ -315,28 +309,14 @@ Recommendation:
 - Ensure the real BFF-driven scene preserves ceramic cup color rather than
   inventory-status green/amber/red as the base material.
 
-### C8 - Catalog Mutations Do Not Push SSE Updates
+### C8 - Catalog Mutations Do Not Push SSE Updates _(resolved by EOC-2)_
 
-Severity: medium.
+Severity: medium. **Status: resolved 2026-06-07.**
 
-`CatalogService.create()` persists a product and updates the catalog cache, but
-it does not emit `DomainEventsService.emit()`. When SSE is connected, polling is
-stopped, so a newly created product will not appear in the visualizer until an
-unrelated emitting mutation happens or the user reconnects/reloads the scene.
-
-Impact:
-
-- Product shelf/display semantics may become stale during diagnostics or future
-  product-management flows.
-- The visualizer's live-data story is complete for cart/order mutations but not
-  for every source included in `/visualization-data`.
-
-Recommendation:
-
-- If product creation remains part of the live visual scene, inject the domain
-  event bus into `CatalogService` and emit after successful create.
-- Add a smoke or unit check covering catalog mutation -> visualization update if
-  the future implementation depends on live product creation.
+`CatalogService.create()` now emits `DomainEventsService.changed$` so new
+products propagate through SSE immediately, with the existing polling fallback
+unchanged. Kept in this report for traceability against earlier Codex review
+sessions.
 
 ### C9 - Browser Visual Certification Is Still Needed
 

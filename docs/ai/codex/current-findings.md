@@ -1,6 +1,8 @@
 # Current Codex Findings
 
-Snapshot date: 2026-05-31.
+Snapshot date: 2026-05-31. Refreshed 2026-06-07 (catalog SSE wiring shipped
+under EOC-2; the previous "catalog mutations do not emit SSE" risk is
+resolved).
 
 Use this summary when framing Codex prompts, review scopes, or follow-up
 implementation instructions.
@@ -45,9 +47,9 @@ scene.
 - Browser pixel certification is still required. Do not certify from source
   alone.
 - The current visualizer can still become a product-row visualizer if every
-  historical order remains a permanent object.
-- Catalog product creation updates `/visualization-data` but does not currently
-  emit the same domain-change event used by SSE.
+  historical order remains a permanent object. EOC-2 mitigates this by capping
+  `recentOrders` and emitting `orderAggregates`; richer aggregation
+  (per-product, time buckets) is still open under EOC-6.
 - Naming is inconsistent: project direction says Classic Expresso, while some
   implementation/docs say Classic Espresso. Treat this as a product-language
   decision for owner approval.

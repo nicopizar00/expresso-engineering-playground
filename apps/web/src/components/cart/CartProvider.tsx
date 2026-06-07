@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * CartProvider - Global cart state management
@@ -11,14 +11,20 @@
  * TODO(error-handling): Add retry logic and user-facing error toasts
  */
 
-import { createContext, useContext, useCallback, ReactNode } from 'react';
-import useSWR from 'swr';
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useState,
+  ReactNode,
+} from "react";
+import useSWR from "swr";
 import {
   expressoApi,
   Cart,
   AddCartItemInput,
   formatMoney,
-} from '@/lib/api/expresso-api';
+} from "@/lib/api/expresso-api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +55,12 @@ export interface CartViewModel {
   removeItem: (itemId: string) => Promise<void>;
   /** Trigger a cart refresh from the server */
   refreshCart: () => void;
+  /** True while the slide-over cart drawer is open */
+  isCartDrawerOpen: boolean;
+  /** Open the slide-over cart drawer (header button, inline summary, etc.) */
+  openCartDrawer: () => void;
+  /** Close the slide-over cart drawer */
+  closeCartDrawer: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -66,15 +78,16 @@ async function fetchCart(): Promise<Cart> {
 // ---------------------------------------------------------------------------
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { data: cart, error, isLoading, mutate } = useSWR<Cart, Error>(
-    'cart',
-    fetchCart,
-    {
-      revalidateOnFocus: false,
-      shouldRetryOnError: false,
-      // TODO(api-wire): Consider adding onError callback for toast notifications
-    }
-  );
+  const {
+    data: cart,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<Cart, Error>("cart", fetchCart, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    // TODO(api-wire): Consider adding onError callback for toast notifications
+  });
 
   const addItem = useCallback(
     async (input: AddCartItemInput) => {
@@ -82,15 +95,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const updatedCart = await expressoApi.addCartItem(input);
       mutate(updatedCart, false);
     },
-    [mutate]
+    [mutate],
   );
 
   const updateItem = useCallback(
     async (itemId: string, quantity: number) => {
-      const updatedCart = await expressoApi.updateCartItem(itemId, { quantity });
+      const updatedCart = await expressoApi.updateCartItem(itemId, {
+        quantity,
+      });
       mutate(updatedCart, false);
     },
-    [mutate]
+    [mutate],
   );
 
   const removeItem = useCallback(
@@ -98,12 +113,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const updatedCart = await expressoApi.removeCartItem(itemId);
       mutate(updatedCart, false);
     },
-    [mutate]
+    [mutate],
   );
 
   const refreshCart = useCallback(() => {
     mutate();
   }, [mutate]);
+
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+  const openCartDrawer = useCallback(() => setIsCartDrawerOpen(true), []);
+  const closeCartDrawer = useCallback(() => setIsCartDrawerOpen(false), []);
 
   const value: CartViewModel = {
     cart: cart ?? null,
@@ -112,12 +131,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     itemCount: cart?.itemCount ?? 0,
     formattedTotal: cart
       ? formatMoney(cart.total.amountMinor, cart.total.currency)
-      : '0.00 USD',
+      : "0.00 USD",
     isEmpty: !cart || cart.items.length === 0,
     addItem,
     updateItem,
     removeItem,
     refreshCart,
+    isCartDrawerOpen,
+    openCartDrawer,
+    closeCartDrawer,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
@@ -130,7 +152,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 export function useCart(): CartViewModel {
   const ctx = useContext(CartContext);
   if (!ctx) {
-    throw new Error('useCart must be used within a CartProvider');
+    throw new Error("useCart must be used within a CartProvider");
   }
   return ctx;
 }

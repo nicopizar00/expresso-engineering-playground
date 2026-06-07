@@ -4,6 +4,12 @@ This document governs the visual language for all 3D assets in
 `apps/visualizer-3d`. Every asset added to the scene must comply with the
 aesthetic rules below. Read this before writing any geometry code.
 
+**Embed mode.** When the iframe URL carries `?embed=1` (the homepage
+workspace at `/` does this), the visualizer hides its HUD via a CSS-only
+`body.embed` rule in `index.html` / `style.css`. The Three.js scene, the SSE
+data path, and `scene.js` are unchanged — embed mode only affects the page
+chrome around the canvas.
+
 ---
 
 ## Design philosophy
