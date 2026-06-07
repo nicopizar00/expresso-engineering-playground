@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
 // TODO(vercel-build): @prisma/client types require `prisma generate` — ensured by package.json#build
 import type { Product as DbProduct } from "@prisma/client";
 import { randomUUID } from "node:crypto";
+import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { PrismaService } from "../../prisma.service";
 import type { CreateProductDto, Product, ProductsResponse } from "./catalog.types";
 
@@ -21,7 +22,10 @@ function toProduct(row: DbProduct): Product {
 export class CatalogService implements OnModuleInit {
   private cache: Product[] = [];
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly domainEvents: DomainEventsService,
+  ) {}
 
   async onModuleInit() {
     const rows = await this.prisma.product.findMany({ orderBy: { createdAt: "asc" } });
@@ -72,6 +76,10 @@ export class CatalogService implements OnModuleInit {
     });
     const product = toProduct(row);
     this.cache = [...this.cache, product];
+    // Visualization SSE consumers need to see new catalog products land
+    // without waiting for the next cart/checkout/order mutation. Mirrors
+    // the pattern in CartService, OrdersService, and CheckoutService.
+    this.domainEvents.emit();
     return product;
   }
 }

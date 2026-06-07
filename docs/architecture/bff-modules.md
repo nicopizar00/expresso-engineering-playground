@@ -95,11 +95,29 @@ of `initTelemetry`.
 
 ## Visualization endpoint as a Phase-3 boundary
 
-`GET /visualization-data` is a read-only aggregator: `VisualizationService`
-pulls from `CatalogService`, `CartService`, `OrdersService`, and reshapes
-into `VisualizationItem[]`. The `visualizer-3d` frontend **never reads the
-database directly** — all data flows through this endpoint. This boundary is
-load-bearing for the Phase-3 service extraction.
+`GET /visualization-data` and `GET /visualization-updates` (SSE) are
+read-only aggregators: `VisualizationService` pulls from `CatalogService`,
+`CartService`, and `OrdersService` and emits a **semantic** payload
+(`VisualizationScene`) describing meaning, not representation. The
+`visualizer-3d` frontend **never reads the database directly** — all data
+flows through this endpoint. This boundary is load-bearing for the Phase-3
+service extraction.
+
+**Contract split (EOC-2):**
+
+- BFF owns meaning: `scene.products`, `scene.recentOrders` (capped at the
+  most recent 10), `scene.orderAggregates` (`totalCount`, `olderCount`,
+  `statusCounts`), `scene.cart` (null when empty), `scene.latestActivityAt`.
+- Visualizer owns representation: mesh choice, color, position, animation.
+  The PS1 builders compose from `buildSquareFrustum`, `makePsxTexture`,
+  and `clearGroup` primitives only.
+- Legacy `items[]` (with `type: "cube" | "sphere" | "marker"`) remains on
+  the response as a back-compat surface until smoke, k6, and scene
+  consumers have all migrated to `scene`. It is scheduled for removal in
+  a follow-up iteration.
+- `CatalogService.create()` emits the same `DomainEventsService.changed$`
+  signal as cart/orders/checkout so new products propagate through the SSE
+  stream without waiting for an unrelated mutation.
 
 ## Related
 

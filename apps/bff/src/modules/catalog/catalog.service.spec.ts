@@ -1,6 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { PrismaService } from "../../prisma.service";
 import { CatalogService } from "./catalog.service";
 import type { CreateProductDto } from "./catalog.types";
@@ -28,11 +29,19 @@ function makePrisma() {
   };
 }
 
-async function makeService(prisma: ReturnType<typeof makePrisma>) {
+function makeDomainEvents() {
+  return { emit: vi.fn() };
+}
+
+async function makeService(
+  prisma: ReturnType<typeof makePrisma>,
+  domainEvents: ReturnType<typeof makeDomainEvents>,
+) {
   const module = await Test.createTestingModule({
     providers: [
       CatalogService,
       { provide: PrismaService, useValue: prisma },
+      { provide: DomainEventsService, useValue: domainEvents },
     ],
   }).compile();
 
@@ -44,10 +53,12 @@ async function makeService(prisma: ReturnType<typeof makePrisma>) {
 describe("CatalogService", () => {
   let service: CatalogService;
   let prisma: ReturnType<typeof makePrisma>;
+  let domainEvents: ReturnType<typeof makeDomainEvents>;
 
   beforeEach(async () => {
     prisma = makePrisma();
-    service = await makeService(prisma);
+    domainEvents = makeDomainEvents();
+    service = await makeService(prisma, domainEvents);
   });
 
   describe("list()", () => {
@@ -122,6 +133,15 @@ describe("CatalogService", () => {
 
       await service.create(DTO);
       expect(service.list().items).toHaveLength(2);
+    });
+
+    it("emits a domain-change signal so the visualization SSE stream sees the new product", async () => {
+      const newRow = { ...DB_ROW, id: 2, productId: "prod_abcd1234", sku: "SKU-NEW-01", name: "Croissant" };
+      prisma.product.create.mockResolvedValue(newRow);
+
+      expect(domainEvents.emit).not.toHaveBeenCalled();
+      await service.create(DTO);
+      expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
   });
 });

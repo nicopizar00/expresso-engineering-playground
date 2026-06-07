@@ -91,6 +91,28 @@ def run() -> int:
             raise HttpError("Expected non-empty items array")
     results.append(_check("GET  /visualization-data", viz_data))
 
+    def viz_scene() -> None:
+        _, payload = request_json(f"{API_BASE}/visualization-data", expect_status=200)
+        if not isinstance(payload, dict):
+            raise HttpError("Expected an object payload")
+        scene = payload.get("scene")
+        if not isinstance(scene, dict):
+            raise HttpError("Expected scene to be an object (EOC-2)")
+        for key in ("products", "recentOrders", "orderAggregates", "latestActivityAt"):
+            if key not in scene:
+                raise HttpError(f"scene missing key: {key}")
+        if not isinstance(scene["products"], list):
+            raise HttpError("scene.products must be a list")
+        if not isinstance(scene["recentOrders"], list):
+            raise HttpError("scene.recentOrders must be a list")
+        aggregates = scene["orderAggregates"]
+        if not isinstance(aggregates, dict) or "totalCount" not in aggregates or "statusCounts" not in aggregates:
+            raise HttpError("scene.orderAggregates malformed")
+        # cart key is allowed to be null when itemCount=0
+        if "cart" not in scene:
+            raise HttpError("scene missing key: cart")
+    results.append(_check("GET  /visualization-data (scene shape)", viz_scene))
+
     def sse() -> None:
         ok = read_sse_data_frame(f"{API_BASE}/visualization-updates", max_seconds=3.0)
         if not ok:

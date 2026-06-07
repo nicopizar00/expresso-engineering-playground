@@ -63,12 +63,37 @@ The first coherent scene should include:
 | ID | Track | Scope | Likely Files | Status |
 | --- | --- | --- | --- | --- |
 | EOC-1 | Documentation cleanup | Refresh remaining stale visualizer docs so future agents do not follow manual-reload, polling-only, or superseded UAT guidance. | `README.md`, `docs/project-state/state-driven-visualization.md`, `docs/ai/codex/current-findings.md` | pending |
-| EOC-2 | Semantic data contract | Decide how the BFF will provide meaning without owning representation. Prefer recent orders plus aggregates over every order row; decide whether live product creation must emit visualization events. | `apps/bff/src/modules/visualization/*`, `apps/bff/src/modules/catalog/*`, `packages/contracts/src/index.ts` if promoted | pending |
+| EOC-2 | Semantic data contract | Decide how the BFF will provide meaning without owning representation. Prefer recent orders plus aggregates over every order row; decide whether live product creation must emit visualization events. | `apps/bff/src/modules/visualization/*`, `apps/bff/src/modules/catalog/*`, `packages/contracts/src/index.ts` if promoted | **in progress — contract shipped, legacy `items[]` retained for one iteration** |
 | EOC-3 | Three.js module split | Keep static ESM, but separate transport, scene setup, layout, material palette, and object factories before adding visual complexity. | `apps/visualizer-3d/public/*.js` | pending |
 | EOC-4 | Classic Expresso asset | Build and certify the square espresso cup, saucer, coffee surface, handle, palette, pixel texture, and small-scale readability. | `apps/visualizer-3d/public/objects/*`, `scene.js` integration | pending |
 | EOC-5 | Order Counter scene | Add counter, shelf, recent orders area, pickup/completed area, coffee machine, and semantically mapped order/product objects. | `apps/visualizer-3d/public/*` | pending |
-| EOC-6 | History aggregation | Replace unbounded one-order-one-object history with recent individual objects plus old-order aggregate objects. | BFF visualization service and visualizer mapper | pending |
+| EOC-6 | History aggregation | Replace unbounded one-order-one-object history with recent individual objects plus old-order aggregate objects. | BFF visualization service and visualizer mapper | partial — `recentOrders` window + `orderAggregates` shipped with EOC-2; richer aggregation (per-product, time buckets) still open |
 | EOC-7 | Certification | Verify API shape, SSE behavior, visual rendering, nonblank canvas, desktop/mobile framing, object readability, and no text overlap. | tests, Playwright/browser checks, docs | pending |
+
+## EOC-2 status (shipped)
+
+Decisions locked into the implementation:
+
+1. **Additive evolution.** `VisualizationDataResponse` now carries both the
+   legacy `items[]` (deprecated, scheduled for removal) and a typed `scene`
+   field. Single endpoint, single SSE channel.
+2. **`scene` carries meaning only.** `SceneProduct`, `SceneOrder`,
+   `OrderAggregates`, `SceneCart`. No `cube/sphere/marker` strings; `asset`
+   and `assetConfig` are typed objects (no JSON-string smuggling).
+3. **Catalog SSE wired.** `CatalogService.create()` now emits
+   `DomainEventsService.changed$` so new products propagate immediately.
+4. **Recent / aggregate split shipped at a simple impl.** `recentOrders`
+   capped at 10 by `updatedAt`; `orderAggregates.olderCount` counts the
+   tail; `statusCounts` reduces over the full list. EOC-6 still owns
+   richer aggregation.
+5. **Visualizer consumer migrated.** `scene.js` now dispatches on semantic
+   role through `renderScene(scene)`; the legacy `renderItems(items)` path
+   stays as a fallback while smoke/k6/older BFFs still emit `items[]`.
+
+See [`../architecture/bff-modules.md`](../architecture/bff-modules.md#visualization-endpoint-as-a-phase-3-boundary)
+for the contract description and
+[`../project-state/current-system.md`](../project-state/current-system.md)
+for the user-facing surface row.
 
 ## Recommended Implementation Order
 
