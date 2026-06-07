@@ -1,5 +1,16 @@
 # 3D Geometry DB Params — Design Plan
 
+> **Module-layout note (post-EOC-3).** The `scene.js` snippets below reflect
+> the pre-split monolith. The equivalent code now lives across
+> `apps/visualizer-3d/public/objects/scene-meshes.js` (per-product `cfg`
+> merge into `ESPRESSO_CFG`, then `buildEspressoGroup(color, cfg)`) and
+> `apps/visualizer-3d/public/objects/espresso-cup.js` (the cfg-accepting
+> builder signature). The typed-scene path already consumes
+> `product.assetConfig`; the legacy `buildItemMesh` / `FALLBACK_ITEMS` /
+> `metadata.assetConfig` path described in this doc has been removed. The
+> BFF-side `AssetConfig` + `VisualizationService.fromProduct` work and the
+> consumer pattern remain accurate.
+
 ## Goal
 
 Store the `ESPRESSO_CFG` geometry constants in the database so that:

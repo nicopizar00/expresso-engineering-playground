@@ -38,7 +38,7 @@ cp .env.example .env
 ./dev up obs        # + Tempo + Prometheus + Grafana
 ./dev up full       # everything
 ./dev dev           # docker compose watch (BFF + web hot reload)
-./dev smoke         # 13 endpoint checks (+ SSE frame)
+./dev smoke         # 14 endpoint checks (typed scene shape + SSE frame)
 ./dev down          # stop
 ```
 
@@ -95,18 +95,20 @@ pnpm --filter @mini-commerce/web dev
   [`docs/next-steps/README.md`](docs/next-steps/README.md), then use
   `EnterPlanMode` to design before editing.
 
-## 3D Visualizer — Classic Espresso cup (active feature)
+## 3D Visualizer (active feature)
 
-File: `apps/visualizer-3d/public/scene.js`. Owner artistic approval is
-pending. Working agreements and open issues are in
-[`docs/ai/claude/playbook.md`](docs/ai/claude/playbook.md#3d-visualizer-active-feature)
-and
+`apps/visualizer-3d/public/` is a static ESM module graph. `scene.js` is a
+thin orchestrator; per-concern code lives in `materials.js`, `geometry/`,
+`objects/`, `layout/`, `transport.js`, and `fallback.js`. Working agreements
+and the module map are in
+[`docs/ai/claude/playbook.md`](docs/ai/claude/playbook.md#3d-visualizer-active-feature);
+art rules in [`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md);
+Classic Espresso cup record in
 [`docs/next-steps/ps1-espresso-cup.md`](docs/next-steps/ps1-espresso-cup.md).
-Art rules: [`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md).
 
-**Hard rule**: edit only `ESPRESSO_CFG` and `buildEspressoGroup`. Never touch
-`buildSquareFrustum`, `makePsxTexture`, `clearGroup`, or the SSE/polling
-infrastructure.
+New domain assets: add a `docs/next-steps/<topic>.md`, then follow the
+`buildEspressoGroup` + `ESPRESSO_CFG` pattern in `objects/espresso-cup.js`
+and dispatch from `layout/render.js` (or the relevant scene-mesh factory).
 
 ## Claude Code configuration
 
