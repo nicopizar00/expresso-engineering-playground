@@ -1,52 +1,30 @@
-// Mini-commerce 3D visualizer — Classic Espresso showcase.
+// Mini-commerce 3D visualizer — entry shim.
 //
-// Scope:
-//   - White room with floor grid as stage.
-//   - Ambient + directional lighting.
-//   - OrbitControls for free camera navigation.
-//   - Domain items fed by /visualization-data via SSE (polling fallback).
-//   - PS1-era exact-spec espresso cup for "drink" category items.
-//   - Canvas pixel textures with NearestFilter for retro block aesthetics.
-//   - Offline fallback renders the showcase cup without any backend.
-//
-// Non-goals: model loaders, shaders, post-processing, state management.
-// Extension points are called out with // << EXTEND comments.
+// Wires the DOM, the Three.js bootstrap, and the per-concern modules.
+// Per-concern code lives in:
+//   • materials.js          — palette, status colours, PS1 texture factory
+//   • geometry/frustum.js   — buildSquareFrustum, buildOpenFrustum
+//   • objects/room.js       — room and floor grid
+//   • objects/espresso-cup.js — Classic Espresso (ESPRESSO_CFG dev entry)
+//   • objects/scene-meshes.js — typed scene per-role meshes
+//   • objects/disposal.js   — clearGroup (canvas-texture-aware)
+//   • layout/render.js      — renderScene + animator factories
+//   • transport.js          — SSE primary + polling fallback
+//   • fallback.js           — offline typed scene
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { FALLBACK_SCENE } from "./fallback.js";
 import { ROOM, buildRoom } from "./objects/room.js";
 import { createRenderer, createAnimator } from "./layout/render.js";
+import { initTransport } from "./transport.js";
 
-// =============================================================================
-// Runtime config — URLs, polling, SSE
-// =============================================================================
-
-// Resolves the BFF base URL so the same scene.js works in both access modes:
-//   • Direct  (http://localhost:3002) : window.__VIZ_CONFIG__ shim or port fallback
-//   • Proxied (/viz/*)               : same-origin /api/bff rewrite
-const API_BASE = (() => {
-  if (typeof window === "undefined") return "http://localhost:3001";
-  if (window.location.pathname.startsWith("/viz")) return "/api/bff";
-  return window.__VIZ_CONFIG__?.apiBaseUrl || "http://localhost:3001";
-})();
-
-const stage    = document.getElementById("stage");
-const statusEl = document.getElementById("status");
+// DOM refs
+const stage     = document.getElementById("stage");
+const statusEl  = document.getElementById("status");
 const reloadBtn = document.getElementById("reload");
 
-const POLL_INTERVAL_MS = 2000;
-let inflight    = false;
-let pollHandle  = null;
-
-const SSE_RETRY_MS = 5000;
-let sseSource      = null;
-let sseRetryHandle = null;
-
-// =============================================================================
 // Three.js scene bootstrap
-// =============================================================================
-
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 
@@ -84,119 +62,30 @@ buildRoom(scene, ROOM);
 const dataGroup = new THREE.Group();
 scene.add(dataGroup);
 
+// Factories: renderer + animator both close over dataGroup so transport can
+// fire renderScene without re-passing it. Same dataGroup instance flows into
+// transport for the "previous scene stays on error" guard.
 const { renderScene, sceneObjectCount } = createRenderer({ dataGroup });
 const animator = createAnimator({ scene, camera, renderer, controls, dataGroup });
+const transport = initTransport({
+  onScene: renderScene,
+  sceneObjectCount,
+  statusEl,
+  dataGroup,
+  fallbackScene: FALLBACK_SCENE,
+});
 
-reloadBtn.addEventListener("click", () => connectSse());
+reloadBtn.addEventListener("click", () => transport.connect());
 window.addEventListener("resize", onResize);
 onResize();
 
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    stopPolling();
-    if (sseSource) { sseSource.close(); sseSource = null; }
-    clearTimeout(sseRetryHandle);
-    sseRetryHandle = null;
-  } else {
-    connectSse();
-  }
+  if (document.hidden) transport.pauseForHidden();
+  else transport.connect();
 });
 
-connectSse();
+transport.connect();
 animator.start();
-
-// =============================================================================
-// Transport — SSE primary, polling fallback (extracted to transport.js in Commit 5)
-// =============================================================================
-
-// SSE — primary data path. Connects to /visualization-updates and renders each
-// pushed snapshot directly. Falls back to polling on error.
-function connectSse() {
-  if (typeof EventSource === "undefined") { startPolling(); return; }
-
-  if (sseSource) { sseSource.close(); sseSource = null; }
-  clearTimeout(sseRetryHandle);
-  sseRetryHandle = null;
-
-  sseSource = new EventSource(`${API_BASE}/visualization-updates`);
-
-  sseSource.addEventListener("open", () => {
-    stopPolling();
-    clearTimeout(sseRetryHandle);
-    sseRetryHandle = null;
-  });
-
-  sseSource.addEventListener("message", (event) => {
-    try {
-      const body = JSON.parse(event.data);
-      if (!body || typeof body.scene !== "object" || body.scene === null) {
-        throw new Error("malformed");
-      }
-      renderScene(body.scene);
-      const count = sceneObjectCount(body.scene);
-      setStatus(`live (sse) · ${count} object${count === 1 ? "" : "s"}`);
-    } catch {
-      void loadAndRender();
-    }
-  });
-
-  sseSource.addEventListener("error", () => {
-    if (sseSource) { sseSource.close(); sseSource = null; }
-    startPolling();
-    sseRetryHandle = setTimeout(() => connectSse(), SSE_RETRY_MS);
-  });
-}
-
-function startPolling() {
-  stopPolling();
-  void loadAndRender();
-  pollHandle = setInterval(() => void loadAndRender(), POLL_INTERVAL_MS);
-}
-
-function stopPolling() {
-  if (pollHandle !== null) { clearInterval(pollHandle); pollHandle = null; }
-}
-
-async function loadAndRender() {
-  if (inflight) return;
-  inflight = true;
-  setStatus("polling…");
-  try {
-    let payload = null;
-    try {
-      payload = await fetchPayload();
-    } catch (err) {
-      if (dataGroup.children.length > 0) { setStatus(`error · ${err.message}`); return; }
-    }
-    if (payload && typeof payload.scene === "object" && payload.scene !== null) {
-      renderScene(payload.scene);
-      const count = sceneObjectCount(payload.scene);
-      setStatus(`live · ${count} object${count === 1 ? "" : "s"}`);
-      return;
-    }
-    // Offline: render the typed fallback scene so the showcase exercises the
-    // same dispatcher as a live BFF.
-    renderScene(FALLBACK_SCENE);
-    const count = sceneObjectCount(FALLBACK_SCENE);
-    setStatus(`offline · ${count} mock object${count === 1 ? "" : "s"}`);
-  } finally {
-    inflight = false;
-  }
-}
-
-async function fetchPayload() {
-  const res  = await fetch(`${API_BASE}/visualization-data`, { headers: { accept: "application/json" } });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const body = await res.json();
-  if (!body || typeof body !== "object" || typeof body.scene !== "object" || body.scene === null) {
-    throw new Error("malformed response");
-  }
-  return body;
-}
-
-function setStatus(text) {
-  if (statusEl) statusEl.textContent = text;
-}
 
 function onResize() {
   const { clientWidth, clientHeight } = stage;
@@ -204,4 +93,3 @@ function onResize() {
   camera.aspect = clientWidth / clientHeight;
   camera.updateProjectionMatrix();
 }
-
