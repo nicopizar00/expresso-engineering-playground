@@ -14,32 +14,6 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-
-// Module-scoped GLTF loader + per-URL cache. The cache keys on the
-// resolved fetch URL so the same GLB is only fetched once per session,
-// even when many VisualizationItems share an assetUrl.
-const gltfLoader = new GLTFLoader();
-const gltfCache = new Map(); // url → Promise<THREE.Group>
-
-// The BFF emits paths prefixed with `/viz/` because the web app proxies
-// /viz/* → visualizer container. When the visualizer is reached directly
-// (e.g. http://localhost:3002), the same file is at /<path>. Strip the
-// prefix so both deployment shapes resolve the same asset.
-function resolveAssetUrl(rawUrl) {
-  if (typeof rawUrl !== "string") return null;
-  if (rawUrl.startsWith("/viz/")) return rawUrl.slice(4);
-  return rawUrl;
-}
-
-function loadGltfScene(url) {
-  let pending = gltfCache.get(url);
-  if (!pending) {
-    pending = gltfLoader.loadAsync(url).then((gltf) => gltf.scene);
-    gltfCache.set(url, pending);
-  }
-  return pending;
-}
 
 // =============================================================================
 // DEV ENTRY POINT — Classic Expresso geometry & texture configuration.
@@ -229,27 +203,6 @@ function buildRoom(scene, { width, depth, height }) {
 // Asset builder dispatch
 // =============================================================================
 
-// Pick the "latest user action" item. Only cart/order items are eligible;
-// catalog products never win because their updatedAt is always 0 from the BFF.
-// An empty cart is also ineligible — otherwise checkout (which clears the
-// cart AFTER creating the order) would spotlight an empty placeholder.
-// Returns the item id of the hero, or null when nothing qualifies.
-function pickHero(items) {
-  let heroId   = null;
-  let heroTime = 0;
-  for (const item of items) {
-    const source = item?.metadata?.source;
-    if (source !== "cart" && source !== "orders") continue;
-    if (source === "cart" && (Number(item.metadata?.itemCount) || 0) === 0) continue;
-    const ts = Number(item.metadata?.updatedAt) || 0;
-    if (ts > heroTime) {
-      heroTime = ts;
-      heroId   = item.id;
-    }
-  }
-  return heroId;
-}
-
 // Pull RGB channels toward grey by `mix` ∈ [0,1]. mix=0 → original, mix=1 → grey.
 // Used to recede history items so the hero keeps the visual weight.
 function desaturateHex(hex, mix) {
@@ -261,122 +214,6 @@ function desaturateHex(hex, mix) {
   const ng   = (g * (1 - mix) + grey * mix) | 0;
   const nb   = (b * (1 - mix) + grey * mix) | 0;
   return (nr << 16) | (ng << 8) | nb;
-}
-
-function buildItemMesh(item, isHero) {
-  // Drink category always renders as off-white ceramic — the BFF provides domain
-  // meaning (category) and Three.js owns the visual choice (ceramic colour).
-  // Status colours are reserved for non-drink items (orders, generic catalog).
-  // An explicit metadata.color always wins as a per-item override.
-  const baseColor = item.metadata?.color ??
-    (item.metadata?.category === "drink"
-      ? ESPRESSO_PALETTE.lightBeige
-      : STATUS_COLORS[item.status] ?? STATUS_COLORS.idle);
-  // History items lose ~55 % of their saturation so they read as backdrop.
-  const color = isHero ? baseColor : desaturateHex(baseColor, 0.55);
-
-  // Hero items snap to centre-stage regardless of their positionHint —
-  // the positionHint is the BFF's pre-clamped layout for the wider scene,
-  // but the hero deserves the prime spot in front of the camera.
-  const heroOverride = { x: 0, y: 0, z: 0 };
-  const hint = isHero ? heroOverride : (item.positionHint ?? { x: 0, y: 0, z: 0 });
-
-  // Per-item geometry config from the BFF (AssetConfig row). Merged over
-  // ESPRESSO_CFG so DB knobs override locals while missing keys fall back.
-  let cfg = ESPRESSO_CFG;
-  const rawCfg = item.metadata?.assetConfig;
-  if (typeof rawCfg === "string") {
-    try { cfg = { ...ESPRESSO_CFG, ...JSON.parse(rawCfg) }; } catch { /* keep default */ }
-  }
-
-  // << EXTEND: add more category dispatches here as the domain catalogue grows.
-  //    Pattern: if (item.metadata?.category === "snack") return buildSnackGroup(color);
-  if (item.metadata?.category === "drink") {
-    const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
-    const placement = {
-      x: clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-      y: HERO_FLOOR_Y,
-      z: clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
-    };
-    const userData = {
-      id: item.id,
-      label: item.label,
-      type: item.type,
-      status: item.status,
-      baseY: HERO_FLOOR_Y,
-      phase: Math.random() * Math.PI * 2,
-      baseScale,
-      // Only the hero spins — history rotation would compete for attention.
-      idleRotate: isHero,
-      isHero,
-    };
-
-    const assetUrl = resolveAssetUrl(item.metadata?.assetUrl);
-    if (assetUrl && assetUrl.endsWith(".glb")) {
-      // GLB pipeline: return a placeholder Group immediately to preserve
-      // the synchronous buildItemMesh contract, then swap in the loaded
-      // scene when the fetch resolves. On failure, fall back to the
-      // procedural cup so the user never sees an empty stage.
-      const group = new THREE.Group();
-      group.position.set(placement.x, placement.y, placement.z);
-      group.scale.setScalar(baseScale);
-      group.userData = userData;
-      loadGltfScene(assetUrl).then((scene) => {
-        const clone = scene.clone(true);
-        clone.traverse((node) => {
-          if (node.isMesh) {
-            if (node.material) {
-              node.material.flatShading = true;
-              if (node.material.map) {
-                node.material.map.magFilter = THREE.NearestFilter;
-                node.material.map.minFilter = THREE.NearestFilter;
-              }
-              node.material.needsUpdate = true;
-            }
-          }
-        });
-        group.add(clone);
-      }).catch((err) => {
-        console.warn("[viz] GLB load failed; falling back to procedural cup:", assetUrl, err);
-        group.add(buildEspressoGroup(color, cfg));
-      });
-      return group;
-    }
-
-    const group = buildEspressoGroup(color, cfg);
-    group.position.set(placement.x, placement.y, placement.z);
-    group.scale.setScalar(baseScale);
-    group.userData = userData;
-    return group;
-  }
-
-  // Generic fallback geometry for non-domain items (spheres, cubes, cones).
-  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05 });
-  let geometry;
-  switch (item.type) {
-    case "sphere": geometry = new THREE.SphereGeometry(0.35, 24, 16); break;
-    case "marker": geometry = new THREE.ConeGeometry(0.3, 0.7, 16);   break;
-    case "cube":
-    default:       geometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);   break;
-  }
-  const mesh = new THREE.Mesh(geometry, material);
-  // Hero lifts to chest-height; history sits at its hinted y or a floor minimum.
-  const heroLift = item.type === "sphere" ? 0.6 : 0.4;
-  mesh.position.set(
-    clamp(hint.x, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-    isHero ? heroLift : Math.max(0.3, hint.y),
-    clamp(hint.z, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5),
-  );
-  const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
-  mesh.scale.setScalar(baseScale);
-  mesh.userData = {
-    id: item.id,
-    label: item.label,
-    baseScale,
-    idleRotate: isHero,
-    isHero,
-  };
-  return mesh;
 }
 
 // =============================================================================
@@ -754,45 +591,6 @@ function renderScene(scene) {
   }
 
   dataGroup.userData.heroKey = heroKey;
-  dataGroup.userData.heroId = null; // Reset legacy marker so a switch back to items[] re-fires.
-}
-
-// Single render entry point — both the SSE message handler and the polling
-// fallback flow through here so the hero/history logic stays in one place.
-//
-// Side effects:
-//   • Rebuilds dataGroup from scratch.
-//   • Suppresses the empty-cart placeholder so it no longer dominates the stage.
-//   • Stamps `spawnedAt = performance.now()` on the new hero when the hero id
-//     changes between snapshots; animate() reads that to play a brief burst.
-function renderItems(items) {
-  const heroId      = pickHero(items);
-  const heroChanged = heroId !== null && heroId !== dataGroup.userData.heroId;
-
-  clearGroup(dataGroup);
-
-  for (const item of items) {
-    // Drop the empty-cart marker entirely — when itemCount=0 the cart has no
-    // story to tell and a large grey cone in the foreground used to drown out
-    // the actual hero (the freshly placed order). See the artistic verdict
-    // in CLAUDE.md / next-steps for context.
-    if (
-      item.metadata?.source === "cart" &&
-      (Number(item.metadata?.itemCount) || 0) === 0
-    ) {
-      continue;
-    }
-
-    const isHero = item.id === heroId;
-    const mesh   = buildItemMesh(item, isHero);
-
-    if (isHero && heroChanged) {
-      mesh.userData.spawnedAt = performance.now();
-    }
-    dataGroup.add(mesh);
-  }
-
-  dataGroup.userData.heroId = heroId;
 }
 
 // SSE — primary data path. Connects to /visualization-updates and renders each
@@ -815,16 +613,12 @@ function connectSse() {
   sseSource.addEventListener("message", (event) => {
     try {
       const body = JSON.parse(event.data);
-      // EOC-2: prefer the typed scene payload; fall back to legacy items[].
-      if (body && typeof body.scene === "object" && body.scene !== null) {
-        renderScene(body.scene);
-        const count = sceneObjectCount(body.scene);
-        setStatus(`live (sse) · ${count} object${count === 1 ? "" : "s"}`);
-        return;
+      if (!body || typeof body.scene !== "object" || body.scene === null) {
+        throw new Error("malformed");
       }
-      if (!Array.isArray(body?.items)) throw new Error("malformed");
-      renderItems(body.items);
-      setStatus(`live (sse) · ${body.items.length} item${body.items.length === 1 ? "" : "s"}`);
+      renderScene(body.scene);
+      const count = sceneObjectCount(body.scene);
+      setStatus(`live (sse) · ${count} object${count === 1 ? "" : "s"}`);
     } catch {
       void loadAndRender();
     }
@@ -858,17 +652,10 @@ async function loadAndRender() {
     } catch (err) {
       if (dataGroup.children.length > 0) { setStatus(`error · ${err.message}`); return; }
     }
-    // EOC-2: prefer the typed scene payload; fall back to legacy items[]
-    // for older BFFs and the offline showcase.
     if (payload && typeof payload.scene === "object" && payload.scene !== null) {
       renderScene(payload.scene);
       const count = sceneObjectCount(payload.scene);
       setStatus(`live · ${count} object${count === 1 ? "" : "s"}`);
-      return;
-    }
-    if (payload && Array.isArray(payload.items)) {
-      renderItems(payload.items);
-      setStatus(`live · ${payload.items.length} item${payload.items.length === 1 ? "" : "s"}`);
       return;
     }
     // Offline: render the typed fallback scene so the showcase exercises the
@@ -885,8 +672,9 @@ async function fetchPayload() {
   const res  = await fetch(`${API_BASE}/visualization-data`, { headers: { accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
-  if (!body || typeof body !== "object") throw new Error("malformed response");
-  if (!body.scene && !Array.isArray(body.items)) throw new Error("malformed response");
+  if (!body || typeof body !== "object" || typeof body.scene !== "object" || body.scene === null) {
+    throw new Error("malformed response");
+  }
   return body;
 }
 
@@ -944,38 +732,9 @@ function clamp(n, lo, hi) {
 // =============================================================================
 // Fallback data — offline showcase, no backend required.
 //
-// metadata.color overrides STATUS_COLORS for this item so the showcase cup
-// renders in the spec's beige palette rather than the green "ok" status colour.
-//
-// << EXTEND: add more domain items here to populate the offline showcase.
-//    Convention: metadata.category drives the builder in buildItemMesh();
-//                metadata.color  sets the PS1 texture base colour directly.
+// Typed scene with a single non-empty cart → ceramic cup rendered as hero;
+// exercises the same dispatcher as a live BFF.
 // =============================================================================
-// The offline showcase represents "no backend, single hero cup" — so we
-// mark it as a cart event with a non-zero itemCount and a fresh updatedAt.
-// pickHero then promotes it to the centre-stage hero treatment instead of
-// rendering it as desaturated history.
-const FALLBACK_ITEMS = [
-  {
-    id: "espresso_classic",
-    label: "Classic Espresso",
-    type: "cube",
-    value: 45,
-    status: "ok",
-    positionHint: { x: 0, y: 0, z: 0 },
-    metadata: {
-      category: "drink",
-      inventory: 45,
-      source: "cart",
-      itemCount: 1,
-      updatedAt: Date.now(),
-      color: ESPRESSO_PALETTE.lightBeige, // 0xF1ECDA — white ceramic
-    },
-  },
-];
-
-// EOC-2 typed offline showcase — exercises the same dispatcher as a live BFF.
-// A single non-empty cart → ceramic cup as hero; no orders, no aggregate.
 const FALLBACK_SCENE = {
   products: [],
   recentOrders: [],
