@@ -137,13 +137,22 @@ Before committing an asset, verify its silhouette from these four angles:
 
 ## Adding a new asset
 
-1. Create a new `*_CFG` constant block adjacent to `ESPRESSO_CFG`
-2. Add the corresponding entry in `docs/next-steps/` **before** coding
-3. Implement `buildXxxGroup(color)` following the `buildEspressoGroup` pattern
-4. Add a dispatch in `buildItemMesh` via `metadata.category`
-5. Add an offline fallback entry in `FALLBACK_ITEMS`
-6. Run the silhouette test above
-7. Verify `clearGroup` traversal disposes all geometry and textures
+1. Add the corresponding entry in `docs/next-steps/` **before** coding.
+2. Create `apps/visualizer-3d/public/objects/<asset>.js` with a `*_CFG`
+   constant block and a `build<Asset>Group(color, cfg)` function (mirror
+   `objects/espresso-cup.js`). Import `buildSquareFrustum` /
+   `buildOpenFrustum` from `geometry/frustum.js` and `makePsxTexture` /
+   `ESPRESSO_PALETTE` from `materials.js`.
+3. Wire the asset into the typed scene path:
+   - Add a per-role factory in `objects/scene-meshes.js` (or extend an
+     existing one) that selects the new builder by `category` /
+     `vizStatus` / etc.
+   - If the new role needs its own layout/placement, extend `renderScene`
+     in `layout/render.js`.
+4. Add an offline showcase entry in `fallback.js` (`FALLBACK_SCENE`).
+5. Run the silhouette test above.
+6. Verify `clearGroup` in `objects/disposal.js` traverses and disposes the
+   new geometry and textures (each mesh owns its own material instance).
 
 ---
 

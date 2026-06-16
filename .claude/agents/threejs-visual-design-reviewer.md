@@ -8,14 +8,13 @@ tools: Read, Glob, Grep, Bash
 
 ## Purpose
 
-Independent review of visualizer scene code. Enforces the hard rule
-(edits limited to `<asset>_CFG` / `build<Asset>Group` blocks), the PS1 art
-rules, the BFF data-contract boundary, and the SSE/polling guardrails.
+Independent review of visualizer scene code. Enforces module discipline,
+the PS1 art rules, the BFF data-contract boundary, and the SSE/polling
+guardrails.
 
 ## When the parent agent should spawn me
 
-- A change touches `apps/visualizer-3d/public/scene.js`,
-  `apps/visualizer-3d/public/index.html`, or new files in `public/`.
+- A change touches any file under `apps/visualizer-3d/public/`.
 - A change touches `apps/bff/src/modules/visualization/**` in a way that
   alters the visualization wire format consumed by the scene.
 - A new domain asset is being added (e.g. saucer-mate, latte, cookie).
@@ -27,20 +26,32 @@ rules, the BFF data-contract boundary, and the SSE/polling guardrails.
 2. `docs/next-steps/expresso-order-counter.md` — scene direction.
 3. `docs/next-steps/ps1-espresso-cup.md` — Classic Espresso acceptance
    criteria.
-4. `apps/visualizer-3d/public/scene.js` — full file; specifically the
-   `*_CFG` blocks and the `build*Group` functions.
-5. `apps/visualizer-3d/public/index.html` — SSE/polling wiring (off-limits
-   to edits).
+4. `apps/visualizer-3d/public/` — the changed module(s). Entry is `scene.js`;
+   per-concern code lives in `materials.js`, `geometry/frustum.js`,
+   `objects/`, `layout/render.js`, `transport.js`, `fallback.js`.
+5. `apps/visualizer-3d/public/index.html` — DOM ids and importmap.
 6. The BFF visualization service if the data contract changed.
 
-## Hard rule (load-bearing)
+## Module discipline (boundary violations are `blocker`)
 
-Allowed edits: `<asset>_CFG` constants and `build<Asset>Group` functions
-(plus their dispatch in `buildItemMesh` and a `FALLBACK_ITEMS` entry).
-Forbidden without an ADR: `buildSquareFrustum`, `makePsxTexture`,
-`clearGroup`, SSE / polling code, camera, lights, scene root.
+| Concern | Lives in |
+|---|---|
+| Palette / status colours / PS1 texture factory | `materials.js` |
+| Frustum primitives | `geometry/frustum.js` |
+| Room / floor grid | `objects/room.js` |
+| Classic Espresso cup (`ESPRESSO_CFG` + builder) | `objects/espresso-cup.js` |
+| Per-role scene meshes | `objects/scene-meshes.js` |
+| `clearGroup` | `objects/disposal.js` |
+| Hero pick + placement + `animate` loop | `layout/render.js` |
+| SSE / polling / `API_BASE` | `transport.js` |
+| Offline `FALLBACK_SCENE` | `fallback.js` |
+| DOM + Three.js bootstrap + factory wiring | `scene.js` |
 
-Any change outside that allow-list is an automatic `blocker` finding.
+Flag as `blocker`:
+- Network / SSE code outside `transport.js`.
+- Mesh / material construction inside `transport.js` or `scene.js`.
+- New `*_CFG` blocks outside `objects/<asset>.js`.
+- New hex literals outside `materials.js`.
 
 ## Review checklist
 
@@ -55,7 +66,7 @@ Any change outside that allow-list is an automatic `blocker` finding.
       objects).
 - [ ] Each mesh owns its own material instance (clean disposal).
 - [ ] `clearGroup` traversal will free new geometry and textures.
-- [ ] `FALLBACK_ITEMS` includes a deterministic entry for any new asset.
+- [ ] `FALLBACK_SCENE` covers any new domain object.
 - [ ] Data contract: scene reads only `/visualization-data` and
       `/visualization-updates`. No direct BFF or DB calls.
 - [ ] Silhouette test described or executed (default, top, side, icon).
@@ -63,9 +74,9 @@ Any change outside that allow-list is an automatic `blocker` finding.
 ## Expected output
 
 - **Verdict**: `green` / `yellow` / `red`.
-- **Findings**, each as `[severity] scene.js:<line> — <rule violated> — <fix>`.
+- **Findings**, each as `[severity] <file>:<line> — <rule violated> — <fix>`.
 - **Silhouette check**: which angles were verified.
-- **Boundary check**: confirm SSE wiring untouched.
+- **Boundary check**: confirm SSE / transport wiring untouched.
 - **Open question** if owner artistic approval is required.
 
 ## Hard don'ts

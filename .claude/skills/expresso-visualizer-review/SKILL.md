@@ -7,8 +7,9 @@ description: Use to review Three.js scene changes under apps/visualizer-3d/publi
 
 ## When to use
 
-- Any change to `apps/visualizer-3d/public/scene.js`,
-  `apps/visualizer-3d/public/index.html`, or new files in `public/`.
+- Any change under `apps/visualizer-3d/public/` (scene.js, materials.js,
+  geometry/, objects/, layout/, transport.js, fallback.js, index.html, or a
+  new file).
 - Any change to the BFF `visualization` module or contracts that flow into
   the scene.
 - Promoting a domain asset from WIP to certified.
@@ -20,21 +21,37 @@ description: Use to review Three.js scene changes under apps/visualizer-3d/publi
 - `docs/next-steps/expresso-order-counter.md` — the active scene direction.
 - `docs/next-steps/ps1-espresso-cup.md` — Classic Espresso cup acceptance
   criteria.
-- `apps/visualizer-3d/public/scene.js` — single source of scene code.
-- `apps/visualizer-3d/README.md` — runtime contract (SSE, polling).
+- `apps/visualizer-3d/public/` — the ESM module graph (entry: `scene.js`).
+- `apps/visualizer-3d/README.md` — runtime contract (SSE, polling) and
+  module layout.
 - The BFF visualization module under `apps/bff/src/modules/visualization/`.
 
-## Hard rule (load-bearing)
+## Module discipline
 
-Edits to `scene.js` touch **only** `ESPRESSO_CFG` and `buildEspressoGroup`
-(and the analogous `<asset>_CFG` / `build<Asset>Group` blocks for new
-domain assets). The following are off-limits without a separate ADR:
+The visualizer is one concern per file. A change should touch the smallest
+module that owns the concern:
 
-- `buildSquareFrustum`
-- `makePsxTexture`
-- `clearGroup`
-- The SSE / polling / reconnect plumbing
-- Camera, light, and scene root setup
+| Concern | Module |
+|---|---|
+| Palette / status colours / PS1 texture | `materials.js` |
+| Frustum primitives | `geometry/frustum.js` |
+| Room / floor grid | `objects/room.js` |
+| Classic Espresso cup (config + builder) | `objects/espresso-cup.js` |
+| Per-role scene meshes (product / order / aggregate / cart) | `objects/scene-meshes.js` |
+| Disposal traversal | `objects/disposal.js` |
+| Hero pick + scene placement + animate loop | `layout/render.js` |
+| SSE primary + polling fallback | `transport.js` |
+| Offline showcase | `fallback.js` |
+| DOM + Three.js bootstrap + factory wiring | `scene.js` |
+
+**Boundary violations to flag as `blocker`:**
+
+- Network / SSE / fetch code outside `transport.js`.
+- Mesh / geometry / material construction inside `transport.js` or `scene.js`.
+- New hex literals outside `materials.js` (must come from `ESPRESSO_PALETTE`
+  or `STATUS_COLORS`).
+- New `*_CFG` constant block outside its asset module (`objects/<asset>.js`).
+- `scene.js` growing render or transport logic instead of importing factories.
 
 ## Review checklist
 
@@ -51,10 +68,9 @@ domain assets). The following are off-limits without a separate ADR:
 ### Boundary compliance
 - [ ] The scene reads only `GET /visualization-data` and
       `GET /visualization-updates`. No new direct calls to the BFF or DB.
-- [ ] BFF still emits **meaning**, not final mesh names. Existing `cube` /
-      `sphere` / `marker` entries are kept only for backward compatibility.
-- [ ] `FALLBACK_ITEMS` includes a deterministic entry for every new asset so
-      offline mode is renderable.
+- [ ] BFF emits the typed `scene` shape (no `items[]` regression).
+- [ ] `FALLBACK_SCENE` covers any new domain object so offline mode is
+      renderable.
 - [ ] `clearGroup` traversal will dispose new geometry / textures (each mesh
       owns its own material instance).
 
@@ -75,7 +91,8 @@ domain assets). The following are off-limits without a separate ADR:
 
 ## Don'ts
 
-- Do not approve changes outside the hard-rule allow-list without an ADR.
+- Do not approve module-boundary violations without an explicit owner
+  decision.
 - Do not require backend mesh-name contracts; keep representation in the
   scene.
 - Do not approve glossy / PBR / smooth-shaded materials for domain assets.
