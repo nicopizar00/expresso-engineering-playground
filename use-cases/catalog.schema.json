@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expresso.internal/use-cases/catalog.schema.json",
+  "title": "Executable use-case catalog",
+  "description": "Schema for use-cases/catalog.json. See docs/specs/executable-use-cases-and-live-traffic.md SPEC-001.",
+  "type": "object",
+  "required": ["catalogVersion", "useCases"],
+  "additionalProperties": false,
+  "properties": {
+    "catalogVersion": { "type": "integer", "minimum": 1 },
+    "useCases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/useCase" }
+    }
+  },
+  "$defs": {
+    "useCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "title",
+        "domain",
+        "intent",
+        "owner",
+        "status",
+        "actions",
+        "expectedOutcome",
+        "preconditions",
+        "testData",
+        "loadEnabled",
+        "concurrency",
+        "adapter",
+        "visual"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Stable workflow identifier, domain.workflow-name, e.g. commerce.cart-edit. MUST NOT be renamed or reused for different behavior."
+        },
+        "version": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "domain": { "type": "string", "minLength": 1 },
+        "intent": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["active", "deprecated"] },
+        "replacedBy": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Required when status is deprecated; identifies the replacement use-case id."
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "expectedOutcome": { "type": "string", "minLength": 1 },
+        "preconditions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "testData": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "loadEnabled": { "type": "boolean" },
+        "concurrency": { "$ref": "#/$defs/concurrency" },
+        "adapter": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Executable adapter identifier that implements this use case's actions."
+        },
+        "visual": { "$ref": "#/$defs/visual" }
+      },
+      "if": {
+        "properties": { "status": { "const": "deprecated" } }
+      },
+      "then": {
+        "required": ["replacedBy"]
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+          "description": "Stable object.action identifier for one step, e.g. cart.item_added. Distinct namespace from the use-case id above; snake_case, single dot."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Plain-language user action, e.g. 'Add the product to the cart.'"
+        },
+        "metadata": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "description": "OPTIONAL flat list of identifier/count field names carried with this action (e.g. product_id, qty). Omit when the action needs no metadata beyond its identifier."
+        }
+      }
+    },
+    "concurrency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["safe"],
+      "properties": {
+        "safe": { "type": "boolean" },
+        "maxVirtualUsers": { "type": "integer", "minimum": 1 }
+      },
+      "if": {
+        "properties": { "safe": { "const": false } }
+      },
+      "then": {
+        "required": ["maxVirtualUsers"]
+      }
+    },
+    "visual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["color", "lane"],
+      "properties": {
+        "color": { "type": "string", "minLength": 1 },
+        "lane": { "type": "integer", "minimum": 0 },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

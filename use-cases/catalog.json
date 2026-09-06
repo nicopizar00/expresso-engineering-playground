@@ -1,0 +1,160 @@
+{
+  "catalogVersion": 1,
+  "useCases": [
+    {
+      "id": "commerce.catalog-browse",
+      "version": 1,
+      "title": "Catalog browse",
+      "domain": "commerce",
+      "intent": "Explore products and view a selected product.",
+      "owner": "commerce-domain-team",
+      "status": "active",
+      "actions": [
+        { "id": "catalog.listed", "description": "List the product catalog." },
+        { "id": "product.selected", "description": "Select an available product.", "metadata": ["product_id"] },
+        { "id": "product.viewed", "description": "View the product details.", "metadata": ["product_id"] }
+      ],
+      "expectedOutcome": "The selected product is available and its details are displayed.",
+      "preconditions": ["Product catalog is seeded with at least one available product."],
+      "testData": ["Seeded product identifiers."],
+      "loadEnabled": true,
+      "concurrency": { "safe": true },
+      "adapter": "k6.catalog-browse",
+      "visual": { "color": "#8B5E3C", "lane": 0, "label": "Catalog browse" }
+    },
+    {
+      "id": "commerce.cart-edit",
+      "version": 1,
+      "title": "Cart edit",
+      "domain": "commerce",
+      "intent": "Build and modify a shopping cart.",
+      "owner": "commerce-domain-team",
+      "status": "active",
+      "actions": [
+        { "id": "product.selected", "description": "Select an available product." },
+        { "id": "cart.item_added", "description": "Add the product to the cart.", "metadata": ["product_id", "qty"] },
+        { "id": "cart.viewed", "description": "Review the cart." },
+        { "id": "cart.item_updated", "description": "Change item quantity or remove an item.", "metadata": ["product_id", "qty"] },
+        { "id": "cart.verified", "description": "Verify the updated cart." }
+      ],
+      "expectedOutcome": "The cart reflects the user's changes.",
+      "preconditions": ["Product catalog is seeded with at least one available product."],
+      "testData": ["Seeded product identifiers."],
+      "loadEnabled": true,
+      "concurrency": { "safe": false, "maxVirtualUsers": 1 },
+      "adapter": "k6.cart-edit",
+      "visual": { "color": "#C97A2B", "lane": 1, "label": "Cart edit" }
+    },
+    {
+      "id": "commerce.purchase",
+      "version": 1,
+      "title": "Purchase",
+      "domain": "commerce",
+      "intent": "Complete a purchase and verify the resulting order.",
+      "owner": "commerce-domain-team",
+      "status": "active",
+      "actions": [
+        { "id": "catalog.browsed", "description": "Browse the catalog." },
+        { "id": "product.selected", "description": "Select a product.", "metadata": ["product_id"] },
+        { "id": "cart.item_added", "description": "Add the product to the cart.", "metadata": ["product_id", "qty"] },
+        { "id": "cart.viewed", "description": "Review the cart." },
+        { "id": "order.placed", "description": "Place the order." },
+        { "id": "order.captured", "description": "Capture the new order identifier.", "metadata": ["order_id"] },
+        { "id": "order.verified", "description": "View the order and verify its contents.", "metadata": ["order_id"] }
+      ],
+      "expectedOutcome": "An order is created with the selected item and the cart is cleared according to product behavior.",
+      "preconditions": ["Product catalog is seeded with at least one available product."],
+      "testData": ["Seeded product identifiers."],
+      "loadEnabled": true,
+      "concurrency": { "safe": false, "maxVirtualUsers": 1 },
+      "adapter": "k6.purchase",
+      "visual": { "color": "#2E7D32", "lane": 2, "label": "Purchase" }
+    },
+    {
+      "id": "commerce.order-lookup",
+      "version": 1,
+      "title": "Order lookup",
+      "domain": "commerce",
+      "intent": "Review existing orders and inspect one order.",
+      "owner": "commerce-domain-team",
+      "status": "active",
+      "actions": [
+        { "id": "order.listed", "description": "List available orders." },
+        { "id": "order.selected", "description": "Select an order.", "metadata": ["order_id"] },
+        { "id": "order.viewed", "description": "View its details and status.", "metadata": ["order_id"] }
+      ],
+      "expectedOutcome": "The selected order is found and its details are displayed.",
+      "preconditions": ["At least one seeded order exists."],
+      "testData": ["Seeded order identifiers."],
+      "loadEnabled": true,
+      "concurrency": { "safe": true },
+      "adapter": "k6.order-lookup",
+      "visual": { "color": "#1976D2", "lane": 3, "label": "Order lookup" }
+    },
+    {
+      "id": "commerce.order-fulfillment",
+      "version": 1,
+      "title": "Order fulfillment",
+      "domain": "commerce",
+      "intent": "Progress or cancel an order through its supported lifecycle.",
+      "owner": "commerce-domain-team",
+      "status": "active",
+      "actions": [
+        { "id": "order.selected", "description": "Select an eligible order.", "metadata": ["order_id"] },
+        { "id": "order.preparation_started", "description": "Start preparation.", "metadata": ["order_id"] },
+        { "id": "order.outcome_set", "description": "Mark the order prepared, or cancel it when cancellation is allowed.", "metadata": ["order_id", "outcome"] },
+        { "id": "order.status_verified", "description": "Verify the resulting status.", "metadata": ["order_id"] }
+      ],
+      "expectedOutcome": "The order reaches the requested valid state.",
+      "preconditions": ["A dedicated seeded order is available per concurrent iteration."],
+      "testData": ["One dedicated order identifier per iteration."],
+      "loadEnabled": true,
+      "concurrency": { "safe": true },
+      "adapter": "k6.order-fulfillment",
+      "visual": { "color": "#6A1B9A", "lane": 4, "label": "Order fulfillment" }
+    },
+    {
+      "id": "visualization.observe-state",
+      "version": 1,
+      "title": "Observe state",
+      "domain": "visualization",
+      "intent": "View the current commerce state in the 3D Visualizer.",
+      "owner": "visualizer-domain-team",
+      "status": "active",
+      "actions": [
+        { "id": "visualizer.opened", "description": "Open the Visualizer." },
+        { "id": "visualizer.state_viewed", "description": "View products, cart contents, recent orders, and aggregate state." },
+        { "id": "visualizer.snapshot_confirmed", "description": "Confirm that the scene reflects the latest available snapshot." }
+      ],
+      "expectedOutcome": "The current domain state is represented in the scene.",
+      "preconditions": ["The Visualizer's snapshot feed is reachable."],
+      "testData": [],
+      "loadEnabled": true,
+      "concurrency": { "safe": true },
+      "adapter": "k6.observe-state",
+      "visual": { "color": "#607D8B", "lane": 5, "label": "Observe state" }
+    },
+    {
+      "id": "visualization.subscribe-live",
+      "version": 1,
+      "title": "Subscribe live",
+      "domain": "visualization",
+      "intent": "Keep the 3D Visualizer connected while commerce activity occurs.",
+      "owner": "visualizer-domain-team",
+      "status": "active",
+      "actions": [
+        { "id": "visualizer.opened", "description": "Open the Visualizer." },
+        { "id": "visualizer.subscribed", "description": "Subscribe to live updates." },
+        { "id": "visualizer.traffic_observed", "description": "Observe state and workflow traffic over time." },
+        { "id": "visualizer.reconnected", "description": "Recover from a temporary stream interruption." }
+      ],
+      "expectedOutcome": "The scene remains current and reports connection degradation accurately.",
+      "preconditions": ["The Visualizer's live stream endpoint is reachable."],
+      "testData": [],
+      "loadEnabled": true,
+      "concurrency": { "safe": true },
+      "adapter": "k6.subscribe-live",
+      "visual": { "color": "#00838F", "lane": 6, "label": "Subscribe live" }
+    }
+  ]
+}
