@@ -13,23 +13,15 @@ from pg.paths import PERF_REPORTS_DIR
 
 
 def smoke() -> int:
-    return run_k6("smoke", "scenarios/smoke/smoke.js", summary_filename="smoke-summary.json")
+    return run_k6("smoke", "scenarios/smoke/smoke.js")
 
 
 def checkout_flow() -> int:
-    return run_k6(
-        "checkout-flow",
-        "scenarios/checkout-flow/checkout-flow.js",
-        summary_filename="checkout-flow-summary.json",
-    )
+    return run_k6("checkout-flow", "scenarios/checkout-flow/checkout-flow.js")
 
 
 def read_heavy() -> int:
-    return run_k6(
-        "read-heavy",
-        "scenarios/read-heavy/read-heavy.js",
-        summary_filename="read-heavy-summary.json",
-    )
+    return run_k6("read-heavy", "scenarios/read-heavy/read-heavy.js")
 
 
 def open_report() -> int:

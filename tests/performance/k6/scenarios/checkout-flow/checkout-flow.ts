@@ -18,8 +18,9 @@
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
-import { url } from "../../config/env.js";
-import { checkoutFlowThresholds } from "../../config/thresholds.js";
+import { url } from "../../config/env";
+import { checkoutFlowThresholds } from "../../config/thresholds";
+import { buildHtml, buildSummaryJson } from "../../support/report";
 
 export const options = {
   scenarios: {
@@ -36,7 +37,7 @@ export const options = {
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 export default function () {
-  let orderId;
+  let orderId: string | undefined;
 
   group("cart: add item", () => {
     const res = http.post(
@@ -64,7 +65,7 @@ export default function () {
       },
     });
     if (ok) {
-      orderId = res.json("orderId");
+      orderId = res.json("orderId") as string;
     }
   });
 
@@ -92,7 +93,7 @@ export default function () {
         try {
           const items = r.json("items");
           const expectedId = `viz_order_${orderId}`;
-          return Array.isArray(items) && items.some((i) => i.id === expectedId);
+          return Array.isArray(items) && items.some((i: any) => i.id === expectedId);
         } catch {
           return false;
         }
@@ -101,4 +102,13 @@ export default function () {
   });
 
   sleep(1);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function handleSummary(data: any) {
+  const meta = { title: "Mini-Commerce Checkout Flow", testType: "checkout-flow", targetUrl: url("") };
+  return {
+    "/scripts/reports/checkout-flow-report.html": buildHtml(data, meta),
+    "/scripts/reports/checkout-flow-summary.json": JSON.stringify(buildSummaryJson(data, meta), null, 2),
+  };
 }
