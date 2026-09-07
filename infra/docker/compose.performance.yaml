@@ -33,13 +33,15 @@ name: mini-commerce-perf
 
 services:
   k6:
-    image: grafana/k6:0.54.0
+    build:
+      context: ../../
+      dockerfile: infra/docker/k6.Dockerfile
     container_name: mini-commerce-k6
     working_dir: /scripts
-    # The whole performance folder is mounted into the container so
-    # scenarios can import shared config and write to reports/.
+    # Scenarios are baked into the image at build time (Task 2); only the
+    # reports directory needs a live mount so output lands on the host.
     volumes:
-      - ../../tests/performance/k6:/scripts
+      - ../../tests/performance/k6/reports:/scripts/reports
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
       K6_ENV: ${K6_ENV:-local}
