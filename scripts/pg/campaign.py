@@ -41,10 +41,24 @@ def resolve_use_case(
 
 def preflight(descriptor: Dict[str, Any], catalog: Dict[str, Any]) -> List[str]:
     errors: List[str] = []
+    if "runId" not in descriptor:
+        errors.append("descriptor missing required field: runId")
+    if "durationSeconds" not in descriptor:
+        errors.append("descriptor missing required field: durationSeconds")
+    seen: set = set()
     for selection in descriptor.get("useCases", []):
-        use_case_id = selection.get("id")
-        version = selection.get("version")
-        weight = selection.get("weight")
+        missing = [f for f in ("id", "version", "weight") if selection.get(f) is None]
+        if missing:
+            errors.append(f"use case selection missing required field(s): {', '.join(missing)}")
+            continue
+        use_case_id = selection["id"]
+        version = selection["version"]
+        weight = selection["weight"]
+        key = (use_case_id, version)
+        if key in seen:
+            errors.append(f"duplicate use-case selection: {use_case_id}@{version}")
+            continue
+        seen.add(key)
         entry = resolve_use_case(catalog, use_case_id, version)
         if entry is None:
             errors.append(f"unknown use case: {use_case_id}@{version}")

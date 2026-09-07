@@ -93,6 +93,48 @@ class PreflightTests(unittest.TestCase):
         }
         self.assertEqual(preflight(descriptor, CATALOG), [])
 
+    def test_rejects_missing_required_field(self) -> None:
+        descriptor = {
+            "runId": "test-run",
+            "useCases": [{"id": "commerce.catalog-browse", "version": 1}],
+            "durationSeconds": 10,
+        }
+        errors = preflight(descriptor, CATALOG)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("weight", errors[0])
+
+    def test_rejects_duplicate_use_case_selection(self) -> None:
+        descriptor = {
+            "runId": "test-run",
+            "useCases": [
+                {"id": "commerce.catalog-browse", "version": 1, "weight": 2},
+                {"id": "commerce.catalog-browse", "version": 1, "weight": 3},
+            ],
+            "durationSeconds": 10,
+        }
+        errors = preflight(descriptor, CATALOG)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("commerce.catalog-browse", errors[0])
+
+    def test_rejects_use_case_with_no_wired_adapter(self) -> None:
+        catalog = {
+            "useCases": CATALOG["useCases"] + [{
+                "id": "commerce.unmapped",
+                "version": 1,
+                "status": "active",
+                "adapter": "k6.unmapped",
+                "concurrency": {"safe": True},
+            }],
+        }
+        descriptor = {
+            "runId": "test-run",
+            "useCases": [{"id": "commerce.unmapped", "version": 1, "weight": 1}],
+            "durationSeconds": 10,
+        }
+        errors = preflight(descriptor, catalog)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("commerce.unmapped", errors[0])
+
 
 class BuildK6OptionsTests(unittest.TestCase):
     def test_generates_one_scenario_per_use_case_with_thresholds(self) -> None:
