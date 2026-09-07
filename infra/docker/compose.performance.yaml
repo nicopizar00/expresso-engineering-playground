@@ -25,6 +25,12 @@
 #   - To target a non-host environment, override BASE_URL on the command
 #     line, e.g. `BASE_URL=https://perf.example pnpm pg:perf:smoke`.
 
+# Explicit project name — this file shares a directory with the main
+# compose.yaml, and without a distinct name they'd collide on Docker's
+# default (directory-derived) project name, causing orphan-container
+# conflicts when both stacks are up at once.
+name: mini-commerce-perf
+
 services:
   k6:
     image: grafana/k6:0.54.0
