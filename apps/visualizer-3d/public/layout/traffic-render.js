@@ -9,6 +9,9 @@ import { STATUS_COLORS } from "../materials.js";
 const FALL_SPEED    = 0.9;  // world units / second
 const FLOOR_Y        = 0.02;
 const SETTLE_MS      = 900; // time visible after terminal treatment before despawn
+const LANDED_TIMEOUT_MS = 5000; // landed but no terminal event ever arrived (lost
+                                // event / dropped connection) — despawn rather
+                                // than park on the floor forever
 const MAX_CONCURRENT = 60;  // hard cap safety net — see RUN-006/SPEC-009 scope note
 
 export function createTrafficRenderer({ trafficGroup }) {
@@ -51,6 +54,7 @@ export function createTrafficRenderer({ trafficGroup }) {
 
   function handleEvent(evt) {
     if (evt.outcome === "started") {
+      if (cupsByIteration.has(evt.iterationId)) return; // idempotent against SSE replay/reconnect duplicates
       spawnCup(evt.useCaseId, evt.iterationId);
       return;
     }
@@ -79,14 +83,22 @@ export function createTrafficRenderer({ trafficGroup }) {
         cupGroup.position.y -= FALL_SPEED * dt;
         if (cupGroup.position.y <= FLOOR_Y) {
           cupGroup.position.y = FLOOR_Y;
-          ud.state = ud.outcome ? "terminal" : "landed";
           ud.landedAt = now;
-          if (ud.outcome) applyTerminalTreatment(cupGroup, ud.outcome);
+          if (ud.outcome) {
+            ud.state = "terminal";
+            applyTerminalTreatment(cupGroup, ud.outcome);
+          } else {
+            ud.state = "landed";
+          }
         }
-      } else if (ud.state === "landed" && ud.outcome) {
-        ud.state = "terminal";
-        ud.landedAt = now;
-        applyTerminalTreatment(cupGroup, ud.outcome);
+      } else if (ud.state === "landed") {
+        if (ud.outcome) {
+          ud.state = "terminal";
+          ud.landedAt = now;
+          applyTerminalTreatment(cupGroup, ud.outcome);
+        } else if (now - ud.landedAt > LANDED_TIMEOUT_MS) {
+          disposeCup(cupGroup);
+        }
       } else if (ud.state === "terminal" && now - ud.landedAt > SETTLE_MS) {
         disposeCup(cupGroup);
       }

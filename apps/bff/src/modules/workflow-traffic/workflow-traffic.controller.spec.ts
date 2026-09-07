@@ -76,5 +76,21 @@ describe("WorkflowTrafficController", () => {
       expect(messages).toHaveLength(1);
       expect((messages[0].data as { iterationId: string }).iterationId).toBe("iter-1");
     });
+
+    it("does not replay a stale run's buffered history to a new subscriber", () => {
+      const svc = new WorkflowTrafficService();
+      svc.record({
+        runId: "run-old",
+        useCaseId: "commerce.purchase",
+        useCaseVersion: 1,
+        iterationId: "stale-1",
+        outcome: "succeeded",
+        timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      });
+      const controller = new WorkflowTrafficController(svc);
+      const messages: MessageEvent[] = [];
+      controller.updates().subscribe((message) => messages.push(message));
+      expect(messages).toHaveLength(0);
+    });
   });
 });
