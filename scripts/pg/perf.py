@@ -1,76 +1,34 @@
-"""perf — k6 scenarios via docker compose. Mirrors playground.mjs:628 and
-./dev:375. One generic runner + four named entry points so the user-facing
-commands stay terse.
+"""perf — k6 scenarios via docker compose, built on scripts/pg/k6runner.py
+(itself built on punch's subprocess-streaming primitive). Mirrors
+playground.mjs:628 and ./dev:375.
 """
 
 from __future__ import annotations
 
-import os
 import shutil
-import subprocess
-from pathlib import Path
 
-from pg.ansi import bold, dim, fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, COMPOSE_PERF_FILE, PERF_REPORTS_DIR
-from pg.ports import port_in_use
-
-
-def _default_base_url() -> str:
-    return os.environ.get("BASE_URL") or f"http://host.docker.internal:{BFF_PORT}"
-
-
-def _run_scenario(scenario_label: str, scenario_path: str, summary_filename: str) -> int:
-    header(f"Performance {scenario_label} (k6)")
-    base_url = _default_base_url()
-    summary_in_container = f"/scripts/reports/{summary_filename}"
-    summary_on_host = PERF_REPORTS_DIR / summary_filename
-
-    info(f"Target  : {base_url}")
-    info(f"Scenario: {scenario_path}")
-    info(f"Summary : {summary_on_host.relative_to(Path.cwd()) if summary_on_host.is_relative_to(Path.cwd()) else summary_on_host}")
-    print()
-
-    if (
-        ("localhost" in base_url or "host.docker.internal" in base_url)
-        and not port_in_use(BFF_PORT)
-    ):
-        warn(f"BFF does not appear to be listening on :{BFF_PORT}. Start it with: ./dev up")
-        print()
-
-    cmd = [
-        "docker", "compose", "-f", str(COMPOSE_PERF_FILE),
-        "run", "--rm", "-e", f"BASE_URL={base_url}", "k6",
-        "run", "--summary-export", summary_in_container,
-        f"/scripts/{scenario_path}",
-    ]
-    result = subprocess.run(cmd, check=False)
-    print()
-    if result.returncode == 0:
-        pass_(f"k6 {scenario_label} completed.")
-        info(f"Summary written to {summary_on_host}")
-        print()
-        return 0
-    fail(f"k6 {scenario_label} failed (exit code {result.returncode}).")
-    return result.returncode
+from pg.ansi import dim, header, info, pass_, warn
+from pg.k6runner import run_k6
+from pg.paths import PERF_REPORTS_DIR
 
 
 def smoke() -> int:
-    return _run_scenario("smoke", "scenarios/smoke/smoke.js", "smoke-summary.json")
+    return run_k6("smoke", "scenarios/smoke/smoke.js", summary_filename="smoke-summary.json")
 
 
 def checkout_flow() -> int:
-    return _run_scenario(
+    return run_k6(
         "checkout-flow",
         "scenarios/checkout-flow/checkout-flow.js",
-        "checkout-flow-summary.json",
+        summary_filename="checkout-flow-summary.json",
     )
 
 
 def read_heavy() -> int:
-    return _run_scenario(
+    return run_k6(
         "read-heavy",
         "scenarios/read-heavy/read-heavy.js",
-        "read-heavy-summary.json",
+        summary_filename="read-heavy-summary.json",
     )
 
 

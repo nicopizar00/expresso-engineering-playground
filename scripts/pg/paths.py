@@ -9,11 +9,17 @@ here so there's a single place to override.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from pg.env import load_root_env
 
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
+
+PUNCH_SRC: Path = REPO_ROOT / "vendor" / "punch" / "src"
+if PUNCH_SRC.is_dir() and str(PUNCH_SRC) not in sys.path:
+    sys.path.insert(0, str(PUNCH_SRC))
+
 ENV_PATH: Path = REPO_ROOT / ".env"
 ENV_EXAMPLE_PATH: Path = REPO_ROOT / ".env.example"
 
