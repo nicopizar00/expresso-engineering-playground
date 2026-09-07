@@ -791,6 +791,48 @@ class PreflightTests(unittest.TestCase):
         }
         self.assertEqual(preflight(descriptor, CATALOG), [])
 
+    def test_rejects_missing_required_field(self) -> None:
+        descriptor = {
+            "runId": "test-run",
+            "useCases": [{"id": "commerce.catalog-browse", "version": 1}],
+            "durationSeconds": 10,
+        }
+        errors = preflight(descriptor, CATALOG)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("weight", errors[0])
+
+    def test_rejects_duplicate_use_case_selection(self) -> None:
+        descriptor = {
+            "runId": "test-run",
+            "useCases": [
+                {"id": "commerce.catalog-browse", "version": 1, "weight": 2},
+                {"id": "commerce.catalog-browse", "version": 1, "weight": 3},
+            ],
+            "durationSeconds": 10,
+        }
+        errors = preflight(descriptor, CATALOG)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("commerce.catalog-browse", errors[0])
+
+    def test_rejects_use_case_with_no_wired_adapter(self) -> None:
+        catalog = {
+            "useCases": CATALOG["useCases"] + [{
+                "id": "commerce.unmapped",
+                "version": 1,
+                "status": "active",
+                "adapter": "k6.unmapped",
+                "concurrency": {"safe": True},
+            }],
+        }
+        descriptor = {
+            "runId": "test-run",
+            "useCases": [{"id": "commerce.unmapped", "version": 1, "weight": 1}],
+            "durationSeconds": 10,
+        }
+        errors = preflight(descriptor, catalog)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("commerce.unmapped", errors[0])
+
 
 class BuildK6OptionsTests(unittest.TestCase):
     def test_generates_one_scenario_per_use_case_with_thresholds(self) -> None:
@@ -870,11 +912,27 @@ def resolve_use_case(
 
 
 def preflight(descriptor: Dict[str, Any], catalog: Dict[str, Any]) -> List[str]:
+    # Structural checks first: preflight passing must guarantee
+    # build_k6_options() cannot KeyError on a missing/duplicate field.
     errors: List[str] = []
+    if "runId" not in descriptor:
+        errors.append("descriptor missing required field: runId")
+    if "durationSeconds" not in descriptor:
+        errors.append("descriptor missing required field: durationSeconds")
+    seen: set = set()
     for selection in descriptor.get("useCases", []):
-        use_case_id = selection.get("id")
-        version = selection.get("version")
-        weight = selection.get("weight")
+        missing = [f for f in ("id", "version", "weight") if selection.get(f) is None]
+        if missing:
+            errors.append(f"use case selection missing required field(s): {', '.join(missing)}")
+            continue
+        use_case_id = selection["id"]
+        version = selection["version"]
+        weight = selection["weight"]
+        key = (use_case_id, version)
+        if key in seen:
+            errors.append(f"duplicate use-case selection: {use_case_id}@{version}")
+            continue
+        seen.add(key)
         entry = resolve_use_case(catalog, use_case_id, version)
         if entry is None:
             errors.append(f"unknown use case: {use_case_id}@{version}")
