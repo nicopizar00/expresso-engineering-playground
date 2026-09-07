@@ -1271,7 +1271,7 @@ export const TRAFFIC_COLORS = {
 // 28-triangle budget.
 import * as THREE from "three";
 import { buildSquareFrustum } from "../geometry/frustum.js";
-import { makePsxTexture, TRAFFIC_COLORS } from "../materials.js";
+import { makePsxTexture, STATUS_COLORS, TRAFFIC_COLORS } from "../materials.js";
 
 const TRAFFIC_CUP_CFG = {
   topW: 0.14,
@@ -1304,7 +1304,7 @@ export function trafficVisualFor(useCaseId) {
 }
 
 export function buildTrafficCupGroup(useCaseId) {
-  const colorInt = TRAFFIC_COLORS[useCaseId] ?? 0x9AA0A6;
+  const colorInt = TRAFFIC_COLORS[useCaseId] ?? STATUS_COLORS.idle;
   const tex = makePsxTexture(colorInt, TRAFFIC_CUP_CFG.texSize);
   const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
   const geo = buildSquareFrustum(TRAFFIC_CUP_CFG.topW, TRAFFIC_CUP_CFG.botW, TRAFFIC_CUP_CFG.height);
@@ -1323,6 +1323,7 @@ export function buildTrafficCupGroup(useCaseId) {
 // the traffic equivalent of layout/render.js's hero-placement + animate
 // concern, kept in its own file so layout/render.js is never touched.
 import { buildTrafficCupGroup, trafficVisualFor } from "../objects/traffic-cup.js";
+import { STATUS_COLORS } from "../materials.js";
 
 const FALL_SPEED    = 0.9;  // world units / second
 const FLOOR_Y        = 0.02;
@@ -1364,7 +1365,7 @@ export function createTrafficRenderer({ trafficGroup }) {
     if (outcome !== "failed") return;
     const mesh = group.children[0];
     mesh.rotation.z = Math.PI / 2.2;
-    mesh.material.color?.set?.(0xd64545);
+    mesh.material.color?.set?.(STATUS_COLORS.error);
   }
 
   function handleEvent(evt) {
