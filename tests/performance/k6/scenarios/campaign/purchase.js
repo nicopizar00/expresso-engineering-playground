@@ -45,6 +45,23 @@ export function purchase() {
   }
 
   if (ok) {
+    group("cart: view", () => {
+      const res = http.get(url("/cart"), { tags: TAGS });
+      ok = check(res, {
+        "cart view 200": (r) => r.status === 200,
+        "cart contains added item": (r) => {
+          try {
+            const items = r.json("items");
+            return Array.isArray(items) && items.some((item) => item.productId === productId);
+          } catch {
+            return false;
+          }
+        },
+      }) && ok;
+    });
+  }
+
+  if (ok) {
     group("checkout", () => {
       const res = http.post(
         url("/checkout"),
