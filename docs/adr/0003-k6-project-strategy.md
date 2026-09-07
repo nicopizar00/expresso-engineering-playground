@@ -1,6 +1,6 @@
 # 0003. k6 project strategy: adopt git subtree from nicopizar00/k6-ts-docker
 
-- **Status:** Accepted
+- **Status:** Superseded by [docs/specs/punch-submodule-integration.md](../specs/punch-submodule-integration.md)
 - **Date:** 2026-05-14
 - **Deciders:** Playground maintainers
 

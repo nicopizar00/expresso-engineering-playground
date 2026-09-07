@@ -107,7 +107,7 @@ All assertions use `jq -e` so a non-matching shape exits non-zero.
 Human checklist:
 
 - [ ] Each of 3.1–3.10 produces the documented shape and status.
-- [ ] 3.7 explicitly returns `.items` (not `.orders`) — important: the k6 read-heavy scenario at `tests/performance/k6/scenarios/read-heavy/read-heavy.js` previously asserted `.orders`. If that scenario passes today, the bug was fixed; if it fails, file a follow-up.
+- [ ] 3.7 explicitly returns `.items` (not `.orders`) — important: the k6 read-heavy scenario at `tests/performance/k6/scenarios/read-heavy/read-heavy.ts` previously asserted `.orders`. If that scenario passes today, the bug was fixed; if it fails, file a follow-up.
 
 ---
 
@@ -211,7 +211,7 @@ iteration can then decide which to act on.
 
 1. **k6 `read-heavy` assertion may target `.orders[]` instead of
    `.items[]`.** Inspect
-   `tests/performance/k6/scenarios/read-heavy/read-heavy.js`. If the
+   `tests/performance/k6/scenarios/read-heavy/read-heavy.ts`. If the
    scenario uses `.json("orders")`, recommend changing it to
    `.json("items")` — the BFF response shape is `{ "items": [...] }`
    (`apps/bff/src/modules/orders/orders.controller.ts:10` →

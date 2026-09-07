@@ -1,8 +1,10 @@
 # Performance testing profile for the mini-commerce playground.
 #
 # Kept in a separate compose file (not a profile of compose.yaml) so a
-# perf run never alters the main local stack lifecycle. The runner is the
-# official grafana/k6 image — no custom image is built or published.
+# perf run never alters the main local stack lifecycle. Both services build
+# this repo's own k6 image from infra/docker/k6.Dockerfile (esbuild compiles
+# the TypeScript scenarios in) — there is no bare grafana/k6 image pulled
+# directly; see the shared `k6-build` anchor below.
 #
 # Quick start (use the wrapper command for the default invocation):
 #   pnpm pg:perf:smoke
@@ -33,7 +35,7 @@ name: mini-commerce-perf
 
 services:
   k6:
-    build:
+    build: &k6-build
       context: ../../
       dockerfile: infra/docker/k6.Dockerfile
     container_name: mini-commerce-k6
@@ -50,17 +52,19 @@ services:
       - "host.docker.internal:host-gateway"
 
   # Opt-in variant that exports OTLP metrics to the otel-collector running
-  # in the main stack (compose.yaml). Identical to `k6` except for the
-  # K6_OTEL_* env wiring and the explicit `--out experimental-opentelemetry`
-  # flag in the command. The default pg:perf:smoke wrapper still uses the
-  # plain `k6` service; this service is invoked manually when you want to
-  # see metrics land in the collector.
+  # in the main stack (compose.yaml). Reuses the exact same built image as
+  # `k6` (the `k6-build` anchor above — scenarios are baked in, not mounted)
+  # so its /scripts/scenarios/smoke/smoke.js path is guaranteed to exist;
+  # it differs from `k6` only in the K6_OTEL_* env wiring and the explicit
+  # `--out experimental-opentelemetry` flag in the command. The default
+  # pg:perf:smoke wrapper still uses the plain `k6` service; this service is
+  # invoked manually when you want to see metrics land in the collector.
   k6-otel:
-    image: grafana/k6:0.54.0
+    build: *k6-build
     container_name: mini-commerce-k6-otel
     working_dir: /scripts
     volumes:
-      - ../../tests/performance/k6:/scripts
+      - ../../tests/performance/k6/reports:/scripts/reports
     command: run --out experimental-opentelemetry /scripts/scenarios/smoke/smoke.js
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}

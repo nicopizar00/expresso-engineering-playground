@@ -12,7 +12,6 @@ later expose a stable public equivalent, switch to that instead.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Dict, Optional
 
 # pg.paths must be imported before punch.__main__: importing it is what
@@ -22,7 +21,9 @@ from pg.ansi import fail, header, info, pass_, warn
 from pg.paths import BFF_PORT, COMPOSE_PERF_FILE, PERF_REPORTS_DIR
 from pg.ports import port_in_use
 
-from punch.__main__ import _stream  # noqa: reused primitive, see module docstring
+# Reused primitive from punch's internals; see the module docstring above
+# for why this leading-underscore import is an intentional, accepted coupling.
+from punch.__main__ import _stream
 
 
 def default_base_url() -> str:

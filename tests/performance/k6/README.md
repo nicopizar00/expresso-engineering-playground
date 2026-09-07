@@ -36,8 +36,6 @@ tests/performance/k6/
 ├── config/
 │   ├── env.ts             # BASE_URL helper used by every scenario
 │   └── thresholds.ts      # shared SLO-aligned thresholds
-├── data/                 # static fixtures (e.g. product ids)
-├── docs/                 # runbooks, SLO notes, scenario specs
 ├── reports/              # generated artifacts — gitignored
 └── scenarios/
     ├── smoke/smoke.ts                 # minimal happy-path validation
@@ -59,9 +57,12 @@ tests/performance/k6/
 ### Known gap: `load/` and `stress/` are unmigrated, broken placeholders
 
 `scenarios/load/load.js` and `scenarios/stress/stress.js` predate this
-folder's TypeScript migration and predate the git-subtree era (see
-[ADR-0003](../../../docs/adr/0003-k6-project-strategy.md)). They were never
-wired to a `./dev perf:*` command (`.env.example`
+folder's TypeScript migration and predate the original git-subtree era —
+see [ADR-0003](../../../docs/adr/0003-k6-project-strategy.md) for why this
+repo adopted a subtree at the time; that ADR is now **superseded**, and the
+current approach (the `vendor/punch/` submodule) is specified in
+[`docs/specs/punch-submodule-integration.md`](../../../docs/specs/punch-submodule-integration.md).
+They were never wired to a `./dev perf:*` command (`.env.example`
 has always called them out as unpopulated `SCENARIO` slots), so this repo's
 TypeScript conversion did not touch them — the plan explicitly scoped the
 migration to the four wired entry points (`smoke`, `checkout-flow`,
@@ -157,15 +158,13 @@ The Docker path is the default in this repo because it avoids a host
 install (of both k6 and Node/esbuild) and produces identical results
 across machines and CI.
 
-## Where scenarios, data, and reports live
+## Where scenarios and reports live
 
 - **Scenarios**: `scenarios/<profile>/<name>.ts`. One file per scenario
   keeps Docker `run` commands trivial and keeps profiles independently
   versioned. `docker compose ... build k6` compiles every scenario with
   esbuild before the image can run any of them (see "How to run scenarios
   locally" above).
-- **Test data**: `data/*.json`. Today only the static catalog product
-  ids — anything generated belongs in `reports/`, not here.
 - **Reports**: `reports/`. Gitignored except for `.gitkeep`. Each scenario's
   own `handleSummary` (using `support/report.ts`'s shared helpers) writes
   its `<scenario>-report.html` and `<scenario>-summary.json` here.

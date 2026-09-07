@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pg.ansi import fail, info
-from pg.k6runner import default_base_url, run_k6
+from pg.k6runner import run_k6
 from pg.paths import REPO_ROOT
 
 CATALOG_PATH = REPO_ROOT / "use-cases" / "catalog.json"

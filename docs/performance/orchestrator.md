@@ -67,8 +67,6 @@ tests/performance/k6/
   config/
     env.ts                   # url() — single BASE_URL knob
     thresholds.ts            # named threshold sets
-  data/
-    products.json            # static fixtures
   scenarios/
     smoke/smoke.ts
     checkout-flow/checkout-flow.ts
