@@ -10,6 +10,10 @@ have installed.
 | `pnpm pg:*`    | + Node ≥ 20 + pnpm 9        | Contributors already running pnpm.              |
 | `task`         | + `go-task` (Homebrew)      | Optional convenience wrapper over `pnpm pg:*`.  |
 
+**Note:** This repo uses a git submodule (`vendor/punch/`) for shared
+performance-testing tooling. After cloning, initialize it with `git submodule
+update --init --recursive` before running `./dev perf:*` commands.
+
 All three converge on `python3 -m pg` under the hood. Prisma migrate and seed
 run inside the BFF dev-stage container — no host Node/Prisma needed even on the
 `pnpm pg:*` path. See [`architecture/orchestrator-python.md`](architecture/orchestrator-python.md)
