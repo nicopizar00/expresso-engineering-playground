@@ -15,6 +15,23 @@ const API_BASE = (() => {
 
 const SSE_RETRY_MS = 5000;
 
+// Built with createElement/textContent, never innerHTML: useCaseId reaches the
+// HUD from an unauthenticated, unvalidated ingest POST, so string-interpolated
+// markup here would be a stored-injection sink.
+function renderLegend(container, useCases) {
+  container.textContent = "";
+  for (const { label, colorHex } of useCases.values()) {
+    const item = document.createElement("span");
+    item.className = "traffic-legend-item";
+    const swatch = document.createElement("span");
+    swatch.className = "traffic-swatch";
+    swatch.style.background = colorHex;
+    item.appendChild(swatch);
+    item.appendChild(document.createTextNode(label));
+    container.appendChild(item);
+  }
+}
+
 export function initTrafficTransport({ onEvent, hudEls }) {
   let sseSource = null;
   let sseRetryHandle = null;
@@ -28,13 +45,14 @@ export function initTrafficTransport({ onEvent, hudEls }) {
       hudState.succeeded = 0;
       hudState.failed = 0;
     }
-    hudState.useCases.set(evt.useCaseId, trafficVisualFor(evt.useCaseId).label);
+    const visual = trafficVisualFor(evt.useCaseId);
+    hudState.useCases.set(evt.useCaseId, { label: visual.label, colorHex: visual.colorHex });
     if (evt.outcome === "succeeded") hudState.succeeded++;
     if (evt.outcome === "failed") hudState.failed++;
 
     hudEls.root.hidden = false;
     hudEls.runId.textContent = hudState.runId;
-    hudEls.useCases.textContent = Array.from(hudState.useCases.values()).join(", ");
+    renderLegend(hudEls.useCases, hudState.useCases);
     hudEls.counts.textContent = `${hudState.succeeded} ok / ${hudState.failed} failed`;
   }
 

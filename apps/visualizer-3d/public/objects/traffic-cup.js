@@ -32,8 +32,12 @@ const TRAFFIC_USE_CASE_META = {
 
 export function trafficVisualFor(useCaseId) {
   const meta = TRAFFIC_USE_CASE_META[useCaseId] ?? { lane: 0, label: useCaseId };
+  // colorHex is the CSS-ready form of the same TRAFFIC_COLORS integer the cup
+  // mesh is textured with, so the HUD legend swatch and the cup always agree.
+  const colorInt = TRAFFIC_COLORS[useCaseId];
   return {
     label: meta.label,
+    colorHex: `#${colorInt !== undefined ? colorInt.toString(16).padStart(6, "0") : "9aa0a6"}`,
     laneX: TRAFFIC_CUP_CFG.laneBaseX + meta.lane * TRAFFIC_CUP_CFG.laneSpacingX,
     spawnY: TRAFFIC_CUP_CFG.spawnY,
   };
