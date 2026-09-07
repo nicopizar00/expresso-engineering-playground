@@ -2,7 +2,7 @@
 import http from "k6/http";
 import { check, group } from "k6";
 import { url } from "../../config/env.js";
-import { newIterationId, reportEvent } from "./report-event.js";
+import { iterationSuccess, newIterationId, reportEvent } from "./report-event.js";
 
 const USE_CASE = { id: "commerce.catalog-browse", version: 1 };
 const TAGS = { use_case: USE_CASE.id, use_case_version: String(USE_CASE.version) };
@@ -34,6 +34,7 @@ export function catalogBrowse() {
     });
   }
 
+  iterationSuccess.add(ok, TAGS);
   reportEvent(USE_CASE, iterationId, ok ? "succeeded" : "failed");
 }
 

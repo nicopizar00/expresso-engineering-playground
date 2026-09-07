@@ -105,9 +105,16 @@ def build_k6_options(descriptor: Dict[str, Any], catalog: Dict[str, Any]) -> Dic
                 "use_case_version": str(entry["version"]),
             },
         }
-        # Referencing the scenario-scoped submetric forces k6 to include it in
-        # --summary-export, which is how RUN-004's per-use-case counts surface.
-        thresholds[f"checks{{scenario:{name}}}"] = ["rate>0.5"]
+        # Gate on whole-iteration success, not on `checks`: the blended check
+        # rate stays high even when a use case's final step fails every time
+        # (the earlier steps keep passing), so `checks` would report a broken
+        # workflow as healthy. workflow_iteration_success is one sample per
+        # iteration, emitted by the adapters via report-event.js.
+        thresholds[f"workflow_iteration_success{{scenario:{name}}}"] = ["rate>0.5"]
+        # Always-true threshold: referencing the scenario-scoped submetric is
+        # what forces k6 to include it in the summary, which is how RUN-004's
+        # per-use-case iteration counts surface in the report.
+        thresholds[f"iterations{{scenario:{name}}}"] = ["count>=0"]
     return {"scenarios": scenarios, "thresholds": thresholds}
 
 
@@ -135,7 +142,6 @@ def run(argv: List[str]) -> int:
     options = build_k6_options(descriptor, catalog)
     base_url = _default_base_url()
     summary_filename = f"campaign-{run_id}-summary.json"
-    summary_in_container = f"/scripts/reports/{summary_filename}"
     summary_on_host = PERF_REPORTS_DIR / summary_filename
 
     info(f"Target   : {base_url}")
@@ -151,14 +157,19 @@ def run(argv: List[str]) -> int:
         warn(f"BFF does not appear to be listening on :{BFF_PORT}. Start it with: ./dev up")
         print()
 
+    # The summary file is written by campaign.js's handleSummary (not by
+    # --summary-export, which k6 ignores once handleSummary is defined) so the
+    # report can carry runId/catalogVersion next to k6's own metrics. The path
+    # it writes to mirrors summary_on_host through the /scripts volume mount.
     cmd = [
         "docker", "compose", "-f", str(COMPOSE_PERF_FILE),
         "run", "--rm",
         "-e", f"BASE_URL={base_url}",
         "-e", f"RUN_ID={run_id}",
+        "-e", f"CATALOG_VERSION={catalog.get('catalogVersion', '')}",
         "-e", f"CAMPAIGN_JSON={json.dumps(options)}",
         "k6",
-        "run", "--summary-export", summary_in_container,
+        "run",
         "/scripts/scenarios/campaign/campaign.js",
     ]
     result = subprocess.run(cmd, check=False)

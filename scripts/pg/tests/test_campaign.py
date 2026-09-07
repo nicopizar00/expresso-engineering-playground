@@ -156,7 +156,11 @@ class BuildK6OptionsTests(unittest.TestCase):
         self.assertEqual(browse["vus"], 3)
         self.assertEqual(browse["duration"], "30s")
         self.assertEqual(browse["exec"], "catalogBrowse")
-        self.assertIn("checks{scenario:commerce_purchase}", options["thresholds"])
+        self.assertIn(
+            "workflow_iteration_success{scenario:commerce_purchase}",
+            options["thresholds"],
+        )
+        self.assertIn("iterations{scenario:commerce_purchase}", options["thresholds"])
 
 
 if __name__ == "__main__":
