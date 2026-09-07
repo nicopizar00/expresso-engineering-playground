@@ -1,29 +1,27 @@
-// tests/performance/k6/scenarios/campaign/order-lookup.js
-//
 // Precondition (catalog.json): "At least one seeded order exists." Early in
 // a fresh campaign this may not hold yet if the purchase adapter hasn't
 // produced an order — that iteration reports "failed" honestly rather than
 // being special-cased, since it reflects real endpoint state.
 import http from "k6/http";
 import { check, group } from "k6";
-import { url } from "../../config/env.js";
-import { iterationSuccess, newIterationId, reportEvent } from "./report-event.js";
+import { url } from "../../config/env";
+import { iterationSuccess, newIterationId, reportEvent, UseCase } from "./report-event";
 
-const USE_CASE = { id: "commerce.order-lookup", version: 1 };
+const USE_CASE: UseCase = { id: "commerce.order-lookup", version: 1 };
 const TAGS = { use_case: USE_CASE.id, use_case_version: String(USE_CASE.version) };
 
-export function orderLookup() {
+export function orderLookup(): void {
   const iterationId = newIterationId();
   reportEvent(USE_CASE, iterationId, "started");
   let ok = true;
-  let orderId;
+  let orderId: string | undefined;
 
   group("orders: list", () => {
     const res = http.get(url("/orders"), { tags: TAGS });
     ok = check(res, { "orders list 200": (r) => r.status === 200 }) && ok;
     if (ok) {
       try {
-        const items = res.json("items");
+        const items = res.json("items") as Array<{ orderId: string }>;
         orderId = Array.isArray(items) && items.length > 0 ? items[0].orderId : undefined;
       } catch {
         orderId = undefined;

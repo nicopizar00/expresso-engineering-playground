@@ -1,12 +1,10 @@
-// tests/performance/k6/scenarios/campaign/report-event.js
-//
 // Fire-and-forget helper shared by all campaign adapters. A failed or slow
 // ingest call MUST NOT fail or slow the measured commerce iteration
 // (SPEC-007 / RUN-003) — errors are swallowed, not surfaced as checks.
 
 import http from "k6/http";
 import { Rate } from "k6/metrics";
-import { url } from "../../config/env.js";
+import { url } from "../../config/env";
 
 const INGEST_TIMEOUT = "500ms";
 
@@ -16,11 +14,18 @@ const INGEST_TIMEOUT = "500ms";
 // use case fails 100% of the time, because the earlier checks still pass.
 export const iterationSuccess = new Rate("workflow_iteration_success");
 
-export function newIterationId() {
+export interface UseCase {
+  id: string;
+  version: number;
+}
+
+export type WorkflowOutcome = "started" | "succeeded" | "failed";
+
+export function newIterationId(): string {
   return `${__VU}-${__ITER}-${Date.now()}`;
 }
 
-export function reportEvent(useCase, iterationId, outcome) {
+export function reportEvent(useCase: UseCase, iterationId: string, outcome: WorkflowOutcome): void {
   const payload = JSON.stringify({
     runId: __ENV.RUN_ID || "local",
     useCaseId: useCase.id,
