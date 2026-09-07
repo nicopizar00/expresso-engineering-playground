@@ -18,6 +18,8 @@ import { FALLBACK_SCENE } from "./fallback.js";
 import { ROOM, buildRoom } from "./objects/room.js";
 import { createRenderer, createAnimator } from "./layout/render.js";
 import { initTransport } from "./transport.js";
+import { createTrafficRenderer } from "./layout/traffic-render.js";
+import { initTrafficTransport } from "./traffic-transport.js";
 
 // DOM refs
 const stage     = document.getElementById("stage");
@@ -75,6 +77,29 @@ const transport = initTransport({
   fallbackScene: FALLBACK_SCENE,
 });
 
+// Workflow-traffic falling cups — separate group, separate transport, and a
+// separate tick loop from the domain-state animator above. trafficGroup is
+// part of `scene`, so the existing animator's renderer.render(scene, camera)
+// already paints it; this loop only advances cup state, it never renders.
+const trafficGroup = new THREE.Group();
+scene.add(trafficGroup);
+
+const trafficRenderer = createTrafficRenderer({ trafficGroup });
+const trafficTransport = initTrafficTransport({
+  onEvent: trafficRenderer.handleEvent,
+  hudEls: {
+    root: document.getElementById("traffic-hud"),
+    runId: document.getElementById("traffic-run-id"),
+    useCases: document.getElementById("traffic-use-cases"),
+    counts: document.getElementById("traffic-counts"),
+  },
+});
+
+function tickTraffic() {
+  trafficRenderer.tick(performance.now());
+  requestAnimationFrame(tickTraffic);
+}
+
 reloadBtn.addEventListener("click", () => transport.connect());
 window.addEventListener("resize", onResize);
 onResize();
@@ -86,6 +111,8 @@ document.addEventListener("visibilitychange", () => {
 
 transport.connect();
 animator.start();
+trafficTransport.connect();
+requestAnimationFrame(tickTraffic);
 
 function onResize() {
   const { clientWidth, clientHeight } = stage;
