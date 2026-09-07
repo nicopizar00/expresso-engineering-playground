@@ -4,6 +4,7 @@
 // the traffic equivalent of layout/render.js's hero-placement + animate
 // concern, kept in its own file so layout/render.js is never touched.
 import { buildTrafficCupGroup, trafficVisualFor } from "../objects/traffic-cup.js";
+import { STATUS_COLORS } from "../materials.js";
 
 const FALL_SPEED    = 0.9;  // world units / second
 const FLOOR_Y        = 0.02;
@@ -45,7 +46,7 @@ export function createTrafficRenderer({ trafficGroup }) {
     if (outcome !== "failed") return;
     const mesh = group.children[0];
     mesh.rotation.z = Math.PI / 2.2;
-    mesh.material.color?.set?.(0xd64545);
+    mesh.material.color?.set?.(STATUS_COLORS.error);
   }
 
   function handleEvent(evt) {

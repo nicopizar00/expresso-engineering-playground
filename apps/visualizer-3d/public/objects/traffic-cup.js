@@ -7,7 +7,7 @@
 // 28-triangle budget.
 import * as THREE from "three";
 import { buildSquareFrustum } from "../geometry/frustum.js";
-import { makePsxTexture, TRAFFIC_COLORS } from "../materials.js";
+import { makePsxTexture, STATUS_COLORS, TRAFFIC_COLORS } from "../materials.js";
 
 const TRAFFIC_CUP_CFG = {
   topW: 0.14,
@@ -40,7 +40,7 @@ export function trafficVisualFor(useCaseId) {
 }
 
 export function buildTrafficCupGroup(useCaseId) {
-  const colorInt = TRAFFIC_COLORS[useCaseId] ?? 0x9AA0A6;
+  const colorInt = TRAFFIC_COLORS[useCaseId] ?? STATUS_COLORS.idle;
   const tex = makePsxTexture(colorInt, TRAFFIC_CUP_CFG.texSize);
   const mat = new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
   const geo = buildSquareFrustum(TRAFFIC_CUP_CFG.topW, TRAFFIC_CUP_CFG.botW, TRAFFIC_CUP_CFG.height);
