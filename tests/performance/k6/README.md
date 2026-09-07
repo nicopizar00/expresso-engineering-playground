@@ -38,6 +38,7 @@ tests/performance/k6/
     ├── smoke/smoke.js                 # minimal happy-path validation
     ├── checkout-flow/checkout-flow.js # write-path validation
     ├── read-heavy/read-heavy.js       # read baseline scenario
+    ├── campaign/                       # workflow-traffic driven via campaign descriptor
     ├── load/                          # future nominal-load refinement
     └── stress/                        # future beyond-nominal refinement
 ```
@@ -74,6 +75,8 @@ pnpm pg:dev
 pnpm pg:perf:smoke
 pnpm pg:perf:checkout-flow
 pnpm pg:perf:read-heavy
+pnpm pg:perf:campaign                                       # default descriptor
+pnpm pg:perf:campaign tests/performance/k6/campaigns/morning-rush.json
 ```
 
 What the command does:

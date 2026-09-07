@@ -57,8 +57,16 @@ tests/performance/k6/
     smoke/smoke.js
     checkout-flow/checkout-flow.js
     read-heavy/read-heavy.js
+    campaign/
+      campaign.js            # generated options; exec targets from adapters
+      catalog-browse.js
+      order-lookup.js
+      purchase.js
+      report-event.js        # fire-and-forget workflow-traffic emitter
     load/load.js             # placeholder for nominal-load refinement
     stress/stress.js         # placeholder for beyond-nominal refinement
+  campaigns/
+    morning-rush.json        # example campaign descriptor
   reports/                   # gitignored except .gitkeep
 docs/performance/
   orchestrator.md            # this file
@@ -96,6 +104,7 @@ These are load-bearing. Changes that break them require owner sign-off.
 | `./dev perf:smoke` | `smoke/smoke.js` | `smoke-summary.json` |
 | `./dev perf:checkout-flow` | `checkout-flow/checkout-flow.js` | `checkout-flow-summary.json` |
 | `./dev perf:read-heavy` | `read-heavy/read-heavy.js` | `read-heavy-summary.json` |
+| `./dev perf:campaign [descriptor]` | `scenarios/campaign/campaign.js` | `campaign-<runId>-summary.json` |
 | `./dev perf:open-report` | — | lists report files |
 | `./dev perf:clean` | — | clears `reports/` |
 
@@ -104,6 +113,11 @@ These are load-bearing. Changes that break them require owner sign-off.
 collector running under the `obs` profile.
 
 ## Extending the orchestrator
+
+Campaign scenarios are a special case: thresholds are generated per-run in
+`scripts/pg/campaign.py` rather than named in `config/thresholds.js`, because
+they depend on which use cases a given descriptor selects — there is no static
+set to name ahead of time.
 
 Steps for adding a new scenario (e.g. `cart-mutations`):
 
