@@ -85,6 +85,11 @@ def _perf_read_heavy(_a: Sequence[str]) -> int:
     return perf.read_heavy()
 
 
+def _perf_campaign(args: Sequence[str]) -> int:
+    from pg import campaign
+    return campaign.run(list(args))
+
+
 def _perf_open_report(_a: Sequence[str]) -> int:
     from pg import perf
     return perf.open_report()
@@ -121,6 +126,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "perf:smoke": _perf_smoke,
     "perf:checkout-flow": _perf_checkout,
     "perf:read-heavy": _perf_read_heavy,
+    "perf:campaign": _perf_campaign,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,

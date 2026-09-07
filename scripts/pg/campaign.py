@@ -8,10 +8,14 @@ campaign descriptor selects — there is no static set to name ahead of time.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pg.paths import REPO_ROOT
+from pg.ansi import fail, header, info, pass_, warn
+from pg.paths import BFF_PORT, COMPOSE_PERF_FILE, PERF_REPORTS_DIR, REPO_ROOT
+from pg.ports import port_in_use
 
 CATALOG_PATH = REPO_ROOT / "use-cases" / "catalog.json"
 DEFAULT_DESCRIPTOR = (
@@ -105,3 +109,64 @@ def build_k6_options(descriptor: Dict[str, Any], catalog: Dict[str, Any]) -> Dic
         # --summary-export, which is how RUN-004's per-use-case counts surface.
         thresholds[f"checks{{scenario:{name}}}"] = ["rate>0.5"]
     return {"scenarios": scenarios, "thresholds": thresholds}
+
+
+def _default_base_url() -> str:
+    return os.environ.get("BASE_URL") or f"http://host.docker.internal:{BFF_PORT}"
+
+
+def run(argv: List[str]) -> int:
+    header("Performance campaign (k6)")
+    descriptor_path = Path(argv[0]) if argv else DEFAULT_DESCRIPTOR
+    if not descriptor_path.exists():
+        fail(f"campaign descriptor not found: {descriptor_path}")
+        return 1
+
+    descriptor = load_json(descriptor_path)
+    catalog = load_json(CATALOG_PATH)
+
+    errors = preflight(descriptor, catalog)
+    if errors:
+        for err in errors:
+            fail(err)
+        return 1
+
+    run_id = descriptor["runId"]
+    options = build_k6_options(descriptor, catalog)
+    base_url = _default_base_url()
+    summary_filename = f"campaign-{run_id}-summary.json"
+    summary_in_container = f"/scripts/reports/{summary_filename}"
+    summary_on_host = PERF_REPORTS_DIR / summary_filename
+
+    info(f"Target   : {base_url}")
+    info(f"Run id   : {run_id}")
+    info(f"Use cases: {', '.join(s['id'] for s in descriptor['useCases'])}")
+    info(f"Summary  : {summary_on_host}")
+    print()
+
+    if (
+        ("localhost" in base_url or "host.docker.internal" in base_url)
+        and not port_in_use(BFF_PORT)
+    ):
+        warn(f"BFF does not appear to be listening on :{BFF_PORT}. Start it with: ./dev up")
+        print()
+
+    cmd = [
+        "docker", "compose", "-f", str(COMPOSE_PERF_FILE),
+        "run", "--rm",
+        "-e", f"BASE_URL={base_url}",
+        "-e", f"RUN_ID={run_id}",
+        "-e", f"CAMPAIGN_JSON={json.dumps(options)}",
+        "k6",
+        "run", "--summary-export", summary_in_container,
+        "/scripts/scenarios/campaign/campaign.js",
+    ]
+    result = subprocess.run(cmd, check=False)
+    print()
+    if result.returncode == 0:
+        pass_(f"k6 campaign '{run_id}' completed.")
+        info(f"Summary written to {summary_on_host}")
+        print()
+        return 0
+    fail(f"k6 campaign '{run_id}' failed (exit code {result.returncode}).")
+    return result.returncode

@@ -119,6 +119,11 @@ tasks:
     cmds:
       - pnpm pg:perf:smoke
 
+  perf:campaign:
+    desc: k6 catalog-driven campaign in Docker (catalog-browse, order-lookup, purchase)
+    cmds:
+      - pnpm pg:perf:campaign
+
   perf:report:
     desc: Open k6 HTML report
     cmds:
