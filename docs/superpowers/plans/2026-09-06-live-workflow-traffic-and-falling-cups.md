@@ -190,6 +190,8 @@ git commit -m "feat(bff): add WorkflowTrafficService event buffer"
 - Consumes: `WorkflowTrafficService` from Task 1 (`record`, `recentHistory`, `events$`).
 - Produces: `POST /workflow-traffic/events` (202, body `WorkflowTrafficEventInput`), `GET /workflow-traffic-updates` (SSE, `Observable<MessageEvent>` where `data` is a `WorkflowTrafficEvent`).
 
+**Note (ruling from Task 1's review):** `WorkflowTrafficService`'s buffer is a single global FIFO, not partitioned by run. Spec RUN-005 requires a new SSE subscriber to receive only "the current run's recent history," so this controller — not the service — filters `recentHistory()` down to the latest buffered event's `runId` before replaying. See Step 3.
+
 - [ ] **Step 1: Write the failing controller spec**
 
 ```typescript
@@ -249,6 +251,29 @@ describe("WorkflowTrafficController", () => {
       expect(messages).toHaveLength(1);
       expect((messages[0].data as { iterationId: string }).iterationId).toBe("iter-2");
     });
+
+    it("replays only the current run's buffered history, not a prior run's tail", () => {
+      const svc = new WorkflowTrafficService();
+      svc.record({
+        runId: "run-0",
+        useCaseId: "commerce.purchase",
+        useCaseVersion: 1,
+        iterationId: "old-1",
+        outcome: "succeeded",
+      });
+      svc.record({
+        runId: "run-1",
+        useCaseId: "commerce.purchase",
+        useCaseVersion: 1,
+        iterationId: "iter-1",
+        outcome: "started",
+      });
+      const controller = new WorkflowTrafficController(svc);
+      const messages: MessageEvent[] = [];
+      controller.updates().subscribe((message) => messages.push(message));
+      expect(messages).toHaveLength(1);
+      expect((messages[0].data as { iterationId: string }).iterationId).toBe("iter-1");
+    });
   });
 });
 ```
@@ -281,10 +306,20 @@ export class WorkflowTrafficController {
 
   // Event-based, not snapshot-based: each SSE message is one workflow-traffic
   // event, distinct from /visualization-updates' recomputed full-state model.
+  //
+  // The service's buffer is a single global FIFO, not partitioned by run
+  // (Task 1). A new subscriber must see only "the current run's recent
+  // history" (spec RUN-005), so replay is filtered here to the runId of the
+  // most recently buffered event — a prior run's tail is never replayed.
   @Sse("workflow-traffic-updates")
   updates(): Observable<MessageEvent> {
+    const history = this.trafficService.recentHistory();
+    const currentRunId = history.length > 0 ? history[history.length - 1].runId : null;
+    const currentRunHistory = currentRunId === null
+      ? []
+      : history.filter((event) => event.runId === currentRunId);
     return concat(
-      from(this.trafficService.recentHistory()),
+      from(currentRunHistory),
       this.trafficService.events$,
     ).pipe(map((event) => ({ data: event }) as MessageEvent));
   }
@@ -322,7 +357,7 @@ and add `WorkflowTrafficModule` to the `imports` array, after `VisualizationModu
 - [ ] **Step 6: Run the spec to verify it passes**
 
 Run: `pnpm --filter @mini-commerce/bff exec vitest run src/modules/workflow-traffic/workflow-traffic.controller.spec.ts`
-Expected: PASS (3 tests).
+Expected: PASS (4 tests).
 
 - [ ] **Step 7: Run the full BFF suite**
 
