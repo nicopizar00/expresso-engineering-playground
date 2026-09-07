@@ -443,7 +443,7 @@ Manual steps:
 2. Inspect the iframe element in browser dev tools.
 3. Confirm the iframe `src` is `/viz/index.html`.
 4. [MANUAL] Confirm the scene paints a white room with product/order/cart
-   objects and a `live · N items` status.
+   objects and a `live · N objects` status.
 5. Click `Open Standalone`.
 6. Confirm the standalone tab opens `http://localhost:3002`.
 7. Confirm `GET /visualization-data` contains:
@@ -461,8 +461,8 @@ Expected user-visible result:
 - Visualizer is embedded through `/viz/index.html`, not a direct iframe to
   `:3002`.
 - Standalone link still opens the host visualizer.
-- Scene status says `live · N items` when the BFF data feed succeeds; it says
-  `offline · N mock items` only when the BFF fetch fails.
+- Scene status says `live · N objects` when the BFF data feed succeeds; it
+  says `offline · N mock objects` only when the BFF fetch fails.
 - Products, orders, and cart are all represented.
 
 Pass criterion:
@@ -478,7 +478,7 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/visualizer` and note the `live · N items` count.
+1. Open `/visualizer` and note the `live · N objects` count.
 2. Return to Catalog.
 3. Add one item to cart.
 4. Return to `/visualizer`.

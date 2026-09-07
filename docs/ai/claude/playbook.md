@@ -59,23 +59,38 @@ success.
 
 ## 3D visualizer (active feature)
 
-The Classic Espresso cup is the first domain asset. Owner artistic approval
-is pending — see
-[`../../next-steps/ps1-espresso-cup.md`](../../next-steps/ps1-espresso-cup.md)
-for the open issues list and
-[`../../visualizer/art-direction.md`](../../visualizer/art-direction.md) for
-the polygon/texture/material rules. **Working agreements:**
+`apps/visualizer-3d/public/` is a static ESM module graph served by nginx
+(no bundler). Per-concern modules:
 
-- Edit only `ESPRESSO_CFG` and `buildEspressoGroup` in
-  `apps/visualizer-3d/public/scene.js`.
-- Never touch `buildSquareFrustum`, `makePsxTexture`, `clearGroup`, or the
-  SSE/polling infrastructure.
+| File | Owns |
+|---|---|
+| `scene.js` | Entry shim: DOM + Three.js bootstrap + factory wiring (~95 lines). |
+| `utils.js` | `clamp`. |
+| `materials.js` | `ESPRESSO_PALETTE`, `STATUS_COLORS`, `desaturateHex`, `makePsxTexture`. |
+| `geometry/frustum.js` | `buildSquareFrustum`, `buildOpenFrustum` (the Standard-tier building blocks). |
+| `objects/room.js` | `ROOM`, `buildRoom`. |
+| `objects/espresso-cup.js` | `ESPRESSO_CFG` (DEV ENTRY POINT) + `buildEspressoGroup`. |
+| `objects/scene-meshes.js` | `buildProductMesh`, `buildOrderMesh`, `buildAggregateMesh`, `buildCartMesh`. |
+| `objects/disposal.js` | `clearGroup` (canvas-texture-aware). |
+| `layout/render.js` | `createRenderer({ dataGroup })`, `createAnimator({...})`, hero/scale constants, `sceneObjectCount`. |
+| `transport.js` | `API_BASE`, `initTransport({...})` → `{ connect, pauseForHidden }`. |
+| `fallback.js` | `FALLBACK_SCENE` (offline typed showcase). |
+
+**Working agreements:**
+
+- A visual / asset change touches one focused module, not `scene.js`.
 - Preview without Docker: `npx serve -p 3002 apps/visualizer-3d/public`.
 - Verify silhouette from 4 angles before reporting done.
+- Art rules (Lambert + flatShading, NearestFilter, palette, polygon budget)
+  live in [`../../visualizer/art-direction.md`](../../visualizer/art-direction.md)
+  and apply to every domain asset.
+- The Classic Espresso cup record (acceptance criteria, sign-off history)
+  lives in [`../../next-steps/ps1-espresso-cup.md`](../../next-steps/ps1-espresso-cup.md).
 
 New domain assets follow the `buildEspressoGroup` + `ESPRESSO_CFG` pattern
-and dispatch from `buildItemMesh` on `item.metadata?.category`. Add a
-`docs/next-steps/<topic>.md` before implementing.
+in a new `objects/<asset>.js`, dispatch from a per-role factory in
+`objects/scene-meshes.js`, and pick up an offline fallback in `fallback.js`.
+Add a `docs/next-steps/<topic>.md` before implementing.
 
 ## Prompt shape
 

@@ -151,7 +151,7 @@ Run `./dev up full` once. The visualizer is SSE-primary against
 Human checklist:
 
 - [ ] Page at <http://localhost:3002> renders a 3D scene.
-- [ ] HUD status line reaches `live (sse) · N items` (SSE-primary, no manual reload required). If SSE is blocked, the HUD shows `live · N items` (polling-fallback).
+- [ ] HUD status line reaches `live (sse) · N objects` (SSE-primary, no manual reload required). If SSE is blocked, the HUD shows `live · N objects` (polling-fallback).
 - [ ] Trigger a cart add or `POST /checkout` from another terminal and the scene repaints without a page reload.
 - [ ] Status semantics in the scene reflect order state (not generic health colours).
 

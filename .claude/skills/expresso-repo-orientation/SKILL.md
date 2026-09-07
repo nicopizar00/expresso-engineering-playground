@@ -37,9 +37,10 @@ Do not re-read these if they were already loaded earlier in the conversation.
      rules in `docs/architecture/bff-modules.md`, run `./dev smoke`.
    - Web → `apps/web/`; browser-only entry point; proxies `/api/bff/*` and
      `/viz/*`.
-   - Visualizer scene → `apps/visualizer-3d/public/scene.js`; **hard rule**:
-     edit only `ESPRESSO_CFG` and `buildEspressoGroup`; never touch
-     `buildSquareFrustum`, `makePsxTexture`, `clearGroup`, or the SSE wiring.
+   - Visualizer scene → `apps/visualizer-3d/public/` module graph (entry
+     `scene.js`, per-concern modules under `materials.js`, `geometry/`,
+     `objects/`, `layout/`, `transport.js`, `fallback.js`). Module map +
+     working agreements: `docs/ai/claude/playbook.md#3d-visualizer-active-feature`.
    - Orchestrator (`./dev` / `pnpm pg:*` / `task`) → `scripts/pg/`.
    - Performance → `tests/performance/k6/` + `scripts/pg/perf.py` +
      `infra/docker/compose.performance.yaml`.

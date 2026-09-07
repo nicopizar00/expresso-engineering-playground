@@ -65,8 +65,9 @@ When the count drops to zero, the topic is done.
   unavailable.
 - In-flight guard, hidden-tab pause, focus reconnect, and reload-triggered
   reconnect are implemented.
-- HUD status includes `live (sse) · N items`, `live · N items`, `polling…`,
-  `error · <reason>`, and `offline · N mock items`; source anchors removed.
+- HUD status includes `live (sse) · N objects`, `live · N objects`,
+  `polling…`, `error · <reason>`, and `offline · N mock objects`; source
+  anchors removed.
 - Spec + variants: [visualizer-reactivity.md](visualizer-reactivity.md)
 
 ✅ **Unified web entry point** — _web app as the single browser-facing shell_

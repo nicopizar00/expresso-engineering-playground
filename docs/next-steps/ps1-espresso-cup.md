@@ -24,7 +24,7 @@ File: `apps/visualizer-3d/public/scene.js`
 | `ESPRESSO_PALETTE` | Five named colours from spec reference image |
 | Saucer source shape | Source now uses a two-piece square rim plus raised platform. Browser approval still pending. |
 | Disposal | `clearGroup` traverses sub-meshes and disposes geometry + texture + material |
-| SSE / polling | Primary SSE path with polling fallback; cup renders offline via `FALLBACK_ITEMS` |
+| SSE / polling | Primary SSE path with polling fallback; cup renders offline via `FALLBACK_SCENE` in `fallback.js` |
 | `metadata.color` | Per-item colour override — separates ceramic tone from inventory status |
 
 ---
@@ -124,7 +124,8 @@ TOTAL                                        24    26     (Standard tier ≤ 28 
 
 ## Dev entry point
 
-All geometry constants live in `ESPRESSO_CFG` at the top of `scene.js`.
+All geometry constants live in `ESPRESSO_CFG` at the top of
+`apps/visualizer-3d/public/objects/espresso-cup.js`.
 No magic numbers inside `buildEspressoGroup`. To iterate:
 
 1. Edit `ESPRESSO_CFG` constants
@@ -182,17 +183,18 @@ Show: saucer with sloped rim, tapered square cup body, flat handle, dark coffee 
 ## Extension: future domain assets
 
 The `buildSquareFrustum` primitive and `ESPRESSO_CFG` pattern are the
-foundation for the full product catalogue. Follow this convention for each
-new asset:
+foundation for the full product catalogue. Each new asset gets its own
+module under `apps/visualizer-3d/public/objects/<asset>.js`:
 
 ```javascript
-// In buildItemMesh:
-if (item.metadata?.category === "snack") return buildSnackGroup(color);
-if (item.metadata?.category === "merch") return buildMerchGroup(color);
+// apps/visualizer-3d/public/objects/snack.js
+import * as THREE from "three";
+import { makePsxTexture } from "../materials.js";
+import { buildSquareFrustum } from "../geometry/frustum.js";
 
-// Each builder follows the same pattern:
-function buildSnackGroup(color) {
-  const { ...cfg } = SNACK_CFG;          // own config constant
+export const SNACK_CFG = { /* own config constant */ };
+
+export function buildSnackGroup(color, cfg = SNACK_CFG) {
   const tex = makePsxTexture(color, cfg.texSize);
   const mkMat = () => new THREE.MeshLambertMaterial({ map: tex, flatShading: true });
   const group = new THREE.Group();
@@ -201,5 +203,13 @@ function buildSnackGroup(color) {
 }
 ```
 
-Each new asset type should have its own `*_CFG` constant block and its own
-entry in `docs/next-steps/` before implementation begins.
+Dispatch from a per-role factory in `objects/scene-meshes.js`:
+
+```javascript
+// In buildProductMesh (or a new per-role factory):
+if (product.category === "snack") return buildSnackGroup(color, cfg);
+```
+
+Each new asset type should have its own `*_CFG` constant block, its own
+module file, and its own entry in `docs/next-steps/` before implementation
+begins.
