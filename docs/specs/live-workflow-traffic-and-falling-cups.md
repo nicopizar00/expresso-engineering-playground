@@ -248,40 +248,60 @@ Neither k6's commerce requests nor the domain-state SSE stream change.
 
 ## RUN-006: Falling-cup rendering (SPEC-008, core)
 
+The Visualizer is a per-concern ES module graph (`materials.js`,
+`geometry/`, `objects/`, `layout/`, `transport.js`, `fallback.js`,
+`scene.js` as thin entry — see the module-discipline table in
+`.claude/skills/expresso-visualizer-review/SKILL.md`). This work follows
+that pattern with new, parallel modules rather than editing the
+domain-state ones.
+
 ### Requirements
 
-- `apps/visualizer-3d/public/scene.js` changes MUST be strictly additive:
-  a new `TRAFFIC_CUP_CFG` block, a new `buildTrafficCupGroup(useCase,
-  outcome)` function, a new `trafficGroup` (parallel to `dataGroup`), and
-  a new `connectTrafficSse()` function (parallel to `connectSse()`).
-  `buildSquareFrustum`, `makePsxTexture`, `clearGroup`, `buildEspressoGroup`,
-  and `connectSse()` MUST NOT be modified.
-- `buildTrafficCupGroup` MUST reuse `buildSquareFrustum` and
-  `makePsxTexture` for its geometry and texture, per the PS1 art-direction
-  extension convention, and MUST stay within the Standard tier (≤ 28
-  triangles). Color and horizontal lane position MUST come from the
-  catalog entry's `visual.color` and `visual.lane` (already present in
-  `use-cases/catalog.json` for all seven use cases).
-- On a `started` event, the Visualizer MUST spawn one traffic cup at a
-  lane-based X position at a fixed spawn height, tagged with its
-  `iterationId`.
-- `animate()` MUST gain one additive block: cups in `trafficGroup` move
-  downward each frame; on reaching floor height they apply a terminal
-  treatment once their matching `succeeded`/`failed` event arrives (or
-  immediately if it has already arrived).
+- New modules only: `apps/visualizer-3d/public/objects/traffic-cup.js`
+  (`TRAFFIC_CUP_CFG`, `trafficVisualFor(useCaseId)`,
+  `buildTrafficCupGroup(useCaseId)`) and
+  `apps/visualizer-3d/public/layout/traffic-render.js`
+  (`createTrafficRenderer({ trafficGroup })` returning
+  `{ handleEvent(evt), tick(now) }`). Neither `objects/espresso-cup.js` nor
+  `layout/render.js` (the domain-state equivalents) is modified.
+- Per the module-discipline rule that hex literals live only in
+  `materials.js`, per-use-case cup colors are added there as a new
+  `TRAFFIC_COLORS` export keyed by catalog use-case id (values copied from
+  `use-cases/catalog.json`'s `visual.color`), not inlined in
+  `objects/traffic-cup.js`.
+- `buildTrafficCupGroup` MUST reuse `buildSquareFrustum` (from
+  `geometry/frustum.js`) and `makePsxTexture` (from `materials.js`) for its
+  geometry and texture, and MUST stay within the Standard tier (≤ 28
+  triangles). Horizontal lane position comes from a lane/label map in
+  `objects/traffic-cup.js` mirroring the catalog's `visual.lane` /
+  `visual.label` for the three wired-up use cases (see RUN-003).
+- On a `started` event, `handleEvent` MUST spawn one traffic cup into
+  `trafficGroup` at a lane-based X position at a fixed spawn height, tagged
+  with its `iterationId`.
+- `tick(now)` MUST move falling cups downward each call; on reaching floor
+  height a cup applies a terminal treatment once its matching
+  `succeeded`/`failed` event has arrived (or immediately if it already
+  has). `scene.js` drives `tick` from its own small `requestAnimationFrame`
+  loop, separate from `layout/render.js`'s existing animator — it never
+  calls `renderer.render()` itself, since `trafficGroup` is already part of
+  the same `scene` the existing animator renders every frame.
 - A `succeeded` terminal treatment MUST visibly differ from a `failed`
-  terminal treatment (e.g. settle-and-fade vs. tip-over-and-flash), and a
-  failed iteration MUST NOT be rendered as a successful landing.
+  terminal treatment (e.g. settle vs. tip-over-and-flash), and a failed
+  iteration MUST NOT be rendered as a successful landing.
 - A cup MUST be removed from `trafficGroup` a bounded time after reaching
   its terminal treatment (no indefinite accumulation).
 - If a `succeeded`/`failed` event arrives with no matching in-flight cup
   for its `iterationId` (e.g. a client that connected after the `started`
-  event was already sent), the Visualizer MUST spawn the cup directly at
+  event was already sent), `handleEvent` MUST spawn the cup directly at
   its terminal treatment rather than dropping the event.
 - `trafficGroup` MUST enforce a hard cap (constant, e.g. 60) on concurrent
   cups; a spawn beyond the cap forcibly removes the oldest cup first, as a
   safety net. This is intentionally simpler than full SPEC-009
   aggregation.
+- `scene.js` MUST stay a thin wiring point for this feature too: it
+  creates `trafficGroup`, instantiates `createTrafficRenderer` and the
+  transport from RUN-007's transport module, and runs the small tick loop
+  — it MUST NOT contain mesh, geometry, or material construction itself.
 
 ### Acceptance criteria
 
@@ -294,23 +314,27 @@ Neither k6's commerce requests nor the domain-state SSE stream change.
 - Introducing one intentional failure (e.g. a `commerce.purchase`
   iteration targeting an out-of-stock product) produces a cup with the
   distinct failure treatment, not a normal landing.
-- `git diff apps/visualizer-3d/public/scene.js` contains no changes inside
-  `buildSquareFrustum`, `makePsxTexture`, `clearGroup`, `buildEspressoGroup`,
-  or the existing `connectSse` function body.
+- `git diff` shows no changes inside `objects/espresso-cup.js`,
+  `layout/render.js`, `transport.js`, `objects/disposal.js`,
+  `geometry/frustum.js`'s existing exports, or `materials.js`'s existing
+  exports (only a new `TRAFFIC_COLORS` export is added there).
 
-## RUN-007: HUD (SPEC-008, minimal)
+## RUN-007: HUD and traffic transport (SPEC-008, minimal)
 
 ### Requirements
 
+- New module `apps/visualizer-3d/public/traffic-transport.js` exports
+  `initTrafficTransport({ onEvent, hudEls })`, mirroring `transport.js`'s
+  `initTransport` shape (its own `EventSource` lifecycle, its own retry
+  timer) but for `/workflow-traffic-updates`, event-based rather than
+  snapshot-based. It owns the HUD-count bookkeeping internally, the same
+  way `initTransport` owns `setStatus` internally.
 - `apps/visualizer-3d/public/index.html` MUST gain additive HUD markup
   (new elements, not modifications to the existing `#status` element)
-  showing: active `runId`, the selected use-case legend (label + color
-  swatch, from `visual.label` / `visual.color`), and live
+  showing: active `runId`, the selected use-case legend, and live
   succeeded/failed counters.
-- `scene.js` MUST expose a `setTrafficHud(...)` function, parallel to
-  `setStatus()`, that updates only the new elements.
 - The HUD MUST hide the new elements (return to domain-state-only display)
-  when no workflow-traffic connection has ever been established, so the
+  when no workflow-traffic connection has ever produced an event, so the
   existing domain-state-only experience is unchanged when this feature is
   not in use.
 
@@ -349,8 +373,9 @@ Neither k6's commerce requests nor the domain-state SSE stream change.
 - The CERT-001 through CERT-011 automated certification suite.
 - Any change to `/visualization-data`, `/visualization-updates`, or the
   domain-state scene contract.
-- Any change to `buildEspressoGroup`, `buildSquareFrustum`,
-  `makePsxTexture`, or `clearGroup`.
+- Any change to `objects/espresso-cup.js`, `geometry/frustum.js`'s
+  existing exports, `objects/disposal.js`, `layout/render.js`, or
+  `transport.js`.
 
 ## Delivery sequence
 
