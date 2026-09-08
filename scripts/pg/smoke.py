@@ -75,6 +75,10 @@ def run() -> int:
         _expect("DELETE", f"/cart/items/{item_id}", 409),
     ))
     results.append(_check(
+        "POST /checkout (rejected — customerName not accepted)",
+        _expect("POST", "/checkout", 400, body={"customerName": "Smoke Customer"}),
+    ))
+    results.append(_check(
         "POST /checkout",
         _expect("POST", "/checkout", 201, body={}),
     ))
