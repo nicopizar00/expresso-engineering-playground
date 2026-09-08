@@ -277,7 +277,7 @@ const mockApi = {
         message: 'Cart is empty',
       });
     }
-    return createMockOrder(input.customerName);
+    return createMockOrder();
   },
 
   async getOrders(): Promise<OrdersResponse> {

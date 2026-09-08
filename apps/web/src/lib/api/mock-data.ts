@@ -307,7 +307,7 @@ const sampleOrder: Order = {
 };
 mockOrders.set(sampleOrder.orderId, sampleOrder);
 
-export function createMockOrder(customerName: string): CheckoutResponse {
+export function createMockOrder(): CheckoutResponse {
   if (currentScenario === 'checkout-failure') {
     throw new Error('Payment processing failed (mock error)');
   }
@@ -318,7 +318,7 @@ export function createMockOrder(customerName: string): CheckoutResponse {
 
   const order: Order = {
     orderId,
-    customerName,
+    customerName: null,
     status: 'pending',
     lines: cart.items.map((item) => ({
       productId: item.productId,
@@ -338,7 +338,7 @@ export function createMockOrder(customerName: string): CheckoutResponse {
   return {
     orderId,
     cartId: cart.cartId,
-    customerName,
+    customerName: null,
     status: 'pending',
     total: cart.total,
     placedAt,
