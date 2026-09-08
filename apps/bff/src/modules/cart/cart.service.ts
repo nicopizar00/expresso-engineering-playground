@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConflictException, BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Money } from "@mini-commerce/shared-types";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
@@ -37,8 +37,22 @@ export class CartService {
   }
 
   add(payload: AddCartItemDto): Cart {
+    // CUP-001: the only allowed quantity is 1, and the only allowed cart
+    // states are empty or one cup. No `await` runs between these checks and
+    // the mutation below, so Node's single-threaded execution makes this
+    // atomic across concurrent requests without extra locking.
+    if (payload.quantity !== 1) {
+      throw new BadRequestException("quantity must be exactly 1");
+    }
+    if (this.items.length > 0) {
+      throw new ConflictException(
+        "cart already holds the one allowed cup; place the order or wait for it to clear",
+      );
+    }
     // Re-uses CatalogService through its public surface — same access path a
-    // future extracted catalog service would use over the wire.
+    // future extracted catalog service would use over the wire. Also doubles
+    // as the "reject any other product identity" guard: the catalog holds
+    // only one product, so any other productId 404s here.
     const product = this.catalog.getById(payload.productId);
     const lineTotal: Money = {
       amountMinor: product.price.amountMinor * payload.quantity,
@@ -67,42 +81,30 @@ export class CartService {
     return this.snapshot();
   }
 
-  // Update an existing line's quantity, recomputing its line total from the
-  // stored unit price. Throws 404 if the item is not in the cart.
+  // CUP-001: once the one cup is selected, the only normal product action is
+  // Place Order. Quantity change is rejected transactionally at this layer,
+  // not just hidden in the UI.
   updateQuantity(itemId: string, quantity: number): Cart {
-    const index = this.items.findIndex((item) => item.itemId === itemId);
-    if (index === -1) {
+    const exists = this.items.some((item) => item.itemId === itemId);
+    if (!exists) {
       throw new NotFoundException(`Cart item ${itemId} not found`);
     }
-    const existing = this.items[index]!;
-    const updated: CartItem = {
-      ...existing,
-      quantity,
-      lineTotal: {
-        amountMinor: existing.unitPrice.amountMinor * quantity,
-        currency: existing.unitPrice.currency,
-      },
-    };
-    this.items = this.items.map((item, i) => (i === index ? updated : item));
-    this.lastChangedEpoch = Date.now();
-    this.logger.log(`cart update item=${itemId} qty=${quantity}`);
-    const cart = this.snapshot();
-    this.domainEvents.emit();
-    return cart;
+    throw new ConflictException(
+      `cannot change quantity to ${quantity}; once selected, only Place Order is allowed`,
+    );
   }
 
-  // Remove a line from the cart. Throws 404 if the item is not present.
+  // CUP-001: removal is rejected once the cup is selected — the cart can
+  // only be cleared by a successful Place Order (see `clear()`, called
+  // internally by CheckoutService).
   remove(itemId: string): Cart {
     const exists = this.items.some((item) => item.itemId === itemId);
     if (!exists) {
       throw new NotFoundException(`Cart item ${itemId} not found`);
     }
-    this.items = this.items.filter((item) => item.itemId !== itemId);
-    this.lastChangedEpoch = Date.now();
-    this.logger.log(`cart remove item=${itemId}`);
-    const cart = this.snapshot();
-    this.domainEvents.emit();
-    return cart;
+    throw new ConflictException(
+      "removal is not allowed once the cup is selected; place the order or wait for it to clear",
+    );
   }
 
   // Consumed by CheckoutService after a successful checkout to reset state.
