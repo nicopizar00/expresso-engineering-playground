@@ -152,7 +152,7 @@ export class OrdersService implements OnModuleInit {
               data: {
                 orderId,
                 clientRequestId: input.clientRequestId ?? null,
-                customerName: input.customerName,
+                customerName: input.customerName ?? null,
                 status: "pending",
                 totalAmountMinor: input.total.amountMinor,
                 totalCurrency: input.total.currency,
