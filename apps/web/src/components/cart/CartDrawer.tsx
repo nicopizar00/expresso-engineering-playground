@@ -10,16 +10,14 @@
  * TODO(v0-export): Extract CartItemRow to separate file for reusability
  */
 
-import { useRef, useState } from 'react';
-import { X, ShoppingCart, Minus, Plus, Trash2, ArrowRight, Loader2 } from 'lucide-react';
+import { useRef } from 'react';
+import { X, ShoppingCart, ArrowRight } from 'lucide-react';
 import { useCart } from './CartProvider';
 import { EmptyState } from '@/components/system/EmptyState';
 import { LoadingSpinner } from '@/components/system/LoadingSkeleton';
 import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
 import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
 import Link from 'next/link';
-
-const MAX_QUANTITY = 20;
 
 interface CartDrawerProps {
   open: boolean;
@@ -162,32 +160,11 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 }
 
 /**
- * Individual cart item row. Quantity steppers call PATCH /cart/items/:itemId
- * and the trash button calls DELETE /cart/items/:itemId, both through the
- * cart context. A per-row pending flag prevents overlapping mutations.
+ * Individual cart item row. Once a cup is selected, the only normal product
+ * action is Place Order (CUP-001) — quantity and removal controls are not
+ * shown because the BFF now rejects both once an item is in the cart.
  */
 function CartItemRow({ item }: { item: CartItemType }) {
-  const { updateItem, removeItem } = useCart();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function run(action: () => Promise<void>) {
-    setPending(true);
-    setError(null);
-    try {
-      await action();
-    } catch {
-      // SWR keeps the last good cart on failure; surface an inline hint so the
-      // action doesn't fail silently.
-      setError('Update failed. Please try again.');
-    } finally {
-      setPending(false);
-    }
-  }
-
-  const atMin = item.quantity <= 1;
-  const atMax = item.quantity >= MAX_QUANTITY;
-
   return (
     <li className="p-4">
       <div className="flex gap-4">
@@ -212,40 +189,12 @@ function CartItemRow({ item }: { item: CartItemType }) {
             {item.name}
           </h3>
           <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => run(() => updateItem(item.itemId, item.quantity - 1))}
-                disabled={pending || atMin}
-                className="p-2 rounded transition-colors disabled:opacity-50"
-                style={{
-                  backgroundColor: 'var(--secondary)',
-                  color: 'var(--foreground)',
-                }}
-                aria-label="Decrease quantity"
-                title={atMin ? 'Use remove to clear this item' : 'Decrease quantity'}
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <span
-                className="text-sm font-medium w-8 text-center flex items-center justify-center"
-                style={{ color: 'var(--foreground)' }}
-              >
-                {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : item.quantity}
-              </span>
-              <button
-                onClick={() => run(() => updateItem(item.itemId, item.quantity + 1))}
-                disabled={pending || atMax}
-                className="p-2 rounded transition-colors disabled:opacity-50"
-                style={{
-                  backgroundColor: 'var(--secondary)',
-                  color: 'var(--foreground)',
-                }}
-                aria-label="Increase quantity"
-                title={atMax ? 'Maximum quantity reached' : 'Increase quantity'}
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
+            <span
+              className="text-sm font-medium"
+              style={{ color: 'var(--foreground)' }}
+            >
+              Qty: {item.quantity}
+            </span>
             <span
               className="font-medium text-sm"
               style={{ color: 'var(--foreground)' }}
@@ -253,28 +202,7 @@ function CartItemRow({ item }: { item: CartItemType }) {
               {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
             </span>
           </div>
-          {error && (
-            <p
-              role="alert"
-              className="text-xs mt-2"
-              style={{ color: 'var(--destructive)' }}
-            >
-              {error}
-            </p>
-          )}
         </div>
-
-        {/* Remove button */}
-        <button
-          onClick={() => run(() => removeItem(item.itemId))}
-          disabled={pending}
-          className="p-2 h-fit rounded transition-colors disabled:opacity-50 hover:opacity-80"
-          style={{ color: 'var(--destructive)' }}
-          aria-label={`Remove ${item.name} from cart`}
-          title="Remove from cart"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
       </div>
     </li>
   );
