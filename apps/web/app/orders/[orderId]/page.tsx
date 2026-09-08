@@ -208,15 +208,6 @@ export default function OrderPage({ params }: OrderPageProps) {
 
           <dl className="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <dt style={{ color: 'var(--muted-foreground)' }}>Customer</dt>
-              <dd
-                className="font-medium mt-0.5"
-                style={{ color: 'var(--foreground)' }}
-              >
-                {order.customerName}
-              </dd>
-            </div>
-            <div>
               <dt style={{ color: 'var(--muted-foreground)' }}>Placed At</dt>
               <dd
                 className="font-medium mt-0.5"

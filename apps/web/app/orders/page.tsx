@@ -92,7 +92,7 @@ function OrderRow({ order }: { order: Order }) {
           <OrderStatusBadge status={order.status} />
         </div>
         <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
-          {order.customerName} - {new Date(order.placedAt).toLocaleString()}
+          {new Date(order.placedAt).toLocaleString()}
         </p>
       </div>
       <div className="flex items-center gap-4 ml-4 shrink-0">
