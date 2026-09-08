@@ -89,7 +89,7 @@ export interface OrderLine {
 
 export interface Order {
   readonly orderId: string;
-  readonly customerName: string;
+  readonly customerName: string | null;
   readonly status: OrderStatus;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
@@ -120,14 +120,13 @@ export interface ManageOrderResponse {
 // ---------------------------------------------------------------------------
 
 export interface CheckoutRequest {
-  readonly customerName: string;
   readonly idempotencyKey?: string;
 }
 
 export interface CheckoutResponse {
   readonly orderId: string;
   readonly cartId: string;
-  readonly customerName: string;
+  readonly customerName: string | null;
   readonly status: Extract<OrderStatus, "pending">;
   readonly total: Money;
   readonly placedAt: string;
