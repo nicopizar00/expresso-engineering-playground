@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { X, Coffee, UtensilsCrossed, Package, Plus, Minus, Check, Loader2, AlertCircle } from 'lucide-react';
+import { X, Coffee, UtensilsCrossed, Package, Plus, Check, Loader2, AlertCircle } from 'lucide-react';
 import { Product, ProductCategory } from '@/lib/api/expresso-api';
 import { useCart } from '@/components/cart/CartProvider';
 import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
@@ -23,7 +23,6 @@ function formatMoney(amountMinor: number, currency: string): string {
 
 export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
   const { addItem } = useCart();
-  const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +33,6 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
   const category = categoryConfig[product.category];
   const CategoryIcon = category.icon;
   const isOutOfStock = product.inventory === 0;
-  const maxQuantity = Math.min(20, product.inventory);
 
   async function handleAddToCart() {
     if (isAdding || isOutOfStock) return;
@@ -42,7 +40,7 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
     setIsAdding(true);
     setError(null);
     try {
-      await addItem({ productId: product.productId, quantity });
+      await addItem({ productId: product.productId, quantity: 1 });
       setJustAdded(true);
       setTimeout(() => {
         setJustAdded(false);
@@ -171,51 +169,7 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
             )}
           </div>
 
-          {/* Quantity selector */}
-          {!isOutOfStock && (
-            <div className="flex items-center gap-4">
-              <label 
-                className="text-sm font-medium"
-                style={{ color: 'var(--foreground)' }}
-              >
-                Quantity
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                  className="p-2 rounded-md transition-colors disabled:opacity-50"
-                  style={{ 
-                    backgroundColor: 'var(--secondary)',
-                    color: 'var(--foreground)',
-                  }}
-                  aria-label="Decrease quantity"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span 
-                  className="text-lg font-semibold w-12 text-center"
-                  style={{ color: 'var(--foreground)' }}
-                >
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => setQuantity(q => Math.min(maxQuantity, q + 1))}
-                  disabled={quantity >= maxQuantity}
-                  className="p-2 rounded-md transition-colors disabled:opacity-50"
-                  style={{ 
-                    backgroundColor: 'var(--secondary)',
-                    color: 'var(--foreground)',
-                  }}
-                  aria-label="Increase quantity"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Add to cart button */}
+{/* Add to cart button */}
           <button
             onClick={handleAddToCart}
             disabled={isAdding || isOutOfStock}
@@ -238,10 +192,7 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
             ) : (
               <>
                 <Plus className="h-5 w-5" />
-                <span>
-                  Add to Cart
-                  {quantity > 1 && ` (${quantity})`}
-                </span>
+                <span>Add to Cart</span>
               </>
             )}
           </button>
