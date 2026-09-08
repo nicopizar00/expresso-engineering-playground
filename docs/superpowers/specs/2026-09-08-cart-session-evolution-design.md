@@ -85,11 +85,18 @@ sequenceDiagram
   - If present and non-empty, returns it as-is (no validation beyond
     "non-empty string" — this is identity, not authentication).
   - If absent, generates one (`randomUUID()`), sets it via
-    `res.cookie('sid', id, { httpOnly: true, sameSite: 'lax', path:
-    '/api/bff', secure: process.env.NODE_ENV === 'production' })`, and
-    returns it. `path: '/api/bff'` (not `/`) scopes the cookie to exactly
-    the routes the browser sees through the proxy that need it — the web
-    app's own pages never read or need this cookie.
+    `res.cookie('sid', id, { httpOnly: true, sameSite: 'lax', path: '/',
+    secure: process.env.NODE_ENV === 'production' })`, and returns it.
+    `path: '/'` is required, not a narrower prefix like `/api/bff` — the
+    BFF only ever sees its own bare route paths (`/cart/items`,
+    `/checkout`), never the `/api/bff` prefix (Next.js's rewrite strips it
+    before the request reaches the BFF), so a `Set-Cookie` Path attribute
+    the BFF writes is only ever expressed in that bare-path space. The
+    browser (via the proxy, same-origin) and direct callers like
+    `scripts/pg/smoke.py` or k6 (hitting `:3001` with those same bare
+    paths) each store this cookie against their own distinct origin/host —
+    there is no cross-contamination — but both need `path: '/'` to match
+    correctly against their own view of the request path.
 - `secure` is conditional on `NODE_ENV` because local dev runs over plain
   HTTP through the Next.js proxy; a hardcoded `secure: true` would silently
   break cookie delivery in `./dev up web`.
