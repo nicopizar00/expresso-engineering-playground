@@ -18,7 +18,7 @@ export class CartDrawer {
   }
 
   quantity(productName: string): Locator {
-    return this.productRow(productName).getByText(/^\d+$/).first();
+    return this.productRow(productName).getByText(/^Qty: \d+$/).first();
   }
 
   lineTotal(productName: string): Locator {
@@ -40,24 +40,6 @@ export class CartDrawer {
       .getByRole('link', { name: /Proceed to Checkout/i })
       .or(this.dialog().getByRole('button', { name: /Proceed to Checkout/i }))
       .first();
-  }
-
-  async increaseQuantity(productName: string): Promise<void> {
-    const increaseButton = this.productRow(productName).getByRole('button', {
-      name: 'Increase quantity',
-    });
-    await expect(increaseButton).toBeVisible();
-    await expect(increaseButton).toBeEnabled();
-    await increaseButton.click();
-  }
-
-  async removeProduct(productName: string): Promise<void> {
-    const removeButton = this.productRow(productName).getByRole('button', {
-      name: new RegExp(`^Remove ${escapeRegExp(productName)} from cart$`, 'i'),
-    });
-    await expect(removeButton).toBeVisible();
-    await expect(removeButton).toBeEnabled();
-    await removeButton.click();
   }
 
   async clickCheckout(): Promise<void> {
