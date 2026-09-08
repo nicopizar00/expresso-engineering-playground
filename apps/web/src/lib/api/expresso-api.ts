@@ -269,7 +269,7 @@ const mockApi = {
     return getMockCart();
   },
 
-  async checkout(input: CheckoutInput): Promise<CheckoutResponse> {
+  async checkout(_input: CheckoutInput): Promise<CheckoutResponse> {
     await simulateLatency(300);
     const cart = getMockCart();
     if (cart.items.length === 0) {

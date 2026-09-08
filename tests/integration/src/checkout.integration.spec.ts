@@ -65,7 +65,7 @@ async function makeOrders(seedInventory: number): Promise<{
   // CatalogService and OrdersService are bound to PrismaService at the type
   // level only; at runtime the live PrismaClient instance satisfies the same
   // surface, so a structural cast is sufficient.
-  const catalog = new CatalogService(prisma as never);
+  const catalog = new CatalogService(prisma as never, domainEvents);
   await catalog.onModuleInit();
   const orders = new OrdersService(prisma as never, domainEvents, catalog);
   await orders.onModuleInit();
