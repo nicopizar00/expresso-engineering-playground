@@ -53,7 +53,6 @@ export class CheckoutService {
     };
 
     const order = await this.orders.create({
-      customerName: payload.customerName,
       lines,
       total,
       clientRequestId: payload.idempotencyKey,

@@ -1,12 +1,9 @@
-import { IsOptional, IsString, IsUUID, Length } from "class-validator";
+import { IsOptional, IsUUID } from "class-validator";
 
-// No real payment is processed in this iteration. The body only carries
-// customer identity placeholders so the order has somewhere to attribute.
+// CUP-002: checkout is anonymous. No customer, recipient, or other human
+// name field is accepted — the global ValidationPipe's
+// forbidNonWhitelisted rejects any request body that includes one.
 export class CheckoutDto {
-  @IsString()
-  @Length(1, 80)
-  customerName!: string;
-
   @IsOptional()
   @IsUUID()
   idempotencyKey?: string;

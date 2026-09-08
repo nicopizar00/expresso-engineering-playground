@@ -19,7 +19,7 @@ const CART_ITEMS = [
 
 const ORDER = {
   orderId: "ord_001",
-  customerName: "Test Customer",
+  customerName: null,
   status: "pending",
   total: { amountMinor: 360, currency: "EUR" },
   lines: [],
@@ -75,7 +75,7 @@ describe("CheckoutService", () => {
   });
 
   describe("checkout()", () => {
-    const PAYLOAD = { customerName: "Test Customer" };
+    const PAYLOAD = {};
 
     it("throws BadRequestException when cart is empty", async () => {
       cart = makeCart([]);
@@ -92,11 +92,10 @@ describe("CheckoutService", () => {
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
-    it("calls orders.create with lines derived from cart items", async () => {
+    it("calls orders.create with lines derived from cart items and no customer name", async () => {
       await service.checkout(PAYLOAD);
       expect(orders.create).toHaveBeenCalledOnce();
       expect(orders.create).toHaveBeenCalledWith({
-        customerName: "Test Customer",
         lines: [
           {
             productId: "prod_espresso",
@@ -161,7 +160,7 @@ describe("CheckoutService", () => {
       expect(response).toMatchObject({
         orderId: "ord_001",
         cartId: "cart_demo",
-        customerName: "Test Customer",
+        customerName: null,
         status: "pending",
         total: { amountMinor: 360, currency: "EUR" },
       });
