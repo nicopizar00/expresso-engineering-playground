@@ -117,13 +117,13 @@ curl -s http://localhost:3001/catalog/products/prod_espresso | jq
 # Cart (single-user, in-process — resets on BFF restart)
 curl -s -X POST http://localhost:3001/cart/items \
   -H 'Content-Type: application/json' \
-  -d '{"productId":"prod_espresso","quantity":2}' | jq
+  -d '{"productId":"prod_espresso","quantity":1}' | jq
 curl -s http://localhost:3001/cart | jq
 
 # Checkout — returns the new orderId
 ORDER_ID=$(curl -s -X POST http://localhost:3001/checkout \
   -H 'Content-Type: application/json' \
-  -d '{"customerName":"Walkthrough Buyer"}' | jq -r '.orderId')
+  -d '{}' | jq -r '.orderId')
 echo "Created order: $ORDER_ID"
 
 # Orders
@@ -150,10 +150,10 @@ Then open <http://localhost:3000> and walk this path:
 
 | # | Route               | Action                              | Expected result                                  |
 | - | ------------------- | ----------------------------------- | ------------------------------------------------ |
-| 1 | `/`                 | Browse the seeded catalog           | 7 products: espresso, latte, sandwich, cookie, water, notebook, backpack |
+| 1 | `/`                 | Browse the seeded catalog           | 1 product: Cup of Coffee                         |
 | 2 | `/` → product card  | Click **Add to cart**               | Cart counter increments                          |
 | 3 | `/cart`             | Review items + totals               | Line items, EUR subtotal, **Proceed to checkout** CTA |
-| 4 | `/checkout`         | Enter a customer name, submit       | Redirect to `/orders/<orderId>`                  |
+| 4 | `/checkout`         | Click **Place Order** (no name required) | Redirect to `/orders/<orderId>`             |
 | 5 | `/orders/<orderId>` | Trigger `mark_prepared` / `cancel`  | Status badge updates live                        |
 | 6 | `/orders`           | View orders list                    | The new order plus the seeded `ord_demo`         |
 | 7 | `/visualizer`       | Embedded 3D scene                   | Iframe loads the standalone visualizer          |
