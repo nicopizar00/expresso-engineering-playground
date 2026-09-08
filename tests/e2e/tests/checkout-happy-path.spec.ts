@@ -39,7 +39,7 @@ type OrderStatus = 'pending' | 'preparing' | 'prepared' | 'cancelled';
 
 type Order = {
   orderId: string;
-  customerName: string;
+  customerName: string | null;
   status: OrderStatus;
   lines: Array<{
     productId: string;
@@ -114,14 +114,10 @@ for (const profile of viewportProfiles) {
       page,
     }) => {
       const storefront = await prepareCheckout(page);
-      const customerName = `E2E Shopper ${profile.name}`;
 
       await expect(storefront.checkoutSummaryHeading()).toBeVisible();
       await expect(storefront.checkoutLineItem(productUnderTest.name)).toBeVisible();
-      await expect(storefront.placeOrderButton()).toBeDisabled();
 
-      await expectActionable(storefront.customerNameInput());
-      await storefront.fillCustomerName(customerName);
       await expectActionable(storefront.placeOrderButton());
       await storefront.placeOrder();
 
@@ -132,7 +128,6 @@ for (const profile of viewportProfiles) {
 
       const orderId = storefront.currentOrderId();
       await expect(storefront.visibleOrderId(orderId)).toBeVisible();
-      await expect(storefront.orderCustomer(customerName)).toBeVisible();
       await expect(storefront.orderLineItem(productUnderTest.name)).toBeVisible();
 
       await expectActionable(storefront.startPreparingButton());
@@ -148,8 +143,6 @@ for (const profile of viewportProfiles) {
         checkoutFailure: 'network-drop',
       });
 
-      await expectActionable(storefront.customerNameInput());
-      await storefront.fillCustomerName('Network Failure Shopper');
       await expectActionable(storefront.placeOrderButton());
       await storefront.placeOrder();
 
@@ -285,16 +278,15 @@ async function installCommerceApiMock(
         return route.abort('failed');
       }
 
-      const body = request.postDataJSON() as { customerName?: string } | null;
       const cart = buildCart(cartItems);
 
-      if (cart.items.length === 0 || !body?.customerName?.trim()) {
+      if (cart.items.length === 0) {
         return fulfillJson(route, 400, { message: 'Invalid checkout request' });
       }
 
       order = {
         orderId: 'ord_e2e_1001',
-        customerName: body.customerName.trim(),
+        customerName: null,
         status: 'pending',
         lines: cart.items.map((item) => ({
           productId: item.productId,
@@ -312,7 +304,6 @@ async function installCommerceApiMock(
       return fulfillJson(route, 200, {
         orderId: order.orderId,
         cartId: cart.cartId,
-        customerName: order.customerName,
         status: order.status,
         total: order.total,
         placedAt: order.placedAt,

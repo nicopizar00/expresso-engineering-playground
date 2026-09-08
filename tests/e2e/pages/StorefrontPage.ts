@@ -64,10 +64,6 @@ export class StorefrontPage {
     return this.page.getByText(productName, { exact: true });
   }
 
-  customerNameInput(): Locator {
-    return this.page.getByLabel("Your Name");
-  }
-
   placeOrderButton(): Locator {
     return this.page.getByRole("button", { name: "Place Order" });
   }
@@ -88,10 +84,6 @@ export class StorefrontPage {
 
   visibleOrderId(orderId: string): Locator {
     return this.page.getByText(orderId, { exact: true });
-  }
-
-  orderCustomer(customerName: string): Locator {
-    return this.page.getByText(customerName, { exact: true });
   }
 
   orderLineItem(productName: string): Locator {
@@ -126,10 +118,6 @@ export class StorefrontPage {
 
   async proceedToCheckoutFromCartDrawer(): Promise<void> {
     await this.proceedToCheckoutLink().click();
-  }
-
-  async fillCustomerName(customerName: string): Promise<void> {
-    await this.customerNameInput().fill(customerName);
   }
 
   async placeOrder(): Promise<void> {
