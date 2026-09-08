@@ -28,7 +28,9 @@ model Order {
   // (legacy or fire-and-forget). The unique constraint is the final safety net
   // against concurrent retries — Postgres allows multiple NULLs.
   clientRequestId  String?     @unique
-  customerName     String
+  // Anonymous checkout (CUP-002): no name is collected or required. Nullable
+  // rather than removed so historical orders keep their stored value.
+  customerName     String?
   status           String
   totalAmountMinor Int
   totalCurrency    String
