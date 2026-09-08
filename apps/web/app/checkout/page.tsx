@@ -15,7 +15,6 @@ import {
   Loader2,
   ArrowLeft,
   AlertTriangle,
-  User,
   CheckCircle2,
   Shield,
 } from 'lucide-react';
@@ -28,21 +27,18 @@ import Link from 'next/link';
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, isLoading, isEmpty, formattedTotal, refreshCart } = useCart();
-  const [customerName, setCustomerName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!customerName.trim() || isSubmitting) return;
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const result = await expressoApi.checkout({
-        customerName: customerName.trim(),
-      });
+      const result = await expressoApi.checkout({});
       refreshCart();
       router.push(`/orders/${result.orderId}`);
     } catch (err) {
@@ -184,16 +180,6 @@ export default function CheckoutPage() {
             borderColor: 'var(--border)',
           }}
         >
-          <div 
-            className="flex items-center gap-2 px-5 py-4 border-b"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <User className="h-4 w-4" style={{ color: 'var(--primary)' }} />
-            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-              Customer Information
-            </span>
-          </div>
-
           <div className="p-5 space-y-4">
             {/* Error message */}
             {error && (
@@ -210,37 +196,9 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            <div>
-              <label
-                htmlFor="customerName"
-                className="block text-sm font-medium mb-2"
-                style={{ color: 'var(--foreground)' }}
-              >
-                Your Name
-              </label>
-              <input
-                type="text"
-                id="customerName"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter your name"
-                required
-                autoFocus
-                className="w-full px-4 py-3 rounded-lg border text-sm transition-all"
-                style={{
-                  backgroundColor: 'var(--background)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--foreground)',
-                }}
-              />
-              <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>
-                This name will appear on your order confirmation.
-              </p>
-            </div>
-
             <button
               type="submit"
-              disabled={isSubmitting || !customerName.trim()}
+              disabled={isSubmitting}
               className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: 'var(--primary)',
