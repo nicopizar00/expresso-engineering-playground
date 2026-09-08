@@ -63,7 +63,7 @@ cp .env.example .env       # one-time setup — gitignored local config
 Expected final line:
 
 ```
-All 13 smoke checks passed.
+All 15 smoke checks passed.
 ```
 
 If you got that, the stack is live at <http://localhost:3001>. Open the

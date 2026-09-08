@@ -156,17 +156,19 @@ Target: http://localhost:3001
   ✓ GET  /catalog/products
   ✓ GET  /catalog/products/prod_espresso
   ✓ POST /cart/items
-  ✓ POST /cart/items (2nd)
+  ✓ POST /cart/items (2nd, rejected — cart occupied)
   ✓ GET  /cart
-  ✓ PATCH /cart/items/:id
-  ✓ DELETE /cart/items/:id
+  ✓ PATCH /cart/items/:id (rejected — quantity change not allowed)
+  ✓ DELETE /cart/items/:id (rejected — removal not allowed once selected)
+  ✓ POST /checkout (rejected — customerName not accepted)
   ✓ POST /checkout
   ✓ GET  /orders/ord_demo
   ✓ POST /orders/ord_demo/manage (mark_prepared)
   ✓ GET  /visualization-data
-  ✓ GET  /visualization-updates (SSE frame)
+  ✓ GET  /visualization-data (scene shape)
+  ✓ GET  /visualization-updates (SSE)
 
-All 13 smoke checks passed.
+All 15 smoke checks passed.
 ```
 
 The smoke test requires the BFF to be running (`pnpm pg:dev` or

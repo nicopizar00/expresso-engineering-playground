@@ -71,7 +71,7 @@ Refuses if Tempo is unreachable; hints the user to `./dev up obs`.
 ```bash
 ./dev up obs                              # one-time per session
 ./dev hack trace GET /catalog/products
-./dev hack trace POST /checkout --body '{"customerName":"Smoke"}'
+./dev hack trace POST /checkout --body '{}'
 ```
 
 ## What's not yet in

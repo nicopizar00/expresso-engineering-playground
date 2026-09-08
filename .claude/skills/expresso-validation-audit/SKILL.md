@@ -32,7 +32,7 @@ asking the owner to merge. Skip for typos and one-line doc edits.
 
 2. Run the row. Capture:
    - Exit codes.
-   - The summary line (e.g. `All 13 smoke checks passed`,
+   - The summary line (e.g. `All 15 smoke checks passed`,
      `Tests: 84 passed`).
    - The artifact path if one was generated
      (`tests/performance/k6/reports/<name>-summary.json`).

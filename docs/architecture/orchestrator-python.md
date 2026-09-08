@@ -100,7 +100,7 @@ Tempo (`obs` profile) for the trace, and pretty-prints the span tree.
 ```bash
 ./dev up obs                              # one-time per session
 ./dev hack trace GET /catalog/products
-./dev hack trace POST /checkout --body '{"customerName":"Smoke"}'
+./dev hack trace POST /checkout --body '{}'
 ```
 
 Refuses to run if Tempo isn't reachable, with a hint to bring the `obs`

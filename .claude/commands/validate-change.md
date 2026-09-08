@@ -50,7 +50,7 @@ Output a compact validation block:
 Change scope: <row from matrix>
 - pnpm typecheck       → exit 0
 - pnpm test            → exit 0 (Tests: 84 passed)
-- ./dev smoke          → exit 0 (All 13 smoke checks passed)
+- ./dev smoke          → exit 0 (All 15 smoke checks passed)
 Evidence:
   reports/smoke-summary.json
 Skipped: <none | reason>

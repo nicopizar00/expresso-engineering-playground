@@ -34,7 +34,7 @@ src/
 │   └── telemetry.ts              # OpenTelemetry SDK + OTLP trace export
 └── modules/
     ├── health/        # GET /health
-    ├── catalog/       # GET/POST /catalog/products, GET /catalog/products/:id
+    ├── catalog/       # GET /catalog/products, GET /catalog/products/:id
     ├── cart/          # GET /cart, POST /cart/items
     ├── checkout/      # POST /checkout
     ├── orders/        # GET /orders, GET /orders/:id, POST /orders/:id/manage
@@ -47,14 +47,13 @@ src/
 | Method | Path                    | Notes                                                   |
 | ------ | ----------------------- | ------------------------------------------------------- |
 | GET    | `/health`               | Liveness; `checks.db` is `"skipped"` for now.           |
-| GET    | `/catalog/products`     | Deterministic catalog of seven products.                |
+| GET    | `/catalog/products`     | Deterministic catalog of exactly one product (Cup of Coffee). |
 | GET    | `/catalog/products/:id` | `prod_unknown` returns 404 for error-path tests.        |
-| POST   | `/catalog/products`     | Creates a persisted product.                            |
-| GET    | `/cart`                 | Current cart snapshot.                                  |
-| POST   | `/cart/items`           | Adds a product line; returns the updated cart.          |
-| PATCH  | `/cart/items/:itemId`   | Updates a line's quantity (clamped 1–20).               |
-| DELETE | `/cart/items/:itemId`   | Removes a line; returns the updated cart.               |
-| POST   | `/checkout`             | Converts the cart to an order; resets the cart.         |
+| GET    | `/cart`                 | Current cart snapshot; empty or one Cup of Coffee at quantity 1. |
+| POST   | `/cart/items`           | Adds the one allowed line; rejects a second add (409), a bad quantity (400), or an unknown product (404). |
+| PATCH  | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — quantity can never change. |
+| DELETE | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — only Place Order clears the cart. |
+| POST   | `/checkout`             | Anonymous, terminal Place Order; converts the cart to an order and resets it. Rejects a `customerName` field (400). |
 | GET    | `/orders`               | Lists persisted orders, including seeded `ord_demo`.    |
 | GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.        |
 | POST   | `/orders/:id/manage`    | Persists `cancel`, `update_status`, `mark_prepared`.    |

@@ -37,26 +37,31 @@ depend on that host exposure.
 
 ## 2. Feature inventory by domain
 
-### Catalog (persisted)
+### Catalog (persisted, single product)
 
-- Browse the seeded product catalog with category filtering on `/`.
-- Product detail via quick view.
-- Endpoints: `GET /catalog/products`, `GET /catalog/products/:id`.
+- The catalog exposes exactly one product, **Cup of Coffee**, on `/`. The
+  category filter UI still exists but is vestigial against a one-product
+  catalog.
+- Product detail via quick view (no quantity control — quantity is always 1).
+- Endpoints: `GET /catalog/products`, `GET /catalog/products/:id`. The
+  product-creation route (`POST /catalog/products`) is unreachable — the
+  controller no longer registers it.
 
-### Cart (in-memory, full CRUD)
+### Cart (in-memory, one-cup invariant)
 
 - Single-user, in-process cart that resets on BFF restart (intentional).
-- **Create** — add from the catalog (`POST /cart/items`).
+- **Create** — add the one Cup of Coffee (`POST /cart/items`). A second add
+  while the cart is occupied is rejected (409).
 - **Read** — cart drawer and `/cart` page (`GET /cart`).
-- **Update** — quantity steppers (`PATCH /cart/items/:itemId`, clamped 1–20).
-- **Delete** — remove line (`DELETE /cart/items/:itemId`).
-- Quantity 1 disables the decrement control (use remove to clear a line);
-  quantity 20 disables the increment control.
+- **Update/Delete** — rejected (409) once a cup is selected. There are no
+  quantity steppers or a remove control in the cart drawer or `/cart` page;
+  the only normal action after selecting is Place Order.
 
-### Checkout (persists an order)
+### Checkout (anonymous, persists an order)
 
-- Place an order with a fictional customer name on `/checkout`
-  (`POST /checkout`). A successful checkout drains the cart and persists the order.
+- Place the order anonymously on `/checkout` (`POST /checkout`) — there is
+  no name field, and a request that supplies `customerName` is rejected
+  (400). A successful checkout drains the cart and persists the order.
 
 ### Orders (persisted)
 
@@ -92,8 +97,8 @@ depend on that host exposure.
 | Route              | UX state                                                 | Data source         |
 | ------------------ | -------------------------------------------------------- | ------------------- |
 | `/`                | Catalog grid, category filter, add to cart               | BFF (proxy) or mock |
-| `/cart`            | Line list, live quantity steppers, remove, order summary | BFF (proxy) or mock |
-| `/checkout`        | Customer-name form, places a persisted order             | BFF (proxy) or mock |
+| `/cart`            | Line list, read-only quantity, order summary              | BFF (proxy) or mock |
+| `/checkout`        | Anonymous Place Order, places a persisted order           | BFF (proxy) or mock |
 | `/orders`          | Persisted order list                                     | BFF (proxy) or mock |
 | `/orders/:orderId` | Order detail + status management                         | BFF (proxy) or mock |
 | `/visualizer`      | Iframe embed of the proxied visualizer + standalone link | `/viz` proxy        |
@@ -112,12 +117,11 @@ the web-frontend consumer state.
 | `GET /health`                | Runtime status                                                                                                                                                                                 | Wired                   |
 | `GET /catalog/products`      | Reads persisted catalog                                                                                                                                                                        | Wired                   |
 | `GET /catalog/products/:id`  | Reads persisted product                                                                                                                                                                        | Wired                   |
-| `POST /catalog/products`     | Writes persisted product                                                                                                                                                                       | Available (diagnostics) |
 | `GET /cart`                  | Reads transient cart                                                                                                                                                                           | Wired                   |
-| `POST /cart/items`           | Adds a line to the transient cart                                                                                                                                                              | Wired                   |
-| `PATCH /cart/items/:itemId`  | Updates a line's quantity                                                                                                                                                                      | Wired                   |
-| `DELETE /cart/items/:itemId` | Removes a line                                                                                                                                                                                 | Wired                   |
-| `POST /checkout`             | Drains cart, persists order                                                                                                                                                                    | Wired                   |
+| `POST /cart/items`           | Adds the one allowed line; rejects a second add                                                                                                                                                | Wired                   |
+| `PATCH /cart/items/:itemId`  | Rejected (409) — quantity can never change once selected                                                                                                                                       | Wired                   |
+| `DELETE /cart/items/:itemId` | Rejected (409) — only Place Order clears the cart                                                                                                                                              | Wired                   |
+| `POST /checkout`             | Anonymous; drains cart, persists order; rejects a supplied `customerName`                                                                                                                      | Wired                   |
 | `GET /orders`                | Lists persisted orders                                                                                                                                                                         | Wired                   |
 | `GET /orders/:id`            | Reads persisted order                                                                                                                                                                          | Wired                   |
 | `POST /orders/:id/manage`    | Persists status change                                                                                                                                                                         | Wired                   |
