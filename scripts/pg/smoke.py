@@ -59,24 +59,24 @@ def run() -> int:
                           _expect("GET", "/catalog/products/prod_espresso", 200)))
     results.append(_check("POST /cart/items",
                           _expect("POST", "/cart/items", 201,
-                                  body={"productId": "prod_espresso", "quantity": 2})))
-    results.append(_check("POST /cart/items (2nd)",
-                          _expect("POST", "/cart/items", 201,
+                                  body={"productId": "prod_espresso", "quantity": 1})))
+    results.append(_check("POST /cart/items (2nd, rejected — cart occupied)",
+                          _expect("POST", "/cart/items", 409,
                                   body={"productId": "prod_espresso", "quantity": 1})))
     results.append(_check("GET  /cart", _expect("GET", "/cart", 200)))
 
     item_id = _resolve_cart_item_id()
     results.append(_check(
-        "PATCH /cart/items/:id",
-        _expect("PATCH", f"/cart/items/{item_id}", 200, body={"quantity": 3}),
+        "PATCH /cart/items/:id (rejected — quantity change not allowed)",
+        _expect("PATCH", f"/cart/items/{item_id}", 409, body={"quantity": 3}),
     ))
     results.append(_check(
-        "DELETE /cart/items/:id",
-        _expect("DELETE", f"/cart/items/{item_id}", 200),
+        "DELETE /cart/items/:id (rejected — removal not allowed once selected)",
+        _expect("DELETE", f"/cart/items/{item_id}", 409),
     ))
     results.append(_check(
         "POST /checkout",
-        _expect("POST", "/checkout", 201, body={"customerName": "Smoke Customer"}),
+        _expect("POST", "/checkout", 201, body={}),
     ))
     results.append(_check("GET  /orders/ord_demo",
                           _expect("GET", "/orders/ord_demo", 200)))
