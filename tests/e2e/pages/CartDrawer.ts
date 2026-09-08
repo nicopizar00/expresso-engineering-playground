@@ -49,7 +49,3 @@ export class CartDrawer {
     await checkoutControl.click();
   }
 }
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
