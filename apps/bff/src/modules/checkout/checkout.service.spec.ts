@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
@@ -153,6 +153,22 @@ describe("CheckoutService", () => {
 
       const response = await service.checkout({ ...PAYLOAD, idempotencyKey: "key-replay" });
       expect(response.orderId).toBe(ORDER.orderId);
+    });
+
+    it("clears the cart and emits when order creation fails with insufficient inventory", async () => {
+      orders.create.mockRejectedValueOnce(
+        new ConflictException("insufficient inventory for product prod_espresso"),
+      );
+      await expect(service.checkout(PAYLOAD)).rejects.toThrow(ConflictException);
+      expect(cart.clear).toHaveBeenCalledOnce();
+      expect(domainEvents.emit).toHaveBeenCalledOnce();
+    });
+
+    it("does not clear the cart when order creation fails with a non-conflict error", async () => {
+      orders.create.mockRejectedValueOnce(new Error("db connection lost"));
+      await expect(service.checkout(PAYLOAD)).rejects.toThrow("db connection lost");
+      expect(cart.clear).not.toHaveBeenCalled();
+      expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
     it("returns the expected CheckoutResponse shape", async () => {

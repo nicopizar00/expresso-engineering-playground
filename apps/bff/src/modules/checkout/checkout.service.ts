@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, Logger } from "@nestjs/common";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CartService } from "../cart/cart.service";
 import { OrdersService } from "../orders/orders.service";
@@ -52,11 +52,31 @@ export class CheckoutService {
       currency,
     };
 
-    const order = await this.orders.create({
-      lines,
-      total,
-      clientRequestId: payload.idempotencyKey,
-    });
+    let order;
+    try {
+      order = await this.orders.create({
+        lines,
+        total,
+        clientRequestId: payload.idempotencyKey,
+      });
+    } catch (err) {
+      // CUP-001: once selected, only a successful Place Order clears the
+      // cart — but a ConflictException here means the CAS inventory guard
+      // found nothing left to sell. Retrying can never succeed for this
+      // cup, and remove/re-add are both rejected once the cart is
+      // occupied, so without this the user is stuck holding an
+      // unfulfillable selection forever. Clear it so they see the real
+      // out-of-stock state instead. Any other failure (network, DB) is
+      // left alone — a plain retry is the correct recovery there.
+      if (err instanceof ConflictException) {
+        this.cart.clear();
+        this.domainEvents.emit();
+        this.logger.log(
+          `checkout key=${payload.idempotencyKey ?? "n/a"} cleared cart after inventory exhaustion`,
+        );
+      }
+      throw err;
+    }
 
     this.cart.clear();
     this.domainEvents.emit();
