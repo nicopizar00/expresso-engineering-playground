@@ -3,9 +3,9 @@
 /**
  * CartDrawer - Slide-over cart panel
  *
- * Displays current cart contents with item list and checkout link. Quantity
- * steppers and the remove button drive the real BFF cart endpoints
- * (PATCH/DELETE /cart/items/:itemId) through the /api/bff proxy.
+ * Displays current cart contents with item list and checkout link. Once a
+ * cup is in the cart, quantity and removal are governed by the BFF's
+ * one-cup invariant (CUP-001) — no controls are exposed for either.
  *
  * TODO(v0-export): Extract CartItemRow to separate file for reusability
  */
