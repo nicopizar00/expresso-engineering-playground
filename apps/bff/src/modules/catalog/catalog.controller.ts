@@ -1,6 +1,5 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Controller, Get, Param } from "@nestjs/common";
 import { CatalogService } from "./catalog.service";
-import { CreateProductDto } from "./catalog.types";
 import type { Product, ProductsResponse } from "./catalog.types";
 
 @Controller("catalog")
@@ -15,10 +14,5 @@ export class CatalogController {
   @Get("products/:id")
   get(@Param("id") id: string): Product {
     return this.catalog.getById(id);
-  }
-
-  @Post("products")
-  create(@Body() dto: CreateProductDto): Promise<Product> {
-    return this.catalog.create(dto);
   }
 }
