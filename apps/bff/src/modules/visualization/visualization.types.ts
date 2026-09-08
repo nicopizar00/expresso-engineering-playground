@@ -29,7 +29,7 @@ export interface SceneProduct {
 
 export interface SceneOrder {
   readonly orderId: string;
-  readonly customerName: string;
+  readonly customerName: string | null;
   readonly status: OrderStatus;
   readonly vizStatus: VisualizationItemStatus;
   readonly total: Money;

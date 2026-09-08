@@ -10,7 +10,7 @@ export interface OrderLine {
 
 export interface Order {
   readonly orderId: string;
-  readonly customerName: string;
+  readonly customerName: string | null;
   readonly status: OrderStatus;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
@@ -23,7 +23,7 @@ export interface OrdersResponse {
 }
 
 export interface CreateOrderInput {
-  readonly customerName: string;
+  readonly customerName?: string;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
   // Optional caller-supplied idempotency key. When set, a retry with the same

@@ -119,16 +119,17 @@ function fromProduct(
 
 function fromOrder(order: Order, index: number): VisualizationItem {
   const updatedAtEpoch = Date.parse(order.updatedAt);
+  const customerDisplay = order.customerName ?? "(no name)";
   return {
     id: `viz_order_${order.orderId}`,
-    label: `${order.orderId} · ${order.customerName}`,
+    label: `${order.orderId} · ${customerDisplay}`,
     type: "sphere",
     value: order.total.amountMinor,
     status: orderStatus(order.status),
     positionHint: orderPosition(index),
     metadata: {
       orderStatus: order.status,
-      customerName: order.customerName,
+      customerName: customerDisplay,
       lineCount: order.lines.length,
       total: order.total.amountMinor,
       currency: order.total.currency,

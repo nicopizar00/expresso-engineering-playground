@@ -72,7 +72,7 @@ export class CheckoutService {
   // Replay returns the original creation receipt. The order's current status
   // (may now be cancelled/prepared) is intentionally not reflected here —
   // callers wanting live status should hit GET /orders/:id.
-  private toResponse(order: { orderId: string; customerName: string; total: CheckoutResponse["total"]; placedAt: string }): CheckoutResponse {
+  private toResponse(order: { orderId: string; customerName: string | null; total: CheckoutResponse["total"]; placedAt: string }): CheckoutResponse {
     return {
       orderId: order.orderId,
       cartId: "cart_demo",
