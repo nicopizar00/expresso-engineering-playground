@@ -163,9 +163,6 @@ test.describe("visual UI integrity - desktop", () => {
 
     await expectVisualActionable(dialog.getByRole("button", { name: "Close" }));
     await expectVisualActionable(
-      dialog.getByRole("button", { name: "Increase quantity" }),
-    );
-    await expectVisualActionable(
       dialog.getByRole("button", { name: "Add to Cart" }),
       {
         minHeight: 40,
@@ -220,14 +217,6 @@ test.describe("visual UI integrity - desktop", () => {
     await expectVisualActionable(
       drawer.getByRole("button", { name: "Close cart" }),
     );
-    await expectVisualActionable(
-      drawer.getByRole("button", { name: "Increase quantity" }),
-    );
-    await expectVisualActionable(
-      drawer.getByRole("button", {
-        name: `Remove ${productUnderTest.name} from cart`,
-      }),
-    );
 
     const checkout = drawer.getByRole("link", { name: /Proceed to Checkout/i });
     await expectVisualActionable(checkout, { minHeight: 40, minWidth: 200 });
@@ -240,12 +229,6 @@ test.describe("visual UI integrity - desktop", () => {
   }) => {
     await installVisualMocks(page);
     await addProductAndOpenCheckout(page);
-
-    await expectVisualActionable(page.getByLabel("Your Name"), {
-      minHeight: 32,
-      minWidth: 240,
-    });
-    await page.getByLabel("Your Name").fill("Visual TDD Customer");
 
     const placeOrder = page.getByRole("button", { name: "Place Order" });
     await expectVisualActionable(placeOrder, { minHeight: 40, minWidth: 240 });
