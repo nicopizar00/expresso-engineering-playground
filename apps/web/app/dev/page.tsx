@@ -646,23 +646,10 @@ function CartMutateCard() {
 
 function CheckoutCard() {
   const { result, loading, call } = useApiCall();
-  const [customerName, setCustomerName] = useState('Alex Demo');
 
   return (
     <Card title="Checkout">
-      <div>
-        <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
-          Customer name
-        </label>
-        <input
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="Alex Demo"
-          className="w-full px-2 py-1.5 rounded text-xs border"
-          style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
-        />
-      </div>
-      <ActionButton onClick={() => call(() => expressoApi.checkout({ customerName }))} loading={loading}>
+      <ActionButton onClick={() => call(() => expressoApi.checkout({}))} loading={loading}>
         POST /checkout
       </ActionButton>
       <ResponseBox result={result} />
