@@ -15,6 +15,9 @@ const PRODUCT = {
   inventory: 100,
 };
 
+const SESSION_A = "sid_test_a";
+const SESSION_B = "sid_test_b";
+
 function makeCatalog() {
   return {
     getById: vi.fn().mockReturnValue(PRODUCT),
@@ -52,7 +55,7 @@ describe("CartService", () => {
 
   describe("add()", () => {
     it("returns a cart with the added item", () => {
-      const cart = service.add({ productId: "prod_espresso", quantity: 1 });
+      const cart = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
       expect(cart.items).toHaveLength(1);
       expect(cart.items[0]!.productId).toBe("prod_espresso");
       expect(cart.items[0]!.quantity).toBe(1);
@@ -60,7 +63,7 @@ describe("CartService", () => {
     });
 
     it("emits a domain event", () => {
-      service.add({ productId: "prod_espresso", quantity: 1 });
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
       expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
 
@@ -68,72 +71,99 @@ describe("CartService", () => {
       catalog.getById.mockImplementation(() => {
         throw new NotFoundException("product not found");
       });
-      expect(() => service.add({ productId: "prod_unknown", quantity: 1 })).toThrow(
-        NotFoundException,
-      );
+      expect(() =>
+        service.add(SESSION_A, { productId: "prod_unknown", quantity: 1 }),
+      ).toThrow(NotFoundException);
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
     it("throws BadRequestException when quantity is not 1", () => {
-      expect(() => service.add({ productId: "prod_espresso", quantity: 2 })).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        service.add(SESSION_A, { productId: "prod_espresso", quantity: 2 }),
+      ).toThrow(BadRequestException);
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
     it("throws ConflictException on a second add while the cart is occupied", () => {
-      service.add({ productId: "prod_espresso", quantity: 1 });
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
       domainEvents.emit.mockClear();
-      expect(() => service.add({ productId: "prod_espresso", quantity: 1 })).toThrow(
-        ConflictException,
-      );
+      expect(() =>
+        service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 }),
+      ).toThrow(ConflictException);
       expect(domainEvents.emit).not.toHaveBeenCalled();
-      expect(service.get().items).toHaveLength(1);
+      expect(service.get(SESSION_A).items).toHaveLength(1);
+    });
+
+    it("two different sessions can each independently hold their own cup", () => {
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      service.add(SESSION_B, { productId: "prod_espresso", quantity: 1 });
+
+      expect(service.get(SESSION_A).items).toHaveLength(1);
+      expect(service.get(SESSION_B).items).toHaveLength(1);
+      expect(service.get(SESSION_A).items[0]!.itemId).not.toBe(
+        service.get(SESSION_B).items[0]!.itemId,
+      );
     });
   });
 
   describe("updateQuantity()", () => {
     it("throws ConflictException once the cup is selected, regardless of requested quantity", () => {
-      service.add({ productId: "prod_espresso", quantity: 1 });
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
       domainEvents.emit.mockClear();
-      const itemId = service.get().items[0]!.itemId;
-      expect(() => service.updateQuantity(itemId, 2)).toThrow(ConflictException);
+      const itemId = service.get(SESSION_A).items[0]!.itemId;
+      expect(() => service.updateQuantity(SESSION_A, itemId, 2)).toThrow(ConflictException);
       expect(domainEvents.emit).not.toHaveBeenCalled();
-      expect(service.get().items[0]!.quantity).toBe(1);
+      expect(service.get(SESSION_A).items[0]!.quantity).toBe(1);
     });
 
     it("throws NotFoundException for an unknown itemId", () => {
-      expect(() => service.updateQuantity("ci_999", 1)).toThrow(NotFoundException);
+      expect(() => service.updateQuantity(SESSION_A, "ci_999", 1)).toThrow(NotFoundException);
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
   });
 
   describe("remove()", () => {
     it("throws ConflictException once the cup is selected", () => {
-      service.add({ productId: "prod_espresso", quantity: 1 });
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
       domainEvents.emit.mockClear();
-      const itemId = service.get().items[0]!.itemId;
-      expect(() => service.remove(itemId)).toThrow(ConflictException);
+      const itemId = service.get(SESSION_A).items[0]!.itemId;
+      expect(() => service.remove(SESSION_A, itemId)).toThrow(ConflictException);
       expect(domainEvents.emit).not.toHaveBeenCalled();
-      expect(service.get().items).toHaveLength(1);
+      expect(service.get(SESSION_A).items).toHaveLength(1);
     });
 
     it("throws NotFoundException for an unknown itemId", () => {
-      expect(() => service.remove("ci_999")).toThrow(NotFoundException);
+      expect(() => service.remove(SESSION_A, "ci_999")).toThrow(NotFoundException);
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
   });
 
   describe("get()", () => {
     it("returns an empty cart initially", () => {
-      const cart = service.get();
+      const cart = service.get(SESSION_A);
       expect(cart.items).toHaveLength(0);
       expect(cart.total).toEqual({ amountMinor: 0, currency: "EUR" });
     });
 
     it("does not emit domain events", () => {
-      service.get();
+      service.get(SESSION_A);
       expect(domainEvents.emit).not.toHaveBeenCalled();
+    });
+
+    it("a session never seen before starts empty, same as any other", () => {
+      expect(service.get("sid_never_seen").items).toHaveLength(0);
+    });
+  });
+
+  describe("clear()", () => {
+    it("only clears the given session, leaving others untouched", () => {
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      service.add(SESSION_B, { productId: "prod_espresso", quantity: 1 });
+
+      service.clear(SESSION_A);
+
+      expect(service.get(SESSION_A).items).toHaveLength(0);
+      expect(service.get(SESSION_B).items).toHaveLength(1);
     });
   });
 });
