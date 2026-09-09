@@ -82,7 +82,12 @@ const rainRenderer = createRainRenderer({ rainGroup });
 const transport = initTransport({
   onScene(sceneData) {
     renderScene(sceneData);
-    rainRenderer.handleScene(sceneData);
+    // The offline/mock fallback scene (identity check — transport.js passes
+    // this exact object) must never seed or perturb the rain baseline: it
+    // always has an empty recentOrders, so treating it as a real snapshot
+    // would lock in an empty "already seen" set and rain the entire real
+    // order history in one burst the moment the BFF becomes reachable.
+    if (sceneData !== FALLBACK_SCENE) rainRenderer.handleScene(sceneData);
   },
   sceneObjectCount,
   statusEl,
