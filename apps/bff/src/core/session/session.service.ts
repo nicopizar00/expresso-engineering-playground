@@ -25,11 +25,17 @@ export class SessionService {
     // proxy (the rewrite strips it before the request arrives here). Both
     // the proxied browser and direct callers (scripts/pg/smoke.py, k6)
     // need path '/' to see this cookie on the paths they actually request.
+    // Derived from the actual inbound request scheme, not NODE_ENV: the
+    // BFF's Docker image hardcodes NODE_ENV=production even for local
+    // `./dev up` (standard Node runtime-image practice), which would make
+    // an env-based check always true and break cookie delivery over the
+    // plain HTTP this playground actually serves locally. req.protocol
+    // reflects reality regardless of how NODE_ENV is set at build time.
     res.cookie(SESSION_COOKIE, sessionId, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
-      secure: process.env.NODE_ENV === "production",
+      secure: req.protocol === "https",
     });
     return sessionId;
   }

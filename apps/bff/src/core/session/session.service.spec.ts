@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { Request, Response } from "express";
 import { SessionService } from "./session.service";
 
-function makeReq(cookieHeader?: string): Request {
-  return { headers: { cookie: cookieHeader } } as unknown as Request;
+function makeReq(cookieHeader?: string, protocol: string = "http"): Request {
+  return { headers: { cookie: cookieHeader }, protocol } as unknown as Request;
 }
 
 function makeRes() {
@@ -26,7 +26,21 @@ describe("SessionService", () => {
     expect(res.cookie).toHaveBeenCalledWith(
       "sid",
       sessionId,
-      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/" }),
+      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", secure: false }),
+    );
+  });
+
+  it("marks the cookie Secure when the inbound request is over https", () => {
+    const service = new SessionService();
+    const req = makeReq(undefined, "https");
+    const res = makeRes();
+
+    service.resolveSessionId(req, res);
+
+    expect(res.cookie).toHaveBeenCalledWith(
+      "sid",
+      expect.any(String),
+      expect.objectContaining({ secure: true }),
     );
   });
 
