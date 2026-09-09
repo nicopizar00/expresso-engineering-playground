@@ -9,6 +9,7 @@ Covers two needs:
 
 from __future__ import annotations
 
+import http.cookiejar
 import json
 import socket
 import urllib.error
@@ -26,6 +27,7 @@ def request_json(
     body: Optional[dict] = None,
     expect_status: Optional[int] = None,
     timeout: float = 5.0,
+    cookie_jar: Optional[http.cookiejar.CookieJar] = None,
 ) -> Tuple[int, Optional[dict]]:
     data: Optional[bytes] = None
     headers = {"accept": "application/json"}
@@ -34,8 +36,10 @@ def request_json(
         headers["content-type"] = "application/json"
 
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    handlers = [urllib.request.HTTPCookieProcessor(cookie_jar)] if cookie_jar is not None else []
+    opener = urllib.request.build_opener(*handlers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with opener.open(req, timeout=timeout) as resp:
             status = resp.status
             raw = resp.read()
     except urllib.error.HTTPError as err:
