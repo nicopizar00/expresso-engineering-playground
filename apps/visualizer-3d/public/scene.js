@@ -87,7 +87,12 @@ const transport = initTransport({
     // always has an empty recentOrders, so treating it as a real snapshot
     // would lock in an empty "already seen" set and rain the entire real
     // order history in one burst the moment the BFF becomes reachable.
-    if (sceneData !== FALLBACK_SCENE) rainRenderer.handleScene(sceneData);
+    try {
+      if (sceneData !== FALLBACK_SCENE) rainRenderer.handleScene(sceneData);
+    } catch {
+      // Rain is decorative; a failure here must never degrade the
+      // domain-state path that `renderScene` already completed above.
+    }
   },
   sceneObjectCount,
   statusEl,

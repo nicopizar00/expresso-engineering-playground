@@ -21,11 +21,18 @@ const RAIN_SCALE     = 0.5; // smaller than the foreground hero (HERO_SCALE in
                              // for the interactive cup
 const SPAWN_Y        = 3.0;
 const SPAWN_Z        = 0.6;
+const SPAWN_STAGGER_MS = 150; // minimum gap between successive spawns, so a
+                               // burst of newly-observed orders in one
+                               // snapshot doesn't land as coincident cups
+const SPAWN_X_SPREAD   = 0.6; // horizontal jitter band
+const SPAWN_Z_SPREAD   = 0.25; // depth jitter band
 
 export function createRainRenderer({ rainGroup }) {
   const seenOrderIds = new Set();
   let hasBaseline = false;
   let lastFrameAt = null;
+  const pendingOrderIds = [];
+  let lastSpawnAt = -Infinity;
 
   function rememberSeen(orderId) {
     seenOrderIds.add(orderId);
@@ -51,7 +58,9 @@ export function createRainRenderer({ rainGroup }) {
     }
     const group = buildEspressoGroup(ESPRESSO_PALETTE.midBeige);
     group.scale.setScalar(RAIN_SCALE);
-    group.position.set(0, SPAWN_Y, SPAWN_Z);
+    const x = (Math.random() - 0.5) * SPAWN_X_SPREAD;
+    const z = SPAWN_Z + (Math.random() - 0.5) * SPAWN_Z_SPREAD;
+    group.position.set(x, SPAWN_Y, z);
     group.userData = { orderId, state: "falling", landedAt: null };
     rainGroup.add(group);
   }
@@ -72,11 +81,15 @@ export function createRainRenderer({ rainGroup }) {
     for (const order of orders) {
       if (seenOrderIds.has(order.orderId)) continue;
       rememberSeen(order.orderId);
-      spawnCup(order.orderId);
+      pendingOrderIds.push(order.orderId);
     }
   }
 
   function tick(now) {
+    if (pendingOrderIds.length > 0 && now - lastSpawnAt >= SPAWN_STAGGER_MS) {
+      lastSpawnAt = now;
+      spawnCup(pendingOrderIds.shift());
+    }
     const dt = lastFrameAt === null ? 1 / 60 : Math.min((now - lastFrameAt) / 1000, 0.1);
     lastFrameAt = now;
     for (let i = rainGroup.children.length - 1; i >= 0; i--) {

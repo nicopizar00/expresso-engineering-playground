@@ -110,6 +110,7 @@ the importmap in `index.html`.
 | `objects/scene-meshes.js` | `buildProductMesh`, `buildOrderMesh`, `buildAggregateMesh`, `buildCartMesh`. |
 | `objects/disposal.js` | `clearGroup` (canvas-texture-aware). |
 | `layout/render.js` | `createRenderer({ dataGroup })`, `createAnimator({...})`, hero/scale constants. |
+| `layout/rain-render.js` | `createRainRenderer({ rainGroup })` → `{ handleScene(scene), tick(now) }` — placed-order falling-cup rain (CUP-006). |
 | `transport.js` | `API_BASE`, `initTransport({...})` → `{ connect, pauseForHidden }`. |
 | `fallback.js` | `FALLBACK_SCENE`. |
 
