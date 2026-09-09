@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Cart } from "../cart/cart.types";
 import type { Product } from "../catalog/catalog.types";
 import type { Order } from "../orders/orders.types";
 import { VisualizationService } from "./visualization.service";
@@ -49,26 +48,14 @@ const ORDERS: Order[] = [
   },
 ];
 
-const EMPTY_CART: Cart = {
-  cartId: "cart_demo",
-  items: [],
-  itemCount: 0,
-  total: { amountMinor: 0, currency: "EUR" },
-  updatedAt: "2026-05-14T12:00:00.000Z",
-};
-
 function makeSvc({
   products = PRODUCTS,
   orders = ORDERS,
-  cart = EMPTY_CART,
-  cartChangedAt = 0,
   assetConfig = null,
   assetModel = null,
 }: {
   products?: Product[] | (() => never);
   orders?: Order[] | (() => never);
-  cart?: Cart | (() => never);
-  cartChangedAt?: number;
   assetConfig?: Record<string, number> | null;
   assetModel?: { assetUrl: string; assetFormat: string } | null;
 } = {}) {
@@ -78,23 +65,19 @@ function makeSvc({
   const ordersService = {
     listAll: typeof orders === "function" ? vi.fn().mockImplementation(orders) : vi.fn().mockReturnValue(orders),
   };
-  const cartService = {
-    get: typeof cart === "function" ? vi.fn().mockImplementation(cart) : vi.fn().mockReturnValue(cart),
-    lastChangedAt: vi.fn().mockReturnValue(cartChangedAt),
-  };
   const assets = {
     getConfig: vi.fn().mockReturnValue(assetConfig),
     getPrimaryModel: vi.fn().mockReturnValue(assetModel),
   };
-  return new VisualizationService(catalog as any, ordersService as any, cartService as any, assets as any);
+  return new VisualizationService(catalog as any, ordersService as any, assets as any);
 }
 
 describe("VisualizationService", () => {
   describe("legacy items[]", () => {
-    it("returns items from all three domain sources", () => {
+    it("returns items from catalog and orders", () => {
       const { items } = makeSvc().list();
-      // 2 products + 1 order + 1 cart marker
-      expect(items.length).toBe(4);
+      // 2 products + 1 order
+      expect(items.length).toBe(3);
     });
 
     it("every item conforms to the VisualizationItem DTO shape", () => {
@@ -143,35 +126,6 @@ describe("VisualizationService", () => {
       expect(items.find((i) => i.id === "viz_order_ord_demo")?.status).toBe("error");
     });
 
-    it("cart item is a marker at the front-centre position", () => {
-      const { items } = makeSvc().list();
-      const cart = items.find((i) => i.id === "viz_cart_demo");
-      expect(cart?.type).toBe("marker");
-      expect(cart?.positionHint).toEqual({ x: 0, y: 0.35, z: 1.0 });
-    });
-
-    it("empty cart has idle status", () => {
-      const { items } = makeSvc().list();
-      expect(items.find((i) => i.id === "viz_cart_demo")?.status).toBe("idle");
-    });
-
-    it("non-empty cart has ok status", () => {
-      const filledCart: Cart = { ...EMPTY_CART, itemCount: 2, total: { amountMinor: 360, currency: "EUR" } };
-      const { items } = makeSvc({ cart: filledCart }).list();
-      expect(items.find((i) => i.id === "viz_cart_demo")?.status).toBe("ok");
-    });
-
-    it("non-empty cart includes drink category so Three.js renders a cup", () => {
-      const filledCart: Cart = { ...EMPTY_CART, itemCount: 1, total: { amountMinor: 180, currency: "EUR" } };
-      const { items } = makeSvc({ cart: filledCart }).list();
-      expect(items.find((i) => i.id === "viz_cart_demo")?.metadata.category).toBe("drink");
-    });
-
-    it("empty cart has no category so Three.js renders a generic marker", () => {
-      const { items } = makeSvc().list();
-      expect(items.find((i) => i.id === "viz_cart_demo")?.metadata.category).toBeUndefined();
-    });
-
     it("all positions are within room bounds", () => {
       const { items } = makeSvc({ products: PRODUCTS.concat(...Array(5).fill(PRODUCTS[0])) }).list();
       for (const item of items) {
@@ -191,28 +145,18 @@ describe("VisualizationService", () => {
       expect(second.items.map((i) => i.positionHint)).toEqual(first.items.map((i) => i.positionHint));
     });
 
-    it("returns orders and cart when catalog throws (partial failure)", () => {
+    it("returns orders when catalog throws (partial failure)", () => {
       const svc = makeSvc({ products: () => { throw new Error("catalog down"); } });
       const { items } = svc.list();
       expect(items.some((i) => i.id.startsWith("viz_order_"))).toBe(true);
-      expect(items.some((i) => i.id === "viz_cart_demo")).toBe(true);
       expect(items.some((i) => i.id.startsWith("viz_product_"))).toBe(false);
     });
 
-    it("returns catalog and cart when orders throws (partial failure)", () => {
+    it("returns catalog when orders throws (partial failure)", () => {
       const svc = makeSvc({ orders: () => { throw new Error("orders down"); } });
       const { items } = svc.list();
       expect(items.some((i) => i.id.startsWith("viz_product_"))).toBe(true);
-      expect(items.some((i) => i.id === "viz_cart_demo")).toBe(true);
       expect(items.some((i) => i.id.startsWith("viz_order_"))).toBe(false);
-    });
-
-    it("returns catalog and orders when cart throws (partial failure)", () => {
-      const svc = makeSvc({ cart: () => { throw new Error("cart down"); } });
-      const { items } = svc.list();
-      expect(items.some((i) => i.id.startsWith("viz_product_"))).toBe(true);
-      expect(items.some((i) => i.id.startsWith("viz_order_"))).toBe(true);
-      expect(items.some((i) => i.id === "viz_cart_demo")).toBe(false);
     });
 
     it("attaches assetConfig as a JSON string to drink products", () => {
@@ -236,29 +180,6 @@ describe("VisualizationService", () => {
       const espresso = items.find((i) => i.id === "viz_product_prod_espresso");
       expect(espresso?.metadata.assetConfig).toBeUndefined();
       expect(espresso?.metadata.assetUrl).toBeUndefined();
-    });
-
-    it("propagates drink assetConfig + GLB to a non-empty cart marker", () => {
-      const filledCart: Cart = { ...EMPTY_CART, itemCount: 1, total: { amountMinor: 180, currency: "EUR" } };
-      const params = { bodyH: 0.36 };
-      const { items } = makeSvc({
-        cart: filledCart,
-        assetConfig: params,
-        assetModel: { assetUrl: "/viz/models/cup.glb", assetFormat: "glb" },
-      }).list();
-      const cart = items.find((i) => i.id === "viz_cart_demo");
-      expect(cart?.metadata.assetConfig).toBe(JSON.stringify(params));
-      expect(cart?.metadata.assetUrl).toBe("/viz/models/cup.glb");
-    });
-
-    it("does not attach drink assets to an empty cart marker", () => {
-      const { items } = makeSvc({
-        assetConfig: { bodyH: 0.36 },
-        assetModel: { assetUrl: "/viz/models/cup.glb", assetFormat: "glb" },
-      }).list();
-      const cart = items.find((i) => i.id === "viz_cart_demo");
-      expect(cart?.metadata.assetConfig).toBeUndefined();
-      expect(cart?.metadata.assetUrl).toBeUndefined();
     });
   });
 
@@ -351,36 +272,14 @@ describe("VisualizationService", () => {
       expect(scene.orderAggregates.olderCount).toBe(4);
     });
 
-    it("scene.cart is null when the cart is empty", () => {
+    it("scene.cart is always null — the cart is session-scoped and this service has no request context", () => {
       const { scene } = makeSvc().list();
       expect(scene.cart).toBeNull();
     });
 
-    it("scene.cart is a SceneCart when filled, with typed asset wiring", () => {
-      const filledCart: Cart = { ...EMPTY_CART, itemCount: 2, total: { amountMinor: 360, currency: "EUR" } };
-      const model = { assetUrl: "/viz/models/cup.glb", assetFormat: "glb" };
-      const { scene } = makeSvc({
-        cart: filledCart,
-        cartChangedAt: 1_700_000_000_000,
-        assetConfig: { bodyH: 0.36 },
-        assetModel: model,
-      }).list();
-      expect(scene.cart).not.toBeNull();
-      expect(scene.cart?.itemCount).toBe(2);
-      expect(scene.cart?.updatedAt).toBe(1_700_000_000_000);
-      expect(scene.cart?.asset).toEqual({ url: "/viz/models/cup.glb", format: "glb" });
-      expect(scene.cart?.assetConfig).toEqual({ bodyH: 0.36 });
-    });
-
-    it("scene.latestActivityAt is the max of cart.lastChangedAt and the newest order updatedAt", () => {
-      const filledCart: Cart = { ...EMPTY_CART, itemCount: 1, total: { amountMinor: 180, currency: "EUR" } };
-      const orderTime = Date.parse("2026-05-14T12:00:00.000Z");
-      // Cart older than the order — order wins.
-      let { scene } = makeSvc({ cart: filledCart, cartChangedAt: orderTime - 1000 }).list();
-      expect(scene.latestActivityAt).toBe(orderTime);
-      // Cart newer than the order — cart wins.
-      ({ scene } = makeSvc({ cart: filledCart, cartChangedAt: orderTime + 1000 }).list());
-      expect(scene.latestActivityAt).toBe(orderTime + 1000);
+    it("scene.latestActivityAt is the newest order updatedAt", () => {
+      const { scene } = makeSvc().list();
+      expect(scene.latestActivityAt).toBe(Date.parse(ORDERS[0].updatedAt));
     });
 
     it("scene survives catalog throwing (returns empty products)", () => {
@@ -400,12 +299,6 @@ describe("VisualizationService", () => {
         statusCounts: { pending: 0, preparing: 0, prepared: 0, cancelled: 0 },
       });
       expect(scene.products.length).toBeGreaterThan(0);
-    });
-
-    it("scene survives cart throwing (cart is null)", () => {
-      const svc = makeSvc({ cart: () => { throw new Error("cart down"); } });
-      const { scene } = svc.list();
-      expect(scene.cart).toBeNull();
     });
   });
 });

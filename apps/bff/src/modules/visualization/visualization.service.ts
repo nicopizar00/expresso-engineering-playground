@@ -2,8 +2,6 @@ import { Injectable } from "@nestjs/common";
 import type { OrderStatus } from "@mini-commerce/shared-types";
 import { AssetsService } from "../assets/assets.service";
 import type { AssetModelRef, AssetParams } from "../assets/assets.types";
-import { CartService } from "../cart/cart.service";
-import type { Cart } from "../cart/cart.types";
 import { CatalogService } from "../catalog/catalog.service";
 import type { Product } from "../catalog/catalog.types";
 import { OrdersService } from "../orders/orders.service";
@@ -45,10 +43,9 @@ function assetMetadata(
   return out;
 }
 
-// Layout: three non-overlapping sectors within the 6×6 room.
+// Layout: two non-overlapping sectors within the 6×6 room.
 //   Products (cubes)  — back-left quadrant,  x ∈ [-2.2, 0.6],  z ∈ [-2.2, 0.6]
 //   Orders  (spheres) — right strip,          x ∈ [ 1.4, 2.3],  z ∈ [-2.0, …]
-//   Cart    (marker)  — front-centre,          x = 0,             z = 2.0
 // All values stay within the clamp range the frontend applies (±2.5).
 
 function productPosition(index: number): PositionHint {
@@ -66,8 +63,6 @@ function orderPosition(index: number): PositionHint {
     z: -2.0 + Math.floor(index / 2) * 1.5,
   };
 }
-
-const CART_POSITION: PositionHint = { x: 0, y: 0.35, z: 1.0 };
 
 function productStatus(inventory: number): VisualizationItemStatus {
   if (inventory === 0) return "error";
@@ -91,7 +86,7 @@ function orderStatus(status: Order["status"]): VisualizationItemStatus {
 
 // `updatedAt` is epoch ms. The visualizer compares these across items to pick
 // the "latest user action" hero. Products use 0 so the catalogue can never
-// outrank a cart/order event for the spotlight.
+// outrank an order event for the spotlight.
 function fromProduct(
   product: Product,
   index: number,
@@ -199,35 +194,17 @@ function maxOrderUpdatedAt(orders: ReadonlyArray<Order>): number {
   return max;
 }
 
-function toSceneCart(
-  cart: Cart,
-  updatedAt: number,
-  config: AssetParams | null,
-  model: AssetModelRef | null,
-): SceneCart {
-  return {
-    itemCount: cart.itemCount,
-    total: cart.total,
-    updatedAt,
-    ...(model
-      ? { asset: { url: model.assetUrl, format: model.assetFormat } }
-      : {}),
-    ...(config ? { assetConfig: config } : {}),
-  };
-}
-
 @Injectable()
 export class VisualizationService {
   constructor(
     private readonly catalog: CatalogService,
     private readonly orders: OrdersService,
-    private readonly cart: CartService,
     private readonly assets: AssetsService,
   ) {}
 
   list(): VisualizationDataResponse {
     return {
-      items: [...this.catalogItems(), ...this.orderItems(), ...this.cartItems()],
+      items: [...this.catalogItems(), ...this.orderItems()],
       scene: this.buildScene(),
     };
   }
@@ -255,42 +232,15 @@ export class VisualizationService {
     }
   }
 
-  private cartItems(): VisualizationItem[] {
-    try {
-      const cart = this.cart.get();
-      // Non-empty cart: signal "drink" so Three.js renders a ceramic cup
-      // at the cart position instead of a generic cone.
-      const filled = cart.itemCount > 0;
-      const drinkConfig = filled ? this.assets.getConfig("drink") : null;
-      const drinkModel = filled ? this.assets.getPrimaryModel("drink") : null;
-      return [
-        {
-          id: "viz_cart_demo",
-          label: `Cart · ${cart.itemCount} item${cart.itemCount === 1 ? "" : "s"}`,
-          type: "marker",
-          value: cart.total.amountMinor,
-          status: cart.itemCount === 0 ? "idle" : "ok",
-          positionHint: CART_POSITION,
-          metadata: {
-            // Empty cart: no category — renders as an idle marker placeholder.
-            ...(filled && { category: "drink" }),
-            itemCount: cart.itemCount,
-            total: cart.total.amountMinor,
-            currency: cart.total.currency,
-            source: "cart",
-            updatedAt: this.cart.lastChangedAt(),
-            ...assetMetadata(drinkConfig, drinkModel),
-          },
-        },
-      ];
-    } catch {
-      return [];
-    }
-  }
-
   // EOC-2 — typed semantic scene. Partial-failure rules match the legacy
-  // catalogItems/orderItems/cartItems blocks: each source is independent;
-  // a thrown read from one source leaves the other two intact.
+  // catalogItems/orderItems blocks: each source is independent; a thrown
+  // read from one source leaves the other intact.
+  //
+  // `scene.cart` is always null. The cart became session-scoped (cart/
+  // session evolution) and this poll/SSE-driven service has no request
+  // context to resolve a session from. CUP-004/CUP-005 (canonical scene
+  // projection, foreground hero) define what eventually replaces it; there
+  // is no cart-derived scene item until then.
   private buildScene(): VisualizationScene {
     let products: SceneProduct[] = [];
     try {
@@ -320,30 +270,14 @@ export class VisualizationService {
     const orderAggregates = aggregateOrders(sortedOrders);
     const ordersLatest = maxOrderUpdatedAt(sortedOrders);
 
-    let cart: SceneCart | null = null;
-    let cartLatest = 0;
-    try {
-      const c = this.cart.get();
-      cartLatest = this.cart.lastChangedAt();
-      if (c.itemCount > 0) {
-        cart = toSceneCart(
-          c,
-          cartLatest,
-          this.assets.getConfig("drink"),
-          this.assets.getPrimaryModel("drink"),
-        );
-      }
-    } catch {
-      cart = null;
-      cartLatest = 0;
-    }
+    const cart: SceneCart | null = null;
 
     return {
       products,
       recentOrders,
       orderAggregates,
       cart,
-      latestActivityAt: Math.max(cartLatest, ordersLatest),
+      latestActivityAt: ordersLatest,
     };
   }
 }
