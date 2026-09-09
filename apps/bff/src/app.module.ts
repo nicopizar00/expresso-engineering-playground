@@ -15,7 +15,6 @@ import { CheckoutModule } from "./modules/checkout/checkout.module";
 import { HealthModule } from "./modules/health/health.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { VisualizationModule } from "./modules/visualization/visualization.module";
-import { WorkflowTrafficModule } from "./modules/workflow-traffic/workflow-traffic.module";
 import { PrismaModule } from "./prisma.module";
 
 @Module({
@@ -28,7 +27,6 @@ import { PrismaModule } from "./prisma.module";
     OrdersModule,
     AssetsModule,
     VisualizationModule,
-    WorkflowTrafficModule,
   ],
 })
 export class AppModule {}
