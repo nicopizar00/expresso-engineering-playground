@@ -75,12 +75,3 @@ export function makePsxTexture(hexColor, size = 16) {
   tex.generateMipmaps = false;
   return tex;
 }
-
-// Workflow-traffic cup colours, keyed by catalog use-case id (values copied
-// from use-cases/catalog.json's `visual.color`). Kept here per the
-// module-discipline rule: no hex literals outside this file.
-export const TRAFFIC_COLORS = {
-  "commerce.catalog-browse": 0x8B5E3C,
-  "commerce.order-lookup":   0x1976D2,
-  "commerce.purchase":       0x2E7D32,
-};
