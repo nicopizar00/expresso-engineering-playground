@@ -27,6 +27,8 @@ const ORDER = {
   updatedAt: "2026-05-29T12:00:00.000Z",
 };
 
+const SESSION_ID = "sid_test";
+
 function makeCart(items = CART_ITEMS) {
   return {
     currentItems: vi.fn().mockReturnValue(items),
@@ -80,20 +82,20 @@ describe("CheckoutService", () => {
     it("throws BadRequestException when cart is empty", async () => {
       cart = makeCart([]);
       service = await makeService(cart, orders, domainEvents);
-      await expect(service.checkout(PAYLOAD)).rejects.toThrow(BadRequestException);
+      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(BadRequestException);
     });
 
     it("does not call orders.create or cart.clear on empty cart", async () => {
       cart = makeCart([]);
       service = await makeService(cart, orders, domainEvents);
-      await expect(service.checkout(PAYLOAD)).rejects.toThrow();
+      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow();
       expect(orders.create).not.toHaveBeenCalled();
       expect(cart.clear).not.toHaveBeenCalled();
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
     it("calls orders.create with lines derived from cart items and no customer name", async () => {
-      await service.checkout(PAYLOAD);
+      await service.checkout(SESSION_ID, PAYLOAD);
       expect(orders.create).toHaveBeenCalledOnce();
       expect(orders.create).toHaveBeenCalledWith({
         lines: [
@@ -118,17 +120,17 @@ describe("CheckoutService", () => {
       cart.clear.mockImplementation(() => {
         callOrder.push("clear");
       });
-      await service.checkout(PAYLOAD);
+      await service.checkout(SESSION_ID, PAYLOAD);
       expect(callOrder).toEqual(["create", "clear"]);
     });
 
     it("emits a domain event after clearing the cart", async () => {
-      await service.checkout(PAYLOAD);
+      await service.checkout(SESSION_ID, PAYLOAD);
       expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
 
     it("passes idempotencyKey through to orders.create as clientRequestId", async () => {
-      await service.checkout({ ...PAYLOAD, idempotencyKey: "key-fresh" });
+      await service.checkout(SESSION_ID, { ...PAYLOAD, idempotencyKey: "key-fresh" });
       expect(orders.create).toHaveBeenCalledWith(
         expect.objectContaining({ clientRequestId: "key-fresh" }),
       );
@@ -137,7 +139,7 @@ describe("CheckoutService", () => {
     it("replays an existing order on a known key without touching cart or emitting", async () => {
       orders.findByClientRequestId.mockReturnValue(ORDER);
 
-      const response = await service.checkout({ ...PAYLOAD, idempotencyKey: "key-replay" });
+      const response = await service.checkout(SESSION_ID, { ...PAYLOAD, idempotencyKey: "key-replay" });
 
       expect(response.orderId).toBe(ORDER.orderId);
       expect(orders.create).not.toHaveBeenCalled();
@@ -151,7 +153,7 @@ describe("CheckoutService", () => {
       orders.findByClientRequestId.mockReturnValue(ORDER);
       service = await makeService(cart, orders, domainEvents);
 
-      const response = await service.checkout({ ...PAYLOAD, idempotencyKey: "key-replay" });
+      const response = await service.checkout(SESSION_ID, { ...PAYLOAD, idempotencyKey: "key-replay" });
       expect(response.orderId).toBe(ORDER.orderId);
     });
 
@@ -159,20 +161,20 @@ describe("CheckoutService", () => {
       orders.create.mockRejectedValueOnce(
         new ConflictException("insufficient inventory for product prod_espresso"),
       );
-      await expect(service.checkout(PAYLOAD)).rejects.toThrow(ConflictException);
+      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(ConflictException);
       expect(cart.clear).toHaveBeenCalledOnce();
       expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
 
     it("does not clear the cart when order creation fails with a non-conflict error", async () => {
       orders.create.mockRejectedValueOnce(new Error("db connection lost"));
-      await expect(service.checkout(PAYLOAD)).rejects.toThrow("db connection lost");
+      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow("db connection lost");
       expect(cart.clear).not.toHaveBeenCalled();
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
     it("returns the expected CheckoutResponse shape", async () => {
-      const response = await service.checkout(PAYLOAD);
+      const response = await service.checkout(SESSION_ID, PAYLOAD);
       expect(response).toMatchObject({
         orderId: "ord_001",
         cartId: "cart_demo",

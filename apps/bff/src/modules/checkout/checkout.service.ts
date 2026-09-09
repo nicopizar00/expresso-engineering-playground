@@ -19,7 +19,7 @@ export class CheckoutService {
   // cart, hands it to OrdersService.create(), then clears the cart so the
   // playground UI starts fresh. When `idempotencyKey` is supplied, a retry
   // replays the original order without re-validating the (now-empty) cart.
-  async checkout(payload: CheckoutDto): Promise<CheckoutResponse> {
+  async checkout(sessionId: string, payload: CheckoutDto): Promise<CheckoutResponse> {
     // Idempotent replay short-circuit. Runs BEFORE the cart-empty check so
     // a retry after a successful first call (which already cleared the cart)
     // does not surface a spurious "cart is empty" error.
@@ -33,7 +33,7 @@ export class CheckoutService {
       }
     }
 
-    const items = this.cart.currentItems();
+    const items = this.cart.currentItems(sessionId);
     if (items.length === 0) {
       throw new BadRequestException("cart is empty");
     }
@@ -69,7 +69,7 @@ export class CheckoutService {
       // out-of-stock state instead. Any other failure (network, DB) is
       // left alone — a plain retry is the correct recovery there.
       if (err instanceof ConflictException) {
-        this.cart.clear();
+        this.cart.clear(sessionId);
         this.domainEvents.emit();
         this.logger.log(
           `checkout key=${payload.idempotencyKey ?? "n/a"} cleared cart after inventory exhaustion`,
@@ -78,7 +78,7 @@ export class CheckoutService {
       throw err;
     }
 
-    this.cart.clear();
+    this.cart.clear(sessionId);
     this.domainEvents.emit();
 
     this.logger.log(
