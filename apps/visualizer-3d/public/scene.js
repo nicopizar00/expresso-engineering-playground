@@ -9,6 +9,7 @@
 //   • objects/scene-meshes.js — typed scene per-role meshes
 //   • objects/disposal.js   — clearGroup (canvas-texture-aware)
 //   • layout/render.js      — renderScene + animator factories
+//   • layout/rain-render.js — placed-order falling-cup rain (CUP-006)
 //   • transport.js          — SSE primary + polling fallback
 //   • fallback.js           — offline typed scene
 
@@ -18,8 +19,7 @@ import { FALLBACK_SCENE } from "./fallback.js";
 import { ROOM, buildRoom } from "./objects/room.js";
 import { createRenderer, createAnimator } from "./layout/render.js";
 import { initTransport } from "./transport.js";
-import { createTrafficRenderer } from "./layout/traffic-render.js";
-import { initTrafficTransport } from "./traffic-transport.js";
+import { createRainRenderer } from "./layout/rain-render.js";
 
 // DOM refs
 const stage     = document.getElementById("stage");
@@ -69,35 +69,30 @@ scene.add(dataGroup);
 // transport for the "previous scene stays on error" guard.
 const { renderScene, sceneObjectCount } = createRenderer({ dataGroup });
 const animator = createAnimator({ scene, camera, renderer, controls, dataGroup });
+
+// Placed-order rain — separate group and a separate tick loop from the
+// domain-state animator above, but fed by the same domain-state snapshot
+// (no second transport). rainGroup is part of `scene`, so the existing
+// animator's renderer.render(scene, camera) already paints it; this loop
+// only advances cup state, it never renders.
+const rainGroup = new THREE.Group();
+scene.add(rainGroup);
+const rainRenderer = createRainRenderer({ rainGroup });
+
 const transport = initTransport({
-  onScene: renderScene,
+  onScene(sceneData) {
+    renderScene(sceneData);
+    rainRenderer.handleScene(sceneData);
+  },
   sceneObjectCount,
   statusEl,
   dataGroup,
   fallbackScene: FALLBACK_SCENE,
 });
 
-// Workflow-traffic falling cups — separate group, separate transport, and a
-// separate tick loop from the domain-state animator above. trafficGroup is
-// part of `scene`, so the existing animator's renderer.render(scene, camera)
-// already paints it; this loop only advances cup state, it never renders.
-const trafficGroup = new THREE.Group();
-scene.add(trafficGroup);
-
-const trafficRenderer = createTrafficRenderer({ trafficGroup });
-const trafficTransport = initTrafficTransport({
-  onEvent: trafficRenderer.handleEvent,
-  hudEls: {
-    root: document.getElementById("traffic-hud"),
-    runId: document.getElementById("traffic-run-id"),
-    useCases: document.getElementById("traffic-use-cases"),
-    counts: document.getElementById("traffic-counts"),
-  },
-});
-
-function tickTraffic() {
-  trafficRenderer.tick(performance.now());
-  requestAnimationFrame(tickTraffic);
+function tickRain() {
+  rainRenderer.tick(performance.now());
+  requestAnimationFrame(tickRain);
 }
 
 reloadBtn.addEventListener("click", () => transport.connect());
@@ -111,8 +106,7 @@ document.addEventListener("visibilitychange", () => {
 
 transport.connect();
 animator.start();
-trafficTransport.connect();
-requestAnimationFrame(tickTraffic);
+requestAnimationFrame(tickRain);
 
 function onResize() {
   const { clientWidth, clientHeight } = stage;
