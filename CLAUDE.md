@@ -83,7 +83,7 @@ pnpm --filter @mini-commerce/web dev
 - **Phase 1** (shipped): NestJS modular monolith.
 - **Phase 2** (in progress, ~done): Prisma+Postgres persistence, OpenTelemetry,
   unified Python orchestrator, observability stack, SSE for the visualizer,
-  shared HTTP contracts. Open: cart/session evolution.
+  shared HTTP contracts, per-session carts.
 - **Phase 3** (planned): Extract modules into services, expand contract
   enforcement, replace in-process events with a broker.
 

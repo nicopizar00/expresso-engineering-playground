@@ -46,6 +46,38 @@ the visualizer's own browser → BFF data fetch still use host ports.
   - Server-side code → `BFF_INTERNAL_URL` (or `http://localhost:3001` fallback).
   - `NEXT_PUBLIC_API_BASE_URL`, if set, is an explicit override of both.
 
+## Session cookie (cart/session evolution)
+
+- The BFF mints and reads an `HttpOnly`, `SameSite=Lax`, `Path=/` cookie
+  named `sid` on every cart/checkout request (`SessionService` in
+  `apps/bff/src/core/session/`). Each session id keys its own cart in
+  `CartService`'s in-memory `Map` — carts are no longer a single global
+  singleton.
+- The cookie's `Secure` attribute is derived from the inbound request's
+  actual protocol (`req.protocol === 'https'`), not from `NODE_ENV`. The
+  BFF's Docker image hardcodes `NODE_ENV=production` for every build,
+  including local `./dev up`, so an env-based check would always be true
+  and silently break cookie delivery over the plain HTTP this playground
+  serves locally.
+- No code in `apps/web` sets, reads, or forwards this cookie explicitly.
+  Because the browser only ever talks to its own origin (`/api/bff/*`,
+  same-origin through the proxy), `fetch()`'s default `credentials:
+  'same-origin'` mode carries it automatically in both directions — the
+  `Set-Cookie` the BFF issues reaches the browser, and the browser sends
+  `Cookie` back on every subsequent `/api/bff/*` call, with zero
+  configuration on the web app's side.
+- Direct callers that bypass the proxy (`scripts/pg/smoke.py`, the `/dev`
+  console's own fetches — which still go through the same-origin proxy,
+  so this doesn't apply to them — and k6) see the BFF's bare route paths
+  (`/cart/items`, not `/api/bff/cart/items`), which is exactly why the
+  cookie's `Path` is `/` rather than a proxy-shaped prefix: a narrower
+  path would silently stop matching for anyone not going through
+  Next.js's rewrite.
+- k6 does not currently maintain a cookie jar across requests within a
+  scenario, so each of its calls lands in a fresh, empty session — a
+  known, accepted gap tracked under the spec's CUP-009 (k6 stays out of
+  this repo's scope; see `docs/superpowers/specs/2026-09-08-cart-session-evolution-design.md`).
+
 ## `/viz` proxy (web → visualizer)
 
 - `next.config.mjs` rewrites `/viz/:path*` → `${VISUALIZER_INTERNAL_URL}/:path*`.
