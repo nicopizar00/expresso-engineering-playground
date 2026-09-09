@@ -1,26 +1,29 @@
 // Cart domain module — fictional mini-commerce store.
 //
-// Responsibility: maintain a single-user in-memory cart for the playground.
+// Responsibility: maintain a per-session in-memory cart for the
+// playground (cart/session evolution — one cart per `sid` cookie, not one
+// global cart).
 // Public surface (current iteration — mocked):
-//   - GET  /cart          — return the current cart snapshot
-//   - POST /cart/items    — add a product line to the cart
+//   - GET    /cart               — return the current session's cart
+//   - POST   /cart/items         — add the one allowed product line
+//   - PATCH  /cart/items/:itemId — always rejected once selected (CUP-001)
+//   - DELETE /cart/items/:itemId — always rejected once selected (CUP-001)
 //
 // Depends on CatalogModule for product lookups via its public service
-// surface (the same access path a future extracted service would use).
+// surface, and SessionModule for session id resolution.
 //
 // TODO (next iterations):
-//   - PATCH /cart/items/:itemId, DELETE /cart/items/:itemId
-//   - Key the cart by customerId / sessionId
 //   - Back service with a Prisma-backed repository
 
 import { Module } from "@nestjs/common";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
+import { SessionModule } from "../../core/session/session.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { CartController } from "./cart.controller";
 import { CartService } from "./cart.service";
 
 @Module({
-  imports: [CatalogModule, DomainEventsModule],
+  imports: [CatalogModule, DomainEventsModule, SessionModule],
   controllers: [CartController],
   providers: [CartService],
   exports: [CartService],
