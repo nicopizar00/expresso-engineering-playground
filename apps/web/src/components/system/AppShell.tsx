@@ -20,7 +20,6 @@ import {
   X,
   ExternalLink,
   FlaskConical,
-  Box,
   Gauge,
   Database,
 } from "lucide-react";
@@ -28,6 +27,7 @@ import type { LucideIcon } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
 import { HealthBadge } from "./HealthBadge";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { VisualizerPanel } from "@/components/visualizer/VisualizerPanel";
 import { getDemoModeStatus, setDemoMode } from "@/lib/api/expresso-api";
 
 type NavLink = {
@@ -48,7 +48,6 @@ const navLinks: NavLink[] = [
   { href: "/", label: "Catalog", icon: Coffee },
   { href: "/orders", label: "Orders", icon: Package },
   { href: "/performance", label: "Performance", icon: Gauge },
-  { href: "/visualizer", label: "3D", icon: Box },
   { href: "/dev", label: "API", icon: Activity },
   ...(PRISMA_STUDIO_URL
     ? [
@@ -328,8 +327,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1">{children}</main>
+      {/* Body: content column + persistent visualizer rail. Whatever the
+          shopper does — browse, cart, checkout, orders — the live order
+          counter stays in view. */}
+      <div className="shell-body">
+        <main className="shell-content">{children}</main>
+        <VisualizerPanel />
+      </div>
 
       {/* Footer */}
       <footer

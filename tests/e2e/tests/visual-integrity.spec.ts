@@ -106,7 +106,7 @@ test.describe("visual UI integrity - desktop", () => {
     await expectCssUtilityContract(page);
     await expectNoHorizontalOverflow(page);
 
-    for (const label of ["Catalog", "Orders", "Performance", "3D", "API"]) {
+    for (const label of ["Catalog", "Orders", "Performance", "API"]) {
       const navLink = page
         .getByRole("navigation", { name: "Main" })
         .getByRole("link", { name: label });
@@ -121,12 +121,7 @@ test.describe("visual UI integrity - desktop", () => {
       page.getByRole("button", { name: "Toggle menu" }),
     ).toBeHidden();
 
-    await clickVisualCenter(
-      page
-        .getByRole("navigation", { name: "Main" })
-        .getByRole("link", { name: "3D" }),
-    );
-    await expect(page).toHaveURL(/\/visualizer$/);
+    await expect(page.getByTestId("viz-panel")).toBeVisible();
 
     await clickVisualCenter(
       page
@@ -202,17 +197,17 @@ test.describe("visual UI integrity - desktop", () => {
     await expectCenterHits(drawer);
 
     const drawerBox = await drawer.boundingBox();
-    const viewport = page.viewportSize();
+    const vizBox = await page.getByTestId("viz-panel").boundingBox();
     expect(drawerBox).not.toBeNull();
-    expect(viewport).not.toBeNull();
+    expect(vizBox).not.toBeNull();
     expect(
       drawerBox!.y,
-      "drawer must be fixed to the top of the viewport",
-    ).toBe(0);
+      "drawer must sit below the sticky header",
+    ).toBeGreaterThan(40);
     expect(
       drawerBox!.x + drawerBox!.width,
-      "drawer must be right-aligned in the viewport",
-    ).toBeCloseTo(viewport!.width, 0);
+      "drawer must not overlap the persistent visualizer rail",
+    ).toBeLessThanOrEqual(vizBox!.x + 1);
 
     await expectVisualActionable(
       drawer.getByRole("button", { name: "Close cart" }),
@@ -255,34 +250,34 @@ test.describe("visual UI integrity - desktop", () => {
     await expect(page.getByText("Preparing", { exact: true })).toBeVisible();
   });
 
-  test("renders visualizer shell with a mocked iframe document", async ({
+  test("renders the persistent visualizer rail with a mocked iframe document", async ({
     page,
   }) => {
     await installVisualMocks(page);
-    await page.goto("/visualizer");
+    await page.goto("/");
 
     const frame = page.locator('iframe[title="3D Visualizer - Hello Room"]');
-    await expect(frame).toHaveAttribute("src", "/viz/index.html");
+    await expect(frame).toHaveAttribute("src", /\/viz\/index\.html\?embed=1$/);
 
     const frameBox = await frame.boundingBox();
     expect(frameBox).not.toBeNull();
     expect(
       frameBox!.height,
       "visualizer iframe should be inspectable",
-    ).toBeGreaterThanOrEqual(360);
+    ).toBeGreaterThanOrEqual(200);
 
     await expectVisualActionable(
       page.getByRole("button", { name: /Reload/i }),
       {
-        minHeight: 32,
-        minWidth: 32,
+        minHeight: 24,
+        minWidth: 24,
       },
     );
     await expectVisualActionable(
       page.getByRole("link", { name: /Open Standalone/i }),
       {
-        minHeight: 32,
-        minWidth: 120,
+        minHeight: 24,
+        minWidth: 24,
       },
     );
   });
@@ -313,6 +308,9 @@ for (const viewport of [
         minWidth: 40,
       });
 
+      const vizPullTab = page.locator(".viz-pull-tab");
+      await expectVisualActionable(vizPullTab, { minHeight: 24, minWidth: 120 });
+
       const menuButton = page.getByRole("button", { name: "Toggle menu" });
       await expectVisualActionable(menuButton, { minHeight: 40, minWidth: 40 });
       await clickVisualCenter(menuButton);
@@ -320,13 +318,13 @@ for (const viewport of [
       const mobileNav = page.getByRole("navigation", { name: "Mobile" });
       await expect(mobileNav).toBeVisible();
 
-      const visualizerLink = mobileNav.getByRole("link", { name: "3D" });
-      await expectVisualActionable(visualizerLink, {
+      const ordersLink = mobileNav.getByRole("link", { name: "Orders" });
+      await expectVisualActionable(ordersLink, {
         minHeight: 40,
         minWidth: 120,
       });
-      await clickVisualCenter(visualizerLink);
-      await expect(page).toHaveURL(/\/visualizer$/);
+      await clickVisualCenter(ordersLink);
+      await expect(page).toHaveURL(/\/orders$/);
     });
   });
 }

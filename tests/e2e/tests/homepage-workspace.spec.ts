@@ -57,14 +57,14 @@ test.describe("homepage workspace - desktop", () => {
     await page.goto("/");
 
     await expect(page.getByTestId("home-catalog")).toBeVisible();
-    await expect(page.getByTestId("home-rail")).toBeVisible();
+    await expect(page.getByTestId("viz-panel")).toBeVisible();
 
     const iframe = page.getByTestId("visualizer-iframe");
     await expect(iframe).toBeVisible();
     await expect(iframe).toHaveAttribute("src", /\/viz\/index\.html\?embed=1$/);
 
     const catalogBox = await page.getByTestId("home-catalog").boundingBox();
-    const railBox = await page.getByTestId("home-rail").boundingBox();
+    const railBox = await page.getByTestId("viz-panel").boundingBox();
     expect(catalogBox).not.toBeNull();
     expect(railBox).not.toBeNull();
     expect(
@@ -100,27 +100,6 @@ test.describe("homepage workspace - desktop", () => {
     await expect(
       page.getByRole("button", { name: "Shopping cart with 1 items" }),
     ).toBeVisible();
-  });
-
-  test("view button opens the cart drawer; checkout link goes to /checkout", async ({
-    page,
-  }) => {
-    await installHomeMocks(page);
-    await page.goto("/");
-
-    await page
-      .getByRole("button", { name: `Add ${productUnderTest.name} to cart` })
-      .first()
-      .click();
-    await expect(page.getByTestId("inline-cart-count").first()).toHaveText("1");
-
-    await page.getByTestId("inline-cart-view").first().click();
-    await expect(page.getByRole("dialog", { name: "Cart" })).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Cart" })).toBeHidden();
-
-    await page.getByTestId("inline-cart-checkout").first().click();
-    await expect(page).toHaveURL(/\/checkout$/);
   });
 
   test("header cart button still opens the drawer", async ({ page }) => {

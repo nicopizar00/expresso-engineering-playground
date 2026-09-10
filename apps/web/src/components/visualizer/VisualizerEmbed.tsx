@@ -37,7 +37,7 @@ export function VisualizerEmbed({
 }: VisualizerEmbedProps) {
   const isCompact = compact ?? embed;
   const buttonClass = isCompact
-    ? "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors"
+    ? "flex items-center gap-1 px-2 py-2 rounded text-xs font-medium transition-colors"
     : "flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors";
   const buttonIconSize = isCompact ? "h-3 w-3" : "h-3.5 w-3.5";
   const [iframeStatus, setIframeStatus] = useState<IframeStatus>("loading");

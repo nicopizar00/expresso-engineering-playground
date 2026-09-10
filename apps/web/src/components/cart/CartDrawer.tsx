@@ -34,18 +34,20 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — stops short of the visualizer rail so the live order
+          counter stays visible while the cart is open. */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 transition-opacity animate-fadeIn"
+        className="cart-backdrop bg-black/50 transition-opacity animate-fadeIn"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Drawer */}
+      {/* Panel — unfurls like a receipt printing out from the header cart
+          button, anchored clear of the visualizer rail. */}
       <div
         ref={drawerRef}
         tabIndex={-1}
-        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md flex flex-col animate-slideInRight"
+        className="cart-panel animate-receiptUnfurl"
         style={{
           backgroundColor: 'var(--card)',
           boxShadow: 'var(--shadow-lg)',
@@ -166,7 +168,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
  */
 function CartItemRow({ item }: { item: CartItemType }) {
   return (
-    <li className="p-4">
+    <li className="p-4 cart-item-row">
       <div className="flex gap-4">
         {/* Product placeholder */}
         <div

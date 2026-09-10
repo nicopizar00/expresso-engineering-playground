@@ -406,14 +406,9 @@ test("certifies dialog focus restore, shell navigation, performance copy, and vi
   await expect(page).toHaveURL(/\/performance$/);
   await expect(page.getByText(/simulated/i)).toBeVisible();
 
-  await page
-    .getByRole("navigation", { name: "Main" })
-    .getByRole("link", { name: "3D" })
-    .click();
-  await expect(page).toHaveURL(/\/visualizer$/);
-  await expect(
-    page.getByRole("heading", { name: "3D Visualizer" }),
-  ).toBeVisible();
+  // The 3D visualizer is persistent shell chrome, not a dedicated route: it
+  // stays mounted across navigation, so it's still here on /performance.
+  await expect(page.getByTestId("viz-panel")).toBeVisible();
   await expect(
     page
       .frameLocator('iframe[title="3D Visualizer - Hello Room"]')

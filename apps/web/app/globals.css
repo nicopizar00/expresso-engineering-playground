@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap");
 
 *,
 *::before,
@@ -8,62 +8,82 @@
   padding: 0;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 :root {
-  /* Core palette - warm espresso tones with modern neutrals */
-  --background: #0a0a0b;
-  --foreground: #fafafa;
-  --card: #141415;
-  --card-foreground: #fafafa;
-  --popover: #141415;
-  --popover-foreground: #fafafa;
-  --primary: #d4a574;
-  --primary-foreground: #0a0a0b;
-  --secondary: #1f1f22;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #c9956c;
-  --accent-foreground: #0a0a0b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #d4a574;
+  /* Core palette — order-counter POS terminal: roasted-coffee dark ground,
+     crema highlight, brass + steam as the two working accents. Values are
+     shared in spirit with apps/visualizer-3d's ESPRESSO_PALETTE so the
+     shell reads as sibling hardware to the 3D scene, not a themed skin. */
+  --roast: #1c140d;
+  --crema: #f1ecda;
+  --barrel: #5b3a1e;
+  --brass: #c68a3d;
+  --steam: #8fa69b;
+  --char: #2e251c;
+
+  --background: var(--roast);
+  --foreground: var(--crema);
+  --card: #26190f;
+  --card-foreground: var(--crema);
+  --popover: #26190f;
+  --popover-foreground: var(--crema);
+  --primary: var(--brass);
+  --primary-foreground: var(--roast);
+  --secondary: var(--barrel);
+  --secondary-foreground: var(--crema);
+  --muted: var(--char);
+  --muted-foreground: #b8a488;
+  --accent: var(--steam);
+  --accent-foreground: var(--roast);
+  --destructive: #c1553a;
+  --destructive-foreground: var(--crema);
+  --border: #3a2c1e;
+  --input: var(--char);
+  --ring: var(--brass);
 
   /* Status colors */
-  --success: #22c55e;
-  --success-foreground: #0a0a0b;
-  --warning: #f59e0b;
-  --warning-foreground: #0a0a0b;
-  --info: #3b82f6;
-  --info-foreground: #fafafa;
+  --success: #6fa37c;
+  --success-foreground: var(--roast);
+  --warning: #d9a441;
+  --warning-foreground: var(--roast);
+  --info: var(--steam);
+  --info-foreground: var(--roast);
 
   /* Category colors */
-  --drink: #d4a574;
-  --food: #22c55e;
-  --accessory: #3b82f6;
+  --drink: var(--brass);
+  --food: #6fa37c;
+  --accessory: var(--steam);
 
-  /* Radius */
-  --radius: 0.5rem;
+  /* Radius — sharp, angular corners rhyme with the visualizer's PS1 "all
+     angles 90°" rule. Only rounded-full (badges/LEDs/counts) stays circular. */
+  --radius: 0;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg:
-    0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  /* Shadows — hard offset, no blur. Pixel-art drop-shadow, not soft SaaS glow. */
+  --shadow-color: #0e0904;
+  --shadow-sm: 2px 2px 0 0 var(--shadow-color);
+  --shadow: 3px 3px 0 0 var(--shadow-color);
+  --shadow-md: 4px 4px 0 0 var(--shadow-color);
+  --shadow-lg: 6px 6px 0 0 var(--shadow-color);
+
+  /* Persistent visualizer rail width. 0 on narrow viewports (viz collapses
+     to a bottom drawer instead of a side column); set on the desktop
+     breakpoint below. Consumed by the cart panel so it never sits behind
+     the rail. */
+  --viz-rail-w: 0px;
 }
 
 html {
   font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+    "Fraunces",
+    Georgia,
+    "Times New Roman",
+    serif;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -462,7 +482,11 @@ body {
   font-weight: 600;
 }
 .font-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  /* Register-tape typewriter face for every numeric/technical readout:
+     prices, order IDs, SKUs, timestamps, health/version strings. */
+  font-family: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
+  letter-spacing: 0.01em;
 }
 .uppercase {
   text-transform: uppercase;
@@ -641,6 +665,45 @@ body {
   }
 }
 
+/* Cart panel unfurls top-down like a receipt printing out. */
+@keyframes receiptUnfurl {
+  from {
+    transform: scaleY(0.05);
+    opacity: 0;
+  }
+  60% {
+    transform: scaleY(1.03);
+    opacity: 1;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* One-shot boot sequence for the visualizer bezel on mount: a CRT-style
+   brightness flicker rather than a fade. */
+@keyframes crtPowerOn {
+  0% {
+    opacity: 0;
+    filter: brightness(0.4);
+  }
+  15% {
+    opacity: 1;
+    filter: brightness(2.2);
+  }
+  30% {
+    filter: brightness(0.7);
+  }
+  45% {
+    filter: brightness(1.6);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out;
 }
@@ -649,9 +712,18 @@ body {
   animation: slideUp 0.3s ease-out;
 }
 
-/* Right-side slide for the cart drawer (panel is pinned to right-0). */
+/* Right-side slide, kept for any future full-viewport overlay. */
 .animate-slideInRight {
   animation: slideInRight 0.3s ease-out;
+}
+
+.animate-receiptUnfurl {
+  transform-origin: top center;
+  animation: receiptUnfurl 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.animate-crtOn {
+  animation: crtPowerOn 0.6s ease-out both;
 }
 
 .animate-pulse {
@@ -669,7 +741,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-fadeIn,
   .animate-slideUp,
-  .animate-slideInRight {
+  .animate-slideInRight,
+  .animate-receiptUnfurl,
+  .animate-crtOn {
     animation: none;
   }
 }
@@ -996,47 +1070,26 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Home workspace — unified catalog + visualizer + cart layout         */
+/* Home workspace — catalog + sticky cart bar. The 3D visualizer is no  */
+/* longer embedded per-page: AppShell renders it as a persistent rail   */
+/* across every route (see the shell/viz-panel section below).         */
 /* ------------------------------------------------------------------ */
 
 .home-workspace {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "rail" "catalog";
-}
-
-.home-workspace .home-catalog {
-  grid-area: catalog;
-  min-width: 0;
-}
-.home-workspace .home-rail {
-  grid-area: rail;
   min-width: 0;
 }
 
-/* Sticky cart bar is the mobile/tablet default; the desktop card is hidden. */
-.home-rail-card {
-  display: none;
-}
+/* The sticky cart bar sits above the mobile visualizer pull-tab; on desktop
+   the header cart button plus the always-visible rail are enough, so it's
+   hidden there. */
 .home-rail-sticky {
   display: block;
 }
+.home-rail-sticky [data-testid="inline-cart-summary"] {
+  bottom: var(--viz-tab-h, 0px);
+}
 
 @media (min-width: 1024px) {
-  .home-workspace {
-    grid-template-columns: minmax(0, 1fr) 360px;
-    grid-template-areas: "catalog rail";
-    gap: 2rem;
-  }
-  .home-workspace .home-rail {
-    position: sticky;
-    top: 5rem;
-    align-self: start;
-  }
-  .home-rail-card {
-    display: block;
-  }
   .home-rail-sticky {
     display: none;
   }
@@ -1055,4 +1108,180 @@ body {
 }
 .backdrop-blur {
   backdrop-filter: blur(8px);
+}
+
+/* ------------------------------------------------------------------ */
+/* App shell — persistent visualizer rail                              */
+/*                                                                      */
+/* The 3D visualizer is global chrome, not page content: AppShell wraps */
+/* {children} and a VisualizerPanel in a two-column grid so whatever    */
+/* the shopper does (browse, cart, checkout, orders) stays next to the  */
+/* live order counter. Below 1024px there's no room for a side column, */
+/* so the panel collapses to a bottom drawer with a pull-tab instead.   */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --viz-tab-h: 2.75rem;
+}
+
+.shell-body {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.shell-content {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .shell-body {
+    grid-template-columns: minmax(0, 1fr) 420px;
+  }
+  :root {
+    --viz-rail-w: 420px;
+  }
+}
+
+.viz-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--card);
+  transform: translateY(calc(100% - var(--viz-tab-h)));
+  transition: transform 0.3s ease;
+}
+.viz-panel.is-open {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viz-panel {
+    transition: none;
+  }
+}
+
+.viz-pull-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: var(--viz-tab-h);
+  border: 0;
+  border-top: 4px solid var(--brass);
+  background: var(--barrel);
+  color: var(--crema);
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.viz-pull-handle {
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  background: var(--brass);
+}
+
+.viz-bezel {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.viz-bezel::before,
+.viz-bezel::after {
+  content: "";
+  position: absolute;
+  top: 0.5rem;
+  width: 6px;
+  height: 6px;
+  background: var(--brass);
+}
+.viz-bezel::before {
+  left: 0.5rem;
+}
+.viz-bezel::after {
+  right: 0.5rem;
+}
+
+.viz-bezel-caption {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+@media (min-width: 1024px) {
+  .viz-panel {
+    position: sticky;
+    top: 5rem;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    max-height: calc(100vh - 6rem);
+    transform: none !important;
+    border-top: 0;
+    border-left: 4px solid var(--brass);
+  }
+  .viz-pull-tab {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Cart panel — reframed as a receipt printing out from the header cart */
+/* button rather than a full-height slab over the right edge, so it     */
+/* never covers the persistent visualizer rail on desktop.              */
+/* ------------------------------------------------------------------ */
+
+.cart-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: var(--viz-rail-w);
+  z-index: 48;
+}
+
+.cart-panel {
+  position: fixed;
+  top: 4.5rem;
+  right: calc(var(--viz-rail-w) + 1rem);
+  left: 1rem;
+  z-index: 49;
+  width: auto;
+  max-width: 26rem;
+  margin-left: auto;
+  max-height: calc(100vh - 6rem);
+  display: flex;
+  flex-direction: column;
+  border-left: 4px solid var(--brass);
+}
+
+.cart-item-row {
+  animation: fadeIn 0.25s ease-out both;
+}
+.cart-item-row:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.cart-item-row:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.cart-item-row:nth-child(4) {
+  animation-delay: 0.12s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-item-row {
+    animation: none;
+  }
 }

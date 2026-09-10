@@ -19,7 +19,6 @@ import {
   Loader2,
   FlaskConical,
   BookOpen,
-  Zap,
   AlertTriangle,
   ShoppingCart,
   Package,
@@ -245,9 +244,6 @@ function DemoGuidePanel() {
           </a>
           <a href={`/orders/${sampleOrderId}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
             <Package className="h-3 w-3" /> Sample Order
-          </a>
-          <a href="/visualizer" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
-            <Zap className="h-3 w-3" /> 3D Visualizer
           </a>
           {process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL && (
             <a
