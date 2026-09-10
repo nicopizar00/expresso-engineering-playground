@@ -25,6 +25,13 @@ interface VisualizerEmbedProps {
    * roomier 32+ px controls the visual-integrity suite expects.
    */
   compact?: boolean;
+  /**
+   * When true, fills the parent's height (flex-1) instead of sizing via
+   * `aspectRatio`. Used by the homepage stage, whose visualizer occupies a
+   * grid row rather than a fixed-ratio box. Rail/other usage keeps
+   * `aspectRatio` and is unaffected.
+   */
+  fill?: boolean;
 }
 
 export function VisualizerEmbed({
@@ -34,6 +41,7 @@ export function VisualizerEmbed({
   showHeader = true,
   title = "Hello Room Scene",
   compact,
+  fill = false,
 }: VisualizerEmbedProps) {
   const isCompact = compact ?? embed;
   const buttonClass = isCompact
@@ -65,7 +73,7 @@ export function VisualizerEmbed({
 
   return (
     <div
-      className={`rounded-lg border overflow-hidden ${className ?? ""}`}
+      className={`rounded-lg border overflow-hidden ${fill ? "flex flex-col flex-1" : ""} ${className ?? ""}`}
       style={{
         backgroundColor: "var(--card)",
         borderColor: "var(--border)",
@@ -123,7 +131,10 @@ export function VisualizerEmbed({
         </div>
       )}
 
-      <div className="relative" style={{ aspectRatio }}>
+      <div
+        className={`relative ${fill ? "flex-1" : ""}`}
+        style={fill ? undefined : { aspectRatio }}
+      >
         {iframeStatus === "error" ? (
           <ErrorState onRetry={handleRetry} />
         ) : (

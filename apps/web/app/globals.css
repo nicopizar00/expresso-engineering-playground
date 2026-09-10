@@ -1070,44 +1070,46 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Home workspace — catalog + sticky cart bar. The 3D visualizer is no  */
-/* longer embedded per-page: AppShell renders it as a persistent rail   */
-/* across every route (see the shell/viz-panel section below).         */
+/* Home stage — the 3D visualizer is this page's main content, not a   */
+/* side rail (every other route still gets the rail — see the app-shell */
+/* section below). Fixed viewport: no page-level scrolling, ever.       */
 /* ------------------------------------------------------------------ */
 
-.home-workspace {
+.home-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+  width: 100%;
+  overflow: hidden;
+}
+
+.home-stage-viz {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   min-width: 0;
+  padding: 1rem 1rem 0.5rem;
 }
 
-/* The sticky cart bar sits above the mobile visualizer pull-tab; on desktop
-   the header cart button plus the always-visible rail are enough, so it's
-   hidden there. */
-.home-rail-sticky {
-  display: block;
-}
-.home-rail-sticky [data-testid="inline-cart-summary"] {
-  bottom: var(--viz-tab-h, 0px);
+.home-stage-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 1rem;
+  min-height: 0;
+  padding: 0.5rem 1rem 1rem;
 }
 
-@media (min-width: 1024px) {
-  .home-rail-sticky {
-    display: none;
-  }
+.home-stage-catalog,
+.home-stage-cart {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* A few additional utilities used by the home workspace and the inline cart. */
-.pb-24 {
-  padding-bottom: 6rem;
-}
-.inset-x-0 {
-  left: 0;
-  right: 0;
-}
 .shrink-0 {
   flex-shrink: 0;
-}
-.backdrop-blur {
-  backdrop-filter: blur(8px);
 }
 
 /* ------------------------------------------------------------------ */
