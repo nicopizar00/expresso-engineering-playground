@@ -5,6 +5,9 @@ Cart UI plus the hand-wired cart context.
 Current components:
 - `CartProvider` + `useCart()` hook — owns refresh/state.
 - `CartDrawer` — slide-over panel listing items, totals, and checkout CTA.
+- `CartCheckoutPanel` — cart summary + place-order submit. Used standalone
+  on `/checkout` (`variant="page"`) and inline in the homepage stage
+  (`variant="sidebar"`).
 
 Rules:
 - The provider is the only place that calls `expressoApi.getCart()` and
