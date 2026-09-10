@@ -50,29 +50,43 @@ const productUnderTest = products[0]!;
 test.describe("homepage workspace - desktop", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("renders catalog and embedded visualizer side by side", async ({
+  test("renders catalog, cart/checkout, and the visualizer stage together", async ({
     page,
   }) => {
     await installHomeMocks(page);
     await page.goto("/");
 
     await expect(page.getByTestId("home-catalog")).toBeVisible();
-    await expect(page.getByTestId("viz-panel")).toBeVisible();
 
     const iframe = page.getByTestId("visualizer-iframe");
     await expect(iframe).toBeVisible();
     await expect(iframe).toHaveAttribute("src", /\/viz\/index\.html\?embed=1$/);
 
     const catalogBox = await page.getByTestId("home-catalog").boundingBox();
-    const railBox = await page.getByTestId("viz-panel").boundingBox();
+    const vizBox = await page.getByTestId("visualizer-embed").boundingBox();
     expect(catalogBox).not.toBeNull();
-    expect(railBox).not.toBeNull();
+    expect(vizBox).not.toBeNull();
     expect(
-      railBox!.x,
-      "visualizer rail should sit to the right of the catalog on desktop",
-    ).toBeGreaterThan(catalogBox!.x + 200);
+      vizBox!.y,
+      "visualizer stage should sit above the catalog, not beside it",
+    ).toBeLessThan(catalogBox!.y);
+    expect(
+      vizBox!.width,
+      "visualizer stage should be the widest element on the page",
+    ).toBeGreaterThan(catalogBox!.width);
+
+    await expect(page.getByTestId("cart-checkout-panel")).toBeVisible();
 
     await expectIframeCanvasPainted(page, iframe);
+
+    const { scrollHeight, clientHeight } = await page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      clientHeight: document.documentElement.clientHeight,
+    }));
+    expect(
+      scrollHeight,
+      "homepage must not require page scrolling at this viewport",
+    ).toBeLessThanOrEqual(clientHeight + 1);
 
     await page.screenshot({
       path: "test-results/home-desktop-1440x900.png",
@@ -80,21 +94,21 @@ test.describe("homepage workspace - desktop", () => {
     });
   });
 
-  test("inline cart summary updates after add-to-cart", async ({ page }) => {
+  test("cart panel updates after add-to-cart", async ({ page }) => {
     await installHomeMocks(page);
     await page.goto("/");
 
-    await expect(page.getByTestId("inline-cart-count")).toHaveCount(0);
+    const cartPanel = page.getByTestId("cart-checkout-panel");
+    await expect(cartPanel).toContainText("Cart is empty");
 
     await page
       .getByRole("button", { name: `Add ${productUnderTest.name} to cart` })
       .first()
       .click();
 
-    await expect(page.getByTestId("inline-cart-count").first()).toHaveText("1");
-    await expect(page.getByTestId("inline-cart-total").first()).toContainText(
-      "USD",
-    );
+    await expect(cartPanel.getByText(productUnderTest.name)).toBeVisible();
+    await expect(cartPanel).toContainText("1 items");
+    await expect(cartPanel).toContainText("USD");
 
     // Header cart badge also reflects the change.
     await expect(
@@ -133,73 +147,6 @@ test.describe("homepage workspace - desktop", () => {
       box!.height,
       "add-to-cart button must still meet touch targets",
     ).toBeGreaterThanOrEqual(24);
-  });
-});
-
-test.describe("homepage workspace - tablet", () => {
-  test.use({ viewport: { width: 1024, height: 768 } });
-
-  test("layout stays inside the viewport with the rail above the catalog", async ({
-    page,
-  }) => {
-    await installHomeMocks(page);
-    await page.goto("/");
-
-    const iframe = page.getByTestId("visualizer-iframe");
-    await expect(iframe).toBeVisible();
-
-    await page.screenshot({
-      path: "test-results/home-tablet-1024x768.png",
-      fullPage: false,
-    });
-  });
-});
-
-test.describe("homepage workspace - mobile", () => {
-  test.use({
-    hasTouch: true,
-    isMobile: true,
-    viewport: { width: 390, height: 844 },
-  });
-
-  test("shows visualizer, sticky cart appears after add, checkout link works", async ({
-    page,
-  }) => {
-    await installHomeMocks(page);
-    await page.goto("/");
-
-    const iframe = page.getByTestId("visualizer-iframe");
-    await expect(iframe).toBeVisible();
-    const iframeBox = await iframe.boundingBox();
-    expect(iframeBox).not.toBeNull();
-    expect(
-      iframeBox!.width,
-      "mobile iframe should fill almost the whole width",
-    ).toBeGreaterThan(300);
-
-    // Sticky bar should not render while the cart is empty.
-    await expect(
-      page.locator('.home-rail-sticky [data-testid="inline-cart-summary"]'),
-    ).toHaveCount(0);
-
-    await page
-      .getByRole("button", { name: `Add ${productUnderTest.name} to cart` })
-      .first()
-      .click();
-
-    const sticky = page.locator(
-      '.home-rail-sticky [data-testid="inline-cart-summary"]',
-    );
-    await expect(sticky).toBeVisible();
-    await expect(sticky.getByTestId("inline-cart-count")).toHaveText("1");
-
-    await page.screenshot({
-      path: "test-results/home-mobile-390x844.png",
-      fullPage: false,
-    });
-
-    await sticky.getByTestId("inline-cart-checkout").click();
-    await expect(page).toHaveURL(/\/checkout$/);
   });
 });
 

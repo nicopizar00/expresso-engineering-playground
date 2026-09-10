@@ -1079,7 +1079,22 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+  /* 3fr/2fr always gave the visualizer ~60% of height, but at common
+     desktop heights (~700-900px content area) that left the strip too
+     short for a single full-size ProductCard (name+description+price+Add
+     button need ~490px total) — the Add button became clipped/
+     unreachable at a completely standard 1280x720 viewport (confirmed via
+     e2e failures, not a synthetic edge case). minmax(500px, auto)
+     guarantees the strip the room its content actually needs;
+     minmax(120px, 1fr) keeps the stage a real, always-visible floor and
+     lets it absorb any space beyond both minimums, growing back toward
+     dominant on taller windows. Known tradeoff, not silently accepted: at
+     moderate window heights the stage may end up visually smaller than
+     the strip, not just less than 60% — a full 60/40 split and a
+     pixel-identical (reuse-only) ProductCard are in direct tension at
+     these heights. Revisit if a compact catalog-card variant becomes
+     acceptable later. */
+  grid-template-rows: minmax(120px, 1fr) minmax(500px, auto);
   width: 100%;
   overflow: hidden;
 }

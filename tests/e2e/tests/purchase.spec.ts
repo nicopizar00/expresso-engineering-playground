@@ -111,7 +111,11 @@ test.describe("End-to-end purchase flow", () => {
   });
 });
 
-test.describe("End-to-end purchase flow - Mobile Chrome viewport", () => {
+// Skipped: the homepage is desktop-only by design since the visualizer-stage
+// redesign (docs/superpowers/specs/2026-09-10-homepage-visualizer-stage-design.md,
+// Non-goals) — there is no responsive layout below ~1024px, so this scenario
+// cannot pass as written. Not deleted: re-enable if mobile support returns.
+test.describe.skip("End-to-end purchase flow - Mobile Chrome viewport", () => {
   test.use({
     viewport: { width: 390, height: 844 },
     isMobile: true,

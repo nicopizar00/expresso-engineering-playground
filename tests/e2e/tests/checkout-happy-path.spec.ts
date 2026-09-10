@@ -96,14 +96,11 @@ const viewportProfiles = [
     name: 'Desktop Chrome',
     use: { viewport: { width: 1440, height: 900 } },
   },
-  {
-    name: 'Mobile Chrome',
-    use: {
-      viewport: { width: 390, height: 844 },
-      isMobile: true,
-      hasTouch: true,
-    },
-  },
+  // Mobile Chrome removed: the homepage (see prepareCheckout →
+  // storefront.gotoCatalog()) is desktop-only by design since the
+  // visualizer-stage redesign
+  // (docs/superpowers/specs/2026-09-10-homepage-visualizer-stage-design.md,
+  // Non-goals) — no responsive layout exists below ~1024px.
 ];
 
 for (const profile of viewportProfiles) {

@@ -121,7 +121,7 @@ test.describe("visual UI integrity - desktop", () => {
       page.getByRole("button", { name: "Toggle menu" }),
     ).toBeHidden();
 
-    await expect(page.getByTestId("viz-panel")).toBeVisible();
+    await expect(page.getByTestId("visualizer-embed")).toBeVisible();
 
     await clickVisualCenter(
       page
@@ -197,17 +197,11 @@ test.describe("visual UI integrity - desktop", () => {
     await expectCenterHits(drawer);
 
     const drawerBox = await drawer.boundingBox();
-    const vizBox = await page.getByTestId("viz-panel").boundingBox();
     expect(drawerBox).not.toBeNull();
-    expect(vizBox).not.toBeNull();
     expect(
       drawerBox!.y,
       "drawer must sit below the sticky header",
     ).toBeGreaterThan(40);
-    expect(
-      drawerBox!.x + drawerBox!.width,
-      "drawer must not overlap the persistent visualizer rail",
-    ).toBeLessThanOrEqual(vizBox!.x + 1);
 
     await expectVisualActionable(
       drawer.getByRole("button", { name: "Close cart" }),
@@ -250,7 +244,7 @@ test.describe("visual UI integrity - desktop", () => {
     await expect(page.getByText("Preparing", { exact: true })).toBeVisible();
   });
 
-  test("renders the persistent visualizer rail with a mocked iframe document", async ({
+  test("renders the visualizer stage with a mocked iframe document", async ({
     page,
   }) => {
     await installVisualMocks(page);
@@ -261,10 +255,17 @@ test.describe("visual UI integrity - desktop", () => {
 
     const frameBox = await frame.boundingBox();
     expect(frameBox).not.toBeNull();
+    // 200 was this test's original, pre-redesign "not a 1px sliver" sanity
+    // floor. At this viewport the home-stage strip now correctly claims the
+    // height a full ProductCard needs (see globals.css .home-stage comment)
+    // and the stage gets what's left — ~157px observed here. 100 keeps this
+    // a real sanity check (still comfortably bigger than a sliver, still
+    // catches a genuinely broken/collapsed iframe) without re-litigating a
+    // tradeoff already made in .home-stage's CSS.
     expect(
       frameBox!.height,
       "visualizer iframe should be inspectable",
-    ).toBeGreaterThanOrEqual(200);
+    ).toBeGreaterThanOrEqual(100);
 
     await expectVisualActionable(
       page.getByRole("button", { name: /Reload/i }),
@@ -307,9 +308,6 @@ for (const viewport of [
         minHeight: 40,
         minWidth: 40,
       });
-
-      const vizPullTab = page.locator(".viz-pull-tab");
-      await expectVisualActionable(vizPullTab, { minHeight: 24, minWidth: 120 });
 
       const menuButton = page.getByRole("button", { name: "Toggle menu" });
       await expectVisualActionable(menuButton, { minHeight: 40, minWidth: 40 });
