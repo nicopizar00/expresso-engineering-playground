@@ -63,6 +63,7 @@ const navLinks: NavLink[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isHome = pathname === "/";
   const { itemCount, isCartDrawerOpen, openCartDrawer, closeCartDrawer } =
     useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -327,15 +328,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Body: content column + persistent visualizer rail. Whatever the
-          shopper does — browse, cart, checkout, orders — the live order
-          counter stays in view. */}
-      <div className="shell-body">
-        <main className="shell-content">{children}</main>
-        <VisualizerPanel />
-      </div>
+      {/* Body: on the homepage the page itself owns a full-bleed visualizer
+          stage (see apps/web/app/page.tsx) — no persistent rail there. Every
+          other route keeps the content column + sticky visualizer rail so
+          the live order counter stays in view while browsing/checking out/
+          reviewing orders. */}
+      {isHome ? (
+        <main className="shell-content-full">{children}</main>
+      ) : (
+        <div className="shell-body">
+          <main className="shell-content">{children}</main>
+          <VisualizerPanel />
+        </div>
+      )}
 
-      {/* Footer */}
+      {/* Footer — hidden on home; the stage layout has no room for it and
+          no page scroll to reach it anyway. */}
+      {!isHome && (
       <footer
         className="border-t py-6"
         style={{
@@ -375,6 +384,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </footer>
+      )}
 
       {/* Cart Drawer */}
       <CartDrawer open={isCartDrawerOpen} onClose={closeCartDrawer} />
