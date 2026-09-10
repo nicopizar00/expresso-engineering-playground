@@ -253,19 +253,19 @@ test.describe("visual UI integrity - desktop", () => {
     const frame = page.locator('iframe[title="3D Visualizer - Hello Room"]');
     await expect(frame).toHaveAttribute("src", /\/viz\/index\.html\?embed=1$/);
 
+    const vizSection = page.locator(".home-stage-viz");
+    const vizBox = await vizSection.boundingBox();
     const frameBox = await frame.boundingBox();
     expect(frameBox).not.toBeNull();
-    // 200 was this test's original, pre-redesign "not a 1px sliver" sanity
-    // floor. At this viewport the home-stage strip now correctly claims the
-    // height a full ProductCard needs (see globals.css .home-stage comment)
-    // and the stage gets what's left — ~157px observed here. 100 keeps this
-    // a real sanity check (still comfortably bigger than a sliver, still
-    // catches a genuinely broken/collapsed iframe) without re-litigating a
-    // tradeoff already made in .home-stage's CSS.
+    expect(vizBox).not.toBeNull();
+    expect(
+      frameBox!.y + frameBox!.height,
+      "visualizer iframe must stay contained inside its section, not overflow into the strip below",
+    ).toBeLessThanOrEqual(vizBox!.y + vizBox!.height + 1);
     expect(
       frameBox!.height,
-      "visualizer iframe should be inspectable",
-    ).toBeGreaterThanOrEqual(100);
+      "visualizer iframe should be inspectable, not collapsed to nothing",
+    ).toBeGreaterThan(40);
 
     await expectVisualActionable(
       page.getByRole("button", { name: /Reload/i }),

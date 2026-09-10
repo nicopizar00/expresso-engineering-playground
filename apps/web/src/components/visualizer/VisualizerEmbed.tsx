@@ -73,7 +73,7 @@ export function VisualizerEmbed({
 
   return (
     <div
-      className={`rounded-lg border overflow-hidden ${fill ? "flex flex-col flex-1" : ""} ${className ?? ""}`}
+      className={`rounded-lg border overflow-hidden ${fill ? "flex flex-col flex-1 min-h-0" : ""} ${className ?? ""}`}
       style={{
         backgroundColor: "var(--card)",
         borderColor: "var(--border)",
@@ -132,7 +132,7 @@ export function VisualizerEmbed({
       )}
 
       <div
-        className={`relative ${fill ? "flex-1" : ""}`}
+        className={`relative ${fill ? "flex-1 min-h-0" : ""}`}
         style={fill ? undefined : { aspectRatio }}
       >
         {iframeStatus === "error" ? (
