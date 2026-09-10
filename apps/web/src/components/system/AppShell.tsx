@@ -79,7 +79,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className={`min-h-screen flex flex-col${isHome ? " home-shell-root" : ""}`}
+    >
       {/* Demo mode banner */}
       {isDemoMode && (
         <div

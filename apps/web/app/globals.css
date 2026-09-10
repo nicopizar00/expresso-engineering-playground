@@ -1149,6 +1149,21 @@ body {
   flex-direction: column;
 }
 
+/* Caps the shell root to the viewport height on home only, so
+   .shell-content-full/.home-stage's flex:1 1 auto + min-height:0 chain
+   has an actual definite height to shrink into instead of growing to
+   fit content. `.min-h-screen` alone is a floor, not a ceiling, and does
+   not prevent the page from growing taller than the viewport — which is
+   exactly what "no scroll on /" must prevent. `overflow: hidden` clips
+   content that still doesn't fit after shrinking, per the "truly zero
+   scroll anywhere" requirement — every other route still uses plain
+   `.min-h-screen` unmodified and scrolls normally, as intended.
+*/
+.home-shell-root {
+  height: 100vh;
+  overflow: hidden;
+}
+
 @media (min-width: 1024px) {
   .shell-body {
     grid-template-columns: minmax(0, 1fr) 420px;
