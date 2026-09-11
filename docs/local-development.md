@@ -111,27 +111,31 @@ pnpm pg:open
 
 This prints all local URLs. Open http://localhost:3000 in a browser.
 
-The web app exposes the customer flow plus development diagnostics:
+The web app is a single page (`/`) with a 3D visualizer stage pinned above
+four sections reached via header nav buttons — there are no other routes:
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Browse the seeded catalog and add items to the cart. |
-| `/cart` | Inspect cart lines and proceed to checkout. |
-| `/checkout` | Place an order with a fictional customer name. |
-| `/orders` | List persisted orders. |
-| `/orders/<orderId>` | View and manage a persisted order. |
-| `/visualizer` | Embed the Three.js visualizer via the `/viz` proxy (start with `pnpm pg:up viz` or `full`). |
-| `/performance` | Mock-only Performance Playground (no live telemetry). |
-| `/dev` | Inspect API wiring and demo-mode behavior. |
+| Section (header nav button) | Purpose |
+|---|---|
+| Catalog | Browse the seeded catalog, add items to the cart, and check out inline (checkout is a panel next to the catalog grid, not a separate page). |
+| Orders | List persisted orders, look up one by ID, and view/manage its status. |
+| Performance | Mock-only Performance Playground (no live telemetry). |
+| API | Inspect API wiring and demo-mode behavior (formerly `/dev`). |
+
+The visualizer is not a section — it is always mounted in the stage above
+whichever section is active, embedding the Three.js scene via the `/viz`
+proxy (start with `pnpm pg:up viz` or `full`).
 
 ### Suggested manual run-through
 
-1. Browse the catalog on `/` and add one or more items.
-2. Review totals on `/cart` and continue to checkout.
-3. Enter a fictional customer name on `/checkout`.
-4. Confirm the resulting order detail page and update its status.
-5. Visit `/orders` to confirm the order appears in the persisted list.
-6. Open `/visualizer` to inspect the BFF-projected scene.
+1. Browse the catalog on `/` and add one or more items to the cart.
+2. Review totals in the cart drawer, click "Proceed to Checkout", and place
+   an order from the inline checkout panel.
+3. Confirm the app switches to the Orders section and shows the new order's
+   detail view; update its status.
+4. Click "Orders" in the header nav to return to the orders list and confirm
+   the order appears there.
+5. The visualizer stage above the sections is visible throughout — no
+   navigation needed to inspect the BFF-projected scene.
 
 ---
 

@@ -30,16 +30,25 @@ ENVIRONMENT
   reached through `/api/bff` and `/viz`.
 
 MUST COVER
-1. First impression and navigation through header/footer.
+The app is a single page (`/`) with four sections reached via header nav
+buttons (Catalog, Orders, Performance, API) — there are no other routes,
+and checkout is inline in the Catalog section's cart panel, not a separate
+page. There is no footer.
+1. First impression and navigation through the header nav.
 2. Catalog rendering, category filters, and quick view.
 3. Cart CRUD through visible UI only.
-4. Checkout with a fictional name and cart drain.
-5. Orders list, detail, status changes, and persistence after reload.
+4. Checkout (inline in the Catalog section) with a fictional name and cart
+   drain.
+5. Orders section: list, detail, status changes, and persistence after
+   reload — and after switching away and back, confirm it returns to the
+   list rather than reopening a previously viewed order.
 6. Empty cart, invalid order ID, Demo Mode, and mock scenarios.
-7. `/performance` as mock-only.
-8. `/dev` API matrix and Cart Update/Remove card.
-9. `/visualizer` iframe, `/viz` assets, standalone link, visualization-data
-   mapping, and reload reactivity.
+7. Performance section as mock-only.
+8. API section's API matrix and Cart Update/Remove card.
+9. The visualizer stage (always mounted above whichever section is active,
+   never a section itself): `/viz` assets, standalone link,
+   visualization-data mapping, reload reactivity, and that its iframe never
+   remounts when switching sections.
 
 EXECUTE WHERE POSSIBLE
 - Run shell checks for smoke, route reachability, proxy health, `/viz` assets,

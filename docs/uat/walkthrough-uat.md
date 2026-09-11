@@ -111,27 +111,28 @@ Human checklist:
 
 ---
 
-## 4. Web app routes (8 checks)
+## 4. Web app single page and sections (5 checks)
 
-Run `./dev up web` once before this section. Each route check is two
-parts: the LLM hits the URL with `curl` and asserts a non-redirect 2xx
-or 3xx, then a human verifies the visible content matches.
+Run `./dev up web` once before this section. The web app has exactly one
+route (`/`); everything below is a section switched via header nav buttons
+(`Catalog`, `Orders`, `Performance`, `API`), not a separate URL. The
+visualizer stage stays mounted above whichever section is active — it is
+not itself a section.
 
-| #   | Route              | LLM assertion                                                          | Human "you should see"                                                 |
-| --- | ------------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| 4.1 | `/`                | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/` → 200  | Catalog grid with 1 product (Cup of Coffee)                            |
-| 4.2 | `/cart`            | `… /cart` → 200                                                        | Empty-cart state OR the items added in step 3                          |
-| 4.3 | `/checkout`        | `… /checkout` → 200                                                    | Place Order button, no name field                                      |
-| 4.4 | `/orders`          | `… /orders` → 200                                                      | Orders list including `ord_demo`                                       |
-| 4.5 | `/orders/ord_demo` | `… /orders/ord_demo` → 200                                             | Order detail with line items and management actions                    |
-| 4.6 | `/orders/<bad-id>` | `… /orders/does-not-exist` → 404 OR a UI-rendered "not found" with 200 | UI shows a graceful "order not found" state                            |
-| 4.7 | `/visualizer`      | `… /visualizer` → 200                                                  | Page renders either the iframe or a "visualizer not configured" notice |
-| 4.8 | `/dev`             | `… /dev` → 200                                                         | Dev console with API client matrix and demo-mode toggle                |
+| #   | Check                            | LLM assertion                                                          | Human "you should see"                                                                    |
+| --- | --------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 4.1 | `/` loads                        | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/` → 200  | Catalog grid with 1 product (Cup of Coffee), the visualizer stage, and inline cart/checkout panel |
+| 4.2 | Catalog section (default)        | HTML contains `Catalog` heading text                                   | Catalog grid, cart drawer, and inline checkout panel — no dedicated `/cart` or `/checkout` route |
+| 4.3 | Orders section                   | Click the `Orders` header nav button                                   | Orders list (or a placed order's detail view), with status management actions              |
+| 4.4 | Performance section               | Click the `Performance` header nav button                              | Mock-only Performance Playground, no live-telemetry claims                                 |
+| 4.5 | API section                      | Click the `API` header nav button                                      | Developer console with API client matrix and demo-mode toggle (formerly `/dev`)            |
 
 For LLM execution, mark a check `[PASS]` if the HTTP code matches AND
 the page HTML contains a literal expected substring (e.g. `Add to cart`
-for `/`, `Place order` for `/checkout`). If the substring check fails
-but the HTTP code is correct, emit `[DRIFT]` rather than `[FAIL]`.
+for `/`). Section switches happen client-side (no new navigation/HTTP
+request), so 4.3–4.5 must be verified with a browser or browser-automation
+tool, not `curl`. If the substring check fails but the HTTP code is
+correct, emit `[DRIFT]` rather than `[FAIL]`.
 
 ---
 
@@ -247,7 +248,7 @@ validates against.
 - `apps/bff/src/modules/checkout/checkout.controller.ts`
 - `apps/bff/src/modules/orders/orders.controller.ts`
 - `apps/bff/src/modules/visualization/visualization.controller.ts`
-- `apps/web/app/**/page.tsx` — every route the web UAT exercises.
+- `apps/web/app/page.tsx` — the single page and its four nav-driven sections that the web UAT exercises.
 - `infra/docker/compose.yaml` — service names, ports, profiles.
 - `dev` — subcommand list and behavior.
 - `README.md` — the walkthrough this UAT validates.

@@ -10,15 +10,20 @@ a performance test and not an automated E2E suite.
 
 ## Scope
 
-- Entry point: `http://localhost:3000`.
-- Browser route coverage: `/`, `/cart`, `/checkout`, `/orders`,
-  `/orders/:orderId`, `/visualizer`, `/performance`, `/dev`.
+- Entry point: `http://localhost:3000`. There is exactly one route (`/`) —
+  every other surface below is a section switched client-side via header
+  nav buttons, not a separate URL. Checkout is inline in the Catalog
+  section's cart panel; there is no `/checkout` route. There is no footer.
+- Browser coverage: the single page at `/`, its four sections (Catalog,
+  Orders, Performance, API — the last was formerly `/dev`), and the
+  always-mounted visualizer stage above them.
 - Same-origin service access from the web app: `/api/bff/*` and `/viz/*`.
 - Functional truths:
   - Orders persist in PostgreSQL.
   - Cart is in-memory and resets on BFF restart.
-  - `/performance` is mock-only and must not imply live telemetry.
-  - The visualizer reads `GET /visualization-data`.
+  - The Performance section is mock-only and must not imply live telemetry.
+  - The visualizer reads `GET /visualization-data` and never remounts when
+    the active section changes.
   - Contracts, telemetry, and k6 are outside this UAT.
 
 ## Status Format
@@ -86,28 +91,32 @@ Preconditions:
 Manual steps:
 
 1. Open `http://localhost:3000/`.
-2. [MANUAL] Observe the first viewport.
+2. [MANUAL] Observe the first viewport: the visualizer stage pinned above
+   the active section.
 3. Click the Expresso logo.
-4. Click each header destination: Catalog, Orders, Performance, 3D, API.
-5. Use the browser Back button or the header to return to Catalog after each
-   destination.
+4. Click each header nav button: Catalog, Orders, Performance, API.
+5. Confirm the URL stays `/` throughout (no navigation, no `?tab=` needed
+   to return — these are section switches, not page loads).
 6. Click the cart icon in the header.
 7. Close the cart drawer.
 
 Expected user-visible result:
 
 - The app clearly presents itself as the Expresso mini-commerce playground.
-- The header stays visible and offers Catalog, Orders, Performance, 3D, API,
-  Demo, health, and cart controls.
+- The header stays visible and offers Catalog, Orders, Performance, API,
+  Demo, health, and cart controls. There is no footer.
+- The visualizer stage stays visible and does not reload/remount while
+  switching sections.
 - The cart opens as a drawer from the header and can be closed.
-- No route dead-ends the user.
+- No section dead-ends the user.
 
 Pass criterion:
 
-- Every header destination loads without a 5xx page, the cart drawer opens and
-  closes, and a user can return to Catalog from each surface.
+- Every header nav button switches to its section without a full page
+  navigation or console error, the cart drawer opens and closes, and a user
+  can return to Catalog from every section.
 
-### WEB-UAT-02 - Footer Navigation and No Dead Ends
+### WEB-UAT-02 - No Dead Ends Across Sections
 
 Preconditions:
 
@@ -116,24 +125,20 @@ Preconditions:
 Manual steps:
 
 1. Open Catalog.
-2. Scroll to the footer.
-3. Click `API Debug`.
-4. Return to Catalog from the header.
-5. Visit Orders, Performance, 3D, and API from the header.
-6. On each route, scroll to the footer and confirm the footer is present.
-7. Record `[DRIFT]` if the footer is expected to provide all main-route links
-   but only provides a subset.
+2. Visit Orders, Performance, and API from the header, in sequence.
+3. From each section, return to Catalog via the header.
+4. [MANUAL] Confirm there is no footer on any section (removed along with
+   the deleted routes it used to link).
 
 Expected user-visible result:
 
-- Footer remains present across the app.
-- Footer `API Debug` reaches `/dev`.
-- Header navigation is enough to recover from every route.
+- Header navigation alone is enough to recover from every section; there is
+  no footer to fall back on and none is expected.
 
 Pass criterion:
 
-- Footer links that exist are live, and no page leaves the user without a clear
-  path to continue.
+- No section leaves the user without a clear path back to Catalog via the
+  header nav.
 
 ## Journey 2 - Catalog Browsing
 
@@ -215,7 +220,9 @@ Manual steps:
 Expected user-visible result:
 
 - Cart drawer shows line name, product ID, quantity controls, line total,
-  subtotal, checkout link, and in-memory cart notice.
+  subtotal, a "Proceed to Checkout" button (not a link — it switches to the
+  Catalog section and closes the drawer, it does not navigate), and
+  in-memory cart notice.
 - Quantity updates live.
 - Removing the last item returns the drawer to the empty-cart state.
 
@@ -223,7 +230,7 @@ Pass criterion:
 
 - Add, read, update, and delete all work from visible UI controls without curl.
 
-### WEB-UAT-06 - Cart Page CRUD and Quantity Clamps
+### WEB-UAT-06 - Cart Drawer CRUD and Quantity Clamps
 
 Preconditions:
 
@@ -231,8 +238,9 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/cart` from the browser location bar or cart workflow.
-2. [MANUAL] Confirm the cart page lists the current line and order summary.
+1. Open the cart drawer from the header cart icon (there is no dedicated
+   cart page — the drawer is the only cart surface).
+2. [MANUAL] Confirm the drawer lists the current line and subtotal.
 3. Click Increase quantity until the quantity reaches 20.
 4. Confirm the Increase control is disabled at 20.
 5. Click Decrease quantity until the quantity reaches 1.
@@ -241,15 +249,15 @@ Manual steps:
 
 Expected user-visible result:
 
-- Cart page and header cart count update as quantity changes.
+- Drawer and header cart count update as quantity changes.
 - Total and item count update live.
 - Quantity is clamped to 1-20.
-- Removing the last item returns the page to an empty-cart state with a Browse
-  Products action.
+- Removing the last item returns the drawer to an empty-cart state with a
+  Browse Products action.
 
 Pass criterion:
 
-- The full-page cart provides reliable CRUD and clear totals.
+- The cart drawer provides reliable CRUD and clear totals.
 
 ## Journey 4 - Checkout
 
@@ -261,23 +269,26 @@ Preconditions:
 
 Manual steps:
 
-1. Open the cart drawer or `/cart`.
-2. Click `Proceed to Checkout`.
+1. Open the cart drawer.
+2. Click `Proceed to Checkout`. This closes the drawer and reveals the
+   inline checkout panel next to the Catalog grid — it does not navigate to
+   a separate page.
 3. Type `Web UAT Customer` into `Your Name`.
 4. Click `Place Order`.
-5. Observe the destination after submission.
+5. Observe the app switch to the Orders section after submission.
 6. Open the cart drawer.
 
 Expected user-visible result:
 
-- Checkout shows order summary and customer name form.
-- Successful submission creates an order and navigates to its detail page.
-- Cart count returns to 0 and the drawer/page shows empty-cart state.
+- The inline checkout panel shows order summary and customer name form.
+- Successful submission creates an order and switches to the Orders
+  section, showing its detail view in place (no separate order-detail URL).
+- Cart count returns to 0 and the drawer shows the empty-cart state.
 
 Pass criterion:
 
 - A user can place an order with a fictional name and see confirmation without
-  leaving the web app.
+  leaving the single page.
 
 ## Journey 5 - Orders
 
@@ -289,27 +300,37 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/orders`.
+1. Open the Orders section from the header nav. If it still shows the
+   just-placed order's detail view, click `Back to orders` to reach the
+   list first.
 2. Find the order for `Web UAT Customer`.
 3. Click the order row.
-4. [MANUAL] Confirm the detail page shows customer, placed time, total, line
+4. [MANUAL] Confirm the detail view shows customer, placed time, total, line
    items, status badge, and actions.
 5. Click `Start Preparing`.
 6. Refresh the browser page.
 7. Confirm the status remains `Preparing`.
 8. If status is `Preparing`, click `Mark as Prepared`.
 9. Refresh again.
+10. Click `Back to orders`, switch to Catalog, then switch back to Orders.
+11. Confirm step 10 lands on the orders LIST, not the order detail view
+    from step 3 — the selected order must not resurrect after an explicit
+    "Back to orders" and a section round-trip.
 
 Expected user-visible result:
 
 - Orders list includes the new persisted order.
-- Detail page opens from the list.
+- Detail view opens from the list.
 - Status actions update the visible status.
 - Updated status survives browser reload.
+- Leaving the detail view via `Back to orders` and returning through another
+  section always lands on the list.
 
 Pass criterion:
 
-- A user can find, open, manage, and reload a persisted order through the UI.
+- A user can find, open, manage, and reload a persisted order through the UI,
+  and returning to Orders after backing out never traps them on a stale
+  detail view.
 
 ## Journey 6 - Resilience and Explorable States
 
@@ -321,10 +342,11 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/cart`.
+1. Open the cart drawer with an empty cart.
 2. [MANUAL] Confirm the empty-cart state explains what to do next.
 3. Click `Browse Products`.
-4. Open `/orders/does-not-exist`.
+4. Open the Orders section and use its "Look Up Order" form to search for
+   `does-not-exist`.
 5. [MANUAL] Confirm the app shows a graceful order-not-found state.
 
 Expected user-visible result:
@@ -347,13 +369,13 @@ Manual steps:
 
 1. Click the header `Demo` control.
 2. Confirm the Demo Mode banner appears.
-3. Open `/dev`.
+3. Open the API section.
 4. In Demo Guide, select `Loading State`.
 5. Return to Catalog and confirm loading UI is visible briefly.
-6. Return to `/dev`, select `Empty State`, then open Catalog and Orders.
-7. Return to `/dev`, select `API Error`, then open Catalog.
-8. Return to `/dev`, select `Cart Filled`, then open Cart.
-9. Return to `/dev`, select `Checkout Fail`, then attempt checkout.
+6. Return to the API section, select `Empty State`, then open Catalog and Orders.
+7. Return to the API section, select `API Error`, then open Catalog.
+8. Return to the API section, select `Cart Filled`, then open the cart drawer.
+9. Return to the API section, select `Checkout Fail`, then attempt checkout.
 10. Disable Demo Mode from the banner.
 
 Expected user-visible result:
@@ -377,8 +399,8 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/performance`.
-2. [MANUAL] Confirm the page is labeled `Mock Data`.
+1. Open the Performance section from the header nav.
+2. [MANUAL] Confirm the section is labeled `Mock Data`.
 3. Start each available scenario from the selector.
 4. Stop the scenario.
 5. Toggle animations on and off.
@@ -406,7 +428,7 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/dev`.
+1. Open the API section from the header nav (formerly the `/dev` route).
 2. Click `GET /health`.
 3. Click `GET /catalog/products`.
 4. Use `Cart - Add Item` to add a product.
@@ -425,7 +447,8 @@ Expected user-visible result:
 
 Pass criterion:
 
-- A developer can inspect and mutate the main BFF surfaces from `/dev`.
+- A developer can inspect and mutate the main BFF surfaces from the API
+  section.
 
 ## Journey 9 - 3D Visualizer
 
@@ -439,7 +462,8 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/visualizer`.
+1. Open `/` — the visualizer stage is already visible above the active
+   section; there is no dedicated `/visualizer` route to navigate to.
 2. Inspect the iframe element in browser dev tools.
 3. Confirm the iframe `src` is `/viz/index.html`.
 4. [MANUAL] Confirm the scene paints a white room with product/order/cart
@@ -455,6 +479,10 @@ Manual steps:
    - `warn` -> orange.
    - `error` -> red.
    - `idle` -> gray.
+9. Switch through Catalog → Orders → Performance → API → Catalog via the
+   header nav and confirm the iframe element from step 2 is the same DOM
+   node throughout (not just visually present) — the stage must never
+   remount when the active section changes.
 
 Expected user-visible result:
 
@@ -464,11 +492,13 @@ Expected user-visible result:
 - Scene status says `live · N objects` when the BFF data feed succeeds; it
   says `offline · N mock objects` only when the BFF fetch fails.
 - Products, orders, and cart are all represented.
+- The iframe is never destroyed and recreated when switching sections.
 
 Pass criterion:
 
-- The 3D page helps a user understand the current domain state without the web
-  app owning Three.js internals.
+- The visualizer stage helps a user understand the current domain state
+  without the web app owning Three.js internals, and its identity survives
+  every section switch.
 
 ### WEB-UAT-14 - Visualizer Reactivity After Domain Changes
 
@@ -478,17 +508,16 @@ Preconditions:
 
 Manual steps:
 
-1. Open `/visualizer` and note the `live · N objects` count.
-2. Return to Catalog.
+1. Note the `live · N objects` count in the visualizer stage.
+2. Switch to Catalog.
 3. Add one item to cart.
-4. Return to `/visualizer`.
-5. Click `Reload`.
-6. [MANUAL] Confirm the cart marker remains present and reflects a non-empty
+4. Confirm the visualizer stage (still visible, unchanged) reflects the
+   update, or click `Reload` if it does not update automatically.
+5. [MANUAL] Confirm the cart marker remains present and reflects a non-empty
    cart state.
-7. Complete checkout with `Web UAT Customer`.
-8. Return to `/visualizer`.
-9. Click `Reload`.
-10. [MANUAL] Confirm the item count increases and a new order object appears.
+6. Complete checkout with `Web UAT Customer`.
+7. Click `Reload` on the visualizer stage.
+8. [MANUAL] Confirm the item count increases and a new order object appears.
 
 Expected user-visible result:
 
