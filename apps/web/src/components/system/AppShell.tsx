@@ -9,8 +9,6 @@
 
 import { ReactNode, useState, useEffect } from "react";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Coffee,
   ShoppingCart,
@@ -27,28 +25,25 @@ import type { LucideIcon } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
 import { HealthBadge } from "./HealthBadge";
 import { CartDrawer } from "@/components/cart/CartDrawer";
-import { VisualizerPanel } from "@/components/visualizer/VisualizerPanel";
 import { getDemoModeStatus, setDemoMode } from "@/lib/api/expresso-api";
+import { useSection, type SectionId } from "./SectionProvider";
 
-type NavLink = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  // When true, render as <a target="_blank"> instead of next/link. Used for
-  // links that point outside the web app (e.g. the Prisma Studio admin GUI).
-  external?: boolean;
-};
+type NavLink =
+  | { section: SectionId; label: string; icon: LucideIcon }
+  | { href: string; label: string; icon: LucideIcon; external: true };
 
 // The Prisma Studio admin link is only rendered when NEXT_PUBLIC_PRISMA_STUDIO_URL
 // is set. Studio writes directly to Postgres — it bypasses DomainEventsModule,
-// so the SSE visualizer won't react to edits made there until a reload.
+// so the SSE visualizer won't react to edits made there until a reload. It is
+// the one nav entry that stays a real external link — it points outside this
+// single-page app entirely.
 const PRISMA_STUDIO_URL = process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL;
 
 const navLinks: NavLink[] = [
-  { href: "/", label: "Catalog", icon: Coffee },
-  { href: "/orders", label: "Orders", icon: Package },
-  { href: "/performance", label: "Performance", icon: Gauge },
-  { href: "/dev", label: "API", icon: Activity },
+  { section: "catalog", label: "Catalog", icon: Coffee },
+  { section: "orders", label: "Orders", icon: Package },
+  { section: "performance", label: "Performance", icon: Gauge },
+  { section: "dev", label: "API", icon: Activity },
   ...(PRISMA_STUDIO_URL
     ? [
         {
@@ -62,8 +57,7 @@ const navLinks: NavLink[] = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const isHome = pathname === "/";
+  const { section, setSection } = useSection();
   const { itemCount, isCartDrawerOpen, openCartDrawer, closeCartDrawer } =
     useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -79,9 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div
-      className={`min-h-screen flex flex-col${isHome ? " home-shell-root" : ""}`}
-    >
+    <div className="min-h-screen flex flex-col home-shell-root">
       {/* Demo mode banner */}
       {isDemoMode && (
         <div
@@ -114,8 +106,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="container">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link
-              href="/"
+            <button
+              type="button"
+              onClick={() => setSection("catalog")}
               className="flex items-center gap-2 font-semibold text-lg transition-opacity hover:opacity-80"
               style={{ color: "var(--foreground)" }}
             >
@@ -130,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 Playground
               </span>
-            </Link>
+            </button>
 
             {/* Desktop Nav */}
             <nav
@@ -140,9 +133,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {navLinks.map((link) => {
                 const Icon = link.icon;
-                if (link.external) {
+                if ("external" in link) {
                   // External links (e.g. Prisma Studio) open in a new tab and
-                  // never participate in the active-route highlight.
+                  // never participate in the active-section highlight.
                   return (
                     <a
                       key={link.href}
@@ -162,13 +155,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </a>
                   );
                 }
-                const isActive =
-                  pathname === link.href ||
-                  (link.href !== "/" && pathname.startsWith(link.href));
+                const isActive = section === link.section;
                 return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
+                  <button
+                    key={link.section}
+                    type="button"
+                    onClick={() => setSection(link.section)}
                     className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     style={{
                       backgroundColor: isActive
@@ -182,7 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   >
                     <Icon className="h-4 w-4" />
                     {link.label}
-                  </Link>
+                  </button>
                 );
               })}
             </nav>
@@ -262,7 +254,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="flex flex-col gap-1">
                 {navLinks.map((link) => {
                   const Icon = link.icon;
-                  if (link.external) {
+                  if ("external" in link) {
                     return (
                       <a
                         key={link.href}
@@ -282,14 +274,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                       </a>
                     );
                   }
-                  const isActive =
-                    pathname === link.href ||
-                    (link.href !== "/" && pathname.startsWith(link.href));
+                  const isActive = section === link.section;
                   return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
+                    <button
+                      key={link.section}
+                      type="button"
+                      onClick={() => {
+                        setSection(link.section);
+                        setMobileMenuOpen(false);
+                      }}
                       className="flex items-center gap-3 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium transition-colors"
                       style={{
                         backgroundColor: isActive
@@ -303,7 +296,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     >
                       <Icon className="h-4 w-4" />
                       {link.label}
-                    </Link>
+                    </button>
                   );
                 })}
 
@@ -330,65 +323,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Body: on the homepage the page itself owns a full-bleed visualizer
-          stage (see apps/web/app/page.tsx) — no persistent rail there. Every
-          other route keeps the content column + sticky visualizer rail so
-          the live order counter stays in view while browsing/checking out/
-          reviewing orders. */}
-      {isHome ? (
-        <main className="shell-content-full">{children}</main>
-      ) : (
-        <div className="shell-body">
-          <main className="shell-content">{children}</main>
-          <VisualizerPanel />
-        </div>
-      )}
-
-      {/* Footer — hidden on home; the stage layout has no room for it and
-          no page scroll to reach it anyway. */}
-      {!isHome && (
-        <footer
-          className="border-t py-6"
-          style={{
-            backgroundColor: "var(--card)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <div className="container">
-            <div
-              className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              <p>
-                Engineering Playground
-                <span className="mx-2">·</span>
-                <span style={{ color: "var(--foreground)" }}>
-                  Mini Commerce
-                </span>
-              </p>
-              <div className="flex items-center gap-4">
-                <a
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 transition-colors hover:opacity-80"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  <span>Source</span>
-                </a>
-                <Link
-                  href="/dev"
-                  className="transition-colors hover:opacity-80"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  API Debug
-                </Link>
-              </div>
-            </div>
-          </div>
-        </footer>
-      )}
+      {/* Body: the page owns a full-bleed visualizer stage (see
+          apps/web/app/page.tsx) pinned above whichever section is active.
+          There is no other route and no footer — the stage layout has no
+          room for one and no page scroll to reach it anyway. */}
+      <main className="shell-content-full">{children}</main>
 
       {/* Cart Drawer */}
       <CartDrawer open={isCartDrawerOpen} onClose={closeCartDrawer} />

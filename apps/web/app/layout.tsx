@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import { AppShell } from '@/components/system/AppShell';
 import { CartProvider } from '@/components/cart/CartProvider';
+import { SectionProvider } from '@/components/system/SectionProvider';
 
 export const metadata: Metadata = {
   title: 'Expresso | Engineering Playground',
@@ -24,7 +26,11 @@ export default function RootLayout({
     <html lang="en" className="bg-[var(--background)]">
       <body>
         <CartProvider>
-          <AppShell>{children}</AppShell>
+          <Suspense fallback={null}>
+            <SectionProvider>
+              <AppShell>{children}</AppShell>
+            </SectionProvider>
+          </Suspense>
         </CartProvider>
       </body>
     </html>
