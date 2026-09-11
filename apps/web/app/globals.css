@@ -1130,6 +1130,28 @@ body {
   padding: 0.5rem 1rem 1rem;
 }
 
+/* Orders/Performance/API Debug span the full strip width instead of
+   sharing it with a cart column — there is nothing to check out while
+   looking at them — and scroll normally instead of the catalog pane's
+   constrained layout. */
+.home-stage-strip--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.home-stage-section {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* Matches `.container`'s max-width/centering for content moved out of a
+   former full page route (Orders/Performance/API Debug) into a strip
+   panel, without `.container`'s 1200px cap fighting the panel's own
+   (usually narrower) width. */
+.home-stage-section-inner {
+  padding: 1.5rem;
+}
+
 .home-stage-catalog {
   min-height: 0;
   min-width: 0;
