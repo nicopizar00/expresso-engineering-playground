@@ -1110,6 +1110,22 @@ body {
   overflow: hidden;
 }
 
+/* Orders/Performance/API render inside `.home-stage-strip--full`, and their
+   content (order lists, forms, KPI grids) runs far taller than the
+   catalog's cart-panel worst case above. An "auto" row-2 track sizes to
+   its item's max-content height regardless of that item's own
+   `overflow-y: auto` (overflow only kicks in once the assigned track size
+   is smaller than the content — it doesn't change how "auto" computes that
+   size in the first place), so on these sections row 2 would keep growing
+   and squeeze row 1 (the visualizer) down toward its 120px floor instead of
+   the fixed height the design calls for. Pin row 2 to the same 360px floor
+   here instead of letting it track content — `.home-stage-section`'s own
+   overflow-y: auto then scrolls the tall content within that fixed height,
+   the same way the catalog scrolls within its own row 1 already. */
+.home-stage:has(.home-stage-strip--full) {
+  grid-template-rows: minmax(120px, 1fr) 360px;
+}
+
 .home-stage-viz {
   display: flex;
   flex-direction: column;
