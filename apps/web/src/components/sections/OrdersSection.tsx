@@ -4,9 +4,10 @@
  * OrdersSection - list all persisted orders, look up by ID, view/manage one
  *
  * Merges the former /orders (list + lookup) and /orders/[orderId] (detail +
- * management) routes into one component with internal selection state —
- * there is no longer a route to carry the selected order id, so it lives
- * here instead.
+ * management) routes into one component. There is no longer a route to
+ * carry the selected order id, so the parent (page.tsx) owns it and passes
+ * it down — that way it survives this component remounting when the user
+ * switches sections and back.
  */
 
 import { useState } from 'react';
@@ -394,11 +395,17 @@ function OrderManagePanel({ order, onUpdate }: { order: Order; onUpdate: () => v
   );
 }
 
-export function OrdersSection({ initialOrderId }: { initialOrderId?: string | null }) {
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(initialOrderId ?? null);
-
+export function OrdersSection({
+  selectedOrderId,
+  onSelect,
+  onBack,
+}: {
+  selectedOrderId: string | null;
+  onSelect: (orderId: string) => void;
+  onBack: () => void;
+}) {
   if (selectedOrderId) {
-    return <OrderDetailView orderId={selectedOrderId} onBack={() => setSelectedOrderId(null)} />;
+    return <OrderDetailView orderId={selectedOrderId} onBack={onBack} />;
   }
-  return <OrdersListView onSelect={setSelectedOrderId} />;
+  return <OrdersListView onSelect={onSelect} />;
 }

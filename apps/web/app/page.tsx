@@ -21,7 +21,7 @@ async function fetchProducts(): Promise<ProductsResponse> {
 
 export default function HomeWorkspace() {
   const { section, setSection } = useSection();
-  const [justPlacedOrderId, setJustPlacedOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const { data, error, isLoading, mutate } = useSWR<ProductsResponse, Error>(
     "products",
@@ -33,7 +33,7 @@ export default function HomeWorkspace() {
 
   const handleOrderPlaced = useCallback(
     (orderId: string) => {
-      setJustPlacedOrderId(orderId);
+      setSelectedOrderId(orderId);
       setSection("orders");
     },
     [setSection],
@@ -117,7 +117,11 @@ export default function HomeWorkspace() {
 
         {section === "orders" && (
           <div className="home-stage-section" data-testid="home-orders">
-            <OrdersSection initialOrderId={justPlacedOrderId} />
+            <OrdersSection
+              selectedOrderId={selectedOrderId}
+              onSelect={setSelectedOrderId}
+              onBack={() => setSelectedOrderId(null)}
+            />
           </div>
         )}
 
