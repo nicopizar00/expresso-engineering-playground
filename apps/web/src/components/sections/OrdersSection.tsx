@@ -394,8 +394,8 @@ function OrderManagePanel({ order, onUpdate }: { order: Order; onUpdate: () => v
   );
 }
 
-export function OrdersSection() {
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+export function OrdersSection({ initialOrderId }: { initialOrderId?: string | null }) {
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(initialOrderId ?? null);
 
   if (selectedOrderId) {
     return <OrderDetailView orderId={selectedOrderId} onBack={() => setSelectedOrderId(null)} />;
