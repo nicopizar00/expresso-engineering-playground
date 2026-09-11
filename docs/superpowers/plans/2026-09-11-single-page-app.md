@@ -706,7 +706,9 @@ params for section switching, `next/navigation`'s `useSearchParams` /
   `apps/web/app/dev/page.tsx`
 
 **Interfaces:**
-- Produces: `OrdersSection(): JSX.Element` (no props), `PerformanceSection(): JSX.Element`
+- Produces: `OrdersSection({ initialOrderId }: { initialOrderId?: string | null }): JSX.Element`
+  (see Step 3's code — `initialOrderId` is required for Task 4's "place an
+  order → land on its detail view" flow, do not drop it), `PerformanceSection(): JSX.Element`
   (no props), `DevSection({ onOpenOrders }: { onOpenOrders: () => void }): JSX.Element`.
   Task 4's `page.tsx` imports and renders all three.
 
