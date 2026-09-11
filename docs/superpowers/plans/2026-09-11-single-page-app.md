@@ -1652,8 +1652,15 @@ params for section switching, `next/navigation`'s `useSearchParams` /
 - [ ] **Step 3: Typecheck and lint**
 
   Run: `pnpm --filter @mini-commerce/web typecheck && pnpm --filter @mini-commerce/web lint`
-  Expected: both PASS now — this is the task that resolves Task 3's
-  expected interim failure.
+  Expected: lint PASSES; typecheck resolves Task 3's `page.tsx` failure
+  but still fails on `apps/web/app/checkout/page.tsx` — that file also
+  calls `<CartCheckoutPanel variant="page" />` (from before this plan
+  started) and this task doesn't touch it. That's fine: `/checkout` is
+  one of the routes Task 6 deletes outright, so its stale call site
+  doesn't need fixing, just removing, which happens there. Confirm the
+  one remaining typecheck error is exactly that file/line and nothing
+  else, then proceed — don't "fix" `checkout/page.tsx` here, that's
+  Task 6's job.
 
 - [ ] **Step 4: Manual browser verification**
 
@@ -2017,10 +2024,13 @@ params for section switching, `next/navigation`'s `useSearchParams` /
 - [ ] **Step 6: Typecheck and lint**
 
   Run: `pnpm --filter @mini-commerce/web typecheck && pnpm --filter @mini-commerce/web lint`
-  Expected: both PASS. Typecheck will fail if `VisualizerPanel.tsx` still
-  has a live import anywhere — grep for `VisualizerPanel` across
-  `apps/web/src` first if it does, to find what still references it,
-  rather than guessing.
+  Expected: lint PASSES. Typecheck should show only the same one
+  pre-existing failure from Task 4 (`apps/web/app/checkout/page.tsx`'s
+  stale `variant` prop, unrelated to this task — resolved when Task 6
+  deletes that route) — if it shows anything else, in particular if
+  `VisualizerPanel.tsx` still has a live import anywhere, grep for
+  `VisualizerPanel` across `apps/web/src` to find what still references
+  it, rather than guessing.
 
 - [ ] **Step 7: Manual browser verification**
 
