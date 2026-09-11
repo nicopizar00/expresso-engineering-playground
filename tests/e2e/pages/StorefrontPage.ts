@@ -47,7 +47,7 @@ export class StorefrontPage {
   }
 
   proceedToCheckoutLink(): Locator {
-    return this.cartDialog().getByRole("link", {
+    return this.cartDialog().getByRole("button", {
       name: /Proceed to Checkout/i,
     });
   }

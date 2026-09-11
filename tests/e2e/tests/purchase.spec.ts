@@ -92,6 +92,7 @@ test.describe("End-to-end purchase flow", () => {
     await expect(cart.subtotal()).toHaveText("3.50 USD");
 
     await cart.clickCheckout();
+    await expect(cart.dialog()).toBeHidden();
     await expect(page.getByTestId("cart-checkout-panel")).toContainText(
       classicEspresso.name,
     );
@@ -139,6 +140,7 @@ test.describe.skip("End-to-end purchase flow - Mobile Chrome viewport", () => {
     await expect(cart.subtotal()).toHaveText("3.50 USD");
 
     await cart.clickCheckout();
+    await expect(cart.dialog()).toBeHidden();
     await expect(page.getByTestId("cart-checkout-panel")).toContainText(
       classicEspresso.name,
     );

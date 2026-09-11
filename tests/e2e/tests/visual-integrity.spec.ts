@@ -207,9 +207,10 @@ test.describe("visual UI integrity - desktop", () => {
       drawer.getByRole("button", { name: "Close cart" }),
     );
 
-    const checkout = drawer.getByRole("link", { name: /Proceed to Checkout/i });
+    const checkout = drawer.getByRole("button", { name: /Proceed to Checkout/i });
     await expectVisualActionable(checkout, { minHeight: 40, minWidth: 200 });
     await clickVisualCenter(checkout);
+    await expect(drawer).toBeHidden();
     await expect(page.getByTestId("cart-checkout-panel")).toContainText(
       productUnderTest.name,
     );
@@ -336,7 +337,7 @@ async function addProductAndOpenCheckout(page: Page): Promise<void> {
   );
   await clickVisualCenter(cartButton(page));
   await clickVisualCenter(
-    page.getByRole("link", { name: /Proceed to Checkout/i }),
+    page.getByRole("button", { name: /Proceed to Checkout/i }),
   );
   await expect(page.getByTestId("cart-checkout-panel")).toContainText(
     productUnderTest.name,

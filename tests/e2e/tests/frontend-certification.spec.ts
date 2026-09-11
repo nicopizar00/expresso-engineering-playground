@@ -330,7 +330,8 @@ test("certifies catalog, cart CRUD, checkout, and order management", async ({
   await cartButton.click();
   const cartDrawer = page.getByRole("dialog", { name: "Cart" });
   await expect(cartDrawer).toBeVisible();
-  await cartDrawer.getByRole("link", { name: /Proceed to Checkout/ }).click();
+  await cartDrawer.getByRole("button", { name: /Proceed to Checkout/ }).click();
+  await expect(cartDrawer).toBeHidden();
 
   await expect(page.getByTestId("cart-checkout-panel")).toContainText(
     "Classic Espresso",
@@ -344,11 +345,23 @@ test("certifies catalog, cart CRUD, checkout, and order management", async ({
   await page.getByRole("button", { name: "Mark as Prepared" }).click();
   await expect(page.getByText("Prepared")).toBeVisible();
 
+  // Explicitly leave the order detail view, switch to another section, then
+  // come back via the nav button — this must land on the Orders LIST, not
+  // reopen the order that was just placed (regression coverage for the
+  // selected-order-id state being lifted into page.tsx and properly reset).
+  await page.getByRole("button", { name: /Back to orders/i }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("button", { name: "Catalog" })
+    .click();
   await page
     .getByRole("navigation", { name: "Main" })
     .getByRole("button", { name: "Orders" })
     .click();
   await expect(page.getByTestId("home-orders")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Orders", exact: true }),
+  ).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 
@@ -431,4 +444,35 @@ test("certifies dialog focus restore, shell navigation, performance copy, and vi
     page.getByRole("heading", { name: "Developer Tools" }),
   ).toBeVisible();
   expect(browserErrors).toEqual([]);
+});
+
+test("keeps the same visualizer iframe DOM node across every section switch", async ({
+  page,
+}) => {
+  await installCommerceMock(page);
+  await page.goto("/");
+
+  const frame = page.locator('iframe[title="3D Visualizer - Hello Room"]');
+  await expect(frame).toBeVisible();
+
+  // Tag the live DOM node with a unique marker. If a section switch ever
+  // remounts the visualizer, a fresh iframe element won't carry it.
+  await frame.evaluate((el) => {
+    (el as HTMLIFrameElement & { __identityMarker?: string }).__identityMarker =
+      "same-iframe";
+  });
+
+  const nav = page.getByRole("navigation", { name: "Main" });
+  for (const section of ["Orders", "Performance", "API", "Catalog"]) {
+    await nav.getByRole("button", { name: section }).click();
+    await expect(frame).toBeVisible();
+    const marker = await frame.evaluate(
+      (el) =>
+        (el as HTMLIFrameElement & { __identityMarker?: string })
+          .__identityMarker,
+    );
+    expect(marker, `iframe identity lost after switching to ${section}`).toBe(
+      "same-iframe",
+    );
+  }
 });
