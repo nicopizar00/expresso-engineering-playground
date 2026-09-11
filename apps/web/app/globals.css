@@ -68,12 +68,6 @@ a {
   --shadow: 3px 3px 0 0 var(--shadow-color);
   --shadow-md: 4px 4px 0 0 var(--shadow-color);
   --shadow-lg: 6px 6px 0 0 var(--shadow-color);
-
-  /* Persistent visualizer rail width. 0 on narrow viewports (viz collapses
-     to a bottom drawer instead of a side column); set on the desktop
-     breakpoint below. Consumed by the cart panel so it never sits behind
-     the rail. */
-  --viz-rail-w: 0px;
 }
 
 html {
@@ -1073,9 +1067,11 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Home stage — the 3D visualizer is this page's main content, not a   */
-/* side rail (every other route still gets the rail — see the app-shell */
-/* section below). Fixed viewport: no page-level scrolling, ever.       */
+/* Home stage — the 3D visualizer is this page's main content, pinned  */
+/* above every section (Catalog, Orders, Performance, API Debug — see  */
+/* apps/web/app/page.tsx's section switch). Fixed viewport: no         */
+/* page-level scrolling, ever. Non-catalog sections scroll internally  */
+/* in the strip below; the stage itself never does.                    */
 /* ------------------------------------------------------------------ */
 
 .home-stage {
@@ -1171,37 +1167,11 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* App shell — persistent visualizer rail                              */
-/*                                                                      */
-/* The 3D visualizer is global chrome, not page content: AppShell wraps */
-/* {children} and a VisualizerPanel in a two-column grid so whatever    */
-/* the shopper does (browse, cart, checkout, orders) stays next to the  */
-/* live order counter. Below 1024px there's no room for a side column, */
-/* so the panel collapses to a bottom drawer with a pull-tab instead.   */
-/* The one exception is the homepage: it has no rail at all, since it   */
-/* renders its own full-bleed visualizer stage instead (see the "Home   */
-/* stage" section above and apps/web/app/page.tsx).                    */
+/* App shell root — the whole app is one page now: this is just the    */
+/* shell's layout container (header, then the full-bleed home stage    */
+/* above), capped to the viewport with no page-level scroll.           */
 /* ------------------------------------------------------------------ */
 
-:root {
-  --viz-tab-h: 2.75rem;
-}
-
-.shell-body {
-  flex: 1 1 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: 0;
-}
-
-.shell-content {
-  min-width: 0;
-}
-
-/* Used only on `/`: AppShell renders this instead of `.shell-body` +
-   VisualizerPanel when there is no rail (the home page owns its own
-   full-bleed visualizer stage). Mirrors `.shell-body`'s flex-fill so the
-   page grid below it can size off 100% with no hardcoded vh math. */
 .shell-content-full {
   flex: 1 1 auto;
   min-width: 0;
@@ -1210,133 +1180,21 @@ body {
   flex-direction: column;
 }
 
-/* Caps the shell root to the viewport height on home only, so
+/* Caps the shell root to the viewport height, so
    .shell-content-full/.home-stage's flex:1 1 auto + min-height:0 chain
    has an actual definite height to shrink into instead of growing to
-   fit content. `.min-h-screen` alone is a floor, not a ceiling, and does
-   not prevent the page from growing taller than the viewport — which is
-   exactly what "no scroll on /" must prevent. `overflow: hidden` clips
-   content that still doesn't fit after shrinking, per the "truly zero
-   scroll anywhere" requirement — every other route still uses plain
-   `.min-h-screen` unmodified and scrolls normally, as intended.
+   fit content. `.min-h-screen` alone is a floor, not a ceiling, and
+   does not prevent the page from growing taller than the viewport —
+   which is exactly what "no page scroll" must prevent. `overflow:
+   hidden` clips content that still doesn't fit after shrinking.
 */
 .home-shell-root {
   height: 100vh;
   overflow: hidden;
-  /* The persistent rail's width variable doesn't apply here — the
-     homepage has no rail — but CartDrawer's backdrop/panel position off
-     it regardless (they don't know which route they're on). Zeroing it
-     here keeps the drawer correctly full-width/edge-anchored on `/`
-     without touching CartDrawer.tsx itself. */
-  --viz-rail-w: 0px;
-}
-
-@media (min-width: 1024px) {
-  .shell-body {
-    grid-template-columns: minmax(0, 1fr) 420px;
-  }
-  :root {
-    --viz-rail-w: 420px;
-  }
-}
-
-.viz-panel {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 45;
-  max-height: 85vh;
-  overflow-y: auto;
-  background: var(--card);
-  transform: translateY(calc(100% - var(--viz-tab-h)));
-  transition: transform 0.3s ease;
-}
-.viz-panel.is-open {
-  transform: translateY(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .viz-panel {
-    transition: none;
-  }
-}
-
-.viz-pull-tab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  height: var(--viz-tab-h);
-  border: 0;
-  border-top: 4px solid var(--brass);
-  background: var(--barrel);
-  color: var(--crema);
-  font-family: "Fraunces", Georgia, serif;
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.viz-pull-handle {
-  display: block;
-  width: 2.5rem;
-  height: 3px;
-  background: var(--brass);
-}
-
-.viz-bezel {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  position: relative;
-}
-
-.viz-bezel::before,
-.viz-bezel::after {
-  content: "";
-  position: absolute;
-  top: 0.5rem;
-  width: 6px;
-  height: 6px;
-  background: var(--brass);
-}
-.viz-bezel::before {
-  left: 0.5rem;
-}
-.viz-bezel::after {
-  right: 0.5rem;
-}
-
-.viz-bezel-caption {
-  font-size: 0.8125rem;
-  color: var(--muted-foreground);
-  line-height: 1.5;
-}
-
-@media (min-width: 1024px) {
-  .viz-panel {
-    position: sticky;
-    top: 5rem;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    max-height: calc(100vh - 6rem);
-    transform: none !important;
-    border-top: 0;
-    border-left: 4px solid var(--brass);
-  }
-  .viz-pull-tab {
-    display: none;
-  }
 }
 
 /* ------------------------------------------------------------------ */
-/* Cart panel — reframed as a receipt printing out from the header cart */
-/* button rather than a full-height slab over the right edge, so it     */
-/* never covers the persistent visualizer rail on desktop.              */
+/* Cart panel — a receipt printing out from the header cart button.    */
 /* ------------------------------------------------------------------ */
 
 .cart-backdrop {
@@ -1344,14 +1202,14 @@ body {
   top: 0;
   left: 0;
   bottom: 0;
-  right: var(--viz-rail-w);
+  right: 0;
   z-index: 48;
 }
 
 .cart-panel {
   position: fixed;
   top: 4.5rem;
-  right: calc(var(--viz-rail-w) + 1rem);
+  right: 1rem;
   left: 1rem;
   z-index: 49;
   width: auto;
