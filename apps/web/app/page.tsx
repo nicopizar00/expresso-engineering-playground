@@ -130,6 +130,7 @@ export default function HomeWorkspace() {
         {section === "dev" && (
           <div className="home-stage-section" data-testid="home-dev">
             <DevSection
+              onOpenCatalog={() => setSection("catalog")}
               onOpenOrders={() => setSection("orders")}
               onOpenPerformance={() => setSection("performance")}
             />

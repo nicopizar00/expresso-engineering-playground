@@ -134,7 +134,7 @@ function ActionButton({ onClick, loading, children }: { onClick: () => void; loa
 // Demo Guide Panel
 // ---------------------------------------------------------------------------
 
-function DemoGuidePanel({ onOpenOrders }: { onOpenOrders: () => void }) {
+function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => void; onOpenOrders: () => void }) {
   const [isDemoMode, setIsDemoModeState] = useState(false);
   const [scenario, setScenarioState] = useState<MockScenario>('happy');
 
@@ -234,12 +234,12 @@ function DemoGuidePanel({ onOpenOrders }: { onOpenOrders: () => void }) {
           Quick Navigation
         </label>
         <div className="flex flex-wrap gap-2">
-          <a href="/" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+          <button type="button" onClick={onOpenCatalog} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
             <ShoppingCart className="h-3 w-3" /> Catalog
-          </a>
-          <a href="/cart" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+          </button>
+          <button type="button" onClick={onOpenCatalog} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
             <ShoppingCart className="h-3 w-3" /> Cart
-          </a>
+          </button>
           <button type="button" onClick={onOpenOrders} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
             <Package className="h-3 w-3" /> Sample Order
           </button>
@@ -753,7 +753,7 @@ function OrderManageCard() {
 // Main Page
 // ---------------------------------------------------------------------------
 
-export function DevSection({ onOpenOrders, onOpenPerformance }: { onOpenOrders: () => void; onOpenPerformance: () => void }) {
+export function DevSection({ onOpenCatalog, onOpenOrders, onOpenPerformance }: { onOpenCatalog: () => void; onOpenOrders: () => void; onOpenPerformance: () => void }) {
   const [products, setProducts] = useState<ReadonlyArray<Product> | null>(null);
   // The browser talks to the web app's own /api/bff proxy, which rewrites to
   // the BFF container over the internal network (unless explicitly overridden).
@@ -792,7 +792,7 @@ export function DevSection({ onOpenOrders, onOpenPerformance }: { onOpenOrders: 
 
       {/* Demo Guide and Readiness - prominently displayed */}
       <div className="grid gap-4 mb-8 lg:grid-cols-2">
-        <DemoGuidePanel onOpenOrders={onOpenOrders} />
+        <DemoGuidePanel onOpenCatalog={onOpenCatalog} onOpenOrders={onOpenOrders} />
         <ReadinessPanel />
       </div>
 
