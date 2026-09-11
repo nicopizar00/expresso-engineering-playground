@@ -332,11 +332,12 @@ test("certifies catalog, cart CRUD, checkout, and order management", async ({
   await expect(cartDrawer).toBeVisible();
   await cartDrawer.getByRole("link", { name: /Proceed to Checkout/ }).click();
 
-  await expect(page).toHaveURL(/\/checkout$/);
-  await expect(page.getByText("Classic Espresso")).toBeVisible();
+  await expect(page.getByTestId("cart-checkout-panel")).toContainText(
+    "Classic Espresso",
+  );
   await page.getByRole("button", { name: "Place Order" }).click();
 
-  await expect(page).toHaveURL(/\/orders\/ord_e2e_001$/);
+  await expect(page.getByTestId("home-orders")).toBeVisible();
   await expect(page.getByText("Order placed successfully")).toBeVisible();
   await page.getByRole("button", { name: "Start Preparing" }).click();
   await expect(page.getByText("Preparing")).toBeVisible();
@@ -345,9 +346,9 @@ test("certifies catalog, cart CRUD, checkout, and order management", async ({
 
   await page
     .getByRole("navigation", { name: "Main" })
-    .getByRole("link", { name: "Orders" })
+    .getByRole("button", { name: "Orders" })
     .click();
-  await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
+  await expect(page.getByTestId("home-orders")).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 
@@ -401,16 +402,15 @@ test("certifies dialog focus restore, shell navigation, performance copy, and vi
 
   await page
     .getByRole("navigation", { name: "Main" })
-    .getByRole("link", { name: "Performance" })
+    .getByRole("button", { name: "Performance" })
     .click();
-  await expect(page).toHaveURL(/\/performance$/);
+  await expect(page.getByTestId("home-performance")).toBeVisible();
   await expect(page.getByText(/simulated/i)).toBeVisible();
 
-  // The 3D visualizer is persistent shell chrome, not a dedicated route: on
-  // every route except the homepage (which renders its own separate
-  // visualizer instance) it stays mounted across navigation, so it's still
-  // here on /performance.
-  await expect(page.getByTestId("viz-panel")).toBeVisible();
+  // The 3D visualizer is the homepage's own always-mounted stage, not
+  // per-section chrome: switching sections never remounts it, so it's still
+  // here while the Performance section is active.
+  await expect(page.getByTestId("visualizer-embed")).toBeVisible();
   await expect(
     page
       .frameLocator('iframe[title="3D Visualizer - Hello Room"]')
@@ -424,9 +424,9 @@ test("certifies dialog focus restore, shell navigation, performance copy, and vi
   await page.getByRole("button", { name: "Toggle menu" }).click();
   await page
     .getByRole("navigation", { name: "Mobile" })
-    .getByRole("link", { name: "API" })
+    .getByRole("button", { name: "API" })
     .click();
-  await expect(page).toHaveURL(/\/dev$/);
+  await expect(page.getByTestId("home-dev")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Developer Tools" }),
   ).toBeVisible();

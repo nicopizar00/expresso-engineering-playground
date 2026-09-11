@@ -46,7 +46,7 @@ test.describe('Session isolation (real BFF)', () => {
       await expect(storefrontA.placeOrderButton()).toBeEnabled();
       await storefrontA.placeOrder();
       await expect(storefrontA.orderSuccessAlert()).toBeVisible();
-      const orderIdA = storefrontA.currentOrderId();
+      const orderIdA = await storefrontA.currentOrderId();
 
       // Session B's cart was never touched by A's checkout and can still
       // check out on its own.
@@ -55,7 +55,7 @@ test.describe('Session isolation (real BFF)', () => {
       await expect(storefrontB.placeOrderButton()).toBeEnabled();
       await storefrontB.placeOrder();
       await expect(storefrontB.orderSuccessAlert()).toBeVisible();
-      const orderIdB = storefrontB.currentOrderId();
+      const orderIdB = await storefrontB.currentOrderId();
 
       expect(orderIdA).not.toBe(orderIdB);
     } finally {

@@ -118,12 +118,12 @@ for (const profile of viewportProfiles) {
       await expectActionable(storefront.placeOrderButton());
       await storefront.placeOrder();
 
-      await expect(page).toHaveURL(/\/orders\/ord_e2e_1001$/);
+      await expect(page.getByTestId('home-orders')).toBeVisible();
       await expect(storefront.orderDetailsHeading()).toBeVisible();
       await expect(storefront.orderSuccessAlert()).toBeVisible();
       await expect(storefront.orderStatus('Pending')).toBeVisible();
 
-      const orderId = storefront.currentOrderId();
+      const orderId = await storefront.currentOrderId();
       await expect(storefront.visibleOrderId(orderId)).toBeVisible();
       await expect(storefront.orderLineItem(productUnderTest.name)).toBeVisible();
 
@@ -143,7 +143,7 @@ for (const profile of viewportProfiles) {
       await expectActionable(storefront.placeOrderButton());
       await storefront.placeOrder();
 
-      await expect(page).toHaveURL(/\/checkout$/);
+      await expect(storefront.checkoutPanel()).toBeVisible();
       await expect(storefront.checkoutAlert()).toContainText(
         'An unexpected error occurred. Please try again.'
       );
@@ -189,7 +189,7 @@ async function prepareCheckout(
 
   await expectActionable(storefront.proceedToCheckoutLink());
   await storefront.proceedToCheckoutFromCartDrawer();
-  await expect(storefront.checkoutHeading()).toBeVisible();
+  await expect(storefront.checkoutPanel()).toBeVisible();
 
   return storefront;
 }

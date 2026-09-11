@@ -92,8 +92,9 @@ test.describe("End-to-end purchase flow", () => {
     await expect(cart.subtotal()).toHaveText("3.50 USD");
 
     await cart.clickCheckout();
-    await expect(page).toHaveURL(/\/checkout$/);
-    await expect(page.getByRole("heading", { name: "Checkout" })).toBeVisible();
+    await expect(page.getByTestId("cart-checkout-panel")).toContainText(
+      classicEspresso.name,
+    );
   });
 
   test("shows the product fetch error state when the catalog API returns 500", async ({
@@ -138,8 +139,9 @@ test.describe.skip("End-to-end purchase flow - Mobile Chrome viewport", () => {
     await expect(cart.subtotal()).toHaveText("3.50 USD");
 
     await cart.clickCheckout();
-    await expect(page).toHaveURL(/\/checkout$/);
-    await expect(page.getByRole("heading", { name: "Checkout" })).toBeVisible();
+    await expect(page.getByTestId("cart-checkout-panel")).toContainText(
+      classicEspresso.name,
+    );
   });
 });
 

@@ -52,8 +52,11 @@ export class StorefrontPage {
     });
   }
 
-  checkoutHeading(): Locator {
-    return this.page.getByRole("heading", { name: "Checkout" });
+  // Checkout is inline in the homepage's cart panel now — there is no
+  // dedicated "Checkout" page/heading to land on. `checkoutPanel()` is the
+  // wrapper that shows up in place of what used to be route navigation.
+  checkoutPanel(): Locator {
+    return this.page.getByTestId("cart-checkout-panel");
   }
 
   checkoutSummaryHeading(): Locator {
@@ -61,7 +64,7 @@ export class StorefrontPage {
   }
 
   checkoutLineItem(productName: string): Locator {
-    return this.page.getByText(productName, { exact: true });
+    return this.checkoutPanel().getByText(productName, { exact: true });
   }
 
   placeOrderButton(): Locator {
@@ -128,14 +131,20 @@ export class StorefrontPage {
     await this.startPreparingButton().click();
   }
 
-  currentOrderId(): string {
-    const match = this.page.url().match(/\/orders\/([^/?#]+)/);
-    if (!match?.[1]) {
+  // Order placement no longer navigates to /orders/:id — the Orders section
+  // stays on "/" and renders the order detail view in place. Read the order
+  // id straight out of the detail view's DOM (the mono paragraph right next
+  // to the "Order Details" heading) instead of parsing the URL.
+  async currentOrderId(): Promise<string> {
+    const text = await this.orderDetailsHeading()
+      .locator("xpath=following-sibling::p[1]")
+      .textContent();
+    if (!text?.trim()) {
       throw new Error(
-        `Expected an order detail URL, received ${this.page.url()}`,
+        "Expected an order id next to the Order Details heading, found none",
       );
     }
-    return decodeURIComponent(match[1]);
+    return text.trim();
   }
 
   private url(path: string): string {

@@ -136,8 +136,14 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                 {formattedTotal}
               </span>
             </div>
+            {/* Checkout is inline in the homepage's cart panel now — there is
+                no /checkout route to land on. This stays a same-page Link
+                (rather than a plain button) so it keeps landmark/role
+                semantics for assistive tech and existing tests; closing the
+                drawer via onClick is what actually reveals the already-
+                rendered CartCheckoutPanel underneath. */}
             <Link
-              href="/checkout"
+              href="/"
               onClick={onClose}
               className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-colors"
               style={{

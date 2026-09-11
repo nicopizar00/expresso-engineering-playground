@@ -107,10 +107,10 @@ test.describe("visual UI integrity - desktop", () => {
     await expectNoHorizontalOverflow(page);
 
     for (const label of ["Catalog", "Orders", "Performance", "API"]) {
-      const navLink = page
+      const navButton = page
         .getByRole("navigation", { name: "Main" })
-        .getByRole("link", { name: label });
-      await expectVisualActionable(navLink, { minHeight: 32, minWidth: 32 });
+        .getByRole("button", { name: label });
+      await expectVisualActionable(navButton, { minHeight: 32, minWidth: 32 });
     }
 
     await expectVisualActionable(cartButton(page), {
@@ -126,9 +126,9 @@ test.describe("visual UI integrity - desktop", () => {
     await clickVisualCenter(
       page
         .getByRole("navigation", { name: "Main" })
-        .getByRole("link", { name: "API" }),
+        .getByRole("button", { name: "API" }),
     );
-    await expect(page).toHaveURL(/\/dev$/);
+    await expect(page.getByTestId("home-dev")).toBeVisible();
   });
 
   test("opens product quick view and keeps modal controls visually actionable", async ({
@@ -210,7 +210,9 @@ test.describe("visual UI integrity - desktop", () => {
     const checkout = drawer.getByRole("link", { name: /Proceed to Checkout/i });
     await expectVisualActionable(checkout, { minHeight: 40, minWidth: 200 });
     await clickVisualCenter(checkout);
-    await expect(page).toHaveURL(/\/checkout$/);
+    await expect(page.getByTestId("cart-checkout-panel")).toContainText(
+      productUnderTest.name,
+    );
   });
 
   test("places an order and manages status through visual controls", async ({
@@ -223,7 +225,7 @@ test.describe("visual UI integrity - desktop", () => {
     await expectVisualActionable(placeOrder, { minHeight: 40, minWidth: 240 });
     await clickVisualCenter(placeOrder);
 
-    await expect(page).toHaveURL(/\/orders\/ord_visual_1001$/);
+    await expect(page.getByTestId("home-orders")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Order Details" }),
     ).toBeVisible();
@@ -316,13 +318,13 @@ for (const viewport of [
       const mobileNav = page.getByRole("navigation", { name: "Mobile" });
       await expect(mobileNav).toBeVisible();
 
-      const ordersLink = mobileNav.getByRole("link", { name: "Orders" });
-      await expectVisualActionable(ordersLink, {
+      const ordersButton = mobileNav.getByRole("button", { name: "Orders" });
+      await expectVisualActionable(ordersButton, {
         minHeight: 40,
         minWidth: 120,
       });
-      await clickVisualCenter(ordersLink);
-      await expect(page).toHaveURL(/\/orders$/);
+      await clickVisualCenter(ordersButton);
+      await expect(page.getByTestId("home-orders")).toBeVisible();
     });
   });
 }
@@ -336,7 +338,9 @@ async function addProductAndOpenCheckout(page: Page): Promise<void> {
   await clickVisualCenter(
     page.getByRole("link", { name: /Proceed to Checkout/i }),
   );
-  await expect(page).toHaveURL(/\/checkout$/);
+  await expect(page.getByTestId("cart-checkout-panel")).toContainText(
+    productUnderTest.name,
+  );
 }
 
 async function installVisualMocks(page: Page): Promise<void> {
