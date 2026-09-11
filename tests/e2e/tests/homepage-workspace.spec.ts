@@ -1,5 +1,8 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { expectIframeCanvasPainted } from "../fixtures/visual-ui";
+import {
+  expectIframeCanvasPainted,
+  expectVisualActionable,
+} from "../fixtures/visual-ui";
 
 test.describe.configure({ mode: "parallel" });
 
@@ -87,6 +90,11 @@ test.describe("homepage workspace - desktop", () => {
       scrollHeight,
       "homepage must not require page scrolling at this viewport",
     ).toBeLessThanOrEqual(clientHeight + 1);
+
+    await expectVisualActionable(
+      page.getByRole("button", { name: `Add ${productUnderTest.name} to cart` }),
+      { minHeight: 24, minWidth: 24 },
+    );
 
     await page.screenshot({
       path: "test-results/home-desktop-1440x900.png",

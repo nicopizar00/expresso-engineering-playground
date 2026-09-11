@@ -1082,26 +1082,34 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  /* 3fr/2fr always gave the visualizer ~60% of height, but at common
-     desktop heights (~700-900px content area) that left the strip too
-     short for a single full-size ProductCard (name+description+price+Add
-     button need ~490px total) — the Add button became clipped/
-     unreachable at a completely standard 1280x720 viewport (confirmed via
-     e2e failures, not a synthetic edge case). minmax(500px, auto)
-     guarantees the strip the room its content actually needs;
-     minmax(120px, 1fr) keeps the stage a real, always-visible floor and
-     lets it absorb any space beyond both minimums — in practice this grows
-     it back toward dominant on taller windows only while the catalog stays
-     near its current single-row footprint (true for the real, CUP-001
-     single-product catalog); a much larger catalog (e.g. demo mode's
-     multi-row grid) would let the strip's own auto-max keep pace instead.
-     Known tradeoff, not silently accepted: at
-     moderate window heights the stage may end up visually smaller than
-     the strip, not just less than 60% — a full 60/40 split and a
-     pixel-identical (reuse-only) ProductCard are in direct tension at
-     these heights. Revisit if a compact catalog-card variant becomes
-     acceptable later. */
-  grid-template-rows: minmax(120px, 1fr) minmax(500px, auto);
+  /* The strip's floor is sized to the CART panel's worst case, not the
+     catalog's: the cart panel never scrolls (must always fully fit), but
+     the catalog panel can (see .home-stage-catalog's overflow-y: auto) —
+     an earlier version of this rule sized the floor to fit a full
+     ProductCard unclipped (~500px), which came at the cost of a hard
+     clipping threshold around 697px of real content height, reintroducing
+     an unreachable Add-to-cart button on ordinary 1366x768 laptop windows
+     (no e2e test caught it: Playwright's tested viewport heights are
+     content heights, not real browser window heights, which lose 80-150px
+     to chrome). Letting the catalog scroll internally instead removes that
+     hard threshold entirely; the floor now only needs to cover the cart
+     panel's worst case (order summary + form + a visible checkout error +
+     the Place Order button). Measured live at the 380px sidebar column
+     width: ~238px with one line item, ~314px with the longest scripted
+     checkout-error message (the 409 "conflict" copy) also showing. Mind
+     the indirection: this number is the STRIP's row height, not the cart
+     panel's own available height — .home-stage-strip's own vertical
+     padding (0.5rem + 1rem = 21px at this file's 14px root) comes out of
+     that row before .home-stage-cart ever sees it. 360px here nets the
+     cart panel ~339px of real content room, a ~25px margin over the
+     measured 314px worst case for font-loading/rendering variance, rather
+     than shaving it to the exact pixel (or, worse, quietly re-deriving the
+     old bug one padding subtraction removed from the visible number). A
+     side effect: the visualizer stage reclaims meaningfully more room at
+     common viewport heights than the 500px-floor version did, and a
+     larger catalog (e.g. demo mode's multi-row grid) now scrolls instead
+     of clipping unreachably. */
+  grid-template-rows: minmax(120px, 1fr) minmax(360px, auto);
   width: 100%;
   overflow: hidden;
 }
@@ -1122,7 +1130,13 @@ body {
   padding: 0.5rem 1rem 1rem;
 }
 
-.home-stage-catalog,
+.home-stage-catalog {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .home-stage-cart {
   min-height: 0;
   min-width: 0;
@@ -1142,6 +1156,9 @@ body {
 /* the shopper does (browse, cart, checkout, orders) stays next to the  */
 /* live order counter. Below 1024px there's no room for a side column, */
 /* so the panel collapses to a bottom drawer with a pull-tab instead.   */
+/* The one exception is the homepage: it has no rail at all, since it   */
+/* renders its own full-bleed visualizer stage instead (see the "Home   */
+/* stage" section above and apps/web/app/page.tsx).                    */
 /* ------------------------------------------------------------------ */
 
 :root {
@@ -1184,6 +1201,12 @@ body {
 .home-shell-root {
   height: 100vh;
   overflow: hidden;
+  /* The persistent rail's width variable doesn't apply here — the
+     homepage has no rail — but CartDrawer's backdrop/panel position off
+     it regardless (they don't know which route they're on). Zeroing it
+     here keeps the drawer correctly full-width/edge-anchored on `/`
+     without touching CartDrawer.tsx itself. */
+  --viz-rail-w: 0px;
 }
 
 @media (min-width: 1024px) {

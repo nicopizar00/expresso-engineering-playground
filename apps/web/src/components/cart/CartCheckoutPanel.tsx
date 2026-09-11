@@ -123,8 +123,14 @@ export function CartCheckoutPanel({
           className={`flex items-center gap-2 ${headerPadding} border-b`}
           style={{ borderColor: "var(--border)" }}
         >
-          <ShoppingBag className="h-4 w-4" style={{ color: "var(--primary)" }} />
-          <h2 className="font-medium text-sm" style={{ color: "var(--foreground)" }}>
+          <ShoppingBag
+            className="h-4 w-4"
+            style={{ color: "var(--primary)" }}
+          />
+          <h2
+            className="font-medium text-sm"
+            style={{ color: "var(--foreground)" }}
+          >
             Order Summary
           </h2>
           <span
@@ -152,7 +158,10 @@ export function CartCheckoutPanel({
                   >
                     {item.name}
                   </p>
-                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  <p
+                    className="text-xs"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
                     Qty: {item.quantity}
                   </p>
                 </div>
@@ -160,7 +169,10 @@ export function CartCheckoutPanel({
                   className="font-medium text-sm font-mono"
                   style={{ color: "var(--foreground)" }}
                 >
-                  {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
+                  {formatMoney(
+                    item.lineTotal.amountMinor,
+                    item.lineTotal.currency,
+                  )}
                 </p>
               </li>
             ))}
@@ -170,10 +182,16 @@ export function CartCheckoutPanel({
             className="flex justify-between pt-4 mt-4 border-t"
             style={{ borderColor: "var(--border)" }}
           >
-            <span className="font-medium" style={{ color: "var(--foreground)" }}>
+            <span
+              className="font-medium"
+              style={{ color: "var(--foreground)" }}
+            >
               Total
             </span>
-            <span className="font-semibold font-mono" style={{ color: "var(--foreground)" }}>
+            <span
+              className="font-semibold font-mono"
+              style={{ color: "var(--foreground)" }}
+            >
               {formattedTotal}
             </span>
           </div>

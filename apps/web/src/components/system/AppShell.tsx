@@ -347,45 +347,47 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Footer — hidden on home; the stage layout has no room for it and
           no page scroll to reach it anyway. */}
       {!isHome && (
-      <footer
-        className="border-t py-6"
-        style={{
-          backgroundColor: "var(--card)",
-          borderColor: "var(--border)",
-        }}
-      >
-        <div className="container">
-          <div
-            className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            <p>
-              Engineering Playground
-              <span className="mx-2">·</span>
-              <span style={{ color: "var(--foreground)" }}>Mini Commerce</span>
-            </p>
-            <div className="flex items-center gap-4">
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 transition-colors hover:opacity-80"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                <ExternalLink className="h-4 w-4" />
-                <span>Source</span>
-              </a>
-              <Link
-                href="/dev"
-                className="transition-colors hover:opacity-80"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                API Debug
-              </Link>
+        <footer
+          className="border-t py-6"
+          style={{
+            backgroundColor: "var(--card)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <div className="container">
+            <div
+              className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              <p>
+                Engineering Playground
+                <span className="mx-2">·</span>
+                <span style={{ color: "var(--foreground)" }}>
+                  Mini Commerce
+                </span>
+              </p>
+              <div className="flex items-center gap-4">
+                <a
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 transition-colors hover:opacity-80"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Source</span>
+                </a>
+                <Link
+                  href="/dev"
+                  className="transition-colors hover:opacity-80"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  API Debug
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
       )}
 
       {/* Cart Drawer */}

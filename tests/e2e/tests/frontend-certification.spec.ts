@@ -406,8 +406,10 @@ test("certifies dialog focus restore, shell navigation, performance copy, and vi
   await expect(page).toHaveURL(/\/performance$/);
   await expect(page.getByText(/simulated/i)).toBeVisible();
 
-  // The 3D visualizer is persistent shell chrome, not a dedicated route: it
-  // stays mounted across navigation, so it's still here on /performance.
+  // The 3D visualizer is persistent shell chrome, not a dedicated route: on
+  // every route except the homepage (which renders its own separate
+  // visualizer instance) it stays mounted across navigation, so it's still
+  // here on /performance.
   await expect(page.getByTestId("viz-panel")).toBeVisible();
   await expect(
     page

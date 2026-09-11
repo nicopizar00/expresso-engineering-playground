@@ -4,12 +4,13 @@
  * VisualizerPanel - Persistent 3D order-counter rail
  *
  * Rendered once by AppShell so the live visualizer stays on screen across
- * every route. On desktop it's a sticky right-hand rail; below 1024px
- * there's no room for a side column, so the same instance collapses into a
- * bottom drawer behind a pull-tab. Only one VisualizerEmbed is ever
- * mounted — the breakpoints are pure CSS (position/transform), not a
- * duplicate iframe — so there's a single SSE connection regardless of
- * viewport.
+ * every route except the homepage, which mounts its own separate instance
+ * instead (see apps/web/app/page.tsx). On desktop it's a sticky right-hand
+ * rail; below 1024px there's no room for a side column, so the same
+ * instance collapses into a bottom drawer behind a pull-tab. Only one
+ * VisualizerEmbed is ever mounted — the breakpoints are pure CSS
+ * (position/transform), not a duplicate iframe — so there's a single SSE
+ * connection regardless of viewport.
  */
 
 import { useState } from "react";
