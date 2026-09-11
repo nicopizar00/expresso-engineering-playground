@@ -288,7 +288,7 @@ function DemoGuidePanel({ onOpenOrders }: { onOpenOrders: () => void }) {
   );
 }
 
-function PerformanceInfoPanel() {
+function PerformanceInfoPanel({ onOpenPerformance }: { onOpenPerformance: () => void }) {
   return (
     <Card title="Performance Playground" icon={Gauge}>
       <div className="space-y-3">
@@ -385,8 +385,9 @@ function PerformanceInfoPanel() {
 
         {/* Quick Link */}
         <button
-          onClick={() => window.location.href = '/performance'}
-          className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors w-full"
+          type="button"
+          onClick={onOpenPerformance}
+          className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
           style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
         >
           <Gauge className="h-4 w-4" />
@@ -752,7 +753,7 @@ function OrderManageCard() {
 // Main Page
 // ---------------------------------------------------------------------------
 
-export function DevSection({ onOpenOrders }: { onOpenOrders: () => void }) {
+export function DevSection({ onOpenOrders, onOpenPerformance }: { onOpenOrders: () => void; onOpenPerformance: () => void }) {
   const [products, setProducts] = useState<ReadonlyArray<Product> | null>(null);
   // The browser talks to the web app's own /api/bff proxy, which rewrites to
   // the BFF container over the internal network (unless explicitly overridden).
@@ -797,7 +798,7 @@ export function DevSection({ onOpenOrders }: { onOpenOrders: () => void }) {
 
       {/* Performance mock-data guidance */}
       <div className="mb-8">
-        <PerformanceInfoPanel />
+        <PerformanceInfoPanel onOpenPerformance={onOpenPerformance} />
       </div>
 
       {/* API Debug Cards */}
