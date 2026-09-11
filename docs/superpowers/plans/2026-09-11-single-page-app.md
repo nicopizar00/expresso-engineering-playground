@@ -709,7 +709,7 @@ params for section switching, `next/navigation`'s `useSearchParams` /
 - Produces: `OrdersSection({ initialOrderId }: { initialOrderId?: string | null }): JSX.Element`
   (see Step 3's code — `initialOrderId` is required for Task 4's "place an
   order → land on its detail view" flow, do not drop it), `PerformanceSection(): JSX.Element`
-  (no props), `DevSection({ onOpenOrders }: { onOpenOrders: () => void }): JSX.Element`.
+  (no props), `DevSection({ onOpenOrders, onOpenPerformance }: { onOpenOrders: () => void; onOpenPerformance: () => void }): JSX.Element`.
   Task 4's `page.tsx` imports and renders all three.
 
 - [ ] **Step 1: `PerformanceSection` — near-verbatim move**
@@ -731,13 +731,13 @@ params for section switching, `next/navigation`'s `useSearchParams` /
   file has zero route dependencies today (no params, no `router` calls),
   so nothing else needs to change.
 
-- [ ] **Step 2: `DevSection` — near-verbatim move, one link becomes a callback**
+- [ ] **Step 2: `DevSection` — near-verbatim move, two links become callbacks**
 
   Read `apps/web/app/dev/page.tsx` in full. Create
   `apps/web/src/components/sections/DevSection.tsx` with the same content,
   with these changes:
   1. `export default function DevPage()` becomes
-     `export function DevSection({ onOpenOrders }: { onOpenOrders: () => void })`.
+     `export function DevSection({ onOpenOrders, onOpenPerformance }: { onOpenOrders: () => void; onOpenPerformance: () => void })`.
   2. The outermost returned wrapper div gets the same `container py-8` →
      `home-stage-section-inner` swap as Step 1.
   3. Inside `DemoGuidePanel`, find the sample-order link:
@@ -758,11 +758,48 @@ params for section switching, `next/navigation`'s `useSearchParams` /
      through, and add the prop to `DemoGuidePanel`'s own signature).
      `sampleOrderId` itself (from `getSampleOrderId()`) is unrelated to this
      change and stays exactly as-is.
+  4. Inside `PerformanceInfoPanel`, find the quick-link:
+     ```tsx
+     <Link
+       href="/performance"
+       className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+       style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+     >
+       <Gauge className="h-4 w-4" />
+       Open Performance Playground
+     </Link>
+     ```
+     Replace with:
+     ```tsx
+     <button
+       type="button"
+       onClick={onOpenPerformance}
+       className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+       style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+     >
+       <Gauge className="h-4 w-4" />
+       Open Performance Playground
+     </button>
+     ```
+     Same threading as `onOpenOrders`: `PerformanceInfoPanel` is called with
+     no props today (find that call site inside `DevPage`'s JSX and pass
+     `onOpenPerformance={onOpenPerformance}`, and add the prop to
+     `PerformanceInfoPanel`'s own signature). `Link` (`next/link`) becomes an
+     unused import once this is the only place in the file that used it —
+     remove the import if nothing else in this file uses `Link` (grep the
+     file for other `<Link` usages before removing the import; don't assume).
+     Do not substitute a `window.location.href`/full-reload navigation here
+     or anywhere else in this file — every remaining cross-section jump in
+     this app is a `setSection`-driven callback, never a real navigation,
+     precisely because `/performance` (like `/orders`, `/dev`) stops being a
+     real route once Task 6 deletes it; a plain `<a>`/`<Link>` to it would
+     work today and 404 later, which is exactly the class of bug this plan
+     is designed to avoid introducing.
 
   Every other card (`HealthCard`, `CatalogCard`, `AddToCartCard`,
   `ViewCartCard`, `CartMutateCard`, `CheckoutCard`, `OrderLookupCard`,
-  `OrderManageCard`, `ReadinessPanel`, `PerformanceInfoPanel`) has zero
-  route dependencies and moves unchanged.
+  `OrderManageCard`, `ReadinessPanel`) has zero route dependencies and moves
+  unchanged.
 
 - [ ] **Step 3: `OrdersSection` — merges the list and detail pages**
 
@@ -1539,7 +1576,10 @@ params for section switching, `next/navigation`'s `useSearchParams` /
 
           {section === "dev" && (
             <div className="home-stage-section" data-testid="home-dev">
-              <DevSection onOpenOrders={() => setSection("orders")} />
+              <DevSection
+                onOpenOrders={() => setSection("orders")}
+                onOpenPerformance={() => setSection("performance")}
+              />
             </div>
           )}
         </div>
