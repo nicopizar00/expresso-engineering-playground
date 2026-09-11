@@ -17,7 +17,7 @@ import { EmptyState } from '@/components/system/EmptyState';
 import { LoadingSpinner } from '@/components/system/LoadingSkeleton';
 import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
 import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
-import Link from 'next/link';
+import { useSection } from '@/components/system/SectionProvider';
 
 interface CartDrawerProps {
   open: boolean;
@@ -26,6 +26,7 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const { cart, isLoading, isEmpty, formattedTotal, itemCount } = useCart();
+  const { setSection } = useSection();
   const drawerRef = useRef<HTMLDivElement>(null);
 
   useDialogA11y({ open, onClose, containerRef: drawerRef });
@@ -136,15 +137,18 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                 {formattedTotal}
               </span>
             </div>
-            {/* Checkout is inline in the homepage's cart panel now — there is
-                no /checkout route to land on. This stays a same-page Link
-                (rather than a plain button) so it keeps landmark/role
-                semantics for assistive tech and existing tests; closing the
-                drawer via onClick is what actually reveals the already-
-                rendered CartCheckoutPanel underneath. */}
-            <Link
-              href="/"
-              onClick={onClose}
+            {/* Checkout is inline in the Catalog section's cart panel now —
+                there is no /checkout route to land on. Like every other
+                in-app navigation control, this is a setSection-driven
+                button rather than a real navigation, so it never drops the
+                current URL/query state; closing the drawer is what actually
+                reveals the already-rendered CartCheckoutPanel underneath. */}
+            <button
+              type="button"
+              onClick={() => {
+                setSection('catalog');
+                onClose();
+              }}
               className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-colors"
               style={{
                 backgroundColor: 'var(--primary)',
@@ -153,7 +157,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             >
               Proceed to Checkout
               <ArrowRight className="h-4 w-4" />
-            </Link>
+            </button>
             <p
               className="text-xs text-center"
               style={{ color: 'var(--muted-foreground)' }}
