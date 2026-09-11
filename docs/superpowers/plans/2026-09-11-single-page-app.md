@@ -52,9 +52,6 @@ params for section switching, `next/navigation`'s `useSearchParams` /
 - Create: `apps/web/src/components/system/SectionProvider.tsx`
 - Modify: `apps/web/app/layout.tsx`
 - Modify: `apps/web/src/components/system/AppShell.tsx`
-- Modify: `apps/web/app/globals.css:1075-1219` (see Step 4 — only the
-  parts of the shell-root/rail-comment region this task's own changes
-  touch; the larger rail/viz-panel CSS deletion is Task 5, not this one)
 
 **Interfaces:**
 - Produces: `SectionId = "catalog" | "orders" | "performance" | "dev"`,
