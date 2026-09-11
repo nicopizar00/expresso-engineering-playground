@@ -709,7 +709,7 @@ params for section switching, `next/navigation`'s `useSearchParams` /
 - Produces: `OrdersSection({ initialOrderId }: { initialOrderId?: string | null }): JSX.Element`
   (see Step 3's code — `initialOrderId` is required for Task 4's "place an
   order → land on its detail view" flow, do not drop it), `PerformanceSection(): JSX.Element`
-  (no props), `DevSection({ onOpenOrders, onOpenPerformance }: { onOpenOrders: () => void; onOpenPerformance: () => void }): JSX.Element`.
+  (no props), `DevSection({ onOpenCatalog, onOpenOrders, onOpenPerformance }: { onOpenCatalog: () => void; onOpenOrders: () => void; onOpenPerformance: () => void }): JSX.Element`.
   Task 4's `page.tsx` imports and renders all three.
 
 - [ ] **Step 1: `PerformanceSection` — near-verbatim move**
@@ -737,7 +737,7 @@ params for section switching, `next/navigation`'s `useSearchParams` /
   `apps/web/src/components/sections/DevSection.tsx` with the same content,
   with these changes:
   1. `export default function DevPage()` becomes
-     `export function DevSection({ onOpenOrders, onOpenPerformance }: { onOpenOrders: () => void; onOpenPerformance: () => void })`.
+     `export function DevSection({ onOpenCatalog, onOpenOrders, onOpenPerformance }: { onOpenCatalog: () => void; onOpenOrders: () => void; onOpenPerformance: () => void })`.
   2. The outermost returned wrapper div gets the same `container py-8` →
      `home-stage-section-inner` swap as Step 1.
   3. Inside `DemoGuidePanel`, find the sample-order link:
@@ -795,6 +795,40 @@ params for section switching, `next/navigation`'s `useSearchParams` /
      real route once Task 6 deletes it; a plain `<a>`/`<Link>` to it would
      work today and 404 later, which is exactly the class of bug this plan
      is designed to avoid introducing.
+  5. `DemoGuidePanel`'s "Quick Navigation" block (the same component
+     already receiving `onOpenOrders` from step 3 above) has two more of
+     the same kind of link, easy to miss on a first pass (caught only
+     during Task 4's review, after this task had already been marked
+     complete once): find
+     ```tsx
+     <a href="/" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+       <ShoppingCart className="h-3 w-3" /> Catalog
+     </a>
+     <a href="/cart" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+       <ShoppingCart className="h-3 w-3" /> Cart
+     </a>
+     ```
+     Replace with:
+     ```tsx
+     <button type="button" onClick={onOpenCatalog} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+       <ShoppingCart className="h-3 w-3" /> Catalog
+     </button>
+     <button type="button" onClick={onOpenCatalog} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+       <ShoppingCart className="h-3 w-3" /> Cart
+     </button>
+     ```
+     Both go to the same place because there is no separate "Cart" section
+     to jump to anymore — the cart lives permanently in the Catalog
+     section's sidebar, so "Cart" and "Catalog" are the same destination
+     now. `DemoGuidePanel` already takes `onOpenOrders` as a prop (step 3
+     above) — extend that same signature and call site to also accept
+     `onOpenCatalog`, rather than introducing a second prop-threading pass.
+     `/` itself is never deleted (it's the app's only remaining route), so
+     the plain `<a href="/">` wasn't going to 404 — but leaving it as a raw
+     link would still force a full page reload (remounting the visualizer)
+     for a jump the header nav already does via a clean section switch;
+     fixing it here for consistency costs nothing extra since this task is
+     already touching this exact block for the `/cart` fix.
 
   Every other card (`HealthCard`, `CatalogCard`, `AddToCartCard`,
   `ViewCartCard`, `CartMutateCard`, `CheckoutCard`, `OrderLookupCard`,
@@ -1577,6 +1611,7 @@ params for section switching, `next/navigation`'s `useSearchParams` /
           {section === "dev" && (
             <div className="home-stage-section" data-testid="home-dev">
               <DevSection
+                onOpenCatalog={() => setSection("catalog")}
                 onOpenOrders={() => setSection("orders")}
                 onOpenPerformance={() => setSection("performance")}
               />
