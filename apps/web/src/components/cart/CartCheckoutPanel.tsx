@@ -3,15 +3,13 @@
 /**
  * CartCheckoutPanel - Cart summary + place-order submission
  *
- * Shared by the standalone /checkout page (variant="page", which
- * pre-guards loading/empty with its own full-page states before
- * rendering this) and the homepage's always-visible sidebar
- * (variant="sidebar", which has no such guard — this component's own
- * loading/empty branches are what render there).
+ * Renders inline in the homepage's always-visible cart column. On
+ * success, hands the new order id to the caller instead of navigating —
+ * there is no longer a route to navigate to; the caller (page.tsx)
+ * switches the Orders section to show it.
  */
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   ShoppingBag,
   Loader2,
@@ -26,17 +24,10 @@ import {
 } from "@/lib/api/expresso-api";
 
 interface CartCheckoutPanelProps {
-  /**
-   * 'page'    — roomier cards, used standalone on /checkout.
-   * 'sidebar' — compact column, used in the homepage stage strip.
-   */
-  variant?: "page" | "sidebar";
+  onOrderPlaced: (orderId: string) => void;
 }
 
-export function CartCheckoutPanel({
-  variant = "sidebar",
-}: CartCheckoutPanelProps) {
-  const router = useRouter();
+export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
   const { cart, isLoading, isEmpty, formattedTotal, refreshCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +42,7 @@ export function CartCheckoutPanel({
     try {
       const result = await expressoApi.checkout({});
       refreshCart();
-      router.push(`/orders/${result.orderId}`);
+      onOrderPlaced(result.orderId);
     } catch (err) {
       if (err instanceof ExpressoApiError) {
         if (err.status === 400) {
@@ -102,18 +93,12 @@ export function CartCheckoutPanel({
     );
   }
 
-  const cardPadding = variant === "page" ? "p-5" : "p-3";
-  const headerPadding = variant === "page" ? "px-5 py-4" : "px-3 py-2";
-  const cardClass =
-    variant === "page"
-      ? "rounded-xl border overflow-hidden"
-      : "rounded-lg border overflow-hidden";
+  const cardPadding = "p-3";
+  const headerPadding = "px-3 py-2";
+  const cardClass = "rounded-lg border overflow-hidden";
 
   return (
-    <div
-      className={variant === "page" ? "space-y-6" : "space-y-3"}
-      data-testid="cart-checkout-panel"
-    >
+    <div className="space-y-3" data-testid="cart-checkout-panel">
       {/* Order summary card */}
       <div
         className={cardClass}
