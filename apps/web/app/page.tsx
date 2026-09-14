@@ -135,7 +135,7 @@ export default function HomeWorkspace() {
       </div>
 
       <section className="home-stage-viz" aria-label="3D order counter">
-        <VisualizerEmbed embed fill compact={false} title="Order counter" />
+        <VisualizerEmbed embed fill title="Order counter" />
       </section>
     </div>
   );
