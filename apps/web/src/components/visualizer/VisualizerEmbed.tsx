@@ -101,11 +101,7 @@ export function VisualizerEmbed({
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleRetry}
-              className={buttonClass}
-              style={{
-                backgroundColor: "var(--secondary)",
-                color: "var(--muted-foreground)",
-              }}
+              className={`${buttonClass} tone-muted`}
               title="Reload visualizer"
               aria-label="Reload visualizer"
             >
@@ -116,11 +112,7 @@ export function VisualizerEmbed({
               href={STANDALONE_URL || src}
               target="_blank"
               rel="noopener noreferrer"
-              className={buttonClass}
-              style={{
-                backgroundColor: "var(--primary)",
-                color: "var(--primary-foreground)",
-              }}
+              className={`${buttonClass} tone-primary`}
               title="Open visualizer standalone"
               aria-label="Open Standalone"
             >

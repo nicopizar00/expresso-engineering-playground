@@ -41,10 +41,6 @@ export default function HomeWorkspace() {
 
   return (
     <div className="home-stage">
-      <section className="home-stage-viz" aria-label="3D order counter">
-        <VisualizerEmbed embed fill compact={false} title="Order counter" />
-      </section>
-
       <div
         className={`home-stage-strip${section !== "catalog" ? " home-stage-strip--full" : ""}`}
       >
@@ -72,11 +68,7 @@ export default function HomeWorkspace() {
                 </div>
                 {productCount > 0 && (
                   <span
-                    className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium"
-                    style={{
-                      backgroundColor: "var(--secondary)",
-                      color: "var(--muted-foreground)",
-                    }}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium tone-muted"
                     data-testid="home-product-count"
                   >
                     <Sparkles
@@ -141,6 +133,10 @@ export default function HomeWorkspace() {
           </div>
         )}
       </div>
+
+      <section className="home-stage-viz" aria-label="3D order counter">
+        <VisualizerEmbed embed fill compact={false} title="Order counter" />
+      </section>
     </div>
   );
 }

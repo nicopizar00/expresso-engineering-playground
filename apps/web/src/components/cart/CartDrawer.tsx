@@ -72,24 +72,14 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               Cart
             </h2>
             {itemCount > 0 && (
-              <span
-                className="px-2 py-0.5 text-xs font-medium rounded-full"
-                style={{
-                  backgroundColor: 'var(--secondary)',
-                  color: 'var(--muted-foreground)',
-                }}
-              >
+              <span className="px-2 py-0.5 text-xs font-medium rounded-full tone-muted">
                 {itemCount} {itemCount === 1 ? 'item' : 'items'}
               </span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-md transition-colors"
-            style={{
-              backgroundColor: 'var(--secondary)',
-              color: 'var(--foreground)',
-            }}
+            className="p-2 rounded-md transition-colors tone-secondary"
             aria-label="Close cart"
           >
             <X className="h-5 w-5" />
@@ -149,11 +139,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                 setSection('catalog');
                 onClose();
               }}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: 'var(--primary)',
-                color: 'var(--primary-foreground)',
-              }}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-colors tone-primary"
             >
               Proceed to Checkout
               <ArrowRight className="h-4 w-4" />

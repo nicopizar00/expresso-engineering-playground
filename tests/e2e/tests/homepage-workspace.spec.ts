@@ -70,13 +70,13 @@ test.describe("homepage workspace - desktop", () => {
     expect(catalogBox).not.toBeNull();
     expect(vizBox).not.toBeNull();
     expect(
-      vizBox!.y,
-      "visualizer stage should sit above the catalog, not beside it",
-    ).toBeLessThan(catalogBox!.y);
+      vizBox!.x,
+      "visualizer rail should sit to the right of the catalog, not above it",
+    ).toBeGreaterThan(catalogBox!.x);
     expect(
-      vizBox!.width,
-      "visualizer stage should be the widest element on the page",
-    ).toBeGreaterThan(catalogBox!.width);
+      catalogBox!.width,
+      "catalog column should be wider than the visualizer rail",
+    ).toBeGreaterThan(vizBox!.width);
 
     await expect(page.getByTestId("cart-checkout-panel")).toBeVisible();
 

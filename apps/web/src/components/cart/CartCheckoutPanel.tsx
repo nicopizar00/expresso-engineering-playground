@@ -118,13 +118,7 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
           >
             Order Summary
           </h2>
-          <span
-            className="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
-            style={{
-              backgroundColor: "var(--secondary)",
-              color: "var(--muted-foreground)",
-            }}
-          >
+          <span className="ml-auto px-2 py-0.5 text-xs font-medium rounded-full tone-muted">
             {cart?.itemCount} items
           </span>
         </div>
@@ -212,11 +206,7 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: "var(--primary)",
-              color: "var(--primary-foreground)",
-            }}
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed tone-primary"
           >
             {isSubmitting ? (
               <>

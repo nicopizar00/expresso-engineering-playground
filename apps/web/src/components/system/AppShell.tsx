@@ -114,13 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Coffee className="h-5 w-5" style={{ color: "var(--primary)" }} />
               <span>Expresso</span>
-              <span
-                className="hidden sm:inline text-xs font-normal px-2 py-0.5 rounded-full ml-1"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  color: "var(--muted-foreground)",
-                }}
-              >
+              <span className="hidden sm:inline text-xs font-normal px-2 py-0.5 rounded-full ml-1 tone-muted">
                 Playground
               </span>
             </button>
@@ -185,11 +179,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {!isDemoMode && (
                 <button
                   onClick={handleToggleDemoMode}
-                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: "var(--secondary)",
-                    color: "var(--muted-foreground)",
-                  }}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors tone-muted"
                   title="Enable demo mode to explore without backend"
                 >
                   <FlaskConical className="h-3.5 w-3.5" />
@@ -202,22 +192,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               {/* Cart button */}
               <button
                 onClick={openCartDrawer}
-                className="relative flex items-center justify-center w-10 h-10 rounded-md transition-colors"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  color: "var(--foreground)",
-                }}
+                className="relative flex items-center justify-center w-10 h-10 rounded-md transition-colors tone-secondary"
                 aria-label={`Shopping cart with ${itemCount} items`}
               >
                 <ShoppingCart className="h-5 w-5" />
                 {itemCount > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 flex items-center justify-center h-5 min-w-[1.25rem] px-1 text-xs font-semibold rounded-full"
-                    style={{
-                      backgroundColor: "var(--primary)",
-                      color: "var(--primary-foreground)",
-                    }}
-                  >
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center h-5 min-w-[1.25rem] px-1 text-xs font-semibold rounded-full tone-primary">
                     {itemCount > 99 ? "99+" : itemCount}
                   </span>
                 )}
@@ -226,11 +206,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {/* Mobile menu button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden flex items-center justify-center w-10 h-10 rounded-md transition-colors"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  color: "var(--foreground)",
-                }}
+                className="md:hidden flex items-center justify-center w-10 h-10 rounded-md transition-colors tone-secondary"
                 aria-label="Toggle menu"
                 aria-expanded={mobileMenuOpen}
               >

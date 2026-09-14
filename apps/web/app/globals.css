@@ -1067,79 +1067,59 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Home stage — the 3D visualizer is this page's main content, pinned  */
-/* above every section (Catalog, Orders, Performance, API Debug — see  */
-/* apps/web/app/page.tsx's section switch). Fixed viewport: no         */
-/* page-level scrolling, ever. Non-catalog sections scroll internally  */
-/* in the strip below; the stage itself never does.                    */
+/* Home stage — the 3D visualizer is a persistent right-hand rail       */
+/* beside whichever section is active (Catalog, Orders, Performance,   */
+/* API Debug — see apps/web/app/page.tsx's section switch). Fixed       */
+/* viewport: no page-level scrolling, ever. Non-catalog sections scroll */
+/* internally in the strip; the stage itself never does. Because the   */
+/* visualizer is its own column instead of a row above the strip, its  */
+/* size no longer depends on the strip's content height — there is no  */
+/* row-track-collapse case here to guard against (contrast the old     */
+/* top-stage layout, which needed a `:has(.home-stage-strip--full)`    */
+/* override to stop tall sections from squeezing the visualizer).      */
+/*                                                                      */
+/* Flexbox, not grid, for this outer split: this design targets desktop */
+/* only (no media queries for .home-stage*, see the homepage-stage      */
+/* spec's Non-goals), but the rail still needs `flex-shrink` below its  */
+/* 420px basis rather than a hard grid track — a fixed grid column      */
+/* forces the sibling `1fr` track to zero width once viewport width     */
+/* drops under ~420px+gap+padding, which hides the strip's content      */
+/* entirely (not just "tight"). Shrinking both sides together keeps     */
+/* content visible, if cramped, at narrow widths with zero added rules. */
 /* ------------------------------------------------------------------ */
 
 .home-stage {
   flex: 1 1 auto;
   min-height: 0;
-  display: grid;
-  /* The strip's floor is sized to the CART panel's worst case, not the
-     catalog's: the cart panel never scrolls (must always fully fit), but
-     the catalog panel can (see .home-stage-catalog's overflow-y: auto) —
-     an earlier version of this rule sized the floor to fit a full
-     ProductCard unclipped (~500px), which came at the cost of a hard
-     clipping threshold around 697px of real content height, reintroducing
-     an unreachable Add-to-cart button on ordinary 1366x768 laptop windows
-     (no e2e test caught it: Playwright's tested viewport heights are
-     content heights, not real browser window heights, which lose 80-150px
-     to chrome). Letting the catalog scroll internally instead removes that
-     hard threshold entirely; the floor now only needs to cover the cart
-     panel's worst case (order summary + form + a visible checkout error +
-     the Place Order button). Measured live at the 380px sidebar column
-     width: ~238px with one line item, ~314px with the longest scripted
-     checkout-error message (the 409 "conflict" copy) also showing. Mind
-     the indirection: this number is the STRIP's row height, not the cart
-     panel's own available height — .home-stage-strip's own vertical
-     padding (0.5rem + 1rem = 21px at this file's 14px root) comes out of
-     that row before .home-stage-cart ever sees it. 360px here nets the
-     cart panel ~339px of real content room, a ~25px margin over the
-     measured 314px worst case for font-loading/rendering variance, rather
-     than shaving it to the exact pixel (or, worse, quietly re-deriving the
-     old bug one padding subtraction removed from the visible number). A
-     side effect: the visualizer stage reclaims meaningfully more room at
-     common viewport heights than the 500px-floor version did, and a
-     larger catalog (e.g. demo mode's multi-row grid) now scrolls instead
-     of clipping unreachably. */
-  grid-template-rows: minmax(120px, 1fr) minmax(360px, auto);
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
   width: 100%;
   overflow: hidden;
-}
-
-/* Orders/Performance/API render inside `.home-stage-strip--full`, and their
-   content (order lists, forms, KPI grids) runs far taller than the
-   catalog's cart-panel worst case above. An "auto" row-2 track sizes to
-   its item's max-content height regardless of that item's own
-   `overflow-y: auto` (overflow only kicks in once the assigned track size
-   is smaller than the content — it doesn't change how "auto" computes that
-   size in the first place), so on these sections row 2 would keep growing
-   and squeeze row 1 (the visualizer) down toward its 120px floor instead of
-   the fixed height the design calls for. Pin row 2 to the same 360px floor
-   here instead of letting it track content — `.home-stage-section`'s own
-   overflow-y: auto then scrolls the tall content within that fixed height,
-   the same way the catalog scrolls within its own row 1 already. */
-.home-stage:has(.home-stage-strip--full) {
-  grid-template-rows: minmax(120px, 1fr) 360px;
 }
 
 .home-stage-viz {
   display: flex;
   flex-direction: column;
+  flex: 0 1 420px;
   min-height: 0;
   min-width: 0;
-  padding: 1rem 1rem 0.5rem;
 }
 
 .home-stage-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 1rem;
+  flex: 1 1 0;
   min-height: 0;
-  padding: 0.5rem 1rem 1rem;
+  /* A real floor, not 0: with flex-basis 0, a min-width of 0 lets this
+     item collapse to nothing under pressure instead of shrinking — the
+     420px rail (which has an actual basis to shrink from) would take
+     none of the deficit and this pane would take all of it. The floor
+     forces the rail to give way first, keeping the functional content
+     visible on narrow viewports even though the rail visually shrinks
+     toward zero — the accepted outcome for this desktop-first stage. */
+  min-width: 240px;
 }
 
 /* Orders/Performance/API Debug span the full strip width instead of
@@ -1175,11 +1155,37 @@ body {
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  /* The rail is much taller than the order-summary card now that this
+     column spans the full stage height instead of a pinned 360px row —
+     hug content at the top instead of stretching (grid's default) into
+     a tall mostly-empty box. */
+  align-self: start;
 }
 
 /* A few additional utilities used by the home workspace and the inline cart. */
 .shrink-0 {
   flex-shrink: 0;
+}
+
+/* Shared color pairs factored out of repeated inline `style={{...}}`
+   objects across AppShell, page.tsx, the cart components, and
+   VisualizerEmbed — badges, secondary buttons, and primary CTAs. Shape
+   and spacing stay with each call site; only the color pairing lives
+   here, so a palette change (e.g. --primary) updates every consumer
+   from one place instead of N scattered style objects. */
+.tone-muted {
+  background-color: var(--secondary);
+  color: var(--muted-foreground);
+}
+
+.tone-secondary {
+  background-color: var(--secondary);
+  color: var(--foreground);
+}
+
+.tone-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
 /* ------------------------------------------------------------------ */
