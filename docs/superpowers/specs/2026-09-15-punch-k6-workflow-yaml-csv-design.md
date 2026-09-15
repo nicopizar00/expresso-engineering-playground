@@ -80,6 +80,7 @@ spec:
   environment:
     forward:
       - BASE_URL
+    required: []
   outputs:
     csv:
       path: reports/data/checkout-flow.csv
@@ -87,8 +88,9 @@ spec:
 
 `apiVersion`, `kind`, `metadata.name`, `spec.workingDirectory`,
 `spec.compose.file`, `spec.compose.service`, and `spec.k6.script` are required.
-`spec.environment.forward` and `spec.outputs` are optional. `spec.outputs.csv`,
-when present, requires a non-empty `path`.
+`spec.environment.forward`, `spec.environment.required`, and `spec.outputs` are
+optional. Every required environment name must also appear in `forward`.
+`spec.outputs.csv`, when present, requires a non-empty `path`.
 
 The loader rejects unknown properties, duplicate YAML keys, YAML aliases and
 custom tags, missing values, wrong scalar or collection types, and unsupported
@@ -98,8 +100,10 @@ at execution time.
 
 `workingDirectory` is resolved relative to the YAML file. The Compose file and
 CSV destination are resolved beneath that directory. Resolution rejects paths
-that escape the working directory. The k6 script is an absolute path inside
-the container and is never interpreted as a host path.
+that escape the working directory. The workflow YAML itself must also be
+beneath its resolved working directory so evidence can use a stable relative
+path. The k6 script is an absolute path inside the container and is never
+interpreted as a host path.
 
 ## Selection and compatibility
 
@@ -153,9 +157,9 @@ docker compose --project-directory <working-directory> \
 
 The executor never issues `docker compose build`, `up`, or a second `run`.
 Image builds and dependency lifecycle remain separate orchestrator phases.
-Forwarded environment values are limited to names declared by the workflow;
-missing declared values are omitted unless a later schema version introduces
-an explicit required-environment contract.
+Forwarded environment values are limited to names declared by the workflow.
+A missing name listed by `environment.required` fails before Compose starts;
+other missing forwarded values are omitted.
 
 Punch reads stdout and stderr independently to avoid deadlocks. Both streams
 remain visible to the user and are written to the raw run log. Only stdout is
@@ -201,9 +205,11 @@ The workflow fails without publishing partial current-run data when:
 
 Raw logs and Punch run evidence are diagnostic artifacts and may still be
 written for a failed execution. Run evidence records the workflow name, YAML
-path, exact result status, k6 exit code when available, CSV destination, and
-harvested record count. Consumers must use current successful run evidence
-rather than infer success from a pre-existing CSV file.
+path relative to its working directory, exact result status, k6 exit code when
+available, CSV destination relative to the working directory, and harvested
+record count. It never records machine-local absolute paths. Consumers must use
+current successful run evidence rather than infer success from a pre-existing
+CSV file.
 
 ## Components
 
@@ -282,4 +288,3 @@ The change is accepted when:
 7. A CSV-declared workflow with no tagged stdout lines fails and publishes no
    current-run CSV.
 8. Focused unit, repository consistency, and Docker smoke tests pass.
-
