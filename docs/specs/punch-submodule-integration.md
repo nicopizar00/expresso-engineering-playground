@@ -2,6 +2,13 @@
 
 Status: Proposed
 
+> **Supersession note (2026-09-15):** This remains the historical integration
+> record. The normalized YAML workflow design supersedes INT-002's planned
+> private `_stream` import and its former host dependency boundary: Expresso
+> core orchestration remains standard-library-only, while `./dev perf:*`
+> explicitly installs `vendor/punch/requirements.txt` and consumes Punch's
+> public workflow APIs. No historical requirement below is silently rewritten.
+
 Related specifications:
 [`live-workflow-traffic-and-falling-cups.md`](live-workflow-traffic-and-falling-cups.md)
 (this document supersedes that spec's RUN-001, RUN-003, and RUN-004 as far

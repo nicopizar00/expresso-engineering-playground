@@ -47,6 +47,14 @@ jq --version               # jq-1.6 or newer
 
 If all three commands print a version line, you're ready.
 
+Performance commands have one additional, pinned Python prerequisite. Install
+it after initializing the submodule and before the first `./dev perf:*` run:
+
+```bash
+git submodule update --init --recursive
+python3 -m pip install -r vendor/punch/requirements.txt
+```
+
 ---
 
 ## Quick Start (5 minutes)
@@ -211,15 +219,21 @@ curl -s http://localhost:3001/health | jq
 ### Step 7 — Run the performance smoke
 
 ```bash
+docker compose -f infra/docker/compose.performance.yaml build k6
 ./dev perf:smoke
 ```
 
-This pulls `grafana/k6:latest` and runs the smoke scenario against the
-local BFF (~20 seconds). The summary lands in
+`./dev perf:smoke` selects the repository-owned smoke YAML, which Punch
+loads and validates before issuing one Docker Compose run against the local
+BFF (~20 seconds). Stdout/stderr are logged and the existing summary lands in
 `tests/performance/k6/reports/`. Two larger profiles
 (`checkout-flow`, `read-heavy`) live alongside it — see
 [`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
 for how to run them and what their thresholds mean.
+
+Current workflows do not produce CSV data. A future workflow that declares
+`outputs.csv` needs `--confirm-output-data` only when it runs
+non-interactively.
 
 ```bash
 ./dev perf:clean           # remove generated reports when done

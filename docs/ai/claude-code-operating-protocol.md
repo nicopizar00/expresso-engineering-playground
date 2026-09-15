@@ -90,6 +90,14 @@ Full guidance: [`tooling-efficiency.md`](tooling-efficiency.md).
    playbook row; CI is a backstop, not the gate for "done".
 6. **Read-only agents are the default for review.** Spawn an editing agent
    only when the user explicitly asks for edits.
+7. **Performance workflows are consumer-owned YAML.** The seven Expresso
+   workflow files select the scenario and permitted environment; Punch owns
+   loading, confirmation, one Compose run, stream logging, and optional CSV
+   publication. Install `vendor/punch/requirements.txt` before `perf:*` work.
+   `outputs.csv` is optional; its exact stdout `[CSV]` records require
+   confirmation, fail on zero records, and publish atomically. CI's smoke
+   workflow builds first and invokes `./dev perf:smoke` rather than duplicating
+   the Compose command.
 
 ## Roadmap
 
@@ -99,9 +107,9 @@ Out of scope for this phase, deferred to a future track:
   prompt files, Copilot-specific skills).
 - A second Copilot pointer at `.github/copilot-instructions.md` beyond the
   current tiny pointer.
-- CI gating for performance scenarios. The orchestrator and scenario
-  library are local-first today; promoting a scenario to a CI gate happens
-  per-scenario, in a separate change, with explicit owner sign-off.
+- CI coverage beyond the CI smoke workflow. The smoke workflow is the
+  explicitly owned baseline; promoting another scenario still needs explicit
+  owner sign-off.
 - Multi-repo / multi-service performance workflows. The orchestrator stays
   monorepo-internal until a second target needs it.
 

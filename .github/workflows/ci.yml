@@ -99,8 +99,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install ruff
-        run: pip install --quiet "ruff==0.7.4"
+      - name: Install Python dependencies
+        run: python -m pip install --quiet "ruff==0.7.4" -r vendor/punch/requirements.txt
       - name: Lint
         run: ruff check scripts/pg
       - name: Unit tests
@@ -173,7 +173,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - run: pnpm install --frozen-lockfile
+      - name: Install Punch dependencies
+        run: python -m pip install --quiet -r vendor/punch/requirements.txt
       - name: Start BFF stack
         run: |
           docker compose -f infra/docker/compose.yaml up -d
@@ -188,13 +193,12 @@ jobs:
           docker compose -f infra/docker/compose.yaml ps
           docker compose -f infra/docker/compose.yaml logs --tail=200
           exit 1
-      - name: Run k6 smoke
+      - name: Build k6 image
+        run: docker compose -f infra/docker/compose.performance.yaml build k6
+      - name: Run k6 smoke workflow
         env:
           BASE_URL: http://host.docker.internal:3001
-        run: |
-          docker compose -f infra/docker/compose.performance.yaml run --rm \
-            -e BASE_URL=$BASE_URL \
-            k6 run /scripts/scenarios/smoke/smoke.js
+        run: ./dev perf:smoke
       - name: Tear down stack
         if: always()
         run: docker compose -f infra/docker/compose.yaml down --volumes

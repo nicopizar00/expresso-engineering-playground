@@ -12,7 +12,19 @@ have installed.
 
 **Note:** This repo uses a git submodule (`vendor/punch/`) for shared
 performance-testing tooling. After cloning, initialize it with `git submodule
-update --init --recursive` before running `./dev perf:*` commands.
+update --init --recursive` before running `./dev perf:*` commands. Core
+`scripts/pg/` remains standard-library-only; the performance commands load
+Punch's pinned PyYAML dependency, which must be installed once:
+
+```bash
+python3 -m pip install -r vendor/punch/requirements.txt
+```
+
+Build the image separately before a fresh or changed performance run:
+
+```bash
+docker compose -f infra/docker/compose.performance.yaml build k6
+```
 
 All three converge on `python3 -m pg` under the hood. Prisma migrate and seed
 run inside the BFF dev-stage container — no host Node/Prisma needed even on the
@@ -41,8 +53,8 @@ for the dispatch diagram.
 | Print local URLs              | `./dev open`          | `pnpm pg:open`          | `task open`         |
 | Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
 | k6 smoke (Docker k6)          | `./dev perf:smoke`    | `pnpm pg:perf:smoke`    | `task perf:smoke`   |
-| k6 checkout-flow              | —                     | `pnpm pg:perf:checkout-flow` | `task perf:checkout-flow` |
-| k6 read-heavy                 | —                     | `pnpm pg:perf:read-heavy`    | `task perf:read-heavy`    |
+| k6 checkout-flow              | `./dev perf:checkout-flow` | `pnpm pg:perf:checkout-flow` | `task perf:checkout-flow` |
+| k6 read-heavy                 | `./dev perf:read-heavy` | `pnpm pg:perf:read-heavy`    | `task perf:read-heavy`    |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
 
@@ -58,14 +70,15 @@ profiles up. See [`architecture/orchestrator-python.md`](architecture/orchestrat
 | One-shot SQL against postgres | `./dev hack sql --query 'SELECT count(*) FROM "Product";'` |
 | Trace a BFF request via Tempo | `./dev hack trace GET /catalog/products` (needs `up obs`) |
 
-`./dev` does not yet expose `perf:checkout-flow` or `perf:read-heavy` —
-use the `pnpm pg:*` equivalents, or invoke the k6 container directly:
+Each `perf:*` command selects one repository-owned YAML workflow. Punch
+loads, validates, confirms any declared data output, then performs exactly
+one Docker Compose run. Do not replace that path with an ad-hoc Compose
+command except while debugging the container itself; that is an escape hatch,
+not the supported workflow path.
 
-```bash
-docker compose -f infra/docker/compose.performance.yaml run --rm \
-  -e BASE_URL=http://host.docker.internal:3001 \
-  k6 run /scripts/scenarios/checkout-flow/checkout-flow.js
-```
+Current workflows have no `outputs.csv`. If a future workflow declares one,
+add `--confirm-output-data` only for a non-interactive invocation; interactive
+runs ask for confirmation before Compose starts.
 
 ## Defaults
 

@@ -6,8 +6,10 @@ dual-CLI setup (`./dev` bash + `scripts/playground.mjs` Node).
 ## Why Python
 
 - One language for the entire orchestrator (was bash + Node + bash shims).
-- Stdlib-only: no `pip install` required to use the CLI. Python ≥ 3.9 ships
-  with macOS and every recent Ubuntu LTS.
+- Core commands are stdlib-only: no `pip install` is required for stack,
+  smoke, or debugging commands. `perf:*` deliberately loads Punch's pinned
+  PyYAML dependency; install it with
+  `python3 -m pip install -r vendor/punch/requirements.txt`.
 - Subprocess + argparse + urllib gives us everything we need for compose
   shelling, HTTP smoke checks, and SSE frame assertion.
 - The `pg hack` namespace (see below) is much easier to grow in Python than
@@ -26,7 +28,7 @@ scripts/pg/
   ports.py        # port-in-use + PID lookup
   http.py         # urllib + http.client helpers (incl. SSE reader)
   doctor.py up.py down.py dev.py smoke.py seed.py
-  status.py logs.py open_cmd.py perf.py hack.py
+  status.py logs.py open_cmd.py perf.py k6runner.py hack.py
   tests/          # unittest smoke tests
 ```
 
@@ -44,6 +46,31 @@ flowchart LR
 All three user-facing entrypoints converge on `python3 -m pg`. Pick whichever
 fits your muscle memory; the behaviour is identical.
 
+### Performance branch
+
+`perf:*` follows a distinct, explicit dependency boundary:
+
+```text
+./dev perf:* -> repository YAML -> Punch load/validate/confirm ->
+one docker compose run -> stdout/stderr log + existing HTML/JSON + optional CSV
+```
+
+The repository owns seven workflow files under
+`tests/performance/k6/workflows/`, one per TypeScript build entry. The Python
+adapter selects exactly one file; Punch's public APIs load it, allow-list its
+environment, and construct the one Compose run. Build the image separately:
+
+```bash
+python3 -m pip install -r vendor/punch/requirements.txt
+docker compose -f infra/docker/compose.performance.yaml build k6
+./dev perf:smoke
+```
+
+No current workflow has `outputs.csv`. A future declared CSV output accepts
+only exact stdout `[CSV]` records, needs `--confirm-output-data` when run
+non-interactively, fails if it yields zero valid records, and is atomically
+published only after a successful run. Stderr remains log-only.
+
 ## Command map
 
 | Command                  | Purpose                                        |
@@ -57,7 +84,7 @@ fits your muscle memory; the behaviour is identical.
 | `smoke`                  | 13 endpoint checks incl. SSE frame assertion   |
 | `seed`                   | `prisma db seed`                               |
 | `status` / `logs` / `open` | Inspection                                   |
-| `perf:smoke` / `perf:checkout-flow` / `perf:read-heavy` | k6 scenarios in Docker |
+| `perf:smoke` / `perf:checkout-flow` / `perf:read-heavy` / `perf:campaign` | named k6 YAML workflows in Docker |
 | `perf:open-report` / `perf:clean` | Manage k6 report artefacts             |
 | `hack {exec,env,sql,trace}` | Debugging affordances (see below)            |
 

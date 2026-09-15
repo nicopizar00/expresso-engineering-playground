@@ -160,6 +160,21 @@ orchestration capability.
 - Scenario library: [`tests/performance/k6/README.md`](tests/performance/k6/README.md)
 - Run from a fresh checkout: `./dev perf:smoke`
 
+Core `scripts/pg/` stays standard-library-only. Performance commands load the
+public Punch workflow engine, so initialize the submodule and install its
+pinned dependency before the first `./dev perf:*` command:
+
+```bash
+git submodule update --init --recursive
+python3 -m pip install -r vendor/punch/requirements.txt
+docker compose -f infra/docker/compose.performance.yaml build k6
+```
+
+Each performance command selects one repository-owned YAML workflow; Punch
+loads, validates, and runs it once through Docker Compose. Current workflows
+do not declare CSV output. If a future workflow declares `outputs.csv`, a
+non-interactive invocation must explicitly include `--confirm-output-data`.
+
 ## Out of scope for this phase
 
 VS Code + GitHub Copilot Chat configuration (instructions files, prompt

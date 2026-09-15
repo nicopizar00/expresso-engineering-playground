@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # ./dev — Docker-first developer CLI for mini-commerce playground.
 #
-# Implementation lives in scripts/pg/ (Python ≥ 3.9, stdlib only).
-# This file is a 4-line trampoline so the muscle memory keeps working.
+# Core implementation lives in scripts/pg/ (Python ≥ 3.9, stdlib only).
+# ./dev perf:* additionally loads Punch's pinned PyYAML dependency; install it
+# once with: python3 -m pip install -r vendor/punch/requirements.txt
+# This file is a trampoline so the muscle memory keeps working.
 # Requires: Docker Desktop + Python 3.9+ (system Python on macOS works).
 
 set -euo pipefail
