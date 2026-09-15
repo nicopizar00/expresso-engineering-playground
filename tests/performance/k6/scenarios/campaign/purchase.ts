@@ -63,7 +63,7 @@ export function purchase(): void {
     group("checkout", () => {
       const res = http.post(
         url("/checkout"),
-        JSON.stringify({ customerName: "k6 Campaign Purchase" }),
+        JSON.stringify({}),
         { headers: JSON_HEADERS, tags: TAGS },
       );
       ok = check(res, {

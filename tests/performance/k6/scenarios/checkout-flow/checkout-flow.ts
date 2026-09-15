@@ -51,7 +51,7 @@ export default function () {
   group("checkout", () => {
     const res = http.post(
       url("/checkout"),
-      JSON.stringify({ customerName: "k6 Checkout Flow" }),
+      JSON.stringify({}),
       { headers: JSON_HEADERS },
     );
     const ok = check(res, {
