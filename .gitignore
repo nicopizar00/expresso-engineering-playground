@@ -158,3 +158,13 @@ tests/performance/k6/reports/*
 
 # Vercel local project metadata
 .vercel/
+
+# OS
+.DS_Store
+
+# Local tool caches
+__pycache__/
+*.pyc
+.agents/
+.playwright-mcp/
+graphify-out/
