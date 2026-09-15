@@ -168,3 +168,4 @@ __pycache__/
 .agents/
 .playwright-mcp/
 graphify-out/
+.worktrees/
