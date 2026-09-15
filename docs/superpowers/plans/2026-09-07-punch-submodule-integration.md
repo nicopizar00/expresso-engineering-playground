@@ -262,11 +262,11 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-from punch.__main__ import _stream  # noqa: reused primitive, see module docstring
-
 from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, COMPOSE_PERF_FILE, PERF_REPORTS_DIR
+from pg.paths import BFF_PORT, COMPOSE_PERF_FILE, PERF_REPORTS_DIR  # importing pg.paths here (before the punch import below) runs its PUNCH_SRC sys.path bootstrap, which that import depends on
 from pg.ports import port_in_use
+
+from punch.__main__ import _stream  # noqa: reused primitive, see module docstring — must be imported after pg.paths
 
 
 def default_base_url() -> str:

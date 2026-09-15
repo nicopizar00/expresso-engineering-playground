@@ -8,14 +8,12 @@ campaign descriptor selects — there is no static set to name ahead of time.
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, COMPOSE_PERF_FILE, PERF_REPORTS_DIR, REPO_ROOT
-from pg.ports import port_in_use
+from pg.ansi import fail, info
+from pg.k6runner import run_k6
+from pg.paths import REPO_ROOT
 
 CATALOG_PATH = REPO_ROOT / "use-cases" / "catalog.json"
 DEFAULT_DESCRIPTOR = (
@@ -118,12 +116,7 @@ def build_k6_options(descriptor: Dict[str, Any], catalog: Dict[str, Any]) -> Dic
     return {"scenarios": scenarios, "thresholds": thresholds}
 
 
-def _default_base_url() -> str:
-    return os.environ.get("BASE_URL") or f"http://host.docker.internal:{BFF_PORT}"
-
-
 def run(argv: List[str]) -> int:
-    header("Performance campaign (k6)")
     descriptor_path = Path(argv[0]) if argv else DEFAULT_DESCRIPTOR
     if not descriptor_path.exists():
         fail(f"campaign descriptor not found: {descriptor_path}")
@@ -140,44 +133,17 @@ def run(argv: List[str]) -> int:
 
     run_id = descriptor["runId"]
     options = build_k6_options(descriptor, catalog)
-    base_url = _default_base_url()
-    summary_filename = f"campaign-{run_id}-summary.json"
-    summary_on_host = PERF_REPORTS_DIR / summary_filename
 
-    info(f"Target   : {base_url}")
     info(f"Run id   : {run_id}")
     info(f"Use cases: {', '.join(s['id'] for s in descriptor['useCases'])}")
-    info(f"Summary  : {summary_on_host}")
     print()
 
-    if (
-        ("localhost" in base_url or "host.docker.internal" in base_url)
-        and not port_in_use(BFF_PORT)
-    ):
-        warn(f"BFF does not appear to be listening on :{BFF_PORT}. Start it with: ./dev up")
-        print()
-
-    # The summary file is written by campaign.js's handleSummary (not by
-    # --summary-export, which k6 ignores once handleSummary is defined) so the
-    # report can carry runId/catalogVersion next to k6's own metrics. The path
-    # it writes to mirrors summary_on_host through the /scripts volume mount.
-    cmd = [
-        "docker", "compose", "-f", str(COMPOSE_PERF_FILE),
-        "run", "--rm",
-        "-e", f"BASE_URL={base_url}",
-        "-e", f"RUN_ID={run_id}",
-        "-e", f"CATALOG_VERSION={catalog.get('catalogVersion', '')}",
-        "-e", f"CAMPAIGN_JSON={json.dumps(options)}",
-        "k6",
-        "run",
-        "/scripts/scenarios/campaign/campaign.js",
-    ]
-    result = subprocess.run(cmd, check=False)
-    print()
-    if result.returncode == 0:
-        pass_(f"k6 campaign '{run_id}' completed.")
-        info(f"Summary written to {summary_on_host}")
-        print()
-        return 0
-    fail(f"k6 campaign '{run_id}' failed (exit code {result.returncode}).")
-    return result.returncode
+    return run_k6(
+        f"campaign '{run_id}'",
+        "scenarios/campaign/campaign.js",
+        extra_env={
+            "RUN_ID": run_id,
+            "CATALOG_VERSION": str(catalog.get("catalogVersion", "")),
+            "CAMPAIGN_JSON": json.dumps(options),
+        },
+    )

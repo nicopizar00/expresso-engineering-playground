@@ -34,11 +34,14 @@
 **/.env.*
 !.env.example
 
-# Test suites no image needs at build time
+# Test suites no image needs at build time. tests/performance is the
+# exception: infra/docker/k6.Dockerfile builds this repo's k6 TypeScript
+# scenarios from tests/performance/k6/ using the repo root as its build
+# context, so that subtree must stay visible here (its node_modules/dist
+# are still excluded via the patterns above).
 tests/e2e
 tests/contract
 tests/integration
-tests/performance
 
 # Docs and infra not consumed at build time
 docs

@@ -8,34 +8,35 @@ description: Use to review k6 scenarios, thresholds, data usage, and report shap
 ## When to use
 
 - Before merging a change that adds or modifies a scenario, threshold,
-  fixture, or `config/env.js`.
+  fixture, or `config/env.ts`.
 - When triaging a flaky perf run.
 - When promoting a scenario from local-only to a documented profile.
 
 ## Read first
 
 - `tests/performance/k6/README.md` — scenario library contract.
-- `tests/performance/k6/config/env.js` — `BASE_URL` resolution.
-- `tests/performance/k6/config/thresholds.js` — named threshold sets.
-- `tests/performance/k6/data/` — static fixtures (e.g. product IDs).
+- `tests/performance/k6/config/env.ts` — `BASE_URL` resolution.
+- `tests/performance/k6/config/thresholds.ts` — named threshold sets.
 - The scenario(s) under review in
-  `tests/performance/k6/scenarios/<profile>/<name>.js`.
+  `tests/performance/k6/scenarios/<profile>/<name>.ts`.
 - `docs/performance/orchestrator.md` — invariants the runner enforces.
 
 ## Review checklist
 
 ### Scenario shape
-- [ ] Uses `url()` from `config/env.js`; never reconstructs `BASE_URL`.
-- [ ] Imports thresholds by name from `config/thresholds.js`. If unique to
-      this scenario, the named set is defined in `thresholds.js`, not inlined.
+- [ ] Uses `url()` from `config/env.ts`; never reconstructs `BASE_URL`.
+- [ ] Imports thresholds by name from `config/thresholds.ts`. If unique to
+      this scenario, the named set is defined in `thresholds.ts`, not inlined.
 - [ ] `options.scenarios` (or top-level `options`) makes the VUs / duration /
       ramp explicit and bounded; no open-ended `duration: '24h'`.
 - [ ] `checks` cover every status assertion that matters; failure of a `check`
       is gated by a threshold.
 
 ### Determinism
-- [ ] Inputs come from `data/*.json` or environment, not random seeds without
-      a fixed value.
+- [ ] Inputs come from environment variables, seeded/fixed IDs (e.g.
+      `prod_espresso`, `ord_demo`), or a campaign descriptor
+      (`tests/performance/k6/campaigns/*.json`), not random seeds without a
+      fixed value.
 - [ ] No reliance on a single ordering of products / orders / IDs that the
       seed does not guarantee.
 - [ ] Write-path scenarios (`checkout-flow`) capture the BFF-returned

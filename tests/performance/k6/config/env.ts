@@ -4,9 +4,9 @@
 // playground. Defaults are chosen so a fresh checkout works locally without
 // any setup.
 
-export const BASE_URL = __ENV.BASE_URL || "http://localhost:3001";
-export const K6_ENV = __ENV.K6_ENV || "local";
+export const BASE_URL: string = __ENV.BASE_URL || "http://localhost:3001";
+export const K6_ENV: string = __ENV.K6_ENV || "local";
 
-export function url(path) {
+export function url(path: string): string {
   return `${BASE_URL}${path}`;
 }

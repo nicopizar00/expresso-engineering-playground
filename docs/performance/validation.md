@@ -54,8 +54,12 @@ Requests: 612
 Errors:   0%
 http_req_duration  p50=8ms   p95=38ms   p99=72ms
 Thresholds: all passed
-Summary:  tests/performance/k6/reports/smoke-summary.json
 ```
+
+(The scenario's own `handleSummary` writes the report/summary files — the
+orchestrator itself no longer prints a "Summary:" line for `smoke` /
+`checkout-flow` / `read-heavy` / `campaign`. Note the summary path
+separately, e.g. `tests/performance/k6/reports/smoke-summary.json`.)
 
 ## Diffing across runs
 

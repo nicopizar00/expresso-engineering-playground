@@ -30,8 +30,8 @@ inline. An opt-in `k6-otel` service exports OTLP metrics into the main stack's
   definitions; comments document the host-gateway and external network.
 - `tests/performance/k6/README.md` — scenario library overview and `BASE_URL`
   contract.
-- `tests/performance/k6/config/thresholds.js` — shared, named threshold sets.
-- `tests/performance/k6/scenarios/<profile>/<name>.js` — one file per
+- `tests/performance/k6/config/thresholds.ts` — shared, named threshold sets.
+- `tests/performance/k6/scenarios/<profile>/<name>.ts` — one file per
   scenario; new profiles follow the same shape.
 
 ## Invariants (do not break)
@@ -45,7 +45,7 @@ inline. An opt-in `k6-otel` service exports OTLP metrics into the main stack's
 3. **Compose file stays separate.** `compose.performance.yaml` is its own
    file so a perf run never mutates the main stack lifecycle.
 4. **`BASE_URL` is the single target knob.** Scenarios read it via
-   `config/env.js`; the orchestrator resolves the default; CLI overrides win.
+   `config/env.ts`; the orchestrator resolves the default; CLI overrides win.
 5. **Reports land in `tests/performance/k6/reports/`** and are gitignored
    except for `.gitkeep`. Summary filenames are stable per scenario so
    diffing across runs is easy.
@@ -57,9 +57,9 @@ inline. An opt-in `k6-otel` service exports OTLP metrics into the main stack's
 1. Identify the change shape: new scenario, new threshold, new entry point,
    new Compose service, new report sink.
 2. For a **new scenario**:
-   - Create `tests/performance/k6/scenarios/<profile>/<name>.js`.
-   - Import `url()` from `config/env.js` and named thresholds from
-     `config/thresholds.js` (or add a named set there if reused).
+   - Create `tests/performance/k6/scenarios/<profile>/<name>.ts`.
+   - Import `url()` from `config/env.ts` and named thresholds from
+     `config/thresholds.ts` (or add a named set there if reused).
    - Add a `<name>()` function in `scripts/pg/perf.py` reusing
      `_run_scenario`.
    - Register it in `scripts/pg/cli.py` under `perf:<name>`.
@@ -67,7 +67,7 @@ inline. An opt-in `k6-otel` service exports OTLP metrics into the main stack's
      entry points are expected there.
    - Document it in `tests/performance/k6/README.md` and the
      orchestrator design doc.
-3. For a **threshold change**: edit `config/thresholds.js`, justify the
+3. For a **threshold change**: edit `config/thresholds.ts`, justify the
    new bound in the design doc, and re-run the affected scenarios to capture
    evidence.
 4. For a **Compose change**: edit `compose.performance.yaml`, keep the

@@ -1,24 +1,23 @@
-// tests/performance/k6/scenarios/campaign/catalog-browse.js
 import http from "k6/http";
 import { check, group } from "k6";
-import { url } from "../../config/env.js";
-import { iterationSuccess, newIterationId, reportEvent } from "./report-event.js";
+import { url } from "../../config/env";
+import { iterationSuccess, newIterationId, reportEvent, UseCase } from "./report-event";
 
-const USE_CASE = { id: "commerce.catalog-browse", version: 1 };
+const USE_CASE: UseCase = { id: "commerce.catalog-browse", version: 1 };
 const TAGS = { use_case: USE_CASE.id, use_case_version: String(USE_CASE.version) };
 
-export function catalogBrowse() {
+export function catalogBrowse(): void {
   const iterationId = newIterationId();
   reportEvent(USE_CASE, iterationId, "started");
   let ok = true;
-  let productId;
+  let productId: string | undefined;
 
   group("catalog: list", () => {
     const res = http.get(url("/catalog/products"), { tags: TAGS });
     ok = check(res, { "catalog list 200": (r) => r.status === 200 }) && ok;
     if (ok) {
       try {
-        const items = res.json("items");
+        const items = res.json("items") as Array<{ productId: string }>;
         productId = Array.isArray(items) && items.length > 0 ? items[0].productId : undefined;
       } catch {
         productId = undefined;

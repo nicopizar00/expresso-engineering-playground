@@ -12,7 +12,7 @@ import sys
 
 from pg.ansi import bold, fail, green, header, info, pass_, red, warn
 from pg.compose import compose_available, docker_available
-from pg.paths import BFF_PORT, ENV_BOOTSTRAPPED, ENV_PATH, WEB_PORT
+from pg.paths import BFF_PORT, ENV_BOOTSTRAPPED, ENV_PATH, PUNCH_SRC, WEB_PORT
 from pg.ports import port_in_use
 
 
@@ -64,6 +64,25 @@ def run() -> int:
         pass_(f"Node {ver} (host)")
     else:
         info("node not installed on host — fine for ./dev (Docker-first)")
+
+    # vendor/punch submodule. INT-001 (docs/specs/punch-submodule-integration.md)
+    # asks this to warn, not fail, if the submodule looks uninitialized — it's
+    # only required for perf/k6 work, not the core dev loop, so it shouldn't
+    # gate `ok` the way missing Docker does.
+    punch_root = PUNCH_SRC.parent
+    if not punch_root.is_dir() or not any(punch_root.iterdir()):
+        warn(
+            "vendor/punch/ is empty — the punch submodule is not "
+            "initialized. Run: git submodule update --init --recursive"
+        )
+    elif not PUNCH_SRC.is_dir() or not any(PUNCH_SRC.iterdir()):
+        warn(
+            "vendor/punch/ exists but vendor/punch/src looks empty — the "
+            "punch submodule checkout is incomplete. Run: git submodule "
+            "update --init --recursive"
+        )
+    else:
+        pass_("vendor/punch/ submodule initialized")
 
     # .env file.
     if ENV_PATH.exists():

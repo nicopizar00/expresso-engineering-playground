@@ -91,9 +91,9 @@ When the count drops to zero, the topic is done.
 
 ✅ **k6 scenario library** — _added in `feat/k6-scenarios`_
 
-- `scenarios/checkout-flow/checkout-flow.js` — 1 VU write path, asserts real persisted orderId
-- `scenarios/read-heavy/read-heavy.js` — 30 VU ramping, all GET endpoints, baseline latency
-- `config/thresholds.js` extended with `checkoutFlowThresholds` + `readHeavyThresholds`
+- `scenarios/checkout-flow/checkout-flow.ts` — 1 VU write path, asserts real persisted orderId
+- `scenarios/read-heavy/read-heavy.ts` — 30 VU ramping, all GET endpoints, baseline latency
+- `config/thresholds.ts` extended with `checkoutFlowThresholds` + `readHeavyThresholds`
 - `pnpm pg:perf:checkout-flow` and `pnpm pg:perf:read-heavy` commands wired
 
 ✅ **Orders persistence** — _0 anchors remaining_

@@ -1,30 +1,28 @@
-// tests/performance/k6/scenarios/campaign/purchase.js
-//
 // concurrency.maxVirtualUsers: 1 in catalog.json — the BFF cart is
 // process-local and shared, so this adapter must never run above 1 VU
-// (enforced by Task 4's preflight, not by this file).
+// (enforced by scripts/pg/campaign.py's preflight, not by this file).
 import http from "k6/http";
 import { check, group } from "k6";
-import { url } from "../../config/env.js";
-import { iterationSuccess, newIterationId, reportEvent } from "./report-event.js";
+import { url } from "../../config/env";
+import { iterationSuccess, newIterationId, reportEvent, UseCase } from "./report-event";
 
-const USE_CASE = { id: "commerce.purchase", version: 1 };
+const USE_CASE: UseCase = { id: "commerce.purchase", version: 1 };
 const TAGS = { use_case: USE_CASE.id, use_case_version: String(USE_CASE.version) };
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
-export function purchase() {
+export function purchase(): void {
   const iterationId = newIterationId();
   reportEvent(USE_CASE, iterationId, "started");
   let ok = true;
-  let productId;
-  let orderId;
+  let productId: string | undefined;
+  let orderId: string | undefined;
 
   group("catalog: browse", () => {
     const res = http.get(url("/catalog/products"), { tags: TAGS });
     ok = check(res, { "catalog list 200": (r) => r.status === 200 }) && ok;
     if (ok) {
       try {
-        const items = res.json("items");
+        const items = res.json("items") as Array<{ productId: string }>;
         productId = Array.isArray(items) && items.length > 0 ? items[0].productId : undefined;
       } catch {
         productId = undefined;
@@ -51,7 +49,7 @@ export function purchase() {
         "cart view 200": (r) => r.status === 200,
         "cart contains added item": (r) => {
           try {
-            const items = r.json("items");
+            const items = r.json("items") as Array<{ productId: string }>;
             return Array.isArray(items) && items.some((item) => item.productId === productId);
           } catch {
             return false;
@@ -78,7 +76,7 @@ export function purchase() {
           }
         },
       }) && ok;
-      if (ok) orderId = res.json("orderId");
+      if (ok) orderId = res.json("orderId") as string;
     });
   }
 

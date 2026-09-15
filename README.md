@@ -55,6 +55,7 @@ From a freshly cloned repo, in the repo root:
 
 ```bash
 cp .env.example .env       # one-time setup — gitignored local config
+git submodule update --init --recursive  # initialize shared performance-testing tooling
 ./dev doctor               # validate prerequisites (Docker + Python ≥ 3.9)
 ./dev up                   # postgres + otel-collector + bff
 ./dev smoke                # hit every BFF endpoint, assert 200/201, and check an SSE frame

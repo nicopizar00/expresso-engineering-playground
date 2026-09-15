@@ -17,8 +17,9 @@
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
-import { url } from "../../config/env.js";
-import { smokeThresholds } from "../../config/thresholds.js";
+import { url } from "../../config/env";
+import { smokeThresholds } from "../../config/thresholds";
+import { buildHtml, buildSummaryJson } from "../../support/report";
 
 export const options = {
   scenarios: {
@@ -29,7 +30,6 @@ export const options = {
     },
   },
   thresholds: smokeThresholds,
-  // Single-letter tags keep output compact for CI consumers.
   tags: { suite: "mini-commerce-smoke" },
 };
 
@@ -47,7 +47,8 @@ export default function () {
       "catalog 200": (r) => r.status === 200,
       "catalog has items": (r) => {
         try {
-          return Array.isArray(r.json("items")) && r.json("items").length > 0;
+          const items = r.json("items");
+          return Array.isArray(items) && items.length > 0;
         } catch {
           return false;
         }
@@ -87,9 +88,6 @@ export default function () {
   });
 
   group("orders: read seeded order", () => {
-    // ord_demo is pre-seeded by the BFF; we use it instead of the order
-    // returned by /checkout because checkout responses are not yet
-    // round-trippable through /orders/:id in the in-memory mock.
     const res = http.get(url("/orders/ord_demo"));
     check(res, { "order 200": (r) => r.status === 200 });
   });
@@ -109,7 +107,8 @@ export default function () {
       "visualization 200": (r) => r.status === 200,
       "visualization has items": (r) => {
         try {
-          return Array.isArray(r.json("items")) && r.json("items").length > 0;
+          const items = r.json("items");
+          return Array.isArray(items) && items.length > 0;
         } catch {
           return false;
         }
@@ -118,4 +117,13 @@ export default function () {
   });
 
   sleep(1);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function handleSummary(data: any) {
+  const meta = { title: "Mini-Commerce Smoke", testType: "smoke", targetUrl: url("") };
+  return {
+    "/scripts/reports/smoke-report.html": buildHtml(data, meta),
+    "/scripts/reports/smoke-summary.json": JSON.stringify(buildSummaryJson(data, meta), null, 2),
+  };
 }

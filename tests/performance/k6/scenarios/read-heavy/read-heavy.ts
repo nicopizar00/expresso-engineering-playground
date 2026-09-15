@@ -15,8 +15,9 @@
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
-import { url } from "../../config/env.js";
-import { readHeavyThresholds } from "../../config/thresholds.js";
+import { url } from "../../config/env";
+import { readHeavyThresholds } from "../../config/thresholds";
+import { buildHtml, buildSummaryJson } from "../../support/report";
 
 export const options = {
   scenarios: {
@@ -46,7 +47,8 @@ export default function () {
       "catalog 200": (r) => r.status === 200,
       "catalog has items": (r) => {
         try {
-          return Array.isArray(r.json("items")) && r.json("items").length > 0;
+          const items = r.json("items");
+          return Array.isArray(items) && items.length > 0;
         } catch {
           return false;
         }
@@ -74,7 +76,8 @@ export default function () {
       "orders list 200": (r) => r.status === 200,
       "orders list has items": (r) => {
         try {
-          return Array.isArray(r.json("orders")) && r.json("orders").length > 0;
+          const orders = r.json("orders");
+          return Array.isArray(orders) && orders.length > 0;
         } catch {
           return false;
         }
@@ -93,7 +96,8 @@ export default function () {
       "visualization 200": (r) => r.status === 200,
       "visualization has items": (r) => {
         try {
-          return Array.isArray(r.json("items")) && r.json("items").length > 0;
+          const items = r.json("items");
+          return Array.isArray(items) && items.length > 0;
         } catch {
           return false;
         }
@@ -102,4 +106,13 @@ export default function () {
   });
 
   sleep(1);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function handleSummary(data: any) {
+  const meta = { title: "Mini-Commerce Read Heavy", testType: "read-heavy", targetUrl: url("") };
+  return {
+    "/scripts/reports/read-heavy-report.html": buildHtml(data, meta),
+    "/scripts/reports/read-heavy-summary.json": JSON.stringify(buildSummaryJson(data, meta), null, 2),
+  };
 }

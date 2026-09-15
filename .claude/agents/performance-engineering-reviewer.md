@@ -20,7 +20,6 @@ may have missed.
   - `infra/docker/compose.performance.yaml`
   - `tests/performance/k6/scenarios/**`
   - `tests/performance/k6/config/**`
-  - `tests/performance/k6/data/**`
   - `docs/performance/**`
 - A new scenario is being added or an existing one is being promoted.
 - A threshold value is changing.
@@ -34,8 +33,8 @@ Skip me for typos, comment edits, or doc-only renames inside the perf tree.
 3. `infra/docker/compose.performance.yaml` — `k6` and `k6-otel` symmetry,
    `extra_hosts`, network membership, `BASE_URL` default.
 4. The changed scenario file(s) under `tests/performance/k6/scenarios/`.
-5. `tests/performance/k6/config/thresholds.js` — named threshold sets.
-6. `tests/performance/k6/config/env.js` — `url()` helper.
+5. `tests/performance/k6/config/thresholds.ts` — named threshold sets.
+6. `tests/performance/k6/config/env.ts` — `url()` helper.
 7. `tests/performance/k6/README.md` — documented contract.
 8. `scripts/pg/tests/` — orchestrator unit tests.
 
