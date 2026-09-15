@@ -156,7 +156,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: echo 'TODO: start ephemeral stack via infra/docker/compose.yaml and run @smoke Playwright tag'
+      - run: "echo 'TODO: start ephemeral stack via infra/docker/compose.yaml and run @smoke Playwright tag'"
 
   perf-smoke:
     name: Performance smoke (k6)

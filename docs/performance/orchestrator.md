@@ -41,6 +41,12 @@ The baked image contains compiled scenario code. Existing scenario
 `tests/performance/k6/reports/`; Punch also records the selected run's stdout
 and stderr log in `reports/logs/`.
 
+Existing CSV, HTML, or JSON files are **not current-run evidence**: they can
+belong to an earlier run. The Punch execution result (selected workflow, child
+exit status, pass/failure state, and CSV count when applicable) together with
+the matching stdout/stderr log is the current-run evidence record. Inspect
+that result and record before treating generated artifacts as evidence.
+
 ## Repository workflow mapping
 
 There are seven YAML files, exactly one for every TypeScript k6 build entry.

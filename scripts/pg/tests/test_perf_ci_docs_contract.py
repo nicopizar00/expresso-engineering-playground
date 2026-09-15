@@ -5,6 +5,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import yaml
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -12,31 +14,66 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
     def test_python_ci_installs_pinned_punch_dependencies(self) -> None:
         """Removing Punch's requirements from Python CI would break YAML loading."""
-        ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        ci = yaml.safe_load(
+            (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        steps = ci["jobs"]["python"]["steps"]
 
-        self.assertIn("name: Install Python dependencies", ci)
         self.assertIn(
-            'python -m pip install --quiet "ruff==0.7.4" -r vendor/punch/requirements.txt',
-            ci,
+            {
+                "name": "Install Python dependencies",
+                "run": 'python -m pip install --quiet "ruff==0.7.4" -r vendor/punch/requirements.txt',
+            },
+            steps,
         )
 
     def test_performance_ci_builds_then_selects_the_smoke_workflow(self) -> None:
         """Bypassing ./dev would duplicate the repository YAML execution contract."""
-        ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-
-        perf_smoke = ci.split("  perf-smoke:\n", 1)[1]
-        self.assertIn("uses: actions/setup-python@v5", perf_smoke)
-        self.assertIn('python-version: "3.11"', perf_smoke)
-        self.assertIn("python -m pip install --quiet -r vendor/punch/requirements.txt", perf_smoke)
-        self.assertIn("name: Build k6 image", perf_smoke)
-        self.assertIn(
-            "docker compose -f infra/docker/compose.performance.yaml build k6", perf_smoke
+        ci = yaml.safe_load(
+            (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         )
-        self.assertIn("name: Run k6 smoke workflow", perf_smoke)
-        self.assertIn("run: ./dev perf:smoke", perf_smoke)
-        self.assertLess(perf_smoke.index("name: Build k6 image"), perf_smoke.index("run: ./dev perf:smoke"))
-        self.assertNotIn("k6 run /scripts/scenarios/smoke/smoke.js", perf_smoke)
-        self.assertNotIn("--confirm-output-data", perf_smoke)
+        steps = ci["jobs"]["perf-smoke"]["steps"]
+
+        def step_index(expected: dict[str, object]) -> int:
+            return steps.index(expected)
+
+        setup_python = step_index(
+            {"uses": "actions/setup-python@v5", "with": {"python-version": "3.11"}}
+        )
+        install_punch = step_index(
+            {
+                "name": "Install Punch dependencies",
+                "run": "python -m pip install --quiet -r vendor/punch/requirements.txt",
+            }
+        )
+        start_bff = step_index(next(step for step in steps if step.get("name") == "Start BFF stack"))
+        build_k6 = step_index(
+            {
+                "name": "Build k6 image",
+                "run": "docker compose -f infra/docker/compose.performance.yaml build k6",
+            }
+        )
+        run_workflow = step_index(
+            {
+                "name": "Run k6 smoke workflow",
+                "env": {"BASE_URL": "http://host.docker.internal:3001"},
+                "run": "./dev perf:smoke",
+            }
+        )
+
+        self.assertLess(setup_python, install_punch)
+        self.assertLess(install_punch, start_bff)
+        self.assertLess(start_bff, build_k6)
+        self.assertLess(build_k6, run_workflow)
+        self.assertEqual(sum(step.get("run") == "./dev perf:smoke" for step in steps), 1)
+        self.assertFalse(
+            any(
+                "docker compose" in step.get("run", "")
+                and " run " in f" {step.get('run', '')} "
+                for step in steps
+            )
+        )
+        self.assertFalse(any("--confirm-output-data" in step.get("run", "") for step in steps))
 
     def test_dev_help_explains_the_performance_only_python_dependency(self) -> None:
         """A fresh user needs the Punch installation command before a perf command."""
@@ -83,6 +120,18 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
                 self.assertIn("atomic", documents[path])
                 self.assertIn("seven", documents[path])
 
+        self.assertNotIn(
+            "only way to run `pnpm pg:perf:checkout-flow`", documents["README.md"]
+        )
+        for path in ("docs/performance/orchestrator.md", "tests/performance/k6/README.md"):
+            with self.subTest(path=path):
+                self.assertIn("not current-run evidence", documents[path])
+                self.assertIn("execution result", documents[path])
+                self.assertIn("evidence record", documents[path])
+
+        self.assertIn("BASE_URL", documents["tests/performance/k6/README.md"])
+        self.assertIn("perf:open-report", documents["tests/performance/k6/README.md"])
+        self.assertIn("perf:clean", documents["tests/performance/k6/README.md"])
         self.assertIn("supersedes INT-002", documents["docs/specs/punch-submodule-integration.md"])
         self.assertIn("CI smoke workflow", documents["docs/ai/claude-code-operating-protocol.md"])
         self.assertNotIn("punch's _stream primitive", documents["docs/performance/orchestrator.md"])

@@ -24,6 +24,35 @@ the terminal and `reports/logs/`, while each scenario retains its existing
 HTML/JSON summary output in `reports/`. Do not substitute a direct Compose
 command in normal use; it is a debugging escape hatch, not the owned path.
 
+Set a different target without changing a workflow:
+
+```bash
+BASE_URL=https://perf.example.test ./dev perf:smoke
+```
+
+## Reports and current-run evidence
+
+The report volume has this stable layout:
+
+```text
+reports/
+  smoke-report.html / smoke-summary.json       # scenario HTML/JSON output
+  logs/k6-smoke.log                            # selected workflow stdout/stderr
+```
+
+Inspect or remove those generated files with:
+
+```bash
+./dev perf:open-report
+./dev perf:clean
+```
+
+Existing CSV, HTML, or JSON files are **not current-run evidence**: a file
+may predate the selected workflow. Use the Punch execution result and its
+matching stdout/stderr log as the current-run evidence record; the result
+identifies the selected workflow and reports its exit/pass state and any CSV
+record count.
+
 The seven current mappings are:
 
 | TypeScript build entry | YAML workflow |

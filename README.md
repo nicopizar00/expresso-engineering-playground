@@ -316,7 +316,6 @@ pnpm pg:dev:host     # turbo run dev on the host (no containers for apps)
 ```
 
 Every `./dev <cmd>` has a `pnpm pg:<cmd>` equivalent. The full mapping
-is in [`docs/cli-reference.md`](./docs/cli-reference.md). The host-mode
-path is the **only** way to run `pnpm pg:perf:checkout-flow` and
-`pnpm pg:perf:read-heavy` today (the `./dev` CLI ships `perf:smoke`
-only).
+is in [`docs/cli-reference.md`](./docs/cli-reference.md). The same
+workflow-backed performance commands are available through `./dev` and
+`pnpm pg:*`; use the entrypoint that fits the rest of your local workflow.
