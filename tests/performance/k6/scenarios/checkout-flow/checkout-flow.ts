@@ -49,11 +49,9 @@ export default function () {
   });
 
   group("checkout", () => {
-    const res = http.post(
-      url("/checkout"),
-      JSON.stringify({}),
-      { headers: JSON_HEADERS },
-    );
+    const res = http.post(url("/checkout"), JSON.stringify({}), {
+      headers: JSON_HEADERS,
+    });
     const ok = check(res, {
       "checkout 201": (r) => r.status === 201,
       "checkout returns orderId": (r) => {

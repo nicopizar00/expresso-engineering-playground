@@ -61,11 +61,10 @@ export function purchase(): void {
 
   if (ok) {
     group("checkout", () => {
-      const res = http.post(
-        url("/checkout"),
-        JSON.stringify({}),
-        { headers: JSON_HEADERS, tags: TAGS },
-      );
+      const res = http.post(url("/checkout"), JSON.stringify({}), {
+        headers: JSON_HEADERS,
+        tags: TAGS,
+      });
       ok = check(res, {
         "checkout 201": (r) => r.status === 201,
         "checkout returns orderId": (r) => {
