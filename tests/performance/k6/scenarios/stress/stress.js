@@ -84,7 +84,7 @@ export default function () {
   group("checkout", () => {
     const res = http.post(
       url("/checkout"),
-      JSON.stringify({ customerName: "k6 Stress" }),
+      JSON.stringify({}),
       { headers: JSON_HEADERS },
     );
     check(res, { "checkout 201": (r) => r.status === 201 });

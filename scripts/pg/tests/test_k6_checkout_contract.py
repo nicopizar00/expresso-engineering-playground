@@ -7,17 +7,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CHECKOUT_DTO = REPO_ROOT / "apps" / "bff" / "src" / "modules" / "checkout" / "checkout.dto.ts"
-CHECKOUT_SCENARIOS = (
-    REPO_ROOT / "tests" / "performance" / "k6" / "scenarios" / "smoke" / "smoke.ts",
-    REPO_ROOT
-    / "tests"
-    / "performance"
-    / "k6"
-    / "scenarios"
-    / "checkout-flow"
-    / "checkout-flow.ts",
-    REPO_ROOT / "tests" / "performance" / "k6" / "scenarios" / "campaign" / "purchase.ts",
-)
+SCENARIOS_DIR = REPO_ROOT / "tests" / "performance" / "k6" / "scenarios"
 
 
 class K6CheckoutContractTests(unittest.TestCase):
@@ -28,15 +18,22 @@ class K6CheckoutContractTests(unittest.TestCase):
         self.assertRegex(dto, r"idempotencyKey\?: string;")
         self.assertNotIn("customerName", dto)
 
-        checkout_payload = re.compile(
-            r'http\.post\(\s*url\("/checkout"\),\s*JSON\.stringify\((\{[^)]*\})\)',
+        checkout_request = re.compile(
+            r'http\.post\(\s*url\(["\']/checkout["\']\),\s*JSON\.stringify\((\{[^)]*\})\)',
             re.DOTALL,
         )
-        for scenario in CHECKOUT_SCENARIOS:
+        checkout_scenarios = []
+        for scenario in SCENARIOS_DIR.rglob("*"):
+            if scenario.suffix not in {".js", ".ts"}:
+                continue
+            payloads = checkout_request.findall(scenario.read_text(encoding="utf-8"))
+            if payloads:
+                checkout_scenarios.append((scenario, payloads))
+
+        self.assertTrue(checkout_scenarios)
+        for scenario, payloads in checkout_scenarios:
             with self.subTest(scenario=scenario.relative_to(REPO_ROOT)):
-                payload = checkout_payload.search(scenario.read_text(encoding="utf-8"))
-                self.assertIsNotNone(payload)
-                self.assertEqual(payload.group(1), "{}")
+                self.assertEqual(payloads, ["{}"] * len(payloads))
 
 
 if __name__ == "__main__":
