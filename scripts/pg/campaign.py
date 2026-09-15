@@ -1,15 +1,15 @@
-"""campaign — catalog-driven k6 campaigns. Sibling to perf.py: same
-Docker/report conventions, own preflight against use-cases/catalog.json
-(SPEC-006 concurrency safety). Thresholds are generated here rather than in
-config/thresholds.js because they depend on which use cases a given
-campaign descriptor selects — there is no static set to name ahead of time.
+"""campaign — catalog-driven k6 campaigns with repository workflow execution.
+
+Preflight and dynamic thresholds remain here because they depend on the use
+cases selected by a descriptor; execution is delegated to ``pg.k6runner``.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from pg.ansi import fail, info
 from pg.k6runner import run_k6
@@ -116,8 +116,12 @@ def build_k6_options(descriptor: Dict[str, Any], catalog: Dict[str, Any]) -> Dic
     return {"scenarios": scenarios, "thresholds": thresholds}
 
 
-def run(argv: List[str]) -> int:
-    descriptor_path = Path(argv[0]) if argv else DEFAULT_DESCRIPTOR
+def run(argv: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(prog="./dev perf:campaign")
+    parser.add_argument("descriptor", nargs="?")
+    parser.add_argument("--confirm-output-data", action="store_true")
+    args = parser.parse_args(argv)
+    descriptor_path = Path(args.descriptor) if args.descriptor else DEFAULT_DESCRIPTOR
     if not descriptor_path.exists():
         fail(f"campaign descriptor not found: {descriptor_path}")
         return 1
@@ -139,11 +143,11 @@ def run(argv: List[str]) -> int:
     print()
 
     return run_k6(
-        f"campaign '{run_id}'",
-        "scenarios/campaign/campaign.js",
+        "campaign",
         extra_env={
             "RUN_ID": run_id,
             "CATALOG_VERSION": str(catalog.get("catalogVersion", "")),
             "CAMPAIGN_JSON": json.dumps(options),
         },
+        confirm_output_data_flag=args.confirm_output_data,
     )

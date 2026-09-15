@@ -1,0 +1,13 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: catalog-browse
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/campaign/catalog-browse.js
+  environment:
+    forward: [BASE_URL]

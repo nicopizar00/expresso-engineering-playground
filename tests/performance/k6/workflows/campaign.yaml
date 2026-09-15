@@ -1,0 +1,14 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: campaign
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/campaign/campaign.js
+  environment:
+    forward: [BASE_URL, RUN_ID, CATALOG_VERSION, CAMPAIGN_JSON]
+    required: [CAMPAIGN_JSON]

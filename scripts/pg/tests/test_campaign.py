@@ -3,10 +3,17 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.campaign import build_k6_options, preflight, resolve_use_case  # noqa: E402
+from pg.campaign import (  # noqa: E402
+    DEFAULT_DESCRIPTOR,
+    build_k6_options,
+    preflight,
+    resolve_use_case,
+    run,
+)
 
 CATALOG = {
     "catalogVersion": 1,
@@ -161,6 +168,16 @@ class BuildK6OptionsTests(unittest.TestCase):
             options["thresholds"],
         )
         self.assertIn("iterations{scenario:commerce_purchase}", options["thresholds"])
+
+
+class CampaignRunTests(unittest.TestCase):
+    @patch("pg.campaign.run_k6", return_value=0)
+    def test_run_selects_campaign_workflow_and_forwards_generated_values(self, run_k6_mock) -> None:
+        rc = run([str(DEFAULT_DESCRIPTOR)])
+        self.assertEqual(rc, 0)
+        args, kwargs = run_k6_mock.call_args
+        self.assertEqual(args[0], "campaign")
+        self.assertIn("CAMPAIGN_JSON", kwargs["extra_env"])
 
 
 if __name__ == "__main__":

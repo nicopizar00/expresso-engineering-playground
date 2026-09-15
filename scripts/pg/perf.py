@@ -1,27 +1,38 @@
-"""perf — k6 scenarios via docker compose, built on scripts/pg/k6runner.py
-(itself built on punch's subprocess-streaming primitive). Mirrors
-playground.mjs:628 and ./dev:375.
-"""
+"""perf — named k6 workflows delegated to scripts/pg/k6runner.py."""
 
 from __future__ import annotations
 
+import argparse
 import shutil
+from typing import Sequence
 
 from pg.ansi import dim, header, info, pass_, warn
 from pg.k6runner import run_k6
 from pg.paths import PERF_REPORTS_DIR
 
 
-def smoke() -> int:
-    return run_k6("smoke", "scenarios/smoke/smoke.js")
+def _confirm_output_data(args: Sequence[str], command: str) -> bool:
+    parser = argparse.ArgumentParser(prog=f"./dev {command}")
+    parser.add_argument("--confirm-output-data", action="store_true")
+    return parser.parse_args(args).confirm_output_data
 
 
-def checkout_flow() -> int:
-    return run_k6("checkout-flow", "scenarios/checkout-flow/checkout-flow.js")
+def smoke(args: Sequence[str]) -> int:
+    return run_k6("smoke", confirm_output_data_flag=_confirm_output_data(args, "perf:smoke"))
 
 
-def read_heavy() -> int:
-    return run_k6("read-heavy", "scenarios/read-heavy/read-heavy.js")
+def checkout_flow(args: Sequence[str]) -> int:
+    return run_k6(
+        "checkout-flow",
+        confirm_output_data_flag=_confirm_output_data(args, "perf:checkout-flow"),
+    )
+
+
+def read_heavy(args: Sequence[str]) -> int:
+    return run_k6(
+        "read-heavy",
+        confirm_output_data_flag=_confirm_output_data(args, "perf:read-heavy"),
+    )
 
 
 def open_report() -> int:

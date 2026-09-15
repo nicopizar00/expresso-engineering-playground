@@ -70,19 +70,19 @@ def _open(_a: Sequence[str]) -> int:
     return open_cmd.run()
 
 
-def _perf_smoke(_a: Sequence[str]) -> int:
+def _perf_smoke(args: Sequence[str]) -> int:
     from pg import perf
-    return perf.smoke()
+    return perf.smoke(args)
 
 
-def _perf_checkout(_a: Sequence[str]) -> int:
+def _perf_checkout(args: Sequence[str]) -> int:
     from pg import perf
-    return perf.checkout_flow()
+    return perf.checkout_flow(args)
 
 
-def _perf_read_heavy(_a: Sequence[str]) -> int:
+def _perf_read_heavy(args: Sequence[str]) -> int:
     from pg import perf
-    return perf.read_heavy()
+    return perf.read_heavy(args)
 
 
 def _perf_campaign(args: Sequence[str]) -> int:

@@ -1,0 +1,13 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: checkout-flow
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/checkout-flow/checkout-flow.js
+  environment:
+    forward: [BASE_URL]

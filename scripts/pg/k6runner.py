@@ -1,29 +1,18 @@
-"""Shared k6-via-Docker invocation helper for perf.py and campaign.py,
-built on punch's subprocess-streaming primitive rather than a separately
-maintained equivalent. See docs/specs/punch-submodule-integration.md
-INT-002.
-
-`_stream` is imported from punch's own module (not a published, versioned
-API — it's a leading-underscore internal helper). This is an intentional,
-accepted coupling to punch's internals for now; if punch's maintainers
-later expose a stable public equivalent, switch to that instead.
-"""
+"""Run repository-owned k6 workflows through Punch's public APIs."""
 
 from __future__ import annotations
 
 import os
+import sys
 from typing import Dict, Optional
 
-# pg.paths must be imported before punch.__main__: importing it is what
-# inserts vendor/punch/src onto sys.path (see the PUNCH_SRC bootstrap in
-# pg/paths.py), which is what makes `punch` importable at all.
 from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, COMPOSE_PERF_FILE, PERF_REPORTS_DIR
+from pg.paths import BFF_PORT, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR
 from pg.ports import port_in_use
 
-# Reused primitive from punch's internals; see the module docstring above
-# for why this leading-underscore import is an intentional, accepted coupling.
-from punch.__main__ import _stream
+# pg.paths initializes PUNCH_SRC before these public Punch imports.
+from punch.execution import confirm_output_data, execute_workflow
+from punch.workflow import WorkflowError, load_workflow
 
 
 def default_base_url() -> str:
@@ -31,26 +20,25 @@ def default_base_url() -> str:
 
 
 def run_k6(
-    label: str,
-    script_path: str,
+    workflow_name: str,
     *,
-    summary_filename: Optional[str] = None,
     extra_env: Optional[Dict[str, str]] = None,
+    confirm_output_data_flag: bool = False,
 ) -> int:
-    """Run one k6 scenario via docker compose, streaming output through
-    punch's primitive. If summary_filename is given, passes --summary-export
-    (for scenarios that don't yet have their own handleSummary); omit it
-    once a scenario defines handleSummary, since k6 ignores --summary-export
-    when handleSummary is present.
-    """
-    header(f"Performance {label} (k6)")
+    """Load and execute one named, repository-owned k6 workflow."""
+    workflow_path = PERF_WORKFLOWS_DIR / f"{workflow_name}.yaml"
+    try:
+        workflow = load_workflow(workflow_path)
+    except WorkflowError as error:
+        fail(f"Could not load k6 workflow {workflow_name}: {error}")
+        return 1
+
+    header(f"Performance {workflow.name} (k6)")
     base_url = default_base_url()
-    summary_on_host = PERF_REPORTS_DIR / summary_filename if summary_filename else None
+    environment = {**os.environ, "BASE_URL": base_url, **(extra_env or {})}
 
     info(f"Target  : {base_url}")
-    info(f"Scenario: {script_path}")
-    if summary_on_host:
-        info(f"Summary : {summary_on_host}")
+    info(f"Scenario: {workflow.k6_script}")
     print()
 
     if (
@@ -60,26 +48,29 @@ def run_k6(
         warn(f"BFF does not appear to be listening on :{BFF_PORT}. Start it with: ./dev up")
         print()
 
-    env_args = ["-e", f"BASE_URL={base_url}"]
-    for key, value in (extra_env or {}).items():
-        env_args += ["-e", f"{key}={value}"]
-
-    run_args = ["run"]
-    if summary_filename:
-        run_args += ["--summary-export", f"/scripts/reports/{summary_filename}"]
-    run_args.append(f"/scripts/{script_path}")
-
-    cmd = [
-        "docker", "compose", "-f", str(COMPOSE_PERF_FILE),
-        "run", "--rm", *env_args, "k6", *run_args,
-    ]
-    returncode = _stream(cmd)
+    output_data_confirmed = confirm_output_data(
+        [workflow],
+        assume_yes=confirm_output_data_flag,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+    )
+    result = execute_workflow(
+        workflow,
+        environment=environment,
+        output_data_confirmed=output_data_confirmed,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        log_path=PERF_REPORTS_DIR / "logs" / f"k6-{workflow.name}.log",
+    )
     print()
-    if returncode == 0:
-        pass_(f"k6 {label} completed.")
-        if summary_on_host:
-            info(f"Summary written to {summary_on_host}")
+    if result.passed:
+        pass_(f"k6 {workflow.name} completed.")
         print()
         return 0
-    fail(f"k6 {label} failed (exit code {returncode}).")
-    return returncode
+
+    if result.child_exit_code is not None:
+        fail(f"k6 {workflow.name} failed (exit code {result.child_exit_code}).")
+        return result.child_exit_code
+
+    fail(f"k6 {workflow.name} failed: {result.failure}")
+    return 1
