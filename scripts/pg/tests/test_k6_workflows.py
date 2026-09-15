@@ -5,6 +5,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg.paths import PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
@@ -25,8 +27,49 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "/scripts/scenarios/" + str(Path(entry).relative_to("scenarios").with_suffix(".js"))
             for entry in build_entries
         }
-        workflows = [load_workflow(path) for path in PERF_WORKFLOWS_DIR.glob("*.yaml")]
+        workflow_paths = sorted(PERF_WORKFLOWS_DIR.glob("*.yaml"))
+        workflows = [load_workflow(path) for path in workflow_paths]
 
+        expected_names = {
+            "smoke",
+            "checkout-flow",
+            "read-heavy",
+            "campaign",
+            "catalog-browse",
+            "order-lookup",
+            "purchase",
+        }
+        self.assertEqual(len(workflow_paths), 7)
+        self.assertEqual({path.stem for path in workflow_paths}, expected_names)
         self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
         self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
-
+        for path, workflow in zip(workflow_paths, workflows):
+            with self.subTest(workflow=path.stem):
+                document = yaml.safe_load(path.read_text(encoding="utf-8"))
+                self.assertEqual(workflow.name, path.stem)
+                self.assertEqual(
+                    document["spec"]["compose"],
+                    {"file": "infra/docker/compose.performance.yaml", "service": "k6"},
+                )
+                self.assertEqual(workflow.working_directory, REPO_ROOT)
+                self.assertEqual(
+                    workflow.compose_file,
+                    REPO_ROOT / "infra" / "docker" / "compose.performance.yaml",
+                )
+                self.assertEqual(workflow.compose_service, "k6")
+                self.assertNotIn("outputs", document["spec"])
+                if workflow.name == "campaign":
+                    self.assertEqual(
+                        document["spec"]["environment"],
+                        {
+                            "forward": [
+                                "BASE_URL",
+                                "RUN_ID",
+                                "CATALOG_VERSION",
+                                "CAMPAIGN_JSON",
+                            ],
+                            "required": ["CAMPAIGN_JSON"],
+                        },
+                    )
+                else:
+                    self.assertEqual(document["spec"]["environment"], {"forward": ["BASE_URL"]})

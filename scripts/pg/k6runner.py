@@ -68,7 +68,7 @@ def run_k6(
         print()
         return 0
 
-    if result.child_exit_code is not None:
+    if result.child_exit_code:
         fail(f"k6 {workflow.name} failed (exit code {result.child_exit_code}).")
         return result.child_exit_code
 

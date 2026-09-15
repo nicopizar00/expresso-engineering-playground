@@ -10,6 +10,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg.k6runner import run_k6  # noqa: E402
+from pg import cli, perf  # noqa: E402
+from punch.execution import ExecutionResult  # noqa: E402
 
 
 FAKE_DOCKER = """#!/usr/bin/env python3
@@ -18,6 +20,7 @@ import sys
 from pathlib import Path
 
 Path(os.environ["FAKE_DOCKER_ARGS"]).write_text("\\n".join(sys.argv[1:]), encoding="utf-8")
+raise SystemExit(int(os.environ.get("FAKE_EXIT_CODE", "0")))
 """
 
 
@@ -66,3 +69,65 @@ class RunK6Tests(unittest.TestCase):
     def test_unknown_workflow_name_fails_before_docker(self) -> None:
         self.assertEqual(run_k6("missing"), 1)
         self.assertFalse(self.fake_args_path.exists())
+
+    @patch("pg.k6runner.confirm_output_data", return_value=True)
+    def test_confirmation_flag_is_forwarded_to_punch(self, confirm_output_data_mock) -> None:
+        self.assertEqual(run_k6("smoke", confirm_output_data_flag=True), 0)
+        workflow = confirm_output_data_mock.call_args.args[0][0]
+        self.assertEqual(workflow.name, "smoke")
+        self.assertTrue(confirm_output_data_mock.call_args.kwargs["assume_yes"])
+
+    def test_malformed_workflow_fails_before_docker(self) -> None:
+        (self.root / "malformed.yaml").write_text("not: a-workflow\n", encoding="utf-8")
+        with patch("pg.k6runner.PERF_WORKFLOWS_DIR", self.root):
+            self.assertEqual(run_k6("malformed"), 1)
+        self.assertFalse(self.fake_args_path.exists())
+
+    @patch("pg.k6runner.execute_workflow")
+    def test_punch_owned_failure_without_nonzero_child_exit_returns_one(self, execute_mock) -> None:
+        for child_exit_code in (0, None):
+            with self.subTest(child_exit_code=child_exit_code):
+                execute_mock.return_value = ExecutionResult(
+                    workflow_name="smoke",
+                    command=(),
+                    child_exit_code=child_exit_code,
+                    passed=False,
+                    failure="workflow output validation failed",
+                    csv_path=None,
+                    csv_record_count=0,
+                )
+                self.assertEqual(run_k6("smoke"), 1)
+
+    def test_child_exit_code_is_propagated(self) -> None:
+        with patch.dict(os.environ, {"FAKE_EXIT_CODE": "23"}):
+            self.assertEqual(run_k6("smoke"), 23)
+
+
+class PerfAndCliCompatibilityTests(unittest.TestCase):
+    @patch("pg.perf.run_k6", return_value=0)
+    def test_perf_commands_parse_confirmation_and_select_workflows(self, run_k6_mock) -> None:
+        for command, workflow_name in (
+            (perf.smoke, "smoke"),
+            (perf.checkout_flow, "checkout-flow"),
+            (perf.read_heavy, "read-heavy"),
+        ):
+            with self.subTest(workflow_name=workflow_name):
+                self.assertEqual(command(["--confirm-output-data"]), 0)
+                run_k6_mock.assert_called_once_with(
+                    workflow_name, confirm_output_data_flag=True
+                )
+                run_k6_mock.reset_mock()
+
+    def test_cli_forwards_static_perf_arguments(self) -> None:
+        with (
+            patch.object(perf, "smoke", return_value=0) as smoke_mock,
+            patch.object(perf, "checkout_flow", return_value=0) as checkout_mock,
+            patch.object(perf, "read_heavy", return_value=0) as read_heavy_mock,
+        ):
+            self.assertEqual(cli._perf_smoke(["--confirm-output-data"]), 0)
+            self.assertEqual(cli._perf_checkout(["--confirm-output-data"]), 0)
+            self.assertEqual(cli._perf_read_heavy(["--confirm-output-data"]), 0)
+
+        smoke_mock.assert_called_once_with(["--confirm-output-data"])
+        checkout_mock.assert_called_once_with(["--confirm-output-data"])
+        read_heavy_mock.assert_called_once_with(["--confirm-output-data"])

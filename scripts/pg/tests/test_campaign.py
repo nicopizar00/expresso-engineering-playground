@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -9,7 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg.campaign import (  # noqa: E402
     DEFAULT_DESCRIPTOR,
+    CATALOG_PATH,
     build_k6_options,
+    load_json,
     preflight,
     resolve_use_case,
     run,
@@ -173,11 +176,21 @@ class BuildK6OptionsTests(unittest.TestCase):
 class CampaignRunTests(unittest.TestCase):
     @patch("pg.campaign.run_k6", return_value=0)
     def test_run_selects_campaign_workflow_and_forwards_generated_values(self, run_k6_mock) -> None:
-        rc = run([str(DEFAULT_DESCRIPTOR)])
+        rc = run([str(DEFAULT_DESCRIPTOR), "--confirm-output-data"])
         self.assertEqual(rc, 0)
         args, kwargs = run_k6_mock.call_args
         self.assertEqual(args[0], "campaign")
-        self.assertIn("CAMPAIGN_JSON", kwargs["extra_env"])
+        descriptor = load_json(DEFAULT_DESCRIPTOR)
+        catalog = load_json(CATALOG_PATH)
+        self.assertEqual(
+            kwargs["extra_env"],
+            {
+                "RUN_ID": descriptor["runId"],
+                "CATALOG_VERSION": str(catalog["catalogVersion"]),
+                "CAMPAIGN_JSON": json.dumps(build_k6_options(descriptor, catalog)),
+            },
+        )
+        self.assertTrue(kwargs["confirm_output_data_flag"])
 
 
 if __name__ == "__main__":
