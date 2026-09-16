@@ -57,6 +57,7 @@ for the dispatch diagram.
 | k6 read-heavy                 | `./dev perf:read-heavy` | `pnpm pg:perf:read-heavy`    | `task perf:read-heavy`    |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
+| Interactive k6 workflow picker | `./bin/punch` (or `python3 scripts/pg/perf_menu.py`) | — | — |
 
 ### Debugging (`hack`)
 
