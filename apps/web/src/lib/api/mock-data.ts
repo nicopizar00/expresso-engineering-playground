@@ -206,10 +206,12 @@ function calculateCartTotal(): Money {
 
 function buildMockCart(): Cart {
   return {
-    cartId: 'cart_demo_001',
+    cartId: mockCartItems.length > 0 ? 'cart_demo_001' : null,
     items: [...mockCartItems],
     itemCount: mockCartItems.reduce((sum, item) => sum + item.quantity, 0),
     total: calculateCartTotal(),
+    // Demo mode doesn't simulate the 1-hour reservation TTL.
+    expiresAt: null,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -337,7 +339,9 @@ export function createMockOrder(): CheckoutResponse {
 
   return {
     orderId,
-    cartId: cart.cartId,
+    // mockApi.checkout() only reaches here after confirming the cart is
+    // non-empty, so cartId is guaranteed non-null at this point.
+    cartId: cart.cartId!,
     customerName: null,
     status: 'pending',
     total: cart.total,

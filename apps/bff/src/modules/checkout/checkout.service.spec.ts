@@ -28,10 +28,18 @@ const ORDER = {
 };
 
 const SESSION_ID = "sid_test";
+const CART_ID = "cart_11111111-1111-1111-1111-111111111111";
 
-function makeCart(items = CART_ITEMS) {
+function makeCart(items = CART_ITEMS, cartId: string | null = CART_ID) {
   return {
-    currentItems: vi.fn().mockReturnValue(items),
+    get: vi.fn().mockReturnValue({
+      cartId: items.length > 0 ? cartId : null,
+      items,
+      itemCount: items.length,
+      total: { amountMinor: 0, currency: "EUR" },
+      expiresAt: null,
+      updatedAt: "2026-05-29T12:00:00.000Z",
+    }),
     clear: vi.fn(),
   };
 }
@@ -77,12 +85,31 @@ describe("CheckoutService", () => {
   });
 
   describe("checkout()", () => {
-    const PAYLOAD = {};
+    const PAYLOAD = { cartId: CART_ID };
 
     it("throws BadRequestException when cart is empty", async () => {
       cart = makeCart([]);
       service = await makeService(cart, orders, domainEvents);
       await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(BadRequestException);
+    });
+
+    it("throws ConflictException when the cartId does not match the current cart", async () => {
+      await expect(
+        service.checkout(SESSION_ID, { ...PAYLOAD, cartId: "cart_other" }),
+      ).rejects.toThrow(ConflictException);
+      expect(orders.create).not.toHaveBeenCalled();
+    });
+
+    it("throws ConflictException when the cart carries no cartId (expired reservation, not yet re-added)", async () => {
+      cart.get.mockReturnValue({
+        cartId: null,
+        items: CART_ITEMS,
+        itemCount: 1,
+        total: { amountMinor: 0, currency: "EUR" },
+        expiresAt: null,
+        updatedAt: "2026-05-29T12:00:00.000Z",
+      });
+      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(ConflictException);
     });
 
     it("does not call orders.create or cart.clear on empty cart", async () => {
@@ -143,7 +170,7 @@ describe("CheckoutService", () => {
 
       expect(response.orderId).toBe(ORDER.orderId);
       expect(orders.create).not.toHaveBeenCalled();
-      expect(cart.currentItems).not.toHaveBeenCalled();
+      expect(cart.get).not.toHaveBeenCalled();
       expect(cart.clear).not.toHaveBeenCalled();
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
@@ -177,7 +204,7 @@ describe("CheckoutService", () => {
       const response = await service.checkout(SESSION_ID, PAYLOAD);
       expect(response).toMatchObject({
         orderId: "ord_001",
-        cartId: "cart_demo",
+        cartId: CART_ID,
         customerName: null,
         status: "pending",
         total: { amountMinor: 360, currency: "EUR" },

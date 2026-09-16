@@ -31,9 +31,19 @@ class K6CheckoutContractTests(unittest.TestCase):
                 checkout_scenarios.append((scenario, payloads))
 
         self.assertTrue(checkout_scenarios)
+        # cartId is a required cart-reservation identifier, not a human
+        # identity field — CUP-002 only forbids the latter (customerName
+        # and friends) from perf checkout calls.
+        allowed_fields = {"cartId", "idempotencyKey"}
+        field_pattern = re.compile(r"(\w+)\s*:")
         for scenario, payloads in checkout_scenarios:
             with self.subTest(scenario=scenario.relative_to(REPO_ROOT)):
-                self.assertEqual(payloads, ["{}"] * len(payloads))
+                for payload in payloads:
+                    fields = set(field_pattern.findall(payload))
+                    self.assertLessEqual(
+                        fields, allowed_fields,
+                        f"unexpected checkout field(s) {fields - allowed_fields} in {payload!r}",
+                    )
 
 
 if __name__ == "__main__":

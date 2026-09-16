@@ -53,6 +53,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 export default function () {
   let productId: string | undefined;
   let orderId: string | undefined;
+  let cartId: string | undefined;
 
   group("catalog: browse", () => {
     const res = http.get(url("/catalog/products"));
@@ -84,6 +85,7 @@ export default function () {
       { headers: JSON_HEADERS },
     );
     check(res, { "cart add 201": (r) => r.status === 201 });
+    cartId = res.json("cartId") as string | undefined;
   });
 
   group("cart: view", () => {
@@ -105,7 +107,9 @@ export default function () {
   });
 
   group("checkout", () => {
-    const res = http.post(url("/checkout"), JSON.stringify({}), {
+    // Echoes back the reservation cartId minted by "cart: add item" — the
+    // BFF now requires it and rejects a mismatch/missing id with 409.
+    const res = http.post(url("/checkout"), JSON.stringify({ cartId }), {
       headers: JSON_HEADERS,
     });
     const ok = check(res, {

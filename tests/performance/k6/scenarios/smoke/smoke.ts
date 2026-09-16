@@ -64,6 +64,8 @@ export default function () {
     });
   });
 
+  let cartId: string | undefined;
+
   group("cart: add item", () => {
     const res = http.post(
       url("/cart/items"),
@@ -71,6 +73,7 @@ export default function () {
       { headers: JSON_HEADERS },
     );
     check(res, { "cart add 201": (r) => r.status === 201 });
+    cartId = res.json("cartId") as string | undefined;
   });
 
   group("cart: read", () => {
@@ -79,7 +82,9 @@ export default function () {
   });
 
   group("checkout", () => {
-    const res = http.post(url("/checkout"), JSON.stringify({}), {
+    // The add-item response minted this session's 1-hour cart reservation;
+    // checkout must echo its cartId back or the BFF rejects it (409).
+    const res = http.post(url("/checkout"), JSON.stringify({ cartId }), {
       headers: JSON_HEADERS,
     });
     check(res, { "checkout 201": (r) => r.status === 201 });

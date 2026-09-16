@@ -1,23 +1,24 @@
 import { ConflictException, BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import type { Money } from "@mini-commerce/shared-types";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
 import type { AddCartItemDto } from "./cart.dto";
 import type { Cart, CartItem } from "./cart.types";
 
-// Fixed display label on every returned Cart — not a real per-cart
-// identifier. Session isolation comes from the Map key (sessionId), not
-// from this field; nothing currently reads it as anything other than a
-// constant.
-const CART_ID = "cart_demo";
+const RESERVATION_MS = 60 * 60 * 1000;
 
 interface SessionCart {
   items: CartItem[];
   lastChangedEpoch: number;
+  // Set together when the one allowed cup is added; both null again once
+  // the cart is cleared or the reservation window lapses.
+  cartId: string | null;
+  expiresAt: number | null;
 }
 
 function emptySessionCart(): SessionCart {
-  return { items: [], lastChangedEpoch: 0 };
+  return { items: [], lastChangedEpoch: 0, cartId: null, expiresAt: null };
 }
 
 // Cart/session evolution: one cart per session id, in-memory, keyed by a
@@ -78,6 +79,8 @@ export class CartService {
     };
     this.nextItemSeq += 1;
     state.items = [...state.items, item];
+    state.cartId = randomUUID();
+    state.expiresAt = Date.now() + RESERVATION_MS;
     state.lastChangedEpoch = Date.now();
     this.logger.log(
       `cart add session=${sessionId} product=${product.productId} qty=${payload.quantity}`,
@@ -125,17 +128,23 @@ export class CartService {
     this.carts.set(sessionId, emptySessionCart());
   }
 
-  // Internal helper used by CheckoutService to build the order from the
-  // current cart without re-fetching products.
-  currentItems(sessionId: string): ReadonlyArray<CartItem> {
-    return this.getOrCreate(sessionId).items;
-  }
-
   private getOrCreate(sessionId: string): SessionCart {
     let state = this.carts.get(sessionId);
     if (!state) {
       state = emptySessionCart();
       this.carts.set(sessionId, state);
+    }
+    // Lazy eviction: no timer/cron, just check on every access. Every
+    // public method routes through here, so this is the single place the
+    // 1-hour reservation window is enforced.
+    if (state.expiresAt !== null && Date.now() >= state.expiresAt) {
+      this.logger.log(
+        `cart reservation expired session=${sessionId} cartId=${state.cartId}`,
+      );
+      state.items = [];
+      state.cartId = null;
+      state.expiresAt = null;
+      state.lastChangedEpoch = Date.now();
     }
     return state;
   }
@@ -151,10 +160,11 @@ export class CartService {
       0,
     );
     return {
-      cartId: CART_ID,
+      cartId: state.cartId,
       items: state.items,
       itemCount,
       total: { amountMinor, currency },
+      expiresAt: state.expiresAt !== null ? new Date(state.expiresAt).toISOString() : null,
       updatedAt: this.updatedAt,
     };
   }

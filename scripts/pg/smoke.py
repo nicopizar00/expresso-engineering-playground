@@ -60,6 +60,20 @@ def _resolve_cart_item_id(cookie_jar: http.cookiejar.CookieJar) -> str:
     return "ci_001"
 
 
+def _resolve_cart_id(cookie_jar: http.cookiejar.CookieJar) -> Optional[str]:
+    try:
+        _, payload = request_json(
+            f"{API_BASE}/cart", expect_status=200, cookie_jar=cookie_jar,
+        )
+        if isinstance(payload, dict):
+            value = payload.get("cartId")
+            if isinstance(value, str) and value:
+                return value
+    except HttpError:
+        pass
+    return None
+
+
 def run() -> int:
     header("Playground Smoke Test")
     print(dim(f"Target: {API_BASE}"))
@@ -100,9 +114,10 @@ def run() -> int:
         "POST /checkout (rejected — customerName not accepted)",
         _expect("POST", "/checkout", 400, body={"customerName": "Smoke Customer"}, cookie_jar=jar),
     ))
+    cart_id = _resolve_cart_id(jar)
     results.append(_check(
         "POST /checkout",
-        _expect("POST", "/checkout", 201, body={}, cookie_jar=jar),
+        _expect("POST", "/checkout", 201, body={"cartId": cart_id}, cookie_jar=jar),
     ))
     results.append(_check("GET  /orders/ord_demo",
                           _expect("GET", "/orders/ord_demo", 200, cookie_jar=jar)))

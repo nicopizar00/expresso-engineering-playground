@@ -36,11 +36,16 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
     e.preventDefault();
     if (isSubmitting) return;
 
+    if (!cart?.cartId) {
+      setError("Cart reservation expired. Please refresh and try again.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const result = await expressoApi.checkout({});
+      const result = await expressoApi.checkout({ cartId: cart.cartId });
       refreshCart();
       onOrderPlaced(result.orderId);
     } catch (err) {

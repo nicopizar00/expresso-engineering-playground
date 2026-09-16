@@ -29,16 +29,24 @@ export class CheckoutService {
         this.logger.log(
           `checkout replay key=${payload.idempotencyKey} order=${replay.orderId}`,
         );
-        return this.toResponse(replay);
+        return this.toResponse(replay, payload.cartId);
       }
     }
 
-    const items = this.cart.currentItems(sessionId);
-    if (items.length === 0) {
+    const currentCart = this.cart.get(sessionId);
+    if (currentCart.items.length === 0) {
       throw new BadRequestException("cart is empty");
     }
+    // Also catches an expired reservation the client hasn't refreshed yet:
+    // CartService already evicted it above, so cartId is now null and
+    // never equals the client's stale value.
+    if (currentCart.cartId !== payload.cartId) {
+      throw new ConflictException(
+        "cart id mismatch; refresh your cart and try again",
+      );
+    }
 
-    const lines = items.map((item) => ({
+    const lines = currentCart.items.map((item) => ({
       productId: item.productId,
       name: item.name,
       quantity: item.quantity,
@@ -85,16 +93,21 @@ export class CheckoutService {
       `checkout key=${payload.idempotencyKey ?? "n/a"} order=${order.orderId}`,
     );
 
-    return this.toResponse(order);
+    return this.toResponse(order, payload.cartId);
   }
 
   // Replay returns the original creation receipt. The order's current status
   // (may now be cancelled/prepared) is intentionally not reflected here —
-  // callers wanting live status should hit GET /orders/:id.
-  private toResponse(order: { orderId: string; customerName: string | null; total: CheckoutResponse["total"]; placedAt: string }): CheckoutResponse {
+  // callers wanting live status should hit GET /orders/:id. `cartId` isn't
+  // persisted on the order (checkout is the only place it's meaningful), so
+  // it's just echoed back from whichever request produced this response.
+  private toResponse(
+    order: { orderId: string; customerName: string | null; total: CheckoutResponse["total"]; placedAt: string },
+    cartId: string,
+  ): CheckoutResponse {
     return {
       orderId: order.orderId,
-      cartId: "cart_demo",
+      cartId,
       customerName: order.customerName,
       status: "pending",
       total: order.total,

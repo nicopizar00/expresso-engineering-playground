@@ -59,10 +59,14 @@ export interface CartItem {
 }
 
 export interface Cart {
-  readonly cartId: string;
+  // null when the cart holds no active reservation (empty, or the prior
+  // reservation's 1-hour window lapsed and was evicted).
+  readonly cartId: string | null;
   readonly items: ReadonlyArray<CartItem>;
   readonly itemCount: number;
   readonly total: Money;
+  // ISO timestamp the reservation lapses at; null alongside a null cartId.
+  readonly expiresAt: string | null;
   readonly updatedAt: string;
 }
 
@@ -120,6 +124,9 @@ export interface ManageOrderResponse {
 // ---------------------------------------------------------------------------
 
 export interface CheckoutRequest {
+  // The reservation cartId returned by the cart, proving the client is
+  // checking out the cart it actually holds (see Cart.cartId).
+  readonly cartId: string;
   readonly idempotencyKey?: string;
 }
 

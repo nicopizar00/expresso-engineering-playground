@@ -10,9 +10,10 @@ export interface CartItem {
 }
 
 export interface Cart {
-  readonly cartId: string;
+  readonly cartId: string | null;
   readonly items: ReadonlyArray<CartItem>;
   readonly itemCount: number;
   readonly total: Money;
+  readonly expiresAt: string | null;
   readonly updatedAt: string;
 }

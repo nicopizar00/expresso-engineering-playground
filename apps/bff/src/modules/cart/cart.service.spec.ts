@@ -1,6 +1,6 @@
 import { ConflictException, BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { CartService } from "./cart.service";
@@ -164,6 +164,62 @@ describe("CartService", () => {
 
       expect(service.get(SESSION_A).items).toHaveLength(0);
       expect(service.get(SESSION_B).items).toHaveLength(1);
+    });
+
+    it("also drops the cartId and expiresAt", () => {
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      service.clear(SESSION_A);
+      const cart = service.get(SESSION_A);
+      expect(cart.cartId).toBeNull();
+      expect(cart.expiresAt).toBeNull();
+    });
+  });
+
+  describe("reservation (cartId/expiresAt)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("mints a uuid cartId and an expiresAt ~1h out when the cup is added", () => {
+      const before = Date.now();
+      const cart = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      expect(cart.cartId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      );
+      expect(cart.expiresAt).not.toBeNull();
+      const expiresAtMs = new Date(cart.expiresAt!).getTime();
+      expect(expiresAtMs - before).toBeGreaterThanOrEqual(60 * 60 * 1000 - 1000);
+      expect(expiresAtMs - before).toBeLessThanOrEqual(60 * 60 * 1000 + 1000);
+    });
+
+    it("an empty cart has no cartId or expiresAt", () => {
+      const cart = service.get(SESSION_A);
+      expect(cart.cartId).toBeNull();
+      expect(cart.expiresAt).toBeNull();
+    });
+
+    it("evicts the reservation once the 1-hour window lapses", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+
+      vi.setSystemTime(new Date("2026-01-01T01:00:00.001Z"));
+      const cart = service.get(SESSION_A);
+
+      expect(cart.items).toHaveLength(0);
+      expect(cart.cartId).toBeNull();
+      expect(cart.expiresAt).toBeNull();
+    });
+
+    it("mints a fresh cartId after eviction, distinct from the expired one", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const first = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+
+      vi.setSystemTime(new Date("2026-01-01T01:00:00.001Z"));
+      const second = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+
+      expect(second.cartId).not.toBe(first.cartId);
     });
   });
 });

@@ -644,7 +644,18 @@ function CheckoutCard() {
 
   return (
     <Card title="Checkout">
-      <ActionButton onClick={() => call(() => expressoApi.checkout({}))} loading={loading}>
+      <ActionButton
+        onClick={() =>
+          call(async () => {
+            const cart = await expressoApi.getCart();
+            if (!cart.cartId) {
+              throw new Error('Cart is empty or its reservation expired — add an item first.');
+            }
+            return expressoApi.checkout({ cartId: cart.cartId });
+          })
+        }
+        loading={loading}
+      >
         POST /checkout
       </ActionButton>
       <ResponseBox result={result} />
