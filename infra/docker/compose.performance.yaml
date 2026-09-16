@@ -47,7 +47,11 @@ services:
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
       K6_ENV: ${K6_ENV:-local}
-      SCENARIO: ${SCENARIO:-smoke}
+      # No default: the orchestrator always passes an explicit script arg
+      # (docker/entrypoint.sh -> scripts/k6-wrapper.sh forwards it as-is
+      # unless SCENARIO is set). A hardcoded default here would silently
+      # override whichever workflow was actually selected.
+      SCENARIO: ${SCENARIO:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -69,7 +73,7 @@ services:
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
       K6_ENV: ${K6_ENV:-local}
-      SCENARIO: ${SCENARIO:-smoke}
+      SCENARIO: ${SCENARIO:-}
       K6_OTEL_GRPC_EXPORTER_ENDPOINT: ${K6_OTEL_ENDPOINT:-otel-collector:4317}
       K6_OTEL_GRPC_EXPORTER_INSECURE: "true"
       K6_OTEL_SERVICE_NAME: "k6-mini-commerce"

@@ -9,4 +9,6 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+docker compose -f "$REPO_ROOT/infra/docker/compose.performance.yaml" build k6
+
 exec "$REPO_ROOT/vendor/punch/bin/punch" menu "$REPO_ROOT/tests/performance/k6/workflows" "$@"
