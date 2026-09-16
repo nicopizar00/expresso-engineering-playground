@@ -80,6 +80,11 @@ def _perf_purchase_flow(args: Sequence[str]) -> int:
     return perf.purchase_flow(args)
 
 
+def _perf_purchase_flow_browser(args: Sequence[str]) -> int:
+    from pg import perf
+    return perf.purchase_flow_browser(args)
+
+
 def _perf_open_report(_a: Sequence[str]) -> int:
     from pg import perf
     return perf.open_report()
@@ -115,6 +120,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "open": _open,
     "perf:smoke": _perf_smoke,
     "perf:purchase-flow": _perf_purchase_flow,
+    "perf:purchase-flow-browser": _perf_purchase_flow_browser,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,

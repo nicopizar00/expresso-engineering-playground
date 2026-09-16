@@ -1,0 +1,16 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: purchase-flow-browser
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6-browser
+  k6:
+    script: /scripts/scenarios/purchase-flow-browser/purchase-flow-browser.js
+  environment:
+    forward: [BASE_URL, VUS, ITERATIONS]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/purchase-flow-browser-summary.json

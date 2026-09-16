@@ -124,6 +124,11 @@ tasks:
     cmds:
       - pnpm pg:perf:purchase-flow
 
+  perf:purchase-flow-browser:
+    desc: k6 purchase-flow profile driven by a real browser (Chromium) instead of HTTP
+    cmds:
+      - pnpm pg:perf:purchase-flow-browser
+
   perf:report:
     desc: Open k6 HTML report
     cmds:

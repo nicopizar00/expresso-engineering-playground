@@ -8,7 +8,7 @@ from typing import Sequence
 
 from pg.ansi import dim, header, info, pass_, warn
 from pg.k6runner import run_k6
-from pg.paths import PERF_REPORTS_DIR
+from pg.paths import PERF_REPORTS_DIR, WEB_PORT
 
 
 def _confirm_output_data(args: Sequence[str], command: str) -> bool:
@@ -25,6 +25,14 @@ def purchase_flow(args: Sequence[str]) -> int:
     return run_k6(
         "purchase-flow",
         confirm_output_data_flag=_confirm_output_data(args, "perf:purchase-flow"),
+    )
+
+
+def purchase_flow_browser(args: Sequence[str]) -> int:
+    return run_k6(
+        "purchase-flow-browser",
+        confirm_output_data_flag=_confirm_output_data(args, "perf:purchase-flow-browser"),
+        default_port=WEB_PORT,
     )
 
 

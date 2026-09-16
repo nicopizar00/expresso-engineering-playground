@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR
+from pg.paths import BFF_PORT, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, WEB_PORT
 from pg.ports import port_in_use
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
@@ -22,8 +22,19 @@ from punch.execution import (
 from punch.workflow import WorkflowError, load_workflow
 
 
-def default_base_url() -> str:
-    return os.environ.get("BASE_URL") or f"http://host.docker.internal:{BFF_PORT}"
+def default_base_url(port: int = BFF_PORT) -> str:
+    return os.environ.get("BASE_URL") or f"http://host.docker.internal:{port}"
+
+
+def _readiness_hint(port: int) -> tuple[str, str]:
+    """What's expected to be listening on `port`, and how to start it.
+
+    purchase-flow-browser drives the web app's UI directly (port 3000);
+    every other workflow calls the BFF (port 3001).
+    """
+    if port == WEB_PORT:
+        return "web app", "./dev up web"
+    return "BFF", "./dev up"
 
 
 def _print_metrics(summary_path: Path) -> None:
@@ -49,6 +60,7 @@ def run_k6(
     *,
     extra_env: Optional[Dict[str, str]] = None,
     confirm_output_data_flag: bool = False,
+    default_port: int = BFF_PORT,
 ) -> int:
     """Load and execute one named, repository-owned k6 workflow."""
     workflow_path = PERF_WORKFLOWS_DIR / f"{workflow_name}.yaml"
@@ -59,7 +71,7 @@ def run_k6(
         return 1
 
     header(f"Punch orchestrator — {workflow.name} (k6)")
-    base_url = default_base_url()
+    base_url = default_base_url(default_port)
     environment = {**os.environ, "BASE_URL": base_url, **(extra_env or {})}
 
     info(f"Target  : {base_url}")
@@ -68,9 +80,10 @@ def run_k6(
 
     if (
         ("localhost" in base_url or "host.docker.internal" in base_url)
-        and not port_in_use(BFF_PORT)
+        and not port_in_use(default_port)
     ):
-        warn(f"BFF does not appear to be listening on :{BFF_PORT}. Start it with: ./dev up")
+        label, start_cmd = _readiness_hint(default_port)
+        warn(f"{label} does not appear to be listening on :{default_port}. Start it with: {start_cmd}")
         print()
 
     output_data_confirmed = confirm_output_data(

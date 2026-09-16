@@ -52,6 +52,39 @@ export $(jq -r 'to_entries[] | "\(.key)=\(.value)"' options/5-vu-5m.json)
 ./dev perf:purchase-flow
 ```
 
+## Run the browser variant
+
+`purchase-flow-browser` mirrors `purchase-flow`'s journey but drives the web
+app's real UI with Chromium (`k6/browser`) instead of calling the BFF over
+HTTP — same add-to-cart → place-order → land-on-the-new-order path, exercised
+through clicks and DOM reads. It targets the **web app** (`WEB_PORT`, 3000),
+not the BFF (3001) that every other workflow targets, and it builds a
+separate image (`infra/docker/k6-browser.Dockerfile`, service `k6-browser`)
+layered on Grafana's official Chromium-bundled `grafana/k6:0.54.0-with-browser`
+tag — the plain `k6` image stays bare:
+
+```bash
+./dev up web
+docker compose -f infra/docker/compose.performance.yaml build k6-browser
+./dev perf:purchase-flow-browser
+```
+
+Each VU is a full Chromium instance, so it defaults to one run
+(`VUS=1 ITERATIONS=1`, [`options/1-iteration-browser.json`](options/1-iteration-browser.json))
+rather than `purchase-flow`'s time-based soak — set `ITERATIONS` explicitly
+to run more. It forwards `VUS`/`ITERATIONS` only, not `DURATION`. Its report
+still uses the shared HTML/JSON helpers, but no `k6/http` calls happen in a
+browser test, so every `http_req_*` metric is absent — `checks` is the only
+meaningful signal there, and it drives the real `passed` verdict (both the
+HTML report's PASS/FAIL badge and the JSON summary's `passed` field read it
+correctly via k6's threshold results). The two helpers default an *absent*
+`http_req_failed` differently, though: the HTML report reads it as `0%`
+(clean), but the JSON summary's own `errorRate` field reads it as `1` (looks
+like 100% failure) — a pre-existing quirk in the shared report helper
+(`vendor/punch/src/tests/support/report.ts`), not something specific to this
+scenario. Read `passed`/`checkPassRate`, not `errorRate`, from the JSON
+summary for this workflow.
+
 ## Reports and current-run evidence
 
 The report volume has this stable layout:
@@ -81,6 +114,7 @@ The current mappings are:
 | ------------------------------------------ | ------------------------------ |
 | `scenarios/smoke/smoke.ts`                 | `workflows/smoke.yaml`         |
 | `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` |
+| `scenarios/purchase-flow-browser/purchase-flow-browser.ts` | `workflows/purchase-flow-browser.yaml` |
 
 `purchase-flow` is the one load/perf workflow: it mimics the web app exactly
 (catalog list → add to cart → cart view → checkout → verify order → verify

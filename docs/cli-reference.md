@@ -62,6 +62,7 @@ for the dispatch diagram.
 | Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
 | k6 smoke (Docker k6)          | `./dev perf:smoke`    | `pnpm pg:perf:smoke`    | `task perf:smoke`   |
 | k6 purchase-flow (search → cart → checkout, `VUS`/`DURATION` env) | `./dev perf:purchase-flow` | `pnpm pg:perf:purchase-flow` | `task perf:purchase-flow` |
+| k6 purchase-flow driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly), `VUS`/`ITERATIONS` env | `./dev perf:purchase-flow-browser` | `pnpm pg:perf:purchase-flow-browser` | `task perf:purchase-flow-browser` |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
 | Interactive k6 workflow picker | `./bin/punch` | — | — |

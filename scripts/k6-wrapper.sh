@@ -16,13 +16,14 @@ resolve_script() {
   case "$1" in
     smoke) echo "${SCRIPTS_DIR}/smoke/smoke.js" ;;
     purchase-flow) echo "${SCRIPTS_DIR}/purchase-flow/purchase-flow.js" ;;
+    purchase-flow-browser) echo "${SCRIPTS_DIR}/purchase-flow-browser/purchase-flow-browser.js" ;;
     *) return 1 ;;
   esac
 }
 
 if [ -n "${SCENARIO:-}" ]; then
   if ! script_path=$(resolve_script "$SCENARIO"); then
-    echo "❌ k6-wrapper: unknown SCENARIO '${SCENARIO}' (expected: smoke, purchase-flow)" >&2
+    echo "❌ k6-wrapper: unknown SCENARIO '${SCENARIO}' (expected: smoke, purchase-flow, purchase-flow-browser)" >&2
     exit 1
   fi
 

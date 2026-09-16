@@ -30,8 +30,18 @@ class K6WorkflowCoverageTests(unittest.TestCase):
         workflow_paths = sorted(PERF_WORKFLOWS_DIR.glob("*.yaml"))
         workflows = [load_workflow(path) for path in workflow_paths]
 
-        expected_names = {"smoke", "purchase-flow"}
-        self.assertEqual(len(workflow_paths), 2)
+        expected_names = {"smoke", "purchase-flow", "purchase-flow-browser"}
+        expected_compose_service = {
+            "smoke": "k6",
+            "purchase-flow": "k6",
+            "purchase-flow-browser": "k6-browser",
+        }
+        expected_environment_forward = {
+            "smoke": ["BASE_URL"],
+            "purchase-flow": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
+            "purchase-flow-browser": ["BASE_URL", "VUS", "ITERATIONS"],
+        }
+        self.assertEqual(len(workflow_paths), 3)
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
         self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
         self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
@@ -41,14 +51,17 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 self.assertEqual(workflow.name, path.stem)
                 self.assertEqual(
                     document["spec"]["compose"],
-                    {"file": "infra/docker/compose.performance.yaml", "service": "k6"},
+                    {
+                        "file": "infra/docker/compose.performance.yaml",
+                        "service": expected_compose_service[path.stem],
+                    },
                 )
                 self.assertEqual(workflow.working_directory, REPO_ROOT)
                 self.assertEqual(
                     workflow.compose_file,
                     REPO_ROOT / "infra" / "docker" / "compose.performance.yaml",
                 )
-                self.assertEqual(workflow.compose_service, "k6")
+                self.assertEqual(workflow.compose_service, expected_compose_service[path.stem])
                 self.assertNotIn("csv", document["spec"].get("outputs", {}))
                 self.assertEqual(
                     document["spec"]["outputs"]["summary"]["path"],
@@ -58,10 +71,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                     workflow.summary_output.path,
                     REPO_ROOT / "tests" / "performance" / "k6" / "reports" / f"{path.stem}-summary.json",
                 )
-                if workflow.name == "purchase-flow":
-                    self.assertEqual(
-                        document["spec"]["environment"],
-                        {"forward": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"]},
-                    )
-                else:
-                    self.assertEqual(document["spec"]["environment"], {"forward": ["BASE_URL"]})
+                self.assertEqual(
+                    document["spec"]["environment"],
+                    {"forward": expected_environment_forward[path.stem]},
+                )

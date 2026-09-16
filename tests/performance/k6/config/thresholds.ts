@@ -26,3 +26,10 @@ export const purchaseFlowThresholds = {
   http_req_duration: ["p(95)<1000"],
   checks: ["rate>0.99"],
 };
+
+// Browser scenarios drive the UI via k6/browser — there is no k6/http
+// traffic, so http_req_* metrics never populate. checks is the only
+// meaningful signal.
+export const purchaseFlowBrowserThresholds = {
+  checks: ["rate>0.95"],
+};

@@ -1,10 +1,14 @@
 # Performance testing profile for the mini-commerce playground.
 #
 # Kept in a separate compose file (not a profile of compose.yaml) so a
-# perf run never alters the main local stack lifecycle. Both services build
-# this repo's own k6 image from infra/docker/k6.Dockerfile (esbuild compiles
-# the TypeScript scenarios in) — there is no bare grafana/k6 image pulled
-# directly; see the shared `k6-build` anchor below.
+# perf run never alters the main local stack lifecycle. The `k6` and
+# `k6-otel` services build this repo's own k6 image from
+# infra/docker/k6.Dockerfile (esbuild compiles the TypeScript scenarios in)
+# — there is no bare grafana/k6 image pulled directly; see the shared
+# `k6-build` anchor below. `k6-browser` builds the separate
+# infra/docker/k6-browser.Dockerfile instead, which layers the same
+# scenarios onto grafana/k6's official Chromium-bundled "-with-browser" tag
+# — the plain `k6`/`k6-otel` image stays bare on purpose.
 #
 # Quick start (use the wrapper command for the default invocation):
 #   pnpm pg:perf:smoke
@@ -82,6 +86,27 @@ services:
     networks:
       - default
       - mini_commerce
+
+  # Browser-driven variant of purchase-flow — drives the web app's real UI
+  # with Chromium (k6/browser) instead of calling the BFF over HTTP, so its
+  # target is the web app's port (3000), not the BFF's (3001) that `k6` and
+  # `k6-otel` default to. shm_size is raised from Docker's 64 MB default —
+  # standard headroom for a Chromium instance to avoid renderer crashes.
+  k6-browser:
+    build:
+      context: ../../
+      dockerfile: infra/docker/k6-browser.Dockerfile
+    container_name: mini-commerce-k6-browser
+    working_dir: /scripts
+    shm_size: "512mb"
+    volumes:
+      - ../../tests/performance/k6/reports:/scripts/reports
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:3000}
+      K6_ENV: ${K6_ENV:-local}
+      SCENARIO: ${SCENARIO:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   default:

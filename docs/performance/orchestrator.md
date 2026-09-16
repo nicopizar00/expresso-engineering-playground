@@ -19,8 +19,9 @@ python3 -m pip install -r vendor/punch/requirements.txt
 docker compose -f infra/docker/compose.performance.yaml build k6
 ```
 
-Expresso owns its BFF-specific TypeScript scenarios, their build entries, and
-the two workflow YAML files. Punch owns YAML loading and validation,
+Expresso owns its TypeScript scenarios (BFF-targeting and, for
+purchase-flow-browser, web-app-targeting), their build entries, and the three
+workflow YAML files. Punch owns YAML loading and validation,
 data-output confirmation, Compose command construction, stream handling, and
 CSV publication. The adapter in `scripts/pg/k6runner.py` only selects a named
 repository workflow and presents its result.
@@ -51,15 +52,26 @@ that result and record before treating generated artifacts as evidence.
 
 ## Repository workflow mapping
 
-There are two YAML files, exactly one for every TypeScript k6 build entry.
-They both select `infra/docker/compose.performance.yaml`,
-service `k6`, and forward `BASE_URL`; `purchase-flow` additionally forwards
-`VUS` and `DURATION` so its load shape is configurable without editing YAML.
+There are three YAML files, exactly one for every TypeScript k6 build entry.
+All three select `infra/docker/compose.performance.yaml` and forward
+`BASE_URL`; `purchase-flow` additionally forwards `VUS` and `DURATION`, and
+`purchase-flow-browser` forwards `VUS` and `ITERATIONS` (no `DURATION` — each
+VU is a full Chromium instance, so it deliberately has no time-based soak
+mode), so their load shape is configurable without editing YAML.
+
+`purchase-flow` and `smoke` select service `k6` (bare `grafana/k6` image, the
+BFF as target). `purchase-flow-browser` selects service `k6-browser`
+instead — a separate image
+([`infra/docker/k6-browser.Dockerfile`](../../infra/docker/k6-browser.Dockerfile),
+layered on Grafana's official `-with-browser` Chromium-bundled tag) and a
+different target (the web app, not the BFF) — see
+[`tests/performance/k6/README.md`](../../tests/performance/k6/README.md#run-the-browser-variant).
 
 | Build entry | Workflow YAML | Container script |
 | --- | --- | --- |
 | `scenarios/smoke/smoke.ts` | `workflows/smoke.yaml` | `/scripts/scenarios/smoke/smoke.js` |
 | `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` | `/scripts/scenarios/purchase-flow/purchase-flow.js` |
+| `scenarios/purchase-flow-browser/purchase-flow-browser.ts` | `workflows/purchase-flow-browser.yaml` | `/scripts/scenarios/purchase-flow-browser/purchase-flow-browser.js` |
 
 The unwired `load` and `stress` placeholders are not build entries and have no
 workflow. Do not add a second workflow for a build entry or add an ad-hoc
@@ -85,7 +97,7 @@ declare `spec.outputs.csv.path`; that is an explicit data-output contract.
 
 ## Summary output and Docker Compose confirmation
 
-Both bundled workflows declare `spec.outputs.summary.path`, pointing at the
+All three bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
 `tests/performance/k6/reports/smoke-summary.json`). Unlike `outputs.csv`,
 this is read-only and needs no confirmation flag — after a passing run,

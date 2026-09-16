@@ -106,14 +106,21 @@ class RunK6Tests(unittest.TestCase):
 class PerfAndCliCompatibilityTests(unittest.TestCase):
     @patch("pg.perf.run_k6", return_value=0)
     def test_perf_commands_parse_confirmation_and_select_workflows(self, run_k6_mock) -> None:
-        for command, workflow_name in (
-            (perf.smoke, "smoke"),
-            (perf.purchase_flow, "purchase-flow"),
+        from pg.paths import WEB_PORT
+
+        for command, workflow_name, extra_kwargs in (
+            (perf.smoke, "smoke", {}),
+            (perf.purchase_flow, "purchase-flow", {}),
+            (
+                perf.purchase_flow_browser,
+                "purchase-flow-browser",
+                {"default_port": WEB_PORT},
+            ),
         ):
             with self.subTest(workflow_name=workflow_name):
                 self.assertEqual(command(["--confirm-output-data"]), 0)
                 run_k6_mock.assert_called_once_with(
-                    workflow_name, confirm_output_data_flag=True
+                    workflow_name, confirm_output_data_flag=True, **extra_kwargs
                 )
                 run_k6_mock.reset_mock()
 
@@ -121,9 +128,16 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
         with (
             patch.object(perf, "smoke", return_value=0) as smoke_mock,
             patch.object(perf, "purchase_flow", return_value=0) as purchase_flow_mock,
+            patch.object(
+                perf, "purchase_flow_browser", return_value=0
+            ) as purchase_flow_browser_mock,
         ):
             self.assertEqual(cli._perf_smoke(["--confirm-output-data"]), 0)
             self.assertEqual(cli._perf_purchase_flow(["--confirm-output-data"]), 0)
+            self.assertEqual(
+                cli._perf_purchase_flow_browser(["--confirm-output-data"]), 0
+            )
 
         smoke_mock.assert_called_once_with(["--confirm-output-data"])
         purchase_flow_mock.assert_called_once_with(["--confirm-output-data"])
+        purchase_flow_browser_mock.assert_called_once_with(["--confirm-output-data"])
