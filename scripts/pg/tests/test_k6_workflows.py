@@ -30,18 +30,31 @@ class K6WorkflowCoverageTests(unittest.TestCase):
         workflow_paths = sorted(PERF_WORKFLOWS_DIR.glob("*.yaml"))
         workflows = [load_workflow(path) for path in workflow_paths]
 
-        expected_names = {"smoke", "purchase-flow", "purchase-flow-browser"}
+        expected_names = {
+            "smoke",
+            "purchase-flow",
+            "purchase-flow-browser",
+            "cart-fulfill",
+            "place-order",
+        }
         expected_compose_service = {
             "smoke": "k6",
             "purchase-flow": "k6",
             "purchase-flow-browser": "k6-browser",
+            "cart-fulfill": "k6",
+            "place-order": "k6",
         }
         expected_environment_forward = {
             "smoke": ["BASE_URL"],
             "purchase-flow": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
             "purchase-flow-browser": ["BASE_URL", "VUS", "ITERATIONS"],
+            "cart-fulfill": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
+            "place-order": ["BASE_URL", "VUS", "ITERATIONS"],
         }
-        self.assertEqual(len(workflow_paths), 3)
+        expected_csv_output_path = {
+            "cart-fulfill": "tests/performance/k6/reports/cart-fulfill-carts.csv",
+        }
+        self.assertEqual(len(workflow_paths), 5)
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
         self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
         self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
@@ -62,7 +75,18 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                     REPO_ROOT / "infra" / "docker" / "compose.performance.yaml",
                 )
                 self.assertEqual(workflow.compose_service, expected_compose_service[path.stem])
-                self.assertNotIn("csv", document["spec"].get("outputs", {}))
+                if path.stem in expected_csv_output_path:
+                    self.assertEqual(
+                        document["spec"]["outputs"]["csv"]["path"],
+                        expected_csv_output_path[path.stem],
+                    )
+                    self.assertEqual(
+                        workflow.csv_output.path,
+                        REPO_ROOT / expected_csv_output_path[path.stem],
+                    )
+                else:
+                    self.assertNotIn("csv", document["spec"].get("outputs", {}))
+                    self.assertIsNone(workflow.csv_output)
                 self.assertEqual(
                     document["spec"]["outputs"]["summary"]["path"],
                     f"tests/performance/k6/reports/{path.stem}-summary.json",

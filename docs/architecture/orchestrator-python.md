@@ -84,7 +84,7 @@ published only after a successful run. Stderr remains log-only.
 | `smoke`                  | 13 endpoint checks incl. SSE frame assertion   |
 | `seed`                   | `prisma db seed`                               |
 | `status` / `logs` / `open` | Inspection                                   |
-| `perf:smoke` / `perf:purchase-flow` / `perf:purchase-flow-browser` | named k6 YAML workflows in Docker (`purchase-flow` configurable via `VUS`/`DURATION`/`BASE_URL`; `purchase-flow-browser` mirrors it via a real Chromium browser against the web app, `VUS`/`ITERATIONS`/`BASE_URL`) |
+| `perf:smoke` / `perf:purchase-flow` / `perf:purchase-flow-browser` / `perf:cart-fulfill` / `perf:place-order` | named k6 YAML workflows in Docker (`purchase-flow` configurable via `VUS`/`DURATION`/`BASE_URL`; `purchase-flow-browser` mirrors it via a real Chromium browser against the web app, `VUS`/`ITERATIONS`/`BASE_URL`; `cart-fulfill` stops before checkout and declares `outputs.csv`, so a non-interactive run needs `--confirm-output-data`; `place-order` checks out the carts `cart-fulfill` reserved — reads their duplicated CSV from `data/`, fails fast if it's missing/empty, and offers to delete it once done, `VUS`/`ITERATIONS`/`BASE_URL`) |
 | `perf:open-report` / `perf:clean` | Manage k6 report artefacts             |
 | `hack {exec,env,sql,trace}` | Debugging affordances (see below)            |
 

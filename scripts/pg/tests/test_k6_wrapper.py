@@ -66,6 +66,13 @@ class K6WrapperTests(unittest.TestCase):
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(captured, ["run", "/scripts/scenarios/purchase-flow-browser/purchase-flow-browser.js"])
 
+    def test_scenario_cart_fulfill_maps_to_its_script(self) -> None:
+        with TemporaryDirectory() as tmp:
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="cart-fulfill", tmp_dir=Path(tmp))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(captured, ["run", "/scripts/scenarios/cart-fulfill/cart-fulfill.js"])
+
     def test_no_scenario_passes_args_through_unchanged(self) -> None:
         with TemporaryDirectory() as tmp:
             result = self._run_wrapper(["run", "/scripts/scenarios/smoke/smoke.js"], scenario=None, tmp_dir=Path(tmp))

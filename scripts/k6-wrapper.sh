@@ -17,13 +17,15 @@ resolve_script() {
     smoke) echo "${SCRIPTS_DIR}/smoke/smoke.js" ;;
     purchase-flow) echo "${SCRIPTS_DIR}/purchase-flow/purchase-flow.js" ;;
     purchase-flow-browser) echo "${SCRIPTS_DIR}/purchase-flow-browser/purchase-flow-browser.js" ;;
+    cart-fulfill) echo "${SCRIPTS_DIR}/cart-fulfill/cart-fulfill.js" ;;
+    place-order) echo "${SCRIPTS_DIR}/place-order/place-order.js" ;;
     *) return 1 ;;
   esac
 }
 
 if [ -n "${SCENARIO:-}" ]; then
   if ! script_path=$(resolve_script "$SCENARIO"); then
-    echo "❌ k6-wrapper: unknown SCENARIO '${SCENARIO}' (expected: smoke, purchase-flow, purchase-flow-browser)" >&2
+    echo "❌ k6-wrapper: unknown SCENARIO '${SCENARIO}' (expected: smoke, purchase-flow, purchase-flow-browser, cart-fulfill, place-order)" >&2
     exit 1
   fi
 

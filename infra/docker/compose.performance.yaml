@@ -44,13 +44,27 @@ services:
       dockerfile: infra/docker/k6.Dockerfile
     container_name: mini-commerce-k6
     working_dir: /scripts
-    # Scenarios are baked into the image at build time (Task 2); only the
-    # reports directory needs a live mount so output lands on the host.
+    # Scenarios are baked into the image at build time (Task 2); reports
+    # and data need live mounts — reports so output lands on the host,
+    # data so place-order's SharedArray sees cart-fulfill's freshly
+    # duplicated CSV without an image rebuild in between runs.
     volumes:
       - ../../tests/performance/k6/reports:/scripts/reports
+      - ../../tests/performance/k6/data:/scripts/data
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
       K6_ENV: ${K6_ENV:-local}
+      # k6 defaults --log-output to stderr, so console.log() (cart-fulfill's
+      # [CSV] records) never reaches the stdout stream Punch harvests unless
+      # this is redirected. Confirmed live: without it, execution.py reports
+      # "no [CSV] stdout records were produced" despite the lines firing.
+      # Redirecting the stream alone isn't enough either: the default
+      # logfmt format wraps every console.log line as
+      # `time="..." level=info msg="[CSV] ..." source=console`, which no
+      # longer starts with the literal "[CSV]" tag execution.py matches on —
+      # "raw" format strips that wrapping back to the bare message.
+      K6_LOG_OUTPUT: stdout
+      K6_LOG_FORMAT: raw
       # No default: the orchestrator always passes an explicit script arg
       # (docker/entrypoint.sh -> scripts/k6-wrapper.sh forwards it as-is
       # unless SCENARIO is set). A hardcoded default here would silently
@@ -73,6 +87,7 @@ services:
     working_dir: /scripts
     volumes:
       - ../../tests/performance/k6/reports:/scripts/reports
+      - ../../tests/performance/k6/data:/scripts/data
     command: run --out experimental-opentelemetry /scripts/scenarios/smoke/smoke.js
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}

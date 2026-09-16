@@ -35,6 +35,8 @@
     "pg:perf:smoke": "./dev perf:smoke",
     "pg:perf:purchase-flow": "./dev perf:purchase-flow",
     "pg:perf:purchase-flow-browser": "./dev perf:purchase-flow-browser",
+    "pg:perf:cart-fulfill": "./dev perf:cart-fulfill",
+    "pg:perf:place-order": "./dev perf:place-order",
     "pg:perf:open-report": "./dev perf:open-report",
     "pg:perf:clean": "./dev perf:clean",
     "pg:test": "python3 -c \"import sys; sys.path.insert(0,'scripts'); import unittest; loader=unittest.TestLoader(); suite=loader.discover('scripts/pg/tests'); runner=unittest.TextTestRunner(verbosity=2); sys.exit(0 if runner.run(suite).wasSuccessful() else 1)\"",

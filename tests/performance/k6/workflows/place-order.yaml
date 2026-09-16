@@ -1,0 +1,16 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: place-order
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/place-order/place-order.js
+  environment:
+    forward: [BASE_URL, VUS, ITERATIONS]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/place-order-summary.json

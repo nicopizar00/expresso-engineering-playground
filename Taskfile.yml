@@ -129,6 +129,16 @@ tasks:
     cmds:
       - pnpm pg:perf:purchase-flow-browser
 
+  perf:cart-fulfill:
+    desc: k6 cart-fulfill profile in Docker (search, add to cart, stop before checkout, emit [CSV] cart ids)
+    cmds:
+      - pnpm pg:perf:cart-fulfill
+
+  perf:place-order:
+    desc: k6 place-order profile in Docker (checkout carts reserved by cart-fulfill, verify order + visualizer)
+    cmds:
+      - pnpm pg:perf:place-order
+
   perf:report:
     desc: Open k6 HTML report
     cmds:

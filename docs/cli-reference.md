@@ -63,6 +63,8 @@ for the dispatch diagram.
 | k6 smoke (Docker k6)          | `./dev perf:smoke`    | `pnpm pg:perf:smoke`    | `task perf:smoke`   |
 | k6 purchase-flow (search → cart → checkout, `VUS`/`DURATION` env) | `./dev perf:purchase-flow` | `pnpm pg:perf:purchase-flow` | `task perf:purchase-flow` |
 | k6 purchase-flow driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly), `VUS`/`ITERATIONS` env | `./dev perf:purchase-flow-browser` | `pnpm pg:perf:purchase-flow-browser` | `task perf:purchase-flow-browser` |
+| k6 cart-fulfill (search → add to cart, stops before checkout, emits `[CSV]` cart ids), `VUS`/`DURATION`/`ITERATIONS` env, needs `--confirm-output-data` non-interactively | `./dev perf:cart-fulfill` | `pnpm pg:perf:cart-fulfill` | `task perf:cart-fulfill` |
+| k6 place-order (checks out carts reserved by cart-fulfill via `data/cart-fulfill-carts.csv`, verifies order + visualizer), `VUS`/`ITERATIONS` env, fails fast if no cart data | `./dev perf:place-order` | `pnpm pg:perf:place-order` | `task perf:place-order` |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
 | Interactive k6 workflow picker | `./bin/punch` | — | — |

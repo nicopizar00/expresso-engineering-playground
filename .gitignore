@@ -156,6 +156,12 @@ tests/e2e/playwright-report/
 tests/performance/k6/reports/*
 !tests/performance/k6/reports/.gitkeep
 
+# Performance test data — cart-fulfill's duplicated CSV that place-order
+# consumes; regenerated per run, not committed. Directory tracked via
+# .gitkeep.
+tests/performance/k6/data/*
+!tests/performance/k6/data/.gitkeep
+
 # Vercel local project metadata
 .vercel/
 

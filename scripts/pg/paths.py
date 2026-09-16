@@ -31,6 +31,7 @@ COMPOSE_FILE: Path = REPO_ROOT / "infra" / "docker" / "compose.yaml"
 COMPOSE_DEV_FILE: Path = REPO_ROOT / "infra" / "docker" / "compose.dev.yaml"
 COMPOSE_PERF_FILE: Path = REPO_ROOT / "infra" / "docker" / "compose.performance.yaml"
 PERF_REPORTS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "reports"
+PERF_DATA_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "data"
 PERF_WORKFLOWS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "workflows"
 
 

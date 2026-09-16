@@ -85,6 +85,68 @@ like 100% failure) — a pre-existing quirk in the shared report helper
 scenario. Read `passed`/`checkPassRate`, not `errorRate`, from the JSON
 summary for this workflow.
 
+## Run cart-fulfill
+
+`cart-fulfill` mirrors `purchase-flow`'s pre-checkout steps (browse → add to
+cart → view cart) but stops before `POST /checkout` — it never places an
+order. Each iteration that successfully creates a cart emits one stdout
+record instead:
+
+```text
+[CSV] <cartId>,<productId>,<sid>
+```
+
+`sid` is the session cookie the BFF minted for that cart — required because
+the BFF's cart is looked up by session, not by `cartId` alone (see
+`cart.service.ts`'s `Map<sessionId, SessionCart>`); `place-order` replays it
+via `http.cookieJar().set(...)` so its checkout lands in the session that
+actually owns the cart, instead of its own run's fresh one.
+
+It is the first workflow to declare `spec.outputs.csv.path`
+(`reports/cart-fulfill-carts.csv`), so it needs confirmation before writing
+that file. Interactively you're prompted; non-interactively pass
+`--confirm-output-data`:
+
+```bash
+./dev perf:cart-fulfill --confirm-output-data
+```
+
+It forwards `VUS`/`DURATION`/`ITERATIONS` exactly like `purchase-flow` — use
+`ITERATIONS` to generate a fixed batch of carts (e.g. `ITERATIONS=20`) rather
+than a time-based soak. A zero-record run, malformed `[CSV]` payload, or a
+failed process fails the workflow and leaves any previous
+`cart-fulfill-carts.csv` untouched (see "Optional CSV output" below).
+
+On a successful run, `./dev perf:cart-fulfill` also duplicates
+`reports/cart-fulfill-carts.csv` to `data/cart-fulfill-carts.csv` — a
+separate, gitignored folder for data a *later* workflow consumes (`reports/`
+stays evidence-only and untouched). `place-order` below reads that duplicate.
+
+## Run place-order
+
+`place-order` is `cart-fulfill`'s pair: it checks out the carts `cart-fulfill`
+reserved instead of creating its own. Its scenario loads
+`data/cart-fulfill-carts.csv` into a k6 `SharedArray` at init time (one row
+per cart, read-only, shared across VUs) and, for each iteration, completes
+`POST /checkout` for one row, then verifies the order and the visualizer feed
+— purchase-flow's post-checkout steps, unchanged.
+
+```bash
+./dev perf:cart-fulfill --confirm-output-data   # produces data/cart-fulfill-carts.csv
+./dev perf:place-order                          # consumes it
+```
+
+It forwards `VUS`/`ITERATIONS` only, no `DURATION` — a fixed cart pool
+doesn't fit a time-based soak. `ITERATIONS` defaults to the row count (each
+cart checked out exactly once); set it lower to consume a subset, or higher
+to wrap around and re-attempt already-placed orders (those checks fail, they
+don't crash the run).
+
+It fails fast, before Docker starts, if `data/cart-fulfill-carts.csv` is
+missing or empty — run `perf:cart-fulfill` first. After the run finishes
+(pass or fail), it asks — on a real interactive terminal only — whether to
+delete that data file; a non-interactive run leaves it in place.
+
 ## Reports and current-run evidence
 
 The report volume has this stable layout:
@@ -115,26 +177,31 @@ The current mappings are:
 | `scenarios/smoke/smoke.ts`                 | `workflows/smoke.yaml`         |
 | `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` |
 | `scenarios/purchase-flow-browser/purchase-flow-browser.ts` | `workflows/purchase-flow-browser.yaml` |
+| `scenarios/cart-fulfill/cart-fulfill.ts` | `workflows/cart-fulfill.yaml` |
+| `scenarios/place-order/place-order.ts` | `workflows/place-order.yaml` |
 
-`purchase-flow` is the one load/perf workflow: it mimics the web app exactly
-(catalog list → add to cart → cart view → checkout → verify order → verify
-visualizer feed), with no `GET /catalog/products/:id` hop since the web
-catalog grid never calls it.
+`purchase-flow` is the one full load/perf workflow: it mimics the web app
+exactly (catalog list → add to cart → cart view → checkout → verify order →
+verify visualizer feed), with no `GET /catalog/products/:id` hop since the
+web catalog grid never calls it. `cart-fulfill` and `place-order` split that
+same journey into a pair — reserve, then checkout — passing reserved cart ids
+between them as CSV; see "Run cart-fulfill" and "Run place-order" above.
 
 `load` and `stress` are old, unwired placeholders; they are neither build
 entries nor workflows.
 
 ## Optional CSV output
 
-Current workflows do not declare `outputs.csv`. A future workflow can declare
-`spec.outputs.csv.path` only when its data output is intentional.
+`cart-fulfill` is the only workflow that declares `outputs.csv` today. Any
+other future workflow can declare `spec.outputs.csv.path` only when its data
+output is intentional.
 
 - A candidate record is exactly one stdout line beginning `[CSV]`; Punch strips
   that prefix and parses its payload as strict CSV. Stderr is log-only and is
   never harvested.
 - Interactive runs request confirmation before Compose starts. For a
   non-interactive CSV-declared run, pass `--confirm-output-data`. The flag is
-  not needed by the current two workflows.
+  not needed by `smoke`, `purchase-flow`, or `purchase-flow-browser`.
 - Zero valid records, malformed tagged data, process failure, or preflight
   failure fails the workflow. Punch stages valid records beside the target and
   publishes them atomically only after a successful run, preserving any
@@ -145,7 +212,11 @@ Current workflows do not declare `outputs.csv`. A future workflow can declare
 Add the scenario source, add one TypeScript build entry, then add exactly one
 matching `workflows/<name>.yaml`. The workflow supplies the Compose file,
 service, container script, permitted environment, and optional `outputs.csv`;
-do not put an additional script-path branch in `scripts/pg/perf.py`.
+do not put an additional script-path branch in `scripts/pg/perf.py`. A
+workflow-specific *input* preflight or postflight step (e.g. `place-order`'s
+missing-data check and delete prompt) does belong in its `perf.py` function,
+though — Punch's workflow schema has no concept of input data, only declared
+output.
 
 Update the relevant command/docs and run `pnpm pg:test`. Build explicitly and
 execute the workflow locally before relying on CI. Keep thresholds named in

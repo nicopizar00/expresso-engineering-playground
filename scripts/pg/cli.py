@@ -85,6 +85,16 @@ def _perf_purchase_flow_browser(args: Sequence[str]) -> int:
     return perf.purchase_flow_browser(args)
 
 
+def _perf_cart_fulfill(args: Sequence[str]) -> int:
+    from pg import perf
+    return perf.cart_fulfill(args)
+
+
+def _perf_place_order(args: Sequence[str]) -> int:
+    from pg import perf
+    return perf.place_order(args)
+
+
 def _perf_open_report(_a: Sequence[str]) -> int:
     from pg import perf
     return perf.open_report()
@@ -121,6 +131,8 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "perf:smoke": _perf_smoke,
     "perf:purchase-flow": _perf_purchase_flow,
     "perf:purchase-flow-browser": _perf_purchase_flow_browser,
+    "perf:cart-fulfill": _perf_cart_fulfill,
+    "perf:place-order": _perf_place_order,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,
@@ -134,7 +146,7 @@ def _usage() -> None:
     print("Requires: Docker Desktop  |  Python ≥ 3.9 on PATH.")
     print("Performance commands additionally require Punch's pinned dependency:")
     print("  python3 -m pip install -r vendor/punch/requirements.txt")
-    print("Future CSV-declared workflows require --confirm-output-data in non-interactive runs.")
+    print("CSV-declared workflows (e.g. perf:cart-fulfill) require --confirm-output-data in non-interactive runs.")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()
