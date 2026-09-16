@@ -147,7 +147,12 @@ before any build if one is unavailable. Before opening its menu, it offers an op
 continues to workflow selection. The interactive menu (`punch menu`) runs
 exactly one workflow per invocation and exits — no "run another?" loop.
 Its terminal picker supports arrow keys, `j`/`k`, and `/` search; Escape or
-`q` cancels before running a workflow. See
+`q` cancels before running a workflow. After the `BASE_URL` target, it also
+offers to load one of `tests/performance/k6/options/*.json` — the same
+presets [`options/`](../../tests/performance/k6/options) documents for the
+manual `export $(jq ...)` path — merging the chosen preset into the forwarded
+environment; the step is skipped for a workflow that forwards nothing besides
+`BASE_URL` (e.g. `smoke`), or when no preset exists. See
 [`punch-menu-optimization.md`](punch-menu-optimization.md) for the dependency,
 compatibility, and before/after evidence.
 

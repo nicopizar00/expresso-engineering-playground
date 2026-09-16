@@ -52,6 +52,15 @@ export $(jq -r 'to_entries[] | "\(.key)=\(.value)"' options/5-vu-5m.json)
 ./dev perf:purchase-flow
 ```
 
+`./dev perf:*` stays non-interactive and never opens the picker. Punch's
+interactive menu (`PYTHONPATH=vendor/punch/src python3 -m punch menu
+tests/performance/k6/workflows`) is a separate entry point: after picking a
+workflow and a `BASE_URL` target, it offers to load one of these same
+`options/*.json` presets — skip it to fall back to the shell environment.
+The step is only shown for a workflow that forwards a name besides
+`BASE_URL` (e.g. `purchase-flow`, not `smoke`), and only when `options/`
+holds at least one preset.
+
 ## Run the browser variant
 
 `purchase-flow-browser` mirrors `purchase-flow`'s journey but drives the web
