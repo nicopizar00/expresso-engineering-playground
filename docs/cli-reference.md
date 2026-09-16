@@ -56,7 +56,7 @@ for the dispatch diagram.
 | k6 purchase-flow (search → cart → checkout, `VUS`/`DURATION` env) | `./dev perf:purchase-flow` | `pnpm pg:perf:purchase-flow` | `task perf:purchase-flow` |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
-| Interactive k6 workflow picker | `./bin/punch` (or `python3 scripts/pg/perf_menu.py`) | — | — |
+| Interactive k6 workflow picker | `./bin/punch` | — | — |
 
 ### Debugging (`hack`)
 

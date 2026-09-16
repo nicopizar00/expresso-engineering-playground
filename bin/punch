@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
 # ./bin/punch — trampoline to the interactive k6 workflow picker.
 #
-# Real implementation lives in scripts/pg/perf_menu.py.
+# Real implementation lives in the vendor/punch submodule (k6-ts-docker's
+# Punch orchestrator); this repo only points it at its own workflows
+# directory. Install vendor/punch/requirements.txt before first use.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-PYTHON="${PYTHON:-python3}"
-if ! command -v "$PYTHON" >/dev/null 2>&1; then
-  echo "ERROR: python3 not found. Install Python 3.9+ or set PYTHON=/path/to/python." >&2
-  exit 1
-fi
-
-exec "$PYTHON" "$REPO_ROOT/scripts/pg/perf_menu.py" "$@"
+exec "$REPO_ROOT/vendor/punch/bin/punch" menu "$REPO_ROOT/tests/performance/k6/workflows" "$@"
