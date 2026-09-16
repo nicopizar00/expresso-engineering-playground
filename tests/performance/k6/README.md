@@ -30,6 +30,17 @@ Set a different target without changing a workflow:
 BASE_URL=https://perf.example.test ./dev perf:smoke
 ```
 
+`purchase-flow` also forwards `VUS` and `DURATION`, so its load shape is
+configurable without editing YAML:
+
+```bash
+VUS=5 DURATION=1m ./dev perf:purchase-flow
+```
+
+Both default to `VUS=1` / `DURATION=30s` when unset. Do not raise `VUS` above
+1 — the BFF cart is single-user and in-process, so concurrent VUs race the
+same shared cart.
+
 ## Reports and current-run evidence
 
 The report volume has this stable layout:
@@ -53,17 +64,17 @@ matching stdout/stderr log as the current-run evidence record; the result
 identifies the selected workflow and reports its exit/pass state and any CSV
 record count.
 
-The seven current mappings are:
+The current mappings are:
 
 | TypeScript build entry | YAML workflow |
 | --- | --- |
 | `scenarios/smoke/smoke.ts` | `workflows/smoke.yaml` |
-| `scenarios/checkout-flow/checkout-flow.ts` | `workflows/checkout-flow.yaml` |
-| `scenarios/read-heavy/read-heavy.ts` | `workflows/read-heavy.yaml` |
-| `scenarios/campaign/campaign.ts` | `workflows/campaign.yaml` |
-| `scenarios/campaign/catalog-browse.ts` | `workflows/catalog-browse.yaml` |
-| `scenarios/campaign/order-lookup.ts` | `workflows/order-lookup.yaml` |
-| `scenarios/campaign/purchase.ts` | `workflows/purchase.yaml` |
+| `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` |
+
+`purchase-flow` is the one load/perf workflow: it mimics the web app exactly
+(catalog list → add to cart → cart view → checkout → verify order → verify
+visualizer feed), with no `GET /catalog/products/:id` hop since the web
+catalog grid never calls it.
 
 `load` and `stress` are old, unwired placeholders; they are neither build
 entries nor workflows.
@@ -78,7 +89,7 @@ Current workflows do not declare `outputs.csv`. A future workflow can declare
   never harvested.
 - Interactive runs request confirmation before Compose starts. For a
   non-interactive CSV-declared run, pass `--confirm-output-data`. The flag is
-  not needed by the current seven workflows.
+  not needed by the current two workflows.
 - Zero valid records, malformed tagged data, process failure, or preflight
   failure fails the workflow. Punch stages valid records beside the target and
   publishes them atomically only after a successful run, preserving any

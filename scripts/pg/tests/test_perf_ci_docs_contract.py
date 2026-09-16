@@ -118,7 +118,6 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
                 self.assertIn("[CSV]", documents[path])
                 self.assertIn("outputs.csv", documents[path])
                 self.assertIn("atomic", documents[path])
-                self.assertIn("seven", documents[path])
 
         self.assertNotIn(
             "only way to run `pnpm pg:perf:checkout-flow`", documents["README.md"]

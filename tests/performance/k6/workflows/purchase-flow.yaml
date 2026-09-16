@@ -1,13 +1,13 @@
 apiVersion: punch/v1
 kind: K6Workflow
 metadata:
-  name: order-lookup
+  name: purchase-flow
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6
   k6:
-    script: /scripts/scenarios/campaign/order-lookup.js
+    script: /scripts/scenarios/purchase-flow/purchase-flow.js
   environment:
-    forward: [BASE_URL]
+    forward: [BASE_URL, VUS, DURATION]

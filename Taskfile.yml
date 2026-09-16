@@ -119,10 +119,10 @@ tasks:
     cmds:
       - pnpm pg:perf:smoke
 
-  perf:campaign:
-    desc: k6 catalog-driven campaign in Docker (catalog-browse, order-lookup, purchase)
+  perf:purchase-flow:
+    desc: k6 purchase-flow profile in Docker (search, add to cart, checkout, verify)
     cmds:
-      - pnpm pg:perf:campaign
+      - pnpm pg:perf:purchase-flow
 
   perf:report:
     desc: Open k6 HTML report

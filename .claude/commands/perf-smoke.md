@@ -48,8 +48,8 @@ Do not propose threshold changes here — escalate to the
 
 ## Don'ts
 
-- Do not run `./dev perf:checkout-flow` or `./dev perf:read-heavy` unless
-  the user asks; smoke is the default.
+- Do not run `./dev perf:purchase-flow` unless the user asks; smoke is the
+  default.
 - Do not `./dev perf:clean` automatically; reports are intentionally kept
   for diffing.
 - Do not install k6 on the host as a fallback. If Docker is unavailable,

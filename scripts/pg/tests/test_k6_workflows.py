@@ -30,16 +30,8 @@ class K6WorkflowCoverageTests(unittest.TestCase):
         workflow_paths = sorted(PERF_WORKFLOWS_DIR.glob("*.yaml"))
         workflows = [load_workflow(path) for path in workflow_paths]
 
-        expected_names = {
-            "smoke",
-            "checkout-flow",
-            "read-heavy",
-            "campaign",
-            "catalog-browse",
-            "order-lookup",
-            "purchase",
-        }
-        self.assertEqual(len(workflow_paths), 7)
+        expected_names = {"smoke", "purchase-flow"}
+        self.assertEqual(len(workflow_paths), 2)
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
         self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
         self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
@@ -58,18 +50,10 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 )
                 self.assertEqual(workflow.compose_service, "k6")
                 self.assertNotIn("outputs", document["spec"])
-                if workflow.name == "campaign":
+                if workflow.name == "purchase-flow":
                     self.assertEqual(
                         document["spec"]["environment"],
-                        {
-                            "forward": [
-                                "BASE_URL",
-                                "RUN_ID",
-                                "CATALOG_VERSION",
-                                "CAMPAIGN_JSON",
-                            ],
-                            "required": ["CAMPAIGN_JSON"],
-                        },
+                        {"forward": ["BASE_URL", "VUS", "DURATION"]},
                     )
                 else:
                     self.assertEqual(document["spec"]["environment"], {"forward": ["BASE_URL"]})

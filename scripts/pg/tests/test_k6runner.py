@@ -108,8 +108,7 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
     def test_perf_commands_parse_confirmation_and_select_workflows(self, run_k6_mock) -> None:
         for command, workflow_name in (
             (perf.smoke, "smoke"),
-            (perf.checkout_flow, "checkout-flow"),
-            (perf.read_heavy, "read-heavy"),
+            (perf.purchase_flow, "purchase-flow"),
         ):
             with self.subTest(workflow_name=workflow_name):
                 self.assertEqual(command(["--confirm-output-data"]), 0)
@@ -121,13 +120,10 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
     def test_cli_forwards_static_perf_arguments(self) -> None:
         with (
             patch.object(perf, "smoke", return_value=0) as smoke_mock,
-            patch.object(perf, "checkout_flow", return_value=0) as checkout_mock,
-            patch.object(perf, "read_heavy", return_value=0) as read_heavy_mock,
+            patch.object(perf, "purchase_flow", return_value=0) as purchase_flow_mock,
         ):
             self.assertEqual(cli._perf_smoke(["--confirm-output-data"]), 0)
-            self.assertEqual(cli._perf_checkout(["--confirm-output-data"]), 0)
-            self.assertEqual(cli._perf_read_heavy(["--confirm-output-data"]), 0)
+            self.assertEqual(cli._perf_purchase_flow(["--confirm-output-data"]), 0)
 
         smoke_mock.assert_called_once_with(["--confirm-output-data"])
-        checkout_mock.assert_called_once_with(["--confirm-output-data"])
-        read_heavy_mock.assert_called_once_with(["--confirm-output-data"])
+        purchase_flow_mock.assert_called_once_with(["--confirm-output-data"])

@@ -55,7 +55,7 @@ fits your muscle memory; the behaviour is identical.
 one docker compose run -> stdout/stderr log + existing HTML/JSON + optional CSV
 ```
 
-The repository owns seven workflow files under
+The repository owns two workflow files under
 `tests/performance/k6/workflows/`, one per TypeScript build entry. The Python
 adapter selects exactly one file; Punch's public APIs load it, allow-list its
 environment, and construct the one Compose run. Build the image separately:
@@ -84,7 +84,7 @@ published only after a successful run. Stderr remains log-only.
 | `smoke`                  | 13 endpoint checks incl. SSE frame assertion   |
 | `seed`                   | `prisma db seed`                               |
 | `status` / `logs` / `open` | Inspection                                   |
-| `perf:smoke` / `perf:checkout-flow` / `perf:read-heavy` / `perf:campaign` | named k6 YAML workflows in Docker |
+| `perf:smoke` / `perf:purchase-flow` | named k6 YAML workflows in Docker (`purchase-flow` configurable via `VUS`/`DURATION`/`BASE_URL`) |
 | `perf:open-report` / `perf:clean` | Manage k6 report artefacts             |
 | `hack {exec,env,sql,trace}` | Debugging affordances (see below)            |
 

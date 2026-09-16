@@ -53,8 +53,7 @@ for the dispatch diagram.
 | Print local URLs              | `./dev open`          | `pnpm pg:open`          | `task open`         |
 | Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
 | k6 smoke (Docker k6)          | `./dev perf:smoke`    | `pnpm pg:perf:smoke`    | `task perf:smoke`   |
-| k6 checkout-flow              | `./dev perf:checkout-flow` | `pnpm pg:perf:checkout-flow` | `task perf:checkout-flow` |
-| k6 read-heavy                 | `./dev perf:read-heavy` | `pnpm pg:perf:read-heavy`    | `task perf:read-heavy`    |
+| k6 purchase-flow (search → cart → checkout, `VUS`/`DURATION` env) | `./dev perf:purchase-flow` | `pnpm pg:perf:purchase-flow` | `task perf:purchase-flow` |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
 | Interactive k6 workflow picker | `./bin/punch` (or `python3 scripts/pg/perf_menu.py`) | — | — |

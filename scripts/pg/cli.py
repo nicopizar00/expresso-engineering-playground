@@ -75,19 +75,9 @@ def _perf_smoke(args: Sequence[str]) -> int:
     return perf.smoke(args)
 
 
-def _perf_checkout(args: Sequence[str]) -> int:
+def _perf_purchase_flow(args: Sequence[str]) -> int:
     from pg import perf
-    return perf.checkout_flow(args)
-
-
-def _perf_read_heavy(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.read_heavy(args)
-
-
-def _perf_campaign(args: Sequence[str]) -> int:
-    from pg import campaign
-    return campaign.run(list(args))
+    return perf.purchase_flow(args)
 
 
 def _perf_open_report(_a: Sequence[str]) -> int:
@@ -124,9 +114,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "logs": _logs,
     "open": _open,
     "perf:smoke": _perf_smoke,
-    "perf:checkout-flow": _perf_checkout,
-    "perf:read-heavy": _perf_read_heavy,
-    "perf:campaign": _perf_campaign,
+    "perf:purchase-flow": _perf_purchase_flow,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,

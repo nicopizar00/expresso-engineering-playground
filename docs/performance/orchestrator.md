@@ -18,7 +18,7 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ```
 
 Expresso owns its BFF-specific TypeScript scenarios, their build entries, and
-the seven workflow YAML files. Punch owns YAML loading and validation,
+the two workflow YAML files. Punch owns YAML loading and validation,
 data-output confirmation, Compose command construction, stream handling, and
 CSV publication. The adapter in `scripts/pg/k6runner.py` only selects a named
 repository workflow and presents its result.
@@ -49,20 +49,15 @@ that result and record before treating generated artifacts as evidence.
 
 ## Repository workflow mapping
 
-There are seven YAML files, exactly one for every TypeScript k6 build entry.
-They all select `infra/docker/compose.performance.yaml`, service `k6`, and
-forward `BASE_URL`; the campaign workflow additionally forwards its generated
-campaign values and requires `CAMPAIGN_JSON`.
+There are two YAML files, exactly one for every TypeScript k6 build entry.
+They both select `infra/docker/compose.performance.yaml`,
+service `k6`, and forward `BASE_URL`; `purchase-flow` additionally forwards
+`VUS` and `DURATION` so its load shape is configurable without editing YAML.
 
 | Build entry | Workflow YAML | Container script |
 | --- | --- | --- |
 | `scenarios/smoke/smoke.ts` | `workflows/smoke.yaml` | `/scripts/scenarios/smoke/smoke.js` |
-| `scenarios/checkout-flow/checkout-flow.ts` | `workflows/checkout-flow.yaml` | `/scripts/scenarios/checkout-flow/checkout-flow.js` |
-| `scenarios/read-heavy/read-heavy.ts` | `workflows/read-heavy.yaml` | `/scripts/scenarios/read-heavy/read-heavy.js` |
-| `scenarios/campaign/campaign.ts` | `workflows/campaign.yaml` | `/scripts/scenarios/campaign/campaign.js` |
-| `scenarios/campaign/catalog-browse.ts` | `workflows/catalog-browse.yaml` | `/scripts/scenarios/campaign/catalog-browse.js` |
-| `scenarios/campaign/order-lookup.ts` | `workflows/order-lookup.yaml` | `/scripts/scenarios/campaign/order-lookup.js` |
-| `scenarios/campaign/purchase.ts` | `workflows/purchase.yaml` | `/scripts/scenarios/campaign/purchase.js` |
+| `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` | `/scripts/scenarios/purchase-flow/purchase-flow.js` |
 
 The unwired `load` and `stress` placeholders are not build entries and have no
 workflow. Do not add a second workflow for a build entry or add an ad-hoc

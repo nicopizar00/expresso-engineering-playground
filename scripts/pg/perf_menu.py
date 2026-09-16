@@ -3,7 +3,7 @@
 
 Standalone entry point: run directly with `python3 scripts/pg/perf_menu.py`
 (or `./scripts/pg/perf_menu.py`). Not wired into `pg.cli`'s dispatch table —
-this is a picker on top of the same run_k6/campaign machinery `./dev perf:*`
+this is a picker on top of the same run_k6 machinery `./dev perf:*`
 already uses, not a replacement for those commands.
 """
 
@@ -16,7 +16,6 @@ from typing import List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from pg import campaign  # noqa: E402
 from pg.ansi import header, info  # noqa: E402
 from pg.k6runner import default_base_url, run_k6  # noqa: E402
 from pg.paths import PERF_WORKFLOWS_DIR  # noqa: E402
@@ -26,31 +25,13 @@ def discover_workflows() -> List[str]:
     return sorted(p.stem for p in PERF_WORKFLOWS_DIR.glob("*.yaml"))
 
 
-def build_campaign_argv(
-    *, descriptor_path: Optional[str], confirm_output_data: bool
-) -> List[str]:
-    argv: List[str] = []
-    if descriptor_path:
-        argv.append(descriptor_path)
-    if confirm_output_data:
-        argv.append("--confirm-output-data")
-    return argv
-
-
 def run_selection(
     workflow_name: str,
     *,
     base_url: str,
     confirm_output_data: bool,
-    descriptor_path: Optional[str] = None,
 ) -> int:
     os.environ["BASE_URL"] = base_url
-    if workflow_name == "campaign":
-        return campaign.run(
-            build_campaign_argv(
-                descriptor_path=descriptor_path, confirm_output_data=confirm_output_data
-            )
-        )
     return run_k6(workflow_name, confirm_output_data_flag=confirm_output_data)
 
 
@@ -91,13 +72,6 @@ def _choose_confirm_output_data() -> bool:
     return answer.lower().startswith("y")
 
 
-def _choose_campaign_descriptor() -> Optional[str]:
-    answer = _prompt(
-        "Campaign descriptor path (blank = default morning-rush.json)", default=""
-    )
-    return answer or None
-
-
 def main() -> int:
     workflows = discover_workflows()
     if not workflows:
@@ -108,16 +82,12 @@ def main() -> int:
         workflow_name = _choose_workflow(workflows)
         base_url = _choose_base_url()
         confirm_output_data = _choose_confirm_output_data()
-        descriptor_path = (
-            _choose_campaign_descriptor() if workflow_name == "campaign" else None
-        )
 
         print()
         rc = run_selection(
             workflow_name,
             base_url=base_url,
             confirm_output_data=confirm_output_data,
-            descriptor_path=descriptor_path,
         )
         print()
 

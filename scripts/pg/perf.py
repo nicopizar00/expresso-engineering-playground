@@ -21,17 +21,10 @@ def smoke(args: Sequence[str]) -> int:
     return run_k6("smoke", confirm_output_data_flag=_confirm_output_data(args, "perf:smoke"))
 
 
-def checkout_flow(args: Sequence[str]) -> int:
+def purchase_flow(args: Sequence[str]) -> int:
     return run_k6(
-        "checkout-flow",
-        confirm_output_data_flag=_confirm_output_data(args, "perf:checkout-flow"),
-    )
-
-
-def read_heavy(args: Sequence[str]) -> int:
-    return run_k6(
-        "read-heavy",
-        confirm_output_data_flag=_confirm_output_data(args, "perf:read-heavy"),
+        "purchase-flow",
+        confirm_output_data_flag=_confirm_output_data(args, "perf:purchase-flow"),
     )
 
 

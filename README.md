@@ -226,10 +226,12 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 `./dev perf:smoke` selects the repository-owned smoke YAML, which Punch
 loads and validates before issuing one Docker Compose run against the local
 BFF (~20 seconds). Stdout/stderr are logged and the existing summary lands in
-`tests/performance/k6/reports/`. Two larger profiles
-(`checkout-flow`, `read-heavy`) live alongside it — see
+`tests/performance/k6/reports/`. A configurable load profile,
+`purchase-flow`, lives alongside it — it mimics the web app end to end
+(search, add to cart, checkout, verify order) and its `VUS`/`DURATION` are
+set via environment variables. See
 [`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
-for how to run them and what their thresholds mean.
+for how to run it and what its thresholds mean.
 
 Current workflows do not produce CSV data. A future workflow that declares
 `outputs.csv` needs `--confirm-output-data` only when it runs
