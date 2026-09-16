@@ -61,7 +61,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 if workflow.name == "purchase-flow":
                     self.assertEqual(
                         document["spec"]["environment"],
-                        {"forward": ["BASE_URL", "VUS", "DURATION"]},
+                        {"forward": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"]},
                     )
                 else:
                     self.assertEqual(document["spec"]["environment"], {"forward": ["BASE_URL"]})

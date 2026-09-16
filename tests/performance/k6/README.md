@@ -30,16 +30,27 @@ Set a different target without changing a workflow:
 BASE_URL=https://perf.example.test ./dev perf:smoke
 ```
 
-`purchase-flow` also forwards `VUS` and `DURATION`, so its load shape is
-configurable without editing YAML:
+`purchase-flow` also forwards `VUS`, `DURATION`, and `ITERATIONS`, so its load
+shape is configurable without editing YAML:
 
 ```bash
-VUS=5 DURATION=1m ./dev perf:purchase-flow
+VUS=5 DURATION=1m ./dev perf:purchase-flow       # constant VUs for a time budget
+ITERATIONS=5 ./dev perf:purchase-flow            # fixed run count instead of a time budget
 ```
 
-Both default to `VUS=1` / `DURATION=30s` when unset. Do not raise `VUS` above
-1 — the BFF cart is single-user and in-process, so concurrent VUs race the
-same shared cart.
+`VUS` defaults to `1`, `DURATION` to `30s`. `ITERATIONS` is unset by default;
+when set it switches the scenario to a fixed iteration count (`shared-iterations`)
+and takes precedence over `DURATION`. The BFF cart is keyed by session (the
+`sid` cookie), and k6 gives each VU its own cookie jar, so raising `VUS` is
+safe — concurrent VUs land on distinct carts, not a shared one.
+
+Common combinations are saved as presets in [`options/`](options/); export one
+with `jq` before running:
+
+```bash
+export $(jq -r 'to_entries[] | "\(.key)=\(.value)"' options/5-vu-5m.json)
+./dev perf:purchase-flow
+```
 
 ## Reports and current-run evidence
 
@@ -66,9 +77,9 @@ record count.
 
 The current mappings are:
 
-| TypeScript build entry | YAML workflow |
-| --- | --- |
-| `scenarios/smoke/smoke.ts` | `workflows/smoke.yaml` |
+| TypeScript build entry                     | YAML workflow                  |
+| ------------------------------------------ | ------------------------------ |
+| `scenarios/smoke/smoke.ts`                 | `workflows/smoke.yaml`         |
 | `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` |
 
 `purchase-flow` is the one load/perf workflow: it mimics the web app exactly

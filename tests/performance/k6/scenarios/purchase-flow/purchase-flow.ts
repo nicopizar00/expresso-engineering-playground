@@ -4,10 +4,16 @@
 // because the web catalog grid adds to cart straight from the list, with
 // no product-detail fetch.
 //
-// Cart constraint:
-//   The BFF cart is single-user and in-process. VUS defaults to 1 so each
-//   iteration owns the cart alone; raising VUS races concurrent iterations
-//   against the same shared cart.
+// Cart isolation:
+//   The BFF keys the in-process cart by session (the `sid` cookie, minted
+//   on first cart/checkout call). k6 gives each VU its own cookie jar, so
+//   concurrent VUs each land on a distinct session/cart — raising VUS does
+//   not race a shared cart.
+//
+// Load shape:
+//   Set DURATION (+ VUS) for a constant-VU soak, or set ITERATIONS (+ VUS)
+//   for a fixed number of purchase-flow runs instead of a time budget.
+//   ITERATIONS takes precedence when both are set.
 //
 // Coverage:
 //   GET  /catalog/products    — browse/search the grid
@@ -25,15 +31,19 @@ import { buildHtml, buildSummaryJson } from "../../support/report";
 
 const VUS = Number(__ENV.VUS) || 1;
 const DURATION = __ENV.DURATION || "30s";
+const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : undefined;
+
+const scenario = ITERATIONS
+  ? {
+      executor: "shared-iterations",
+      vus: VUS,
+      iterations: ITERATIONS,
+      maxDuration: "5m",
+    }
+  : { executor: "constant-vus", vus: VUS, duration: DURATION };
 
 export const options = {
-  scenarios: {
-    purchase_flow: {
-      executor: "constant-vus",
-      vus: VUS,
-      duration: DURATION,
-    },
-  },
+  scenarios: { purchase_flow: scenario },
   thresholds: purchaseFlowThresholds,
   tags: { suite: "mini-commerce-purchase-flow" },
 };
@@ -83,7 +93,10 @@ export default function () {
       "cart contains added item": (r) => {
         try {
           const items = r.json("items") as Array<{ productId: string }>;
-          return Array.isArray(items) && items.some((item) => item.productId === productId);
+          return (
+            Array.isArray(items) &&
+            items.some((item) => item.productId === productId)
+          );
         } catch {
           return false;
         }
@@ -134,7 +147,9 @@ export default function () {
         try {
           const items = r.json("items");
           const expectedId = `viz_order_${orderId}`;
-          return Array.isArray(items) && items.some((i: any) => i.id === expectedId);
+          return (
+            Array.isArray(items) && items.some((i: any) => i.id === expectedId)
+          );
         } catch {
           return false;
         }
@@ -147,9 +162,17 @@ export default function () {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function handleSummary(data: any) {
-  const meta = { title: "Mini-Commerce Purchase Flow", testType: "purchase-flow", targetUrl: url("") };
+  const meta = {
+    title: "Mini-Commerce Purchase Flow",
+    testType: "purchase-flow",
+    targetUrl: url(""),
+  };
   return {
     "/scripts/reports/purchase-flow-report.html": buildHtml(data, meta),
-    "/scripts/reports/purchase-flow-summary.json": JSON.stringify(buildSummaryJson(data, meta), null, 2),
+    "/scripts/reports/purchase-flow-summary.json": JSON.stringify(
+      buildSummaryJson(data, meta),
+      null,
+      2,
+    ),
   };
 }
