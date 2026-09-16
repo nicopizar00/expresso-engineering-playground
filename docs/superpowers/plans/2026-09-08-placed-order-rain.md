@@ -15,7 +15,7 @@
 - No AI attribution in commits, PR descriptions, or generated docs (repo-wide `CLAUDE.md` rule).
 - English for all committed content.
 - No real names, URLs, IPs, or credentials in committed content.
-- Visualizer module-discipline rule (per `.claude/skills/expresso-visualizer-review/SKILL.md` and CLAUDE.md): hex color literals live only in `materials.js`; `scene.js` stays a thin wiring point (no mesh/geometry/material construction); `transport.js` and `layout/render.js` are not modified by this work.
+- Visualizer module-discipline rule: hex color literals live only in `materials.js`; `scene.js` stays a thin wiring point (no mesh/geometry/material construction); `transport.js` and `layout/render.js` are not modified by this work.
 - New Three.js geometry must stay within the "Standard tier" polygon budget (≤ 28 triangles) — satisfied automatically here since the rain cup reuses `buildEspressoGroup`'s existing 26-triangle geometry rather than adding new geometry.
 - A workflow-traffic ingest failure (e.g. the k6 campaign scenario's now-orphaned POST) must not raise unhandled exceptions or fail anything — this is achieved by deletion, not by keeping the endpoint alive to swallow errors.
 
@@ -515,7 +515,7 @@ Run: `./dev up web` (starts postgres, BFF, and the Next.js web app; the standalo
 4. Reload the Visualizer tab with existing order history already present (i.e. reconnect after at least one order has been placed) and confirm no cup rains on load — only newly placed orders after that point should rain.
 5. Open the browser devtools console and confirm no reference to `traffic-hud`, `/workflow-traffic/events`, or `/workflow-traffic-updates` appears (no 404s from the deleted endpoint, since nothing calls it from the product runtime anymore).
 
-Expected: all five checks pass. Record this manual pass as validation evidence (per `docs/performance/validation.md`'s evidence rule and `expresso-validation-audit`) since there is no automated test harness for `apps/visualizer-3d/public/`.
+Expected: all five checks pass. Record this manual pass as validation evidence per `docs/performance/validation.md`'s evidence rule since there is no automated test harness for `apps/visualizer-3d/public/`.
 
 - [ ] **Step 5: Commit**
 

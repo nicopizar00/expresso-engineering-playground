@@ -11,3 +11,6 @@ spec:
     script: /scripts/scenarios/smoke/smoke.js
   environment:
     forward: [BASE_URL]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/smoke-summary.json

@@ -11,3 +11,6 @@ spec:
     script: /scripts/scenarios/purchase-flow/purchase-flow.js
   environment:
     forward: [BASE_URL, VUS, DURATION]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/purchase-flow-summary.json

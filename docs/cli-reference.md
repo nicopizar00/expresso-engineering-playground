@@ -71,14 +71,20 @@ profiles up. See [`architecture/orchestrator-python.md`](architecture/orchestrat
 | Trace a BFF request via Tempo | `./dev hack trace GET /catalog/products` (needs `up obs`) |
 
 Each `perf:*` command selects one repository-owned YAML workflow. Punch
-loads, validates, confirms any declared data output, then performs exactly
-one Docker Compose run. Do not replace that path with an ad-hoc Compose
+loads, validates, confirms any declared data output, confirms the Docker
+Compose run itself (interactive terminals only — CI proceeds automatically),
+then performs exactly one Docker Compose run, printing the k6 metrics from
+`outputs.summary` on success. Do not replace that path with an ad-hoc Compose
 command except while debugging the container itself; that is an escape hatch,
 not the supported workflow path.
 
 Current workflows have no `outputs.csv`. If a future workflow declares one,
 add `--confirm-output-data` only for a non-interactive invocation; interactive
 runs ask for confirmation before Compose starts.
+
+`./bin/punch` additionally confirms once before its own `docker compose build
+k6` step, then opens the interactive menu, which picks and runs exactly one
+workflow per invocation (no "run another?" loop).
 
 ## Defaults
 

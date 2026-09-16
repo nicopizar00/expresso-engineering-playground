@@ -250,9 +250,8 @@ Neither k6's commerce requests nor the domain-state SSE stream change.
 
 The Visualizer is a per-concern ES module graph (`materials.js`,
 `geometry/`, `objects/`, `layout/`, `transport.js`, `fallback.js`,
-`scene.js` as thin entry — see the module-discipline table in
-`.claude/skills/expresso-visualizer-review/SKILL.md`). This work follows
-that pattern with new, parallel modules rather than editing the
+`scene.js` as thin entry). This work follows that pattern with new,
+parallel modules rather than editing the
 domain-state ones.
 
 ### Requirements

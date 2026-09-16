@@ -79,10 +79,9 @@ it as a `blocker` and investigate before merging.
 
 ## Reviewing evidence
 
-The `expresso-validation-audit` skill formalises the review. The
-`performance-engineering-reviewer` subagent gives an independent read of
-the scenarios and thresholds. Either is appropriate before merging a
-perf-affecting change; both is overkill for a one-line edit.
+Review the evidence against the bounds above and the scenario's declared
+thresholds. For a substantial performance change, get an independent read
+of the scenarios and thresholds before merging.
 
 ## Boundaries
 

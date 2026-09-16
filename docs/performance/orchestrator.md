@@ -81,6 +81,23 @@ declare `spec.outputs.csv.path`; that is an explicit data-output contract.
   replace the destination only after a successful process exit. An existing
   destination remains unchanged on every failure path.
 
+## Summary output and Docker Compose confirmation
+
+Both bundled workflows declare `spec.outputs.summary.path`, pointing at the
+JSON file each scenario's `handleSummary()` already writes (e.g.
+`tests/performance/k6/reports/smoke-summary.json`). Unlike `outputs.csv`,
+this is read-only and needs no confirmation flag — after a passing run,
+`./dev perf:smoke` / `perf:purchase-flow` and `./bin/punch`'s interactive
+menu print its `totalRequests`, `errorRate`, `p90Ms`, `checkPassRate`, and
+`durationMs` fields.
+
+Before Docker Compose runs (which may build images), the orchestrator prints
+a "Punch orchestrator" banner and asks for confirmation — but only on a real
+interactive terminal; CI and other non-interactive callers proceed
+automatically. `./bin/punch` additionally confirms once before its explicit
+`docker compose build k6` step. The interactive menu (`punch menu`) runs
+exactly one workflow per invocation and exits — no "run another?" loop.
+
 ## Extending a scenario
 
 1. Add the TypeScript scenario and one entry to

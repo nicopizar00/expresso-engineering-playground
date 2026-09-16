@@ -42,6 +42,7 @@ class PunchWrapperTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)

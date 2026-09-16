@@ -49,7 +49,15 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                     REPO_ROOT / "infra" / "docker" / "compose.performance.yaml",
                 )
                 self.assertEqual(workflow.compose_service, "k6")
-                self.assertNotIn("outputs", document["spec"])
+                self.assertNotIn("csv", document["spec"].get("outputs", {}))
+                self.assertEqual(
+                    document["spec"]["outputs"]["summary"]["path"],
+                    f"tests/performance/k6/reports/{path.stem}-summary.json",
+                )
+                self.assertEqual(
+                    workflow.summary_output.path,
+                    REPO_ROOT / "tests" / "performance" / "k6" / "reports" / f"{path.stem}-summary.json",
+                )
                 if workflow.name == "purchase-flow":
                     self.assertEqual(
                         document["spec"]["environment"],

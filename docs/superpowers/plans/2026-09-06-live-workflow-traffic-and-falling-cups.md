@@ -19,7 +19,7 @@
 - No secrets, no real URLs, no real user data anywhere in scenarios, fixtures, or docs.
 - `WorkflowTrafficModule` MUST NOT be added to `VisualizationModule`'s providers and MUST NOT alter `/visualization-data` or `/visualization-updates`.
 - A workflow-traffic ingest call from k6 MUST NOT fail or slow the measured commerce iteration — swallow ingest errors.
-- The Visualizer is a per-concern module graph, not a monolith (module-discipline table in `.claude/skills/expresso-visualizer-review/SKILL.md`). Falling-cup work lives in new, parallel modules (`objects/traffic-cup.js`, `layout/traffic-render.js`, `traffic-transport.js`); `objects/espresso-cup.js`, `layout/render.js`, `transport.js`, `objects/disposal.js`, and `geometry/frustum.js`'s existing exports are never modified. `materials.js` gains exactly one new export (`TRAFFIC_COLORS`).
+- The Visualizer is a per-concern module graph, not a monolith. Falling-cup work lives in new, parallel modules (`objects/traffic-cup.js`, `layout/traffic-render.js`, `traffic-transport.js`); `objects/espresso-cup.js`, `layout/render.js`, `transport.js`, `objects/disposal.js`, and `geometry/frustum.js`'s existing exports are never modified. `materials.js` gains exactly one new export (`TRAFFIC_COLORS`).
 - All new domain-asset geometry reuses `buildSquareFrustum`/`makePsxTexture`, uses `MeshLambertMaterial` with `flatShading: true`, and stays within the Standard tier (≤ 28 triangles) — no smooth geometry, no round openings. Hex color literals live only in `materials.js`.
 - English only in committed content; no AI attribution in commits.
 
@@ -1227,8 +1227,7 @@ git commit -m "docs(performance): document the campaign entry point"
 
 ### Task 7: Falling-cup builder and renderer (`objects/traffic-cup.js` + `layout/traffic-render.js`)
 
-> The Visualizer is a per-concern module graph (see the module-discipline
-> table in `.claude/skills/expresso-visualizer-review/SKILL.md`), not the
+> The Visualizer is a per-concern module graph, not the
 > single-file `scene.js` the original spec draft assumed — `apps/visualizer-3d`
 > was refactored (PR #18) after this plan's first draft. This task and Task 8
 > target the current module layout: `materials.js`, `geometry/frustum.js`,

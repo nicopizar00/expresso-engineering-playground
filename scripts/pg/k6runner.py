@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+from pathlib import Path
 from typing import Dict, Optional
 
 from pg.ansi import fail, header, info, pass_, warn
@@ -11,12 +13,35 @@ from pg.paths import BFF_PORT, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR
 from pg.ports import port_in_use
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
-from punch.execution import confirm_output_data, execute_workflow
+from punch.execution import (
+    build_compose_run_command,
+    confirm_docker_run,
+    confirm_output_data,
+    execute_workflow,
+)
 from punch.workflow import WorkflowError, load_workflow
 
 
 def default_base_url() -> str:
     return os.environ.get("BASE_URL") or f"http://host.docker.internal:{BFF_PORT}"
+
+
+def _print_metrics(summary_path: Path) -> None:
+    """Print the k6 summary this repo's test scripts write via handleSummary()."""
+    if not summary_path.exists():
+        return
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+
+    header("k6 metrics")
+    info(f"Requests     : {summary.get('totalRequests', '?')}")
+    info(f"Error rate   : {summary.get('errorRate', 0) * 100:.2f}%")
+    info(f"p90 duration : {summary.get('p90Ms', 0):.1f} ms")
+    info(f"Check pass   : {summary.get('checkPassRate', 0) * 100:.2f}%")
+    info(f"Duration     : {summary.get('durationMs', 0) / 1000:.1f}s")
+    print()
 
 
 def run_k6(
@@ -33,7 +58,7 @@ def run_k6(
         fail(f"Could not load k6 workflow {workflow_name}: {error}")
         return 1
 
-    header(f"Performance {workflow.name} (k6)")
+    header(f"Punch orchestrator — {workflow.name} (k6)")
     base_url = default_base_url()
     environment = {**os.environ, "BASE_URL": base_url, **(extra_env or {})}
 
@@ -54,10 +79,18 @@ def run_k6(
         stdin=sys.stdin,
         stdout=sys.stdout,
     )
+    command = build_compose_run_command(workflow, environment)
+    docker_run_confirmed = confirm_docker_run(
+        command,
+        assume_yes=confirm_output_data_flag,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+    )
     result = execute_workflow(
         workflow,
         environment=environment,
         output_data_confirmed=output_data_confirmed,
+        docker_run_confirmed=docker_run_confirmed,
         stdout=sys.stdout,
         stderr=sys.stderr,
         log_path=PERF_REPORTS_DIR / "logs" / f"k6-{workflow.name}.log",
@@ -66,6 +99,8 @@ def run_k6(
     if result.passed:
         pass_(f"k6 {workflow.name} completed.")
         print()
+        if workflow.summary_output is not None:
+            _print_metrics(workflow.summary_output.path)
         return 0
 
     if result.child_exit_code:

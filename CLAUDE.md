@@ -110,45 +110,13 @@ New domain assets: add a `docs/next-steps/<topic>.md`, then follow the
 `buildEspressoGroup` + `ESPRESSO_CFG` pattern in `objects/espresso-cup.js`
 and dispatch from `layout/render.js` (or the relevant scene-mesh factory).
 
-## Claude Code configuration
+## Claude Code
 
 Claude Code is the primary AI implementation environment for this phase.
 The full operating protocol lives at
 [`docs/ai/claude-code-operating-protocol.md`](docs/ai/claude-code-operating-protocol.md);
-the executable configuration lives under `.claude/`.
-
-| Surface | Path | Purpose |
-|---|---|---|
-| Skills | `.claude/skills/<name>/SKILL.md` | User-invokable workflows |
-| Subagents | `.claude/agents/<name>.md` | Read-only review agents |
-| Commands | `.claude/commands/<name>.md` | Short slash-command workflows |
-
-### Skills
-
-| Skill | Invoke when |
-|---|---|
-| `expresso-repo-orientation` | Cold session start; ground yourself before editing. |
-| `expresso-performance-orchestrator` | Designing or extending the Python-first k6 Docker layer. |
-| `expresso-k6-review` | Reviewing a new or modified k6 scenario / threshold. |
-| `expresso-docker-compose-review` | Reviewing Compose changes (profiles, ports, volumes). |
-| `expresso-visualizer-review` | Reviewing `scene.js` against the PS1 art rules. |
-| `expresso-validation-audit` | Before reporting a change "done". |
-| `expresso-documentation-audit` | When docs are touched or a code change crosses an architecture spoke. |
-
-### Subagents
-
-| Subagent | Reach for it when |
-|---|---|
-| `performance-engineering-reviewer` | Second-opinion read of a perf change before merging. |
-| `python-orchestrator-reviewer` | Auditing `scripts/pg/` correctness and stdlib-only contract. |
-| `threejs-visual-design-reviewer` | Auditing `scene.js` art compliance and SSE boundary. |
-
-### Commands
-
-| Command | What it does |
-|---|---|
-| `/perf-smoke` | Run k6 smoke through Docker and summarize. |
-| `/validate-change` | Pick the narrowest validation row from the playbook matrix and run it. |
+project-local settings remain under `.claude/`. The repository does not ship
+custom Claude Code skills, commands, or agents.
 
 ## Performance engineering
 
