@@ -9,21 +9,30 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "Punch orchestrator — building the k6 image via Docker Compose."
-
-# Only interactive terminals are prompted — non-interactive callers (CI,
-# piped input) proceed automatically so automated runs are never blocked.
-if [ -t 0 ]; then
-    read -r -p "Run 'docker compose build k6'? [y/N] " reply
-    case "$reply" in
-        [yY]|[yY][eE][sS]) ;;
-        *)
-            echo "Aborted." >&2
-            exit 1
-            ;;
-    esac
+if [ ! -t 0 ]; then
+    echo "Punch menu requires a terminal." >&2
+    exit 1
 fi
 
-docker compose -f "$REPO_ROOT/infra/docker/compose.performance.yaml" build k6
+if ! python3 -c 'import yaml, simple_term_menu' >/dev/null 2>&1; then
+    echo "Punch menu Python dependencies are missing." >&2
+    echo "From the repository root, create an isolated Python environment:" >&2
+    echo "  python3 -m venv .cache/punch-venv" >&2
+    echo "  .cache/punch-venv/bin/python3 -m pip install -r vendor/punch/requirements.txt" >&2
+    echo '  PATH=".cache/punch-venv/bin:$PATH" ./bin/punch' >&2
+    exit 1
+fi
+
+echo "Punch orchestrator — k6 image build is optional before workflow selection."
+
+read -r -p "Run 'docker compose build k6'? [y/N] " reply
+case "$reply" in
+    [yY]|[yY][eE][sS])
+        docker compose -f "$REPO_ROOT/infra/docker/compose.performance.yaml" build k6
+        ;;
+    *)
+        echo "Skipping k6 image build."
+        ;;
+esac
 
 exec "$REPO_ROOT/vendor/punch/bin/punch" menu "$REPO_ROOT/tests/performance/k6/workflows" "$@"

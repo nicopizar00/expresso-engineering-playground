@@ -13,12 +13,20 @@ have installed.
 **Note:** This repo uses a git submodule (`vendor/punch/`) for shared
 performance-testing tooling. After cloning, initialize it with `git submodule
 update --init --recursive` before running `./dev perf:*` commands. Core
-`scripts/pg/` remains standard-library-only; the performance commands load
-Punch's pinned PyYAML dependency, which must be installed once:
+`scripts/pg/` remains standard-library-only; performance commands load
+Punch's pinned PyYAML dependency, while its interactive menu also needs
+`simple-term-menu`. Install both from Punch's requirements:
 
 ```bash
+python3 -m venv .cache/punch-venv
+. .cache/punch-venv/bin/activate
 python3 -m pip install -r vendor/punch/requirements.txt
 ```
+
+The virtual environment works with externally managed Python installations,
+including Homebrew. In a new shell, reactivate it or launch the menu with
+`PATH=".cache/punch-venv/bin:$PATH" ./bin/punch`. The launcher checks for
+these dependencies before offering the optional image build.
 
 Build the image separately before a fresh or changed performance run:
 
@@ -82,9 +90,12 @@ Current workflows have no `outputs.csv`. If a future workflow declares one,
 add `--confirm-output-data` only for a non-interactive invocation; interactive
 runs ask for confirmation before Compose starts.
 
-`./bin/punch` additionally confirms once before its own `docker compose build
-k6` step, then opens the interactive menu, which picks and runs exactly one
-workflow per invocation (no "run another?" loop).
+`./bin/punch` first offers to run `docker compose build k6`. Answering No
+skips only the build and still opens the interactive menu; answering Yes
+builds before workflow selection. The menu picks and runs exactly one
+workflow per invocation (no "run another?" loop). The launcher requires a
+terminal and does not build when one is unavailable; use `./dev perf:*` for
+non-interactive runs.
 
 ## Defaults
 

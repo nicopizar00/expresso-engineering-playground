@@ -13,6 +13,8 @@ the initialized submodule.
 
 ```bash
 git submodule update --init --recursive
+python3 -m venv .cache/punch-venv
+. .cache/punch-venv/bin/activate
 python3 -m pip install -r vendor/punch/requirements.txt
 docker compose -f infra/docker/compose.performance.yaml build k6
 ```
@@ -91,12 +93,18 @@ this is read-only and needs no confirmation flag — after a passing run,
 menu print its `totalRequests`, `errorRate`, `p90Ms`, `checkPassRate`, and
 `durationMs` fields.
 
-Before Docker Compose runs (which may build images), the orchestrator prints
+Before Docker Compose runs (which may build images), the workflow runner prints
 a "Punch orchestrator" banner and asks for confirmation — but only on a real
-interactive terminal; CI and other non-interactive callers proceed
-automatically. `./bin/punch` additionally confirms once before its explicit
-`docker compose build k6` step. The interactive menu (`punch menu`) runs
+interactive terminal; CI and other non-interactive workflow runs proceed
+automatically. The separate `./bin/punch` menu requires a terminal and exits
+before any build if one is unavailable. Before opening its menu, it offers an optional
+`docker compose build k6` step: Yes builds, while No skips the build and
+continues to workflow selection. The interactive menu (`punch menu`) runs
 exactly one workflow per invocation and exits — no "run another?" loop.
+Its terminal picker supports arrow keys, `j`/`k`, and `/` search; Escape or
+`q` cancels before running a workflow. See
+[`punch-menu-optimization.md`](punch-menu-optimization.md) for the dependency,
+compatibility, and before/after evidence.
 
 ## Extending a scenario
 
