@@ -8,7 +8,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV_DIR="$REPO_ROOT/.cache/punch-venv"
+# Overridable so tests can sandbox the venv instead of touching the real repo.
+VENV_DIR="${PUNCH_VENV_DIR:-$REPO_ROOT/.cache/punch-venv}"
 
 if [ ! -t 0 ]; then
     echo "Punch menu requires a terminal." >&2
@@ -20,12 +21,19 @@ if [ ! -x "$VENV_DIR/bin/python3" ]; then
     python3 -m venv "$VENV_DIR"
 fi
 
-if ! "$VENV_DIR/bin/python3" -c 'import yaml, simple_term_menu' >/dev/null 2>&1; then
-    echo "Installing Punch menu Python dependencies..." >&2
-    "$VENV_DIR/bin/python3" -m pip install -q -r "$REPO_ROOT/vendor/punch/requirements.txt"
-fi
-
+# Resolved via PATH (not an absolute path) so the venv's own interpreter is
+# always the one actually invoked, same as vendor/punch/bin/punch itself.
 export PATH="$VENV_DIR/bin:$PATH"
+
+if ! python3 -c 'import yaml, simple_term_menu' >/dev/null 2>&1; then
+    echo "Installing Punch menu Python dependencies..." >&2
+    if ! python3 -m pip install -q -r "$REPO_ROOT/vendor/punch/requirements.txt" >/dev/null 2>&1; then
+        echo "Automatic install failed. Install them manually:" >&2
+        echo "  python3 -m venv .cache/punch-venv" >&2
+        echo "  .cache/punch-venv/bin/python3 -m pip install -r vendor/punch/requirements.txt" >&2
+        exit 1
+    fi
+fi
 
 echo "Punch orchestrator — k6 image build is optional before workflow selection."
 

@@ -22,28 +22,42 @@ class PunchWrapperTests(unittest.TestCase):
             bin_path.mkdir()
             events_path = root / "events.log"
 
-            for command in ("docker", "python3"):
-                executable = bin_path / command
-                dependency_probe = (
-                    'if [ "$1" = "-c" ]; then exit "$PUNCH_TEST_DEP_STATUS"; fi\n'
-                    if command == "python3"
-                    else ""
-                )
-                executable.write_text(
-                    "#!/bin/sh\n"
-                    f"{dependency_probe}"
-                    f"printf '{command}' >> \"$PUNCH_TEST_EVENTS\"\n"
-                    "for arg in \"$@\"; do printf '\\t%s' \"$arg\" >> \"$PUNCH_TEST_EVENTS\"; done\n"
-                    "printf '\\n' >> \"$PUNCH_TEST_EVENTS\"\n",
-                    encoding="utf-8",
-                )
-                executable.chmod(0o755)
+            docker_stub = bin_path / "docker"
+            docker_stub.write_text(
+                "#!/bin/sh\n"
+                "printf 'docker' >> \"$PUNCH_TEST_EVENTS\"\n"
+                "for arg in \"$@\"; do printf '\\t%s' \"$arg\" >> \"$PUNCH_TEST_EVENTS\"; done\n"
+                "printf '\\n' >> \"$PUNCH_TEST_EVENTS\"\n",
+                encoding="utf-8",
+            )
+            docker_stub.chmod(0o755)
+
+            # Pre-seed the venv so bin/punch skips real creation and every
+            # python3 call it makes (dependency probe, install, final
+            # `python3 -m punch menu`) resolves to this stub via PATH.
+            venv_dir = root / "venv"
+            venv_bin = venv_dir / "bin"
+            venv_bin.mkdir(parents=True)
+            python3_stub = venv_bin / "python3"
+            python3_stub.write_text(
+                "#!/bin/sh\n"
+                'if [ "$1" = "-c" ]; then exit "$PUNCH_TEST_DEP_STATUS"; fi\n'
+                'if [ "$1" = "-m" ] && [ "$2" = "pip" ] && [ "$PUNCH_TEST_DEP_STATUS" != "0" ]; then\n'
+                "    exit \"$PUNCH_TEST_DEP_STATUS\"\n"
+                "fi\n"
+                "printf 'python3' >> \"$PUNCH_TEST_EVENTS\"\n"
+                "for arg in \"$@\"; do printf '\\t%s' \"$arg\" >> \"$PUNCH_TEST_EVENTS\"; done\n"
+                "printf '\\n' >> \"$PUNCH_TEST_EVENTS\"\n",
+                encoding="utf-8",
+            )
+            python3_stub.chmod(0o755)
 
             environment = {
                 **os.environ,
                 "PATH": f"{bin_path}{os.pathsep}{os.environ['PATH']}",
                 "PUNCH_TEST_EVENTS": str(events_path),
                 "PUNCH_TEST_DEP_STATUS": str(dependency_status),
+                "PUNCH_VENV_DIR": str(venv_dir),
             }
             master, slave = pty.openpty()
             try:
