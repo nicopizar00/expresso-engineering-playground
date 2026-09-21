@@ -3,25 +3,29 @@
 #
 # Real implementation lives in the vendor/punch submodule (k6-ts-docker's
 # Punch orchestrator); this repo only points it at its own workflows
-# directory. Install vendor/punch/requirements.txt before first use.
+# directory. Bootstraps an isolated venv at .cache/punch-venv on first use.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV_DIR="$REPO_ROOT/.cache/punch-venv"
 
 if [ ! -t 0 ]; then
     echo "Punch menu requires a terminal." >&2
     exit 1
 fi
 
-if ! python3 -c 'import yaml, simple_term_menu' >/dev/null 2>&1; then
-    echo "Punch menu Python dependencies are missing." >&2
-    echo "From the repository root, create an isolated Python environment:" >&2
-    echo "  python3 -m venv .cache/punch-venv" >&2
-    echo "  .cache/punch-venv/bin/python3 -m pip install -r vendor/punch/requirements.txt" >&2
-    echo '  PATH=".cache/punch-venv/bin:$PATH" ./bin/punch' >&2
-    exit 1
+if [ ! -x "$VENV_DIR/bin/python3" ]; then
+    echo "Creating Punch menu virtualenv at .cache/punch-venv..." >&2
+    python3 -m venv "$VENV_DIR"
 fi
+
+if ! "$VENV_DIR/bin/python3" -c 'import yaml, simple_term_menu' >/dev/null 2>&1; then
+    echo "Installing Punch menu Python dependencies..." >&2
+    "$VENV_DIR/bin/python3" -m pip install -q -r "$REPO_ROOT/vendor/punch/requirements.txt"
+fi
+
+export PATH="$VENV_DIR/bin:$PATH"
 
 echo "Punch orchestrator — k6 image build is optional before workflow selection."
 
