@@ -1,4 +1,10 @@
-import { ConflictException, BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { Money } from "@mini-commerce/shared-types";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
@@ -155,16 +161,16 @@ export class CartService {
       (sum, item) => sum + item.lineTotal.amountMinor,
       0,
     );
-    const itemCount = state.items.reduce(
-      (sum, item) => sum + item.quantity,
-      0,
-    );
+    const itemCount = state.items.reduce((sum, item) => sum + item.quantity, 0);
     return {
       cartId: state.cartId,
       items: state.items,
       itemCount,
       total: { amountMinor, currency },
-      expiresAt: state.expiresAt !== null ? new Date(state.expiresAt).toISOString() : null,
+      expiresAt:
+        state.expiresAt !== null
+          ? new Date(state.expiresAt).toISOString()
+          : null,
       updatedAt: this.updatedAt,
     };
   }

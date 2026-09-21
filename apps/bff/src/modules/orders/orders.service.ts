@@ -7,7 +7,10 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 // TODO(vercel-build): @prisma/client types require `prisma generate` — ensured by package.json#build
-import type { Order as DbOrder, OrderLine as DbOrderLine } from "@prisma/client";
+import type {
+  Order as DbOrder,
+  OrderLine as DbOrderLine,
+} from "@prisma/client";
 import type { OrderStatus } from "@mini-commerce/shared-types";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { PrismaService } from "../../prisma.service";
@@ -28,13 +31,15 @@ function toOrder(row: DbOrder & { lines: DbOrderLine[] }): Order {
     orderId: row.orderId,
     customerName: row.customerName,
     status: row.status as OrderStatus,
-    lines: row.lines.map((l): OrderLine => ({
-      productId: l.productId,
-      name: l.name,
-      quantity: l.quantity,
-      unitPrice: { amountMinor: l.unitAmountMinor, currency: l.unitCurrency },
-      lineTotal: { amountMinor: l.lineAmountMinor, currency: l.lineCurrency },
-    })),
+    lines: row.lines.map(
+      (l): OrderLine => ({
+        productId: l.productId,
+        name: l.name,
+        quantity: l.quantity,
+        unitPrice: { amountMinor: l.unitAmountMinor, currency: l.unitCurrency },
+        lineTotal: { amountMinor: l.lineAmountMinor, currency: l.lineCurrency },
+      }),
+    ),
     total: { amountMinor: row.totalAmountMinor, currency: row.totalCurrency },
     placedAt: row.placedAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -176,7 +181,10 @@ export class OrdersService implements OnModuleInit {
           // Concurrent-retry race: another transaction committed the same key
           // first. Our transaction (including any decrements) rolled back, so
           // it's safe to return the winner without touching inventory.
-          if (input.clientRequestId && isUniqueViolation(err, "clientRequestId")) {
+          if (
+            input.clientRequestId &&
+            isUniqueViolation(err, "clientRequestId")
+          ) {
             const winner = await this.prisma.order.findUnique({
               where: { clientRequestId: input.clientRequestId },
               include: { lines: true },
@@ -206,7 +214,9 @@ export class OrdersService implements OnModuleInit {
         if (input.clientRequestId) {
           this.idempotencyIndex.set(input.clientRequestId, order.orderId);
         }
-        this.logger.log(`order created id=${orderId} total=${input.total.amountMinor}`);
+        this.logger.log(
+          `order created id=${orderId} total=${input.total.amountMinor}`,
+        );
         this.domainEvents.emit();
         return order;
       } catch (err) {
@@ -218,7 +228,10 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
-  async manage(orderId: string, payload: ManageOrderDto): Promise<ManageOrderResponse> {
+  async manage(
+    orderId: string,
+    payload: ManageOrderDto,
+  ): Promise<ManageOrderResponse> {
     return tracer.startActiveSpan("orders.manage", async (span) => {
       try {
         span.setAttribute("order.id", orderId);
@@ -250,7 +263,11 @@ export class OrdersService implements OnModuleInit {
 
         const acceptedAt = new Date().toISOString();
         const idx = this.cache.findIndex((o) => o.orderId === orderId);
-        this.cache[idx] = { ...current, status: nextStatus, updatedAt: acceptedAt };
+        this.cache[idx] = {
+          ...current,
+          status: nextStatus,
+          updatedAt: acceptedAt,
+        };
 
         this.logger.log(
           `manage order=${orderId} action=${payload.action} ${previousStatus} -> ${nextStatus}`,

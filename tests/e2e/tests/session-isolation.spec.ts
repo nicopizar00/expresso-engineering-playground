@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { StorefrontPage } from '../pages/StorefrontPage';
+import { expect, test } from "@playwright/test";
+import { StorefrontPage } from "../pages/StorefrontPage";
 
 // Exercises the REAL BFF — no route mocking. Requires `./dev up` running
 // (Postgres + BFF healthy) before this spec executes; it is not covered
@@ -10,8 +10,8 @@ import { StorefrontPage } from '../pages/StorefrontPage';
 // their own Cup of Coffee at the same time, with neither seeing a 409
 // from the other's cart — which would happen today if the cart were
 // still one global singleton.
-test.describe('Session isolation (real BFF)', () => {
-  test('two independent browser sessions can shop concurrently without colliding', async ({
+test.describe("Session isolation (real BFF)", () => {
+  test("two independent browser sessions can shop concurrently without colliding", async ({
     browser,
   }) => {
     const contextA = await browser.newContext();
@@ -28,16 +28,16 @@ test.describe('Session isolation (real BFF)', () => {
       await expect(storefrontB.catalogHeading()).toBeVisible();
 
       // Session A adds the one product.
-      await storefrontA.addProductToCart('Cup of Coffee');
+      await storefrontA.addProductToCart("Cup of Coffee");
       await expect(storefrontA.cartButton()).toHaveAccessibleName(
-        'Shopping cart with 1 items',
+        "Shopping cart with 1 items",
       );
 
       // Session B is a completely independent browser context — this
       // would 409 today if the cart were still a single global singleton.
-      await storefrontB.addProductToCart('Cup of Coffee');
+      await storefrontB.addProductToCart("Cup of Coffee");
       await expect(storefrontB.cartButton()).toHaveAccessibleName(
-        'Shopping cart with 1 items',
+        "Shopping cart with 1 items",
       );
 
       // Session A checks out independently.

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Developer tools page with API debug console and Demo Guide.
@@ -9,7 +9,7 @@
  * - Demo Guide explaining how to explore the frontend
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   Activity,
   Play,
@@ -25,7 +25,7 @@ import {
   ExternalLink,
   Gauge,
   Database,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   expressoApi,
   Product,
@@ -36,7 +36,7 @@ import {
   setMockScenario,
   getSampleOrderId,
   type MockScenario,
-} from '@/lib/api/expresso-api';
+} from "@/lib/api/expresso-api";
 
 // ---------------------------------------------------------------------------
 // API Testing Hooks
@@ -77,23 +77,31 @@ function ResponseBox({ result }: { result: ApiResult | null }) {
   return (
     <div
       className="rounded-md overflow-hidden text-xs"
-      style={{ backgroundColor: 'var(--secondary)' }}
+      style={{ backgroundColor: "var(--secondary)" }}
     >
       <div
         className="flex items-center gap-2 px-3 py-1.5"
         style={{
-          backgroundColor: result.ok ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-          color: result.ok ? 'var(--success)' : 'var(--destructive)',
+          backgroundColor: result.ok
+            ? "rgba(34, 197, 94, 0.2)"
+            : "rgba(239, 68, 68, 0.2)",
+          color: result.ok ? "var(--success)" : "var(--destructive)",
         }}
       >
-        {result.ok ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+        {result.ok ? (
+          <CheckCircle className="h-3 w-3" />
+        ) : (
+          <XCircle className="h-3 w-3" />
+        )}
         <span className="font-semibold">
-          {result.ok ? 'OK' : `ERROR${result.status ? ` (${result.status})` : ''}`}
+          {result.ok
+            ? "OK"
+            : `ERROR${result.status ? ` (${result.status})` : ""}`}
         </span>
       </div>
       <pre
         className="p-3 overflow-x-auto max-h-40 overflow-y-auto font-mono"
-        style={{ color: 'var(--foreground)' }}
+        style={{ color: "var(--foreground)" }}
       >
         {JSON.stringify(result.data, null, 2)}
       </pre>
@@ -101,13 +109,24 @@ function ResponseBox({ result }: { result: ApiResult | null }) {
   );
 }
 
-function Card({ title, icon: Icon, children }: { title: string; icon?: React.ElementType; children: React.ReactNode }) {
+function Card({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon?: React.ElementType;
+  children: React.ReactNode;
+}) {
   return (
     <div
       className="rounded-lg border p-4 space-y-3"
-      style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
     >
-      <h2 className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--muted-foreground)' }}>
+      <h2
+        className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+        style={{ color: "var(--muted-foreground)" }}
+      >
         {Icon && <Icon className="h-3.5 w-3.5" />}
         {title}
       </h2>
@@ -116,15 +135,30 @@ function Card({ title, icon: Icon, children }: { title: string; icon?: React.Ele
   );
 }
 
-function ActionButton({ onClick, loading, children }: { onClick: () => void; loading: boolean; children: React.ReactNode }) {
+function ActionButton({
+  onClick,
+  loading,
+  children,
+}: {
+  onClick: () => void;
+  loading: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
       disabled={loading}
       className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-      style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+      style={{
+        backgroundColor: "var(--primary)",
+        color: "var(--primary-foreground)",
+      }}
     >
-      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+      {loading ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <Play className="h-3 w-3" />
+      )}
       {children}
     </button>
   );
@@ -134,9 +168,15 @@ function ActionButton({ onClick, loading, children }: { onClick: () => void; loa
 // Demo Guide Panel
 // ---------------------------------------------------------------------------
 
-function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => void; onOpenOrders: () => void }) {
+function DemoGuidePanel({
+  onOpenCatalog,
+  onOpenOrders,
+}: {
+  onOpenCatalog: () => void;
+  onOpenOrders: () => void;
+}) {
   const [isDemoMode, setIsDemoModeState] = useState(false);
-  const [scenario, setScenarioState] = useState<MockScenario>('happy');
+  const [scenario, setScenarioState] = useState<MockScenario>("happy");
 
   useEffect(() => {
     setIsDemoModeState(getDemoModeStatus());
@@ -148,13 +188,41 @@ function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => 
     setScenarioState(newScenario);
   }
 
-  const scenarios: { value: MockScenario; label: string; description: string }[] = [
-    { value: 'happy', label: 'Happy Path', description: '7 products, checkout success included' },
-    { value: 'loading', label: 'Loading State', description: '2s delay to see loading UI' },
-    { value: 'empty', label: 'Empty State', description: 'Empty catalog, no orders' },
-    { value: 'error', label: 'API Error', description: 'Simulates 500/503 failures' },
-    { value: 'cart-filled', label: 'Cart Filled', description: '3 items pre-added to cart' },
-    { value: 'checkout-failure', label: 'Checkout Fail', description: 'Checkout always fails' },
+  const scenarios: {
+    value: MockScenario;
+    label: string;
+    description: string;
+  }[] = [
+    {
+      value: "happy",
+      label: "Happy Path",
+      description: "7 products, checkout success included",
+    },
+    {
+      value: "loading",
+      label: "Loading State",
+      description: "2s delay to see loading UI",
+    },
+    {
+      value: "empty",
+      label: "Empty State",
+      description: "Empty catalog, no orders",
+    },
+    {
+      value: "error",
+      label: "API Error",
+      description: "Simulates 500/503 failures",
+    },
+    {
+      value: "cart-filled",
+      label: "Cart Filled",
+      description: "3 items pre-added to cart",
+    },
+    {
+      value: "checkout-failure",
+      label: "Checkout Fail",
+      description: "Checkout always fails",
+    },
   ];
 
   return (
@@ -163,44 +231,59 @@ function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => 
       <div
         className="p-3 rounded-md text-sm"
         style={{
-          backgroundColor: isDemoMode ? 'rgba(234, 179, 8, 0.1)' : 'var(--secondary)',
-          borderColor: isDemoMode ? 'var(--warning)' : 'var(--border)',
-          border: '1px solid',
+          backgroundColor: isDemoMode
+            ? "rgba(234, 179, 8, 0.1)"
+            : "var(--secondary)",
+          borderColor: isDemoMode ? "var(--warning)" : "var(--border)",
+          border: "1px solid",
         }}
       >
         <div className="flex items-center justify-between mb-2">
-          <span className="font-medium flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
+          <span
+            className="font-medium flex items-center gap-2"
+            style={{ color: "var(--foreground)" }}
+          >
             <FlaskConical className="h-4 w-4" />
             Demo Mode
           </span>
           <span
             className="text-xs px-2 py-0.5 rounded-full font-medium"
             style={{
-              backgroundColor: isDemoMode ? 'var(--warning)' : 'var(--secondary)',
-              color: isDemoMode ? 'var(--warning-foreground)' : 'var(--muted-foreground)',
+              backgroundColor: isDemoMode
+                ? "var(--warning)"
+                : "var(--secondary)",
+              color: isDemoMode
+                ? "var(--warning-foreground)"
+                : "var(--muted-foreground)",
             }}
           >
-            {isDemoMode ? 'Active' : 'Off'}
+            {isDemoMode ? "Active" : "Off"}
           </span>
         </div>
-        <p className="text-xs mb-2" style={{ color: 'var(--muted-foreground)' }}>
+        <p
+          className="text-xs mb-2"
+          style={{ color: "var(--muted-foreground)" }}
+        >
           {isDemoMode
-            ? 'Using mock data. All API calls return local fixtures.'
-            : 'Connecting to real BFF. Enable demo mode to explore without backend.'}
+            ? "Using mock data. All API calls return local fixtures."
+            : "Connecting to real BFF. Enable demo mode to explore without backend."}
         </p>
         <button
           onClick={() => setDemoMode(!isDemoMode)}
           className="text-xs font-medium underline"
-          style={{ color: 'var(--primary)' }}
+          style={{ color: "var(--primary)" }}
         >
-          {isDemoMode ? 'Disable Demo Mode' : 'Enable Demo Mode'}
+          {isDemoMode ? "Disable Demo Mode" : "Enable Demo Mode"}
         </button>
       </div>
 
       {/* Scenario Selector (only in demo mode) */}
       {isDemoMode && (
         <div>
-          <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+          <label
+            className="block text-xs font-medium mb-2"
+            style={{ color: "var(--foreground)" }}
+          >
             Mock Scenario
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -210,15 +293,28 @@ function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => 
                 onClick={() => handleScenarioChange(s.value)}
                 className="text-left p-2 rounded-md text-xs transition-colors border"
                 style={{
-                  backgroundColor: scenario === s.value ? 'var(--primary)' : 'var(--background)',
-                  color: scenario === s.value ? 'var(--primary-foreground)' : 'var(--foreground)',
-                  borderColor: scenario === s.value ? 'var(--primary)' : 'var(--border)',
+                  backgroundColor:
+                    scenario === s.value
+                      ? "var(--primary)"
+                      : "var(--background)",
+                  color:
+                    scenario === s.value
+                      ? "var(--primary-foreground)"
+                      : "var(--foreground)",
+                  borderColor:
+                    scenario === s.value ? "var(--primary)" : "var(--border)",
                 }}
               >
                 <div className="font-medium">{s.label}</div>
                 <div
                   className="text-[10px] mt-0.5"
-                  style={{ color: scenario === s.value ? 'var(--primary-foreground)' : 'var(--muted-foreground)', opacity: 0.8 }}
+                  style={{
+                    color:
+                      scenario === s.value
+                        ? "var(--primary-foreground)"
+                        : "var(--muted-foreground)",
+                    opacity: 0.8,
+                  }}
                 >
                   {s.description}
                 </div>
@@ -230,17 +326,44 @@ function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => 
 
       {/* Quick Test Links */}
       <div>
-        <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+        <label
+          className="block text-xs font-medium mb-2"
+          style={{ color: "var(--foreground)" }}
+        >
           Quick Navigation
         </label>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onOpenCatalog} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+          <button
+            type="button"
+            onClick={onOpenCatalog}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium"
+            style={{
+              backgroundColor: "var(--secondary)",
+              color: "var(--foreground)",
+            }}
+          >
             <ShoppingCart className="h-3 w-3" /> Catalog
           </button>
-          <button type="button" onClick={onOpenCatalog} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+          <button
+            type="button"
+            onClick={onOpenCatalog}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium"
+            style={{
+              backgroundColor: "var(--secondary)",
+              color: "var(--foreground)",
+            }}
+          >
             <ShoppingCart className="h-3 w-3" /> Cart
           </button>
-          <button type="button" onClick={onOpenOrders} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+          <button
+            type="button"
+            onClick={onOpenOrders}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium"
+            style={{
+              backgroundColor: "var(--secondary)",
+              color: "var(--foreground)",
+            }}
+          >
             <Package className="h-3 w-3" /> Sample Order
           </button>
           {process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL && (
@@ -249,7 +372,10 @@ function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => 
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium"
-              style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}
+              style={{
+                backgroundColor: "var(--secondary)",
+                color: "var(--foreground)",
+              }}
               title="Prisma Studio — direct DB access (bypasses domain events)"
             >
               <Database className="h-3 w-3" /> Prisma Studio
@@ -260,14 +386,18 @@ function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => 
         {process.env.NEXT_PUBLIC_PRISMA_STUDIO_URL && (
           <p
             className="mt-2 text-[11px] flex items-start gap-1.5"
-            style={{ color: 'var(--muted-foreground)' }}
+            style={{ color: "var(--muted-foreground)" }}
           >
-            <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" style={{ color: 'var(--warning)' }} />
+            <AlertTriangle
+              className="h-3 w-3 mt-0.5 flex-shrink-0"
+              style={{ color: "var(--warning)" }}
+            />
             <span>
-              Prisma Studio writes directly to Postgres. It does <strong>not</strong> go
-              through the BFF domain services, so changes do not fire domain events — the
-              SSE-driven 3D visualizer won&apos;t react until you reload. Use the API debug
-              console below for state-machine-safe edits.
+              Prisma Studio writes directly to Postgres. It does{" "}
+              <strong>not</strong> go through the BFF domain services, so
+              changes do not fire domain events — the SSE-driven 3D visualizer
+              won&apos;t react until you reload. Use the API debug console below
+              for state-machine-safe edits.
             </span>
           </p>
         )}
@@ -276,79 +406,109 @@ function DemoGuidePanel({ onOpenCatalog, onOpenOrders }: { onOpenCatalog: () => 
       {/* Visualizer Note */}
       <div
         className="p-2 rounded text-xs"
-        style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
+        style={{
+          backgroundColor: "var(--secondary)",
+          color: "var(--muted-foreground)",
+        }}
       >
-        <strong style={{ color: 'var(--foreground)' }}>Visualizer states:</strong> Controlled by{' '}
-        <code className="px-1 rounded" style={{ backgroundColor: 'var(--background)' }}>
+        <strong style={{ color: "var(--foreground)" }}>
+          Visualizer states:
+        </strong>{" "}
+        Controlled by{" "}
+        <code
+          className="px-1 rounded"
+          style={{ backgroundColor: "var(--background)" }}
+        >
           NEXT_PUBLIC_VISUALIZER_URL
-        </code>{' '}
-        env var, not by mock scenarios. Set it to see the iframe; unset it to see the configuration state.
+        </code>{" "}
+        env var, not by mock scenarios. Set it to see the iframe; unset it to
+        see the configuration state.
       </div>
     </Card>
   );
 }
 
-function PerformanceInfoPanel({ onOpenPerformance }: { onOpenPerformance: () => void }) {
+function PerformanceInfoPanel({
+  onOpenPerformance,
+}: {
+  onOpenPerformance: () => void;
+}) {
   return (
     <Card title="Performance Playground" icon={Gauge}>
       <div className="space-y-3">
-        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          The Performance Playground presents simulated request activity for design
-          evaluation. It is not a monitoring dashboard or a live telemetry surface.
+        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+          The Performance Playground presents simulated request activity for
+          design evaluation. It is not a monitoring dashboard or a live
+          telemetry surface.
         </p>
 
         {/* Current State */}
         <div
           className="p-3 rounded-md"
-          style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--info)' }}
+          style={{
+            backgroundColor: "rgba(59, 130, 246, 0.1)",
+            border: "1px solid var(--info)",
+          }}
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+            <span
+              className="font-medium text-sm"
+              style={{ color: "var(--foreground)" }}
+            >
               Mock Data Mode
             </span>
             <span
               className="px-2 py-0.5 text-xs font-medium rounded-full"
-              style={{ backgroundColor: 'var(--info)', color: 'var(--info-foreground)' }}
+              style={{
+                backgroundColor: "var(--info)",
+                color: "var(--info-foreground)",
+              }}
             >
               Active
             </span>
           </div>
-          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            All performance data is currently deterministic mock data for design validation.
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+            All performance data is currently deterministic mock data for design
+            validation.
           </p>
         </div>
 
         {/* Scenario Types */}
         <div>
-          <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+          <label
+            className="block text-xs font-medium mb-2"
+            style={{ color: "var(--foreground)" }}
+          >
             Available Mock Scenarios
           </label>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {[
-              { name: 'Browsing Load', intensity: 'low' },
-              { name: 'Checkout Spike', intensity: 'high' },
-              { name: 'Mixed User Journey', intensity: 'medium' },
-              { name: 'Catalog Stress', intensity: 'stress' },
-              { name: 'Order Lookup Pressure', intensity: 'medium' },
-              { name: 'Error Injection', intensity: 'low' },
+              { name: "Browsing Load", intensity: "low" },
+              { name: "Checkout Spike", intensity: "high" },
+              { name: "Mixed User Journey", intensity: "medium" },
+              { name: "Catalog Stress", intensity: "stress" },
+              { name: "Order Lookup Pressure", intensity: "medium" },
+              { name: "Error Injection", intensity: "low" },
             ].map((scenario) => (
               <div
                 key={scenario.name}
                 className="px-2 py-1.5 rounded"
-                style={{ backgroundColor: 'var(--secondary)' }}
+                style={{ backgroundColor: "var(--secondary)" }}
               >
-                <span style={{ color: 'var(--foreground)' }}>{scenario.name}</span>
+                <span style={{ color: "var(--foreground)" }}>
+                  {scenario.name}
+                </span>
                 <span
                   className="ml-1.5 text-[10px] uppercase"
                   style={{
                     color:
-                      scenario.intensity === 'stress'
-                        ? 'var(--destructive)'
-                        : scenario.intensity === 'high'
-                          ? 'var(--warning)'
-                          : scenario.intensity === 'medium'
-                            ? 'var(--info)'
-                            : 'var(--success)',
+                      scenario.intensity === "stress"
+                        ? "var(--destructive)"
+                        : scenario.intensity === "high"
+                          ? "var(--warning)"
+                          : scenario.intensity === "medium"
+                            ? "var(--info)"
+                            : "var(--success)",
                   }}
                 >
                   {scenario.intensity}
@@ -360,21 +520,30 @@ function PerformanceInfoPanel({ onOpenPerformance }: { onOpenPerformance: () => 
 
         {/* Future Integration */}
         <div>
-          <label className="block text-xs font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+          <label
+            className="block text-xs font-medium mb-2"
+            style={{ color: "var(--foreground)" }}
+          >
             Potential Data Adapters
           </label>
           <div className="space-y-1.5 text-xs">
             {[
-              { label: 'k6 summary JSON parsing', status: 'planned' },
-              { label: 'Observable metric source', status: 'planned' },
-              { label: 'CI performance artifacts', status: 'planned' },
-              { label: 'Measured service metrics', status: 'planned' },
+              { label: "k6 summary JSON parsing", status: "planned" },
+              { label: "Observable metric source", status: "planned" },
+              { label: "CI performance artifacts", status: "planned" },
+              { label: "Measured service metrics", status: "planned" },
             ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between">
-                <span style={{ color: 'var(--foreground)' }}>{item.label}</span>
+              <div
+                key={item.label}
+                className="flex items-center justify-between"
+              >
+                <span style={{ color: "var(--foreground)" }}>{item.label}</span>
                 <span
                   className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-                  style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
+                  style={{
+                    backgroundColor: "var(--secondary)",
+                    color: "var(--muted-foreground)",
+                  }}
                 >
                   {item.status}
                 </span>
@@ -388,12 +557,14 @@ function PerformanceInfoPanel({ onOpenPerformance }: { onOpenPerformance: () => 
           type="button"
           onClick={onOpenPerformance}
           className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          style={{
+            backgroundColor: "var(--primary)",
+            color: "var(--primary-foreground)",
+          }}
         >
           <Gauge className="h-4 w-4" />
           Open Performance Playground
         </button>
-
       </div>
     </Card>
   );
@@ -405,45 +576,75 @@ function PerformanceInfoPanel({ onOpenPerformance }: { onOpenPerformance: () => 
 
 function ReadinessPanel() {
   const readinessItems = [
-    { label: 'Product catalog', status: 'wired', note: 'GET /catalog/products' },
-    { label: 'Product detail', status: 'wired', note: 'GET /catalog/products/:id' },
-    { label: 'Cart view', status: 'wired', note: 'GET /cart' },
-    { label: 'Add to cart', status: 'wired', note: 'POST /cart/items' },
-    { label: 'Checkout', status: 'wired', note: 'POST /checkout' },
-    { label: 'Order lookup', status: 'wired', note: 'GET /orders/:id' },
-    { label: 'Order management', status: 'wired', note: 'POST /orders/:id/manage' },
-    { label: 'Health check', status: 'wired', note: 'GET /health' },
-    { label: 'Order list', status: 'wired', note: 'GET /orders' },
-    { label: 'Update quantity', status: 'wired', note: 'PATCH /cart/items/:id' },
-    { label: 'Remove cart item', status: 'wired', note: 'DELETE /cart/items/:id' },
-    { label: '3D Visualizer', status: 'embed', note: 'Same-origin /viz proxy → internal network' },
+    {
+      label: "Product catalog",
+      status: "wired",
+      note: "GET /catalog/products",
+    },
+    {
+      label: "Product detail",
+      status: "wired",
+      note: "GET /catalog/products/:id",
+    },
+    { label: "Cart view", status: "wired", note: "GET /cart" },
+    { label: "Add to cart", status: "wired", note: "POST /cart/items" },
+    { label: "Checkout", status: "wired", note: "POST /checkout" },
+    { label: "Order lookup", status: "wired", note: "GET /orders/:id" },
+    {
+      label: "Order management",
+      status: "wired",
+      note: "POST /orders/:id/manage",
+    },
+    { label: "Health check", status: "wired", note: "GET /health" },
+    { label: "Order list", status: "wired", note: "GET /orders" },
+    {
+      label: "Update quantity",
+      status: "wired",
+      note: "PATCH /cart/items/:id",
+    },
+    {
+      label: "Remove cart item",
+      status: "wired",
+      note: "DELETE /cart/items/:id",
+    },
+    {
+      label: "3D Visualizer",
+      status: "embed",
+      note: "Same-origin /viz proxy → internal network",
+    },
   ];
 
   return (
     <Card title="Frontend Readiness" icon={Heart}>
       <div className="space-y-1.5 text-xs">
         {readinessItems.map((item) => (
-          <div key={item.label} className="flex items-center justify-between py-1">
-            <span style={{ color: 'var(--foreground)' }}>{item.label}</span>
+          <div
+            key={item.label}
+            className="flex items-center justify-between py-1"
+          >
+            <span style={{ color: "var(--foreground)" }}>{item.label}</span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
+              <span
+                className="text-[10px]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
                 {item.note}
               </span>
               <span
                 className="px-1.5 py-0.5 rounded text-[10px] font-medium"
                 style={{
                   backgroundColor:
-                    item.status === 'wired'
-                      ? 'rgba(34, 197, 94, 0.2)'
-                      : item.status === 'mock'
-                        ? 'rgba(234, 179, 8, 0.2)'
-                        : 'rgba(59, 130, 246, 0.2)',
+                    item.status === "wired"
+                      ? "rgba(34, 197, 94, 0.2)"
+                      : item.status === "mock"
+                        ? "rgba(234, 179, 8, 0.2)"
+                        : "rgba(59, 130, 246, 0.2)",
                   color:
-                    item.status === 'wired'
-                      ? 'var(--success)'
-                      : item.status === 'mock'
-                        ? 'var(--warning)'
-                        : 'var(--info)',
+                    item.status === "wired"
+                      ? "var(--success)"
+                      : item.status === "mock"
+                        ? "var(--warning)"
+                        : "var(--info)",
                 }}
               >
                 {item.status}
@@ -452,11 +653,20 @@ function ReadinessPanel() {
           </div>
         ))}
       </div>
-      <div className="pt-2 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}>
+      <div
+        className="pt-2 border-t text-xs"
+        style={{
+          borderColor: "var(--border)",
+          color: "var(--muted-foreground)",
+        }}
+      >
         <p>
-          <strong style={{ color: 'var(--foreground)' }}>wired</strong> = calls real BFF endpoint |{' '}
-          <strong style={{ color: 'var(--foreground)' }}>mock</strong> = frontend-only fixture behavior |{' '}
-          <strong style={{ color: 'var(--foreground)' }}>embed</strong> = external app integration
+          <strong style={{ color: "var(--foreground)" }}>wired</strong> = calls
+          real BFF endpoint |{" "}
+          <strong style={{ color: "var(--foreground)" }}>mock</strong> =
+          frontend-only fixture behavior |{" "}
+          <strong style={{ color: "var(--foreground)" }}>embed</strong> =
+          external app integration
         </p>
       </div>
     </Card>
@@ -471,7 +681,10 @@ function HealthCard() {
   const { result, loading, call } = useApiCall();
   return (
     <Card title="Health Check" icon={Activity}>
-      <ActionButton onClick={() => call(() => expressoApi.getHealth())} loading={loading}>
+      <ActionButton
+        onClick={() => call(() => expressoApi.getHealth())}
+        loading={loading}
+      >
         GET /health
       </ActionButton>
       <ResponseBox result={result} />
@@ -479,7 +692,13 @@ function HealthCard() {
   );
 }
 
-function CatalogCard({ products, onLoaded }: { products: ReadonlyArray<Product> | null; onLoaded: (items: ReadonlyArray<Product>) => void }) {
+function CatalogCard({
+  products,
+  onLoaded,
+}: {
+  products: ReadonlyArray<Product> | null;
+  onLoaded: (items: ReadonlyArray<Product>) => void;
+}) {
   const { result, loading, call } = useApiCall();
 
   async function load() {
@@ -498,12 +717,18 @@ function CatalogCard({ products, onLoaded }: { products: ReadonlyArray<Product> 
       {products && products.length > 0 && (
         <ul
           className="text-xs divide-y rounded-md overflow-hidden max-h-32 overflow-y-auto"
-          style={{ backgroundColor: 'var(--secondary)', borderColor: 'var(--border)' }}
+          style={{
+            backgroundColor: "var(--secondary)",
+            borderColor: "var(--border)",
+          }}
         >
           {products.map((p) => (
             <li key={p.productId} className="px-3 py-2 flex justify-between">
-              <span style={{ color: 'var(--foreground)' }}>{p.name}</span>
-              <span className="font-mono" style={{ color: 'var(--muted-foreground)' }}>
+              <span style={{ color: "var(--foreground)" }}>{p.name}</span>
+              <span
+                className="font-mono"
+                style={{ color: "var(--muted-foreground)" }}
+              >
                 {(p.price.amountMinor / 100).toFixed(2)}
               </span>
             </li>
@@ -515,16 +740,23 @@ function CatalogCard({ products, onLoaded }: { products: ReadonlyArray<Product> 
   );
 }
 
-function AddToCartCard({ products }: { products: ReadonlyArray<Product> | null }) {
+function AddToCartCard({
+  products,
+}: {
+  products: ReadonlyArray<Product> | null;
+}) {
   const { result, loading, call } = useApiCall();
-  const [productId, setProductId] = useState('prod_espresso_001');
+  const [productId, setProductId] = useState("prod_espresso_001");
   const [quantity, setQuantity] = useState(1);
 
   return (
     <Card title="Cart - Add Item">
       <div className="space-y-2">
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label
+            className="block text-xs mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Product
           </label>
           {products && products.length > 0 ? (
@@ -532,7 +764,11 @@ function AddToCartCard({ products }: { products: ReadonlyArray<Product> | null }
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
               className="w-full px-2 py-1.5 rounded text-xs border"
-              style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              style={{
+                backgroundColor: "var(--background)",
+                borderColor: "var(--border)",
+                color: "var(--foreground)",
+              }}
             >
               {products.map((p) => (
                 <option key={p.productId} value={p.productId}>
@@ -546,12 +782,19 @@ function AddToCartCard({ products }: { products: ReadonlyArray<Product> | null }
               onChange={(e) => setProductId(e.target.value)}
               placeholder="prod_espresso_001"
               className="w-full px-2 py-1.5 rounded text-xs border"
-              style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              style={{
+                backgroundColor: "var(--background)",
+                borderColor: "var(--border)",
+                color: "var(--foreground)",
+              }}
             />
           )}
         </div>
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label
+            className="block text-xs mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Quantity
           </label>
           <input
@@ -561,11 +804,20 @@ function AddToCartCard({ products }: { products: ReadonlyArray<Product> | null }
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value))}
             className="w-full px-2 py-1.5 rounded text-xs border"
-            style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            style={{
+              backgroundColor: "var(--background)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
+            }}
           />
         </div>
       </div>
-      <ActionButton onClick={() => call(() => expressoApi.addCartItem({ productId, quantity }))} loading={loading}>
+      <ActionButton
+        onClick={() =>
+          call(() => expressoApi.addCartItem({ productId, quantity }))
+        }
+        loading={loading}
+      >
         POST /cart/items
       </ActionButton>
       <ResponseBox result={result} />
@@ -577,7 +829,10 @@ function ViewCartCard() {
   const { result, loading, call } = useApiCall();
   return (
     <Card title="Cart - View">
-      <ActionButton onClick={() => call(() => expressoApi.getCart())} loading={loading}>
+      <ActionButton
+        onClick={() => call(() => expressoApi.getCart())}
+        loading={loading}
+      >
         GET /cart
       </ActionButton>
       <ResponseBox result={result} />
@@ -587,14 +842,17 @@ function ViewCartCard() {
 
 function CartMutateCard() {
   const { result, loading, call } = useApiCall();
-  const [itemId, setItemId] = useState('ci_001');
+  const [itemId, setItemId] = useState("ci_001");
   const [quantity, setQuantity] = useState(2);
 
   return (
     <Card title="Cart - Update / Remove">
       <div className="space-y-2">
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label
+            className="block text-xs mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Item ID
           </label>
           <input
@@ -602,11 +860,18 @@ function CartMutateCard() {
             onChange={(e) => setItemId(e.target.value)}
             placeholder="ci_001"
             className="w-full px-2 py-1.5 rounded text-xs border"
-            style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            style={{
+              backgroundColor: "var(--background)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
+            }}
           />
         </div>
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label
+            className="block text-xs mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Quantity
           </label>
           <input
@@ -616,13 +881,19 @@ function CartMutateCard() {
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value))}
             className="w-full px-2 py-1.5 rounded text-xs border"
-            style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            style={{
+              backgroundColor: "var(--background)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
+            }}
           />
         </div>
       </div>
       <div className="flex gap-2">
         <ActionButton
-          onClick={() => call(() => expressoApi.updateCartItem(itemId, { quantity }))}
+          onClick={() =>
+            call(() => expressoApi.updateCartItem(itemId, { quantity }))
+          }
           loading={loading}
         >
           PATCH /cart/items/:id
@@ -649,7 +920,9 @@ function CheckoutCard() {
           call(async () => {
             const cart = await expressoApi.getCart();
             if (!cart.cartId) {
-              throw new Error('Cart is empty or its reservation expired — add an item first.');
+              throw new Error(
+                "Cart is empty or its reservation expired — add an item first.",
+              );
             }
             return expressoApi.checkout({ cartId: cart.cartId });
           })
@@ -670,17 +943,27 @@ function OrderLookupCard() {
   return (
     <Card title="Order - Lookup">
       <div>
-        <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+        <label
+          className="block text-xs mb-1"
+          style={{ color: "var(--muted-foreground)" }}
+        >
           Order ID
         </label>
         <input
           value={orderId}
           onChange={(e) => setOrderId(e.target.value)}
           className="w-full px-2 py-1.5 rounded text-xs border"
-          style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+          style={{
+            backgroundColor: "var(--background)",
+            borderColor: "var(--border)",
+            color: "var(--foreground)",
+          }}
         />
       </div>
-      <ActionButton onClick={() => call(() => expressoApi.getOrderById(orderId))} loading={loading}>
+      <ActionButton
+        onClick={() => call(() => expressoApi.getOrderById(orderId))}
+        loading={loading}
+      >
         GET /orders/:id
       </ActionButton>
       <ResponseBox result={result} />
@@ -691,48 +974,75 @@ function OrderLookupCard() {
 function OrderManageCard() {
   const { result, loading, call } = useApiCall();
   const [orderId, setOrderId] = useState(getSampleOrderId());
-  const [action, setAction] = useState<'cancel' | 'update_status' | 'mark_prepared'>('mark_prepared');
-  const [nextStatus, setNextStatus] = useState<'pending' | 'preparing' | 'prepared' | 'cancelled'>('preparing');
+  const [action, setAction] = useState<
+    "cancel" | "update_status" | "mark_prepared"
+  >("mark_prepared");
+  const [nextStatus, setNextStatus] = useState<
+    "pending" | "preparing" | "prepared" | "cancelled"
+  >("preparing");
 
   return (
     <Card title="Order - Manage">
       <div className="space-y-2">
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label
+            className="block text-xs mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Order ID
           </label>
           <input
             value={orderId}
             onChange={(e) => setOrderId(e.target.value)}
             className="w-full px-2 py-1.5 rounded text-xs border"
-            style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            style={{
+              backgroundColor: "var(--background)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
+            }}
           />
         </div>
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label
+            className="block text-xs mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Action
           </label>
           <select
             value={action}
             onChange={(e) => setAction(e.target.value as typeof action)}
             className="w-full px-2 py-1.5 rounded text-xs border"
-            style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            style={{
+              backgroundColor: "var(--background)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
+            }}
           >
             <option value="mark_prepared">mark_prepared</option>
             <option value="cancel">cancel</option>
             <option value="update_status">update_status</option>
           </select>
         </div>
-        {action === 'update_status' && (
+        {action === "update_status" && (
           <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            <label
+              className="block text-xs mb-1"
+              style={{ color: "var(--muted-foreground)" }}
+            >
               Next status
             </label>
             <select
               value={nextStatus}
-              onChange={(e) => setNextStatus(e.target.value as typeof nextStatus)}
+              onChange={(e) =>
+                setNextStatus(e.target.value as typeof nextStatus)
+              }
               className="w-full px-2 py-1.5 rounded text-xs border"
-              style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              style={{
+                backgroundColor: "var(--background)",
+                borderColor: "var(--border)",
+                color: "var(--foreground)",
+              }}
             >
               <option value="pending">pending</option>
               <option value="preparing">preparing</option>
@@ -747,8 +1057,8 @@ function OrderManageCard() {
           call(() =>
             expressoApi.manageOrder(orderId, {
               action,
-              ...(action === 'update_status' ? { nextStatus } : {}),
-            })
+              ...(action === "update_status" ? { nextStatus } : {}),
+            }),
           )
         }
         loading={loading}
@@ -764,36 +1074,54 @@ function OrderManageCard() {
 // Main Page
 // ---------------------------------------------------------------------------
 
-export function DevSection({ onOpenCatalog, onOpenOrders, onOpenPerformance }: { onOpenCatalog: () => void; onOpenOrders: () => void; onOpenPerformance: () => void }) {
+export function DevSection({
+  onOpenCatalog,
+  onOpenOrders,
+  onOpenPerformance,
+}: {
+  onOpenCatalog: () => void;
+  onOpenOrders: () => void;
+  onOpenPerformance: () => void;
+}) {
   const [products, setProducts] = useState<ReadonlyArray<Product> | null>(null);
   // The browser talks to the web app's own /api/bff proxy, which rewrites to
   // the BFF container over the internal network (unless explicitly overridden).
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/bff → bff (internal)';
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "/api/bff → bff (internal)";
   const isDemoMode = getDemoModeStatus();
 
   return (
     <div className="home-stage-section-inner">
       <header className="mb-8">
         <div className="flex items-center gap-2 mb-2">
-          <Activity className="h-5 w-5" style={{ color: 'var(--primary)' }} />
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--foreground)' }}>
+          <Activity className="h-5 w-5" style={{ color: "var(--primary)" }} />
+          <h1
+            className="text-2xl font-bold tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
             Developer Tools
           </h1>
         </div>
-        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
           API debug console, demo controls, and frontend readiness status.
         </p>
         <div className="flex items-center gap-3 mt-2">
           <span
             className="text-xs font-mono px-2 py-1 rounded"
-            style={{ backgroundColor: 'var(--secondary)', color: 'var(--muted-foreground)' }}
+            style={{
+              backgroundColor: "var(--secondary)",
+              color: "var(--muted-foreground)",
+            }}
           >
             {apiBase}
           </span>
           {isDemoMode && (
             <span
               className="text-xs px-2 py-1 rounded font-medium"
-              style={{ backgroundColor: 'var(--warning)', color: 'var(--warning-foreground)' }}
+              style={{
+                backgroundColor: "var(--warning)",
+                color: "var(--warning-foreground)",
+              }}
             >
               Demo Mode
             </span>
@@ -803,7 +1131,10 @@ export function DevSection({ onOpenCatalog, onOpenOrders, onOpenPerformance }: {
 
       {/* Demo Guide and Readiness - prominently displayed */}
       <div className="grid gap-4 mb-8 lg:grid-cols-2">
-        <DemoGuidePanel onOpenCatalog={onOpenCatalog} onOpenOrders={onOpenOrders} />
+        <DemoGuidePanel
+          onOpenCatalog={onOpenCatalog}
+          onOpenOrders={onOpenOrders}
+        />
         <ReadinessPanel />
       </div>
 
@@ -813,10 +1144,16 @@ export function DevSection({ onOpenCatalog, onOpenOrders, onOpenPerformance }: {
       </div>
 
       {/* API Debug Cards */}
-      <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+      <h2
+        className="text-lg font-semibold mb-4"
+        style={{ color: "var(--foreground)" }}
+      >
         API Debug Console
       </h2>
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}
+      >
         <HealthCard />
         <CatalogCard products={products} onLoaded={setProducts} />
         <AddToCartCard products={products} />

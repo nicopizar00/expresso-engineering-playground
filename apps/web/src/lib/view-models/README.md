@@ -5,6 +5,7 @@ Pure functions that map BFF wire-format responses
 components consume.
 
 Why this layer exists:
+
 - v0 components must not import BFF DTOs directly. If the API shape changes,
   the fix happens here, not across every screen.
 - View models can pre-format money, compute derived fields (e.g.

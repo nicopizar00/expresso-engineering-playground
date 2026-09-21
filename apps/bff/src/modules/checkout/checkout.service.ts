@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CartService } from "../cart/cart.service";
 import { OrdersService } from "../orders/orders.service";
@@ -19,7 +24,10 @@ export class CheckoutService {
   // cart, hands it to OrdersService.create(), then clears the cart so the
   // playground UI starts fresh. When `idempotencyKey` is supplied, a retry
   // replays the original order without re-validating the (now-empty) cart.
-  async checkout(sessionId: string, payload: CheckoutDto): Promise<CheckoutResponse> {
+  async checkout(
+    sessionId: string,
+    payload: CheckoutDto,
+  ): Promise<CheckoutResponse> {
     // Idempotent replay short-circuit. Runs BEFORE the cart-empty check so
     // a retry after a successful first call (which already cleared the cart)
     // does not surface a spurious "cart is empty" error.
@@ -56,7 +64,10 @@ export class CheckoutService {
 
     const currency = lines[0]?.unitPrice.currency ?? "EUR";
     const total = {
-      amountMinor: lines.reduce((sum, line) => sum + line.lineTotal.amountMinor, 0),
+      amountMinor: lines.reduce(
+        (sum, line) => sum + line.lineTotal.amountMinor,
+        0,
+      ),
       currency,
     };
 
@@ -102,7 +113,12 @@ export class CheckoutService {
   // persisted on the order (checkout is the only place it's meaningful), so
   // it's just echoed back from whichever request produced this response.
   private toResponse(
-    order: { orderId: string; customerName: string | null; total: CheckoutResponse["total"]; placedAt: string },
+    order: {
+      orderId: string;
+      customerName: string | null;
+      total: CheckoutResponse["total"];
+      placedAt: string;
+    },
     cartId: string,
   ): CheckoutResponse {
     return {

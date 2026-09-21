@@ -35,7 +35,7 @@ export async function bootstrap(): Promise<void> {
   // Allow the local web app (port 3000) to call the BFF in development.
   // Restrict origins via CORS_ORIGIN env var when needed.
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? '*',
+    origin: process.env.CORS_ORIGIN ?? "*",
   });
 
   // TODO: mount @nestjs/swagger at /docs once packages/contracts is wired.

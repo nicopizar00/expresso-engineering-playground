@@ -26,7 +26,7 @@ import {
   type ServiceName,
   type HealthState,
   type ScenarioIntensity,
-} from './mock-performance-data';
+} from "./mock-performance-data";
 
 // Re-export types for consumers
 export type {
@@ -68,7 +68,9 @@ let config: PerformanceAdapterConfig = { ...DEFAULT_CONFIG };
  * Configure the performance adapter.
  * Call this during app initialization if custom config is needed.
  */
-export function configurePerformanceAdapter(newConfig: Partial<PerformanceAdapterConfig>): void {
+export function configurePerformanceAdapter(
+  newConfig: Partial<PerformanceAdapterConfig>,
+): void {
   config = { ...config, ...newConfig };
 }
 
@@ -104,7 +106,9 @@ export async function fetchScenarios(): Promise<PerformanceScenario[]> {
  * Returns the started scenario or null if not found.
  * This starts local playback only; it does not execute a load test.
  */
-export async function runScenario(scenarioId: string): Promise<PerformanceScenario | null> {
+export async function runScenario(
+  scenarioId: string,
+): Promise<PerformanceScenario | null> {
   return Promise.resolve(startScenario(scenarioId));
 }
 
@@ -170,15 +174,15 @@ export function formatPercent(value: number): string {
  */
 export function getHealthColor(state: HealthState): string {
   switch (state) {
-    case 'healthy':
-      return 'var(--success)';
-    case 'degraded':
-      return 'var(--warning)';
-    case 'critical':
-      return 'var(--destructive)';
-    case 'idle':
+    case "healthy":
+      return "var(--success)";
+    case "degraded":
+      return "var(--warning)";
+    case "critical":
+      return "var(--destructive)";
+    case "idle":
     default:
-      return 'var(--muted-foreground)';
+      return "var(--muted-foreground)";
   }
 }
 
@@ -187,15 +191,15 @@ export function getHealthColor(state: HealthState): string {
  */
 export function getIntensityColor(intensity: ScenarioIntensity): string {
   switch (intensity) {
-    case 'stress':
-      return 'var(--destructive)';
-    case 'high':
-      return 'var(--warning)';
-    case 'medium':
-      return 'var(--info)';
-    case 'low':
+    case "stress":
+      return "var(--destructive)";
+    case "high":
+      return "var(--warning)";
+    case "medium":
+      return "var(--info)";
+    case "low":
     default:
-      return 'var(--success)';
+      return "var(--success)";
   }
 }
 

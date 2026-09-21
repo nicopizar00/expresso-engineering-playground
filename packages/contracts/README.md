@@ -25,4 +25,4 @@ contract is versioned independently of any one deployable.
 - [ ] Add `openapi/bff.yaml` describing the public BFF surface.
 - [ ] Add `events/*.schema.json` for catalog and order events.
 - [ ] Decide whether generated OpenAPI types replace or validate the current
-  TypeScript interfaces.
+      TypeScript interfaces.

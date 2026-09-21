@@ -21,8 +21,7 @@ export function initTelemetry(): void {
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: "bff",
       [ATTR_SERVICE_VERSION]: process.env.npm_package_version ?? "0.0.0",
-      "deployment.environment":
-        process.env.NODE_ENV ?? "development",
+      "deployment.environment": process.env.NODE_ENV ?? "development",
     }),
     traceExporter: new OTLPTraceExporter({ url: `${endpoint}/v1/traces` }),
     instrumentations: [

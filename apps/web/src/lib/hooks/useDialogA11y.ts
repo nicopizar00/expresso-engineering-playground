@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useDialogA11y - shared accessibility behavior for modal dialogs / drawers.
@@ -13,16 +13,16 @@
  * it contains no focusable children.
  */
 
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'textarea:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
+  "a[href]",
+  "button:not([disabled])",
+  "textarea:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
   '[tabindex]:not([tabindex="-1"])',
-].join(',');
+].join(",");
 
 interface DialogA11yOptions {
   open: boolean;
@@ -30,7 +30,11 @@ interface DialogA11yOptions {
   containerRef: RefObject<HTMLElement | null>;
 }
 
-export function useDialogA11y({ open, onClose, containerRef }: DialogA11yOptions): void {
+export function useDialogA11y({
+  open,
+  onClose,
+  containerRef,
+}: DialogA11yOptions): void {
   // Keep the latest onClose without re-binding listeners on every render.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -44,21 +48,23 @@ export function useDialogA11y({ open, onClose, containerRef }: DialogA11yOptions
     function visibleFocusables(): HTMLElement[] {
       if (!container) return [];
       return Array.from(
-        container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+        container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter(
+        (el) => el.offsetParent !== null || el === document.activeElement,
+      );
     }
 
     // Move focus into the dialog (first focusable, else the container itself).
     (visibleFocusables()[0] ?? container)?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.stopPropagation();
         onCloseRef.current();
         return;
       }
 
-      if (event.key !== 'Tab' || !container) return;
+      if (event.key !== "Tab" || !container) return;
 
       const focusables = visibleFocusables();
       const first = focusables[0];
@@ -84,12 +90,12 @@ export function useDialogA11y({ open, onClose, containerRef }: DialogA11yOptions
 
     // Lock background scroll while the dialog is open.
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
 
-    document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener("keydown", handleKeyDown, true);
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener("keydown", handleKeyDown, true);
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };

@@ -1,20 +1,32 @@
-'use client';
+"use client";
 
-import { useRef, useState } from 'react';
-import { X, Coffee, UtensilsCrossed, Package, Plus, Check, Loader2, AlertCircle } from 'lucide-react';
-import { Product, ProductCategory } from '@/lib/api/expresso-api';
-import { useCart } from '@/components/cart/CartProvider';
-import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
+import { useRef, useState } from "react";
+import {
+  X,
+  Coffee,
+  UtensilsCrossed,
+  Package,
+  Plus,
+  Check,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
+import { Product, ProductCategory } from "@/lib/api/expresso-api";
+import { useCart } from "@/components/cart/CartProvider";
+import { useDialogA11y } from "@/lib/hooks/useDialogA11y";
 
 interface ProductQuickViewProps {
   product: Product;
   onClose: () => void;
 }
 
-const categoryConfig: Record<ProductCategory, { icon: typeof Coffee; color: string; label: string }> = {
-  drink: { icon: Coffee, color: 'var(--drink)', label: 'Drink' },
-  food: { icon: UtensilsCrossed, color: 'var(--food)', label: 'Food' },
-  accessory: { icon: Package, color: 'var(--accessory)', label: 'Accessory' },
+const categoryConfig: Record<
+  ProductCategory,
+  { icon: typeof Coffee; color: string; label: string }
+> = {
+  drink: { icon: Coffee, color: "var(--drink)", label: "Drink" },
+  food: { icon: UtensilsCrossed, color: "var(--food)", label: "Food" },
+  accessory: { icon: Package, color: "var(--accessory)", label: "Accessory" },
 };
 
 function formatMoney(amountMinor: number, currency: string): string {
@@ -47,8 +59,8 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
         onClose();
       }, 1000);
     } catch (err) {
-      console.error('Failed to add item to cart:', err);
-      setError('Could not add to cart. Please try again.');
+      console.error("Failed to add item to cart:", err);
+      setError("Could not add to cart. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -57,22 +69,22 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 z-50 bg-black/50 transition-opacity animate-fadeIn"
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Modal */}
       <div
         ref={modalRef}
         tabIndex={-1}
         className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 w-auto sm:w-full sm:max-w-lg rounded-lg overflow-hidden animate-slideUp"
         style={{
-          backgroundColor: 'var(--card)',
-          maxHeight: 'calc(100vh - 2rem)',
-          overflowY: 'auto',
-          boxShadow: 'var(--shadow-lg)',
+          backgroundColor: "var(--card)",
+          maxHeight: "calc(100vh - 2rem)",
+          overflowY: "auto",
+          boxShadow: "var(--shadow-lg)",
         }}
         role="dialog"
         aria-modal="true"
@@ -82,9 +94,9 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
         <button
           onClick={onClose}
           className="absolute right-3 top-3 z-10 p-2 rounded-full transition-colors"
-          style={{ 
-            backgroundColor: 'var(--secondary)',
-            color: 'var(--foreground)',
+          style={{
+            backgroundColor: "var(--secondary)",
+            color: "var(--foreground)",
           }}
           aria-label="Close"
         >
@@ -92,21 +104,21 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
         </button>
 
         {/* Product image placeholder */}
-        <div 
+        <div
           className="relative w-full aspect-video flex items-center justify-center"
-          style={{ backgroundColor: 'var(--secondary)' }}
+          style={{ backgroundColor: "var(--secondary)" }}
         >
-          <CategoryIcon 
-            className="h-20 w-20" 
+          <CategoryIcon
+            className="h-20 w-20"
             style={{ color: category.color }}
             aria-hidden="true"
           />
-          
+
           {/* Category badge */}
-          <span 
+          <span
             className="absolute top-3 left-3 px-2 py-1 text-xs font-medium rounded-md"
-            style={{ 
-              backgroundColor: 'var(--card)',
+            style={{
+              backgroundColor: "var(--card)",
               color: category.color,
             }}
           >
@@ -115,11 +127,11 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
 
           {/* Stock indicator */}
           {isOutOfStock && (
-            <span 
+            <span
               className="absolute top-3 right-14 px-2 py-1 text-xs font-medium rounded-md"
-              style={{ 
-                backgroundColor: 'rgba(239, 68, 68, 0.9)',
-                color: 'var(--foreground)',
+              style={{
+                backgroundColor: "rgba(239, 68, 68, 0.9)",
+                color: "var(--foreground)",
               }}
             >
               Out of Stock
@@ -130,53 +142,55 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
         {/* Content */}
         <div className="p-6 space-y-4">
           <div>
-            <h2 
+            <h2
               id="quickview-title"
               className="text-xl font-bold"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: "var(--foreground)" }}
             >
               {product.name}
             </h2>
-            <p 
+            <p
               className="text-xs font-mono mt-1"
-              style={{ color: 'var(--muted-foreground)' }}
+              style={{ color: "var(--muted-foreground)" }}
             >
               SKU: {product.sku}
             </p>
           </div>
 
-          <p 
+          <p
             className="text-sm leading-relaxed"
-            style={{ color: 'var(--muted-foreground)' }}
+            style={{ color: "var(--muted-foreground)" }}
           >
             {product.description}
           </p>
 
           <div className="flex items-center justify-between">
-            <p 
+            <p
               className="text-2xl font-bold"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: "var(--foreground)" }}
             >
               {formatMoney(product.price.amountMinor, product.price.currency)}
             </p>
             {!isOutOfStock && (
-              <p 
+              <p
                 className="text-sm"
-                style={{ color: 'var(--muted-foreground)' }}
+                style={{ color: "var(--muted-foreground)" }}
               >
                 {product.inventory} in stock
               </p>
             )}
           </div>
 
-{/* Add to cart button */}
+          {/* Add to cart button */}
           <button
             onClick={handleAddToCart}
             disabled={isAdding || isOutOfStock}
             className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: justAdded ? 'var(--success)' : 'var(--primary)',
-              color: justAdded ? 'var(--success-foreground)' : 'var(--primary-foreground)',
+              backgroundColor: justAdded ? "var(--success)" : "var(--primary)",
+              color: justAdded
+                ? "var(--success-foreground)"
+                : "var(--primary-foreground)",
             }}
           >
             {isAdding ? (
@@ -201,7 +215,7 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
             <p
               role="alert"
               className="flex items-center gap-2 text-sm"
-              style={{ color: 'var(--destructive)' }}
+              style={{ color: "var(--destructive)" }}
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}

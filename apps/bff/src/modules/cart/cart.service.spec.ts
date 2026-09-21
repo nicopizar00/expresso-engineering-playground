@@ -1,4 +1,8 @@
-import { ConflictException, BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  BadRequestException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
@@ -55,11 +59,17 @@ describe("CartService", () => {
 
   describe("add()", () => {
     it("returns a cart with the added item", () => {
-      const cart = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      const cart = service.add(SESSION_A, {
+        productId: "prod_espresso",
+        quantity: 1,
+      });
       expect(cart.items).toHaveLength(1);
       expect(cart.items[0]!.productId).toBe("prod_espresso");
       expect(cart.items[0]!.quantity).toBe(1);
-      expect(cart.items[0]!.lineTotal).toEqual({ amountMinor: 180, currency: "EUR" });
+      expect(cart.items[0]!.lineTotal).toEqual({
+        amountMinor: 180,
+        currency: "EUR",
+      });
     });
 
     it("emits a domain event", () => {
@@ -111,13 +121,17 @@ describe("CartService", () => {
       service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
       domainEvents.emit.mockClear();
       const itemId = service.get(SESSION_A).items[0]!.itemId;
-      expect(() => service.updateQuantity(SESSION_A, itemId, 2)).toThrow(ConflictException);
+      expect(() => service.updateQuantity(SESSION_A, itemId, 2)).toThrow(
+        ConflictException,
+      );
       expect(domainEvents.emit).not.toHaveBeenCalled();
       expect(service.get(SESSION_A).items[0]!.quantity).toBe(1);
     });
 
     it("throws NotFoundException for an unknown itemId", () => {
-      expect(() => service.updateQuantity(SESSION_A, "ci_999", 1)).toThrow(NotFoundException);
+      expect(() => service.updateQuantity(SESSION_A, "ci_999", 1)).toThrow(
+        NotFoundException,
+      );
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
   });
@@ -127,13 +141,17 @@ describe("CartService", () => {
       service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
       domainEvents.emit.mockClear();
       const itemId = service.get(SESSION_A).items[0]!.itemId;
-      expect(() => service.remove(SESSION_A, itemId)).toThrow(ConflictException);
+      expect(() => service.remove(SESSION_A, itemId)).toThrow(
+        ConflictException,
+      );
       expect(domainEvents.emit).not.toHaveBeenCalled();
       expect(service.get(SESSION_A).items).toHaveLength(1);
     });
 
     it("throws NotFoundException for an unknown itemId", () => {
-      expect(() => service.remove(SESSION_A, "ci_999")).toThrow(NotFoundException);
+      expect(() => service.remove(SESSION_A, "ci_999")).toThrow(
+        NotFoundException,
+      );
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
   });
@@ -182,13 +200,18 @@ describe("CartService", () => {
 
     it("mints a uuid cartId and an expiresAt ~1h out when the cup is added", () => {
       const before = Date.now();
-      const cart = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      const cart = service.add(SESSION_A, {
+        productId: "prod_espresso",
+        quantity: 1,
+      });
       expect(cart.cartId).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       );
       expect(cart.expiresAt).not.toBeNull();
       const expiresAtMs = new Date(cart.expiresAt!).getTime();
-      expect(expiresAtMs - before).toBeGreaterThanOrEqual(60 * 60 * 1000 - 1000);
+      expect(expiresAtMs - before).toBeGreaterThanOrEqual(
+        60 * 60 * 1000 - 1000,
+      );
       expect(expiresAtMs - before).toBeLessThanOrEqual(60 * 60 * 1000 + 1000);
     });
 
@@ -214,10 +237,16 @@ describe("CartService", () => {
     it("mints a fresh cartId after eviction, distinct from the expired one", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
-      const first = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      const first = service.add(SESSION_A, {
+        productId: "prod_espresso",
+        quantity: 1,
+      });
 
       vi.setSystemTime(new Date("2026-01-01T01:00:00.001Z"));
-      const second = service.add(SESSION_A, { productId: "prod_espresso", quantity: 1 });
+      const second = service.add(SESSION_A, {
+        productId: "prod_espresso",
+        quantity: 1,
+      });
 
       expect(second.cartId).not.toBe(first.cartId);
     });

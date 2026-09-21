@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * KPIStrip - Compact performance KPI indicator strip
@@ -7,9 +7,20 @@
  * Redesigned with a clean, modern interface.
  */
 
-import { Users, Activity, Clock, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
-import type { KPISnapshot } from '@/lib/performance/performance-adapter';
-import { formatCompact, formatLatency, formatPercent } from '@/lib/performance/performance-adapter';
+import {
+  Users,
+  Activity,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Zap,
+} from "lucide-react";
+import type { KPISnapshot } from "@/lib/performance/performance-adapter";
+import {
+  formatCompact,
+  formatLatency,
+  formatPercent,
+} from "@/lib/performance/performance-adapter";
 
 interface KPIStripProps {
   kpis: KPISnapshot;
@@ -22,8 +33,8 @@ export function KPIStrip({ kpis }: KPIStripProps) {
     <div
       className="rounded-xl border p-4"
       style={{
-        backgroundColor: 'var(--card)',
-        borderColor: hasActivity ? 'var(--success)' : 'var(--border)',
+        backgroundColor: "var(--card)",
+        borderColor: hasActivity ? "var(--success)" : "var(--border)",
       }}
     >
       <div className="flex flex-wrap items-center gap-4 sm:gap-6">
@@ -33,35 +44,41 @@ export function KPIStrip({ kpis }: KPIStripProps) {
             className="flex items-center justify-center w-10 h-10 rounded-lg relative"
             style={{
               backgroundColor: hasActivity
-                ? 'rgba(34, 197, 94, 0.15)'
-                : 'var(--secondary)',
+                ? "rgba(34, 197, 94, 0.15)"
+                : "var(--secondary)",
             }}
           >
             <Zap
               className="h-5 w-5"
               style={{
-                color: hasActivity ? 'var(--success)' : 'var(--muted-foreground)',
+                color: hasActivity
+                  ? "var(--success)"
+                  : "var(--muted-foreground)",
               }}
             />
             {hasActivity && (
               <span
                 className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-pulse"
-                style={{ backgroundColor: 'var(--success)' }}
+                style={{ backgroundColor: "var(--success)" }}
               />
             )}
           </div>
           <div>
             <div
               className="text-[10px] uppercase tracking-wider font-medium"
-              style={{ color: 'var(--muted-foreground)' }}
+              style={{ color: "var(--muted-foreground)" }}
             >
               Scenario
             </div>
             <div
               className="text-sm font-semibold"
-              style={{ color: hasActivity ? 'var(--success)' : 'var(--muted-foreground)' }}
+              style={{
+                color: hasActivity
+                  ? "var(--success)"
+                  : "var(--muted-foreground)",
+              }}
             >
-              {kpis.activeScenario ?? 'Idle'}
+              {kpis.activeScenario ?? "Idle"}
             </div>
           </div>
         </div>
@@ -69,7 +86,7 @@ export function KPIStrip({ kpis }: KPIStripProps) {
         {/* Divider */}
         <div
           className="hidden sm:block w-px h-10"
-          style={{ backgroundColor: 'var(--border)' }}
+          style={{ backgroundColor: "var(--border)" }}
         />
 
         {/* KPI Items */}
@@ -110,7 +127,9 @@ export function KPIStrip({ kpis }: KPIStripProps) {
             value={formatPercent(kpis.successRate)}
             active={hasActivity}
             highlight={kpis.successRate < 0.99 && hasActivity}
-            highlightColor={kpis.successRate < 0.95 ? 'var(--destructive)' : 'var(--warning)'}
+            highlightColor={
+              kpis.successRate < 0.95 ? "var(--destructive)" : "var(--warning)"
+            }
           />
         </div>
       </div>
@@ -124,7 +143,7 @@ function KPIItem({
   value,
   active = false,
   highlight = false,
-  highlightColor = 'var(--primary)',
+  highlightColor = "var(--primary)",
 }: {
   icon: typeof Users;
   label: string;
@@ -136,20 +155,20 @@ function KPIItem({
   const valueColor = highlight
     ? highlightColor
     : active
-      ? 'var(--foreground)'
-      : 'var(--muted-foreground)';
+      ? "var(--foreground)"
+      : "var(--muted-foreground)";
 
   return (
     <div className="flex items-center gap-2">
       <Icon
         className="h-4 w-4 hidden sm:block"
-        style={{ color: 'var(--muted-foreground)' }}
+        style={{ color: "var(--muted-foreground)" }}
         aria-hidden="true"
       />
       <div>
         <div
           className="text-[10px] uppercase tracking-wider font-medium"
-          style={{ color: 'var(--muted-foreground)' }}
+          style={{ color: "var(--muted-foreground)" }}
         >
           {label}
         </div>

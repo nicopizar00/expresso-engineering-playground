@@ -22,7 +22,9 @@ const DEMO_ORDER: Order = {
   updatedAt: "2026-05-14T12:00:00.000Z",
 };
 
-function makeController(overrides: Partial<typeof OrdersService.prototype> = {}) {
+function makeController(
+  overrides: Partial<typeof OrdersService.prototype> = {},
+) {
   const svc = {
     listAll: vi.fn().mockReturnValue([DEMO_ORDER]),
     get: vi.fn().mockImplementation((id: string) => {
@@ -54,7 +56,9 @@ describe("OrdersController", () => {
     });
 
     it("returns empty items when no orders exist", () => {
-      const { controller } = makeController({ listAll: vi.fn().mockReturnValue([]) });
+      const { controller } = makeController({
+        listAll: vi.fn().mockReturnValue([]),
+      });
       const result = controller.list();
       expect(result.items).toHaveLength(0);
     });

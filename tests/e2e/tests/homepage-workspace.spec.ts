@@ -92,7 +92,9 @@ test.describe("homepage workspace - desktop", () => {
     ).toBeLessThanOrEqual(clientHeight + 1);
 
     await expectVisualActionable(
-      page.getByRole("button", { name: `Add ${productUnderTest.name} to cart` }),
+      page.getByRole("button", {
+        name: `Add ${productUnderTest.name} to cart`,
+      }),
       { minHeight: 24, minWidth: 24 },
     );
 

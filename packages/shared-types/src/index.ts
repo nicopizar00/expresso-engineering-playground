@@ -12,14 +12,7 @@ export type Money = {
 };
 
 // Lifecycle of a mini-commerce order. Kept intentionally small.
-export type OrderStatus =
-  | "pending"
-  | "preparing"
-  | "prepared"
-  | "cancelled";
+export type OrderStatus = "pending" | "preparing" | "prepared" | "cancelled";
 
 // Management actions exposed via POST /orders/:id/manage.
-export type OrderManageAction =
-  | "cancel"
-  | "update_status"
-  | "mark_prepared";
+export type OrderManageAction = "cancel" | "update_status" | "mark_prepared";

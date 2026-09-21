@@ -211,14 +211,16 @@ export class VisualizationService {
 
   private catalogItems(): VisualizationItem[] {
     try {
-      return this.catalog.list().items.map((product, index) =>
-        fromProduct(
-          product,
-          index,
-          this.assets.getConfig(product.category),
-          this.assets.getPrimaryModel(product.category),
-        ),
-      );
+      return this.catalog
+        .list()
+        .items.map((product, index) =>
+          fromProduct(
+            product,
+            index,
+            this.assets.getConfig(product.category),
+            this.assets.getPrimaryModel(product.category),
+          ),
+        );
     } catch {
       return [];
     }
@@ -244,13 +246,15 @@ export class VisualizationService {
   private buildScene(): VisualizationScene {
     let products: SceneProduct[] = [];
     try {
-      products = this.catalog.list().items.map((p) =>
-        toSceneProduct(
-          p,
-          this.assets.getConfig(p.category),
-          this.assets.getPrimaryModel(p.category),
-        ),
-      );
+      products = this.catalog
+        .list()
+        .items.map((p) =>
+          toSceneProduct(
+            p,
+            this.assets.getConfig(p.category),
+            this.assets.getPrimaryModel(p.category),
+          ),
+        );
     } catch {
       products = [];
     }

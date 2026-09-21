@@ -5,7 +5,12 @@ import { VisualizationService } from "./visualization.service";
 
 const VALID_TYPES = new Set(["cube", "sphere", "marker"]);
 const VALID_STATUSES = new Set(["ok", "warn", "error", "idle"]);
-const VALID_ORDER_STATUSES = new Set(["pending", "preparing", "prepared", "cancelled"]);
+const VALID_ORDER_STATUSES = new Set([
+  "pending",
+  "preparing",
+  "prepared",
+  "cancelled",
+]);
 
 const PRODUCTS: Product[] = [
   {
@@ -60,16 +65,26 @@ function makeSvc({
   assetModel?: { assetUrl: string; assetFormat: string } | null;
 } = {}) {
   const catalog = {
-    list: typeof products === "function" ? vi.fn().mockImplementation(products) : vi.fn().mockReturnValue({ items: products }),
+    list:
+      typeof products === "function"
+        ? vi.fn().mockImplementation(products)
+        : vi.fn().mockReturnValue({ items: products }),
   };
   const ordersService = {
-    listAll: typeof orders === "function" ? vi.fn().mockImplementation(orders) : vi.fn().mockReturnValue(orders),
+    listAll:
+      typeof orders === "function"
+        ? vi.fn().mockImplementation(orders)
+        : vi.fn().mockReturnValue(orders),
   };
   const assets = {
     getConfig: vi.fn().mockReturnValue(assetConfig),
     getPrimaryModel: vi.fn().mockReturnValue(assetModel),
   };
-  return new VisualizationService(catalog as any, ordersService as any, assets as any);
+  return new VisualizationService(
+    catalog as any,
+    ordersService as any,
+    assets as any,
+  );
 }
 
 describe("VisualizationService", () => {
@@ -109,7 +124,7 @@ describe("VisualizationService", () => {
       const { items } = makeSvc().list();
       const espresso = items.find((i) => i.id === "viz_product_prod_espresso");
       const backpack = items.find((i) => i.id === "viz_product_prod_backpack");
-      expect(espresso?.status).toBe("ok");   // inventory 120
+      expect(espresso?.status).toBe("ok"); // inventory 120
       expect(backpack?.status).toBe("warn"); // inventory 8 < 20
     });
 
@@ -123,11 +138,15 @@ describe("VisualizationService", () => {
     it("cancelled order maps to error status", () => {
       const cancelled: Order = { ...ORDERS[0], status: "cancelled" };
       const { items } = makeSvc({ orders: [cancelled] }).list();
-      expect(items.find((i) => i.id === "viz_order_ord_demo")?.status).toBe("error");
+      expect(items.find((i) => i.id === "viz_order_ord_demo")?.status).toBe(
+        "error",
+      );
     });
 
     it("all positions are within room bounds", () => {
-      const { items } = makeSvc({ products: PRODUCTS.concat(...Array(5).fill(PRODUCTS[0])) }).list();
+      const { items } = makeSvc({
+        products: PRODUCTS.concat(...Array(5).fill(PRODUCTS[0])),
+      }).list();
       for (const item of items) {
         expect(item.positionHint.x).toBeGreaterThanOrEqual(-2.5);
         expect(item.positionHint.x).toBeLessThanOrEqual(2.5);
@@ -141,19 +160,31 @@ describe("VisualizationService", () => {
       const svc = makeSvc();
       const first = svc.list();
       const second = svc.list();
-      expect(second.items.map((i) => i.id)).toEqual(first.items.map((i) => i.id));
-      expect(second.items.map((i) => i.positionHint)).toEqual(first.items.map((i) => i.positionHint));
+      expect(second.items.map((i) => i.id)).toEqual(
+        first.items.map((i) => i.id),
+      );
+      expect(second.items.map((i) => i.positionHint)).toEqual(
+        first.items.map((i) => i.positionHint),
+      );
     });
 
     it("returns orders when catalog throws (partial failure)", () => {
-      const svc = makeSvc({ products: () => { throw new Error("catalog down"); } });
+      const svc = makeSvc({
+        products: () => {
+          throw new Error("catalog down");
+        },
+      });
       const { items } = svc.list();
       expect(items.some((i) => i.id.startsWith("viz_order_"))).toBe(true);
       expect(items.some((i) => i.id.startsWith("viz_product_"))).toBe(false);
     });
 
     it("returns catalog when orders throws (partial failure)", () => {
-      const svc = makeSvc({ orders: () => { throw new Error("orders down"); } });
+      const svc = makeSvc({
+        orders: () => {
+          throw new Error("orders down");
+        },
+      });
       const { items } = svc.list();
       expect(items.some((i) => i.id.startsWith("viz_product_"))).toBe(true);
       expect(items.some((i) => i.id.startsWith("viz_order_"))).toBe(false);
@@ -196,8 +227,12 @@ describe("VisualizationService", () => {
     it("scene.products carries one entry per catalog product with derived status", () => {
       const { scene } = makeSvc().list();
       expect(scene.products).toHaveLength(2);
-      const espresso = scene.products.find((p) => p.productId === "prod_espresso");
-      const backpack = scene.products.find((p) => p.productId === "prod_backpack");
+      const espresso = scene.products.find(
+        (p) => p.productId === "prod_espresso",
+      );
+      const backpack = scene.products.find(
+        (p) => p.productId === "prod_backpack",
+      );
       expect(espresso?.status).toBe("ok");
       expect(backpack?.status).toBe("warn");
       expect(espresso?.price).toEqual({ amountMinor: 180, currency: "EUR" });
@@ -206,15 +241,25 @@ describe("VisualizationService", () => {
     it("scene.products attaches typed asset + assetConfig when AssetsService provides them", () => {
       const params = { bodyH: 0.36 };
       const model = { assetUrl: "/viz/models/cup.glb", assetFormat: "glb" };
-      const { scene } = makeSvc({ assetConfig: params, assetModel: model }).list();
-      const espresso = scene.products.find((p) => p.productId === "prod_espresso");
-      expect(espresso?.asset).toEqual({ url: "/viz/models/cup.glb", format: "glb" });
+      const { scene } = makeSvc({
+        assetConfig: params,
+        assetModel: model,
+      }).list();
+      const espresso = scene.products.find(
+        (p) => p.productId === "prod_espresso",
+      );
+      expect(espresso?.asset).toEqual({
+        url: "/viz/models/cup.glb",
+        format: "glb",
+      });
       expect(espresso?.assetConfig).toEqual(params);
     });
 
     it("scene.products omits asset and assetConfig when none are registered", () => {
       const { scene } = makeSvc().list();
-      const espresso = scene.products.find((p) => p.productId === "prod_espresso");
+      const espresso = scene.products.find(
+        (p) => p.productId === "prod_espresso",
+      );
       expect(espresso?.asset).toBeUndefined();
       expect(espresso?.assetConfig).toBeUndefined();
     });
@@ -283,14 +328,22 @@ describe("VisualizationService", () => {
     });
 
     it("scene survives catalog throwing (returns empty products)", () => {
-      const svc = makeSvc({ products: () => { throw new Error("catalog down"); } });
+      const svc = makeSvc({
+        products: () => {
+          throw new Error("catalog down");
+        },
+      });
       const { scene } = svc.list();
       expect(scene.products).toEqual([]);
       expect(scene.recentOrders.length).toBeGreaterThan(0);
     });
 
     it("scene survives orders throwing (returns empty recent + zeroed aggregates)", () => {
-      const svc = makeSvc({ orders: () => { throw new Error("orders down"); } });
+      const svc = makeSvc({
+        orders: () => {
+          throw new Error("orders down");
+        },
+      });
       const { scene } = svc.list();
       expect(scene.recentOrders).toEqual([]);
       expect(scene.orderAggregates).toEqual({

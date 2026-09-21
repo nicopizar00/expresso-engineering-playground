@@ -207,7 +207,9 @@ test.describe("visual UI integrity - desktop", () => {
       drawer.getByRole("button", { name: "Close cart" }),
     );
 
-    const checkout = drawer.getByRole("button", { name: /Proceed to Checkout/i });
+    const checkout = drawer.getByRole("button", {
+      name: /Proceed to Checkout/i,
+    });
     await expectVisualActionable(checkout, { minHeight: 40, minWidth: 200 });
     await clickVisualCenter(checkout);
     await expect(drawer).toBeHidden();

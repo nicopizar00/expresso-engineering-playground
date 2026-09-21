@@ -52,15 +52,10 @@ export function SectionProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
-  const value = useMemo(
-    () => ({ section, setSection }),
-    [section, setSection],
-  );
+  const value = useMemo(() => ({ section, setSection }), [section, setSection]);
 
   return (
-    <SectionContext.Provider value={value}>
-      {children}
-    </SectionContext.Provider>
+    <SectionContext.Provider value={value}>{children}</SectionContext.Provider>
   );
 }
 

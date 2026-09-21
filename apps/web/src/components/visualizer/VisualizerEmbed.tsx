@@ -38,7 +38,12 @@ function toSelectionProduct(product: Product): SelectionProduct {
     productId: product.productId,
     name: product.name,
     category: product.category,
-    status: product.inventory === 0 ? "error" : product.inventory < 20 ? "warn" : "ok",
+    status:
+      product.inventory === 0
+        ? "error"
+        : product.inventory < 20
+          ? "warn"
+          : "ok",
   };
 }
 
@@ -112,12 +117,23 @@ export function VisualizerEmbed({
   useEffect(() => {
     const item = cart?.items[0];
     if (item) {
-      const product = productsData?.items.find((p) => p.productId === item.productId);
+      const product = productsData?.items.find(
+        (p) => p.productId === item.productId,
+      );
       const resolved: SelectionProduct = product
         ? toSelectionProduct(product)
-        : { productId: item.productId, name: item.name, category: "drink", status: "ok" };
+        : {
+            productId: item.productId,
+            name: item.name,
+            category: "drink",
+            status: "ok",
+          };
       lastProductRef.current = resolved;
-      setSelection({ productId: resolved.productId, product: resolved, phase: "selected" });
+      setSelection({
+        productId: resolved.productId,
+        product: resolved,
+        phase: "selected",
+      });
       return;
     }
     if (justPlacedOrderId && lastProductRef.current) {

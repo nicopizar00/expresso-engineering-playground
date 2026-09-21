@@ -70,11 +70,18 @@ async function main() {
   console.log("Seeded ord_demo order.");
 
   const drinkParams = {
-    bodyTopW: 0.25, bodyBotW: 0.30, bodyH: 0.28,
-    saucerTopW: 0.48, saucerBotW: 0.32, saucerH: 0.06,
+    bodyTopW: 0.25,
+    bodyBotW: 0.3,
+    bodyH: 0.28,
+    saucerTopW: 0.48,
+    saucerBotW: 0.32,
+    saucerH: 0.06,
     gap: 0.04,
-    handleW: 0.16, handleH: 0.22, handleGap: 0.03,
-    coffeeShrink: 0.01, texSize: 16,
+    handleW: 0.16,
+    handleH: 0.22,
+    handleGap: 0.03,
+    coffeeShrink: 0.01,
+    texSize: 16,
   };
   await prisma.assetConfig.upsert({
     where: { category: "drink" },
@@ -83,7 +90,7 @@ async function main() {
   });
   console.log("Seeded drink AssetConfig.");
 
-  const foodParams = { width: 0.30, depth: 0.20, height: 0.10, texSize: 16 };
+  const foodParams = { width: 0.3, depth: 0.2, height: 0.1, texSize: 16 };
   await prisma.assetConfig.upsert({
     where: { category: "food" },
     update: { params: foodParams },
@@ -91,7 +98,12 @@ async function main() {
   });
   console.log("Seeded food AssetConfig.");
 
-  const accessoryParams = { width: 0.25, depth: 0.15, height: 0.35, texSize: 16 };
+  const accessoryParams = {
+    width: 0.25,
+    depth: 0.15,
+    height: 0.35,
+    texSize: 16,
+  };
   await prisma.assetConfig.upsert({
     where: { category: "accessory" },
     update: { params: accessoryParams },
@@ -118,5 +130,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());

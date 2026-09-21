@@ -25,8 +25,6 @@ export class VisualizationController {
     return merge(
       of(null),
       this.domainEvents.changed$.pipe(debounceTime(50)),
-    ).pipe(
-      map(() => ({ data: this.visualization.list() } as MessageEvent)),
-    );
+    ).pipe(map(() => ({ data: this.visualization.list() }) as MessageEvent));
   }
 }

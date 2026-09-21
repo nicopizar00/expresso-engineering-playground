@@ -4,7 +4,11 @@ import type { Product as DbProduct } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { PrismaService } from "../../prisma.service";
-import type { CreateProductDto, Product, ProductsResponse } from "./catalog.types";
+import type {
+  CreateProductDto,
+  Product,
+  ProductsResponse,
+} from "./catalog.types";
 
 function toProduct(row: DbProduct): Product {
   return {
@@ -28,7 +32,9 @@ export class CatalogService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const rows = await this.prisma.product.findMany({ orderBy: { createdAt: "asc" } });
+    const rows = await this.prisma.product.findMany({
+      orderBy: { createdAt: "asc" },
+    });
     this.cache = rows.map(toProduct);
   }
 
@@ -54,9 +60,7 @@ export class CatalogService implements OnModuleInit {
   // about products this process has not yet cached.
   applyInventoryDelta(productId: string, delta: number): void {
     this.cache = this.cache.map((p) =>
-      p.productId === productId
-        ? { ...p, inventory: p.inventory + delta }
-        : p,
+      p.productId === productId ? { ...p, inventory: p.inventory + delta } : p,
     );
   }
 

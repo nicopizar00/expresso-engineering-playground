@@ -119,7 +119,13 @@ describe("CatalogService", () => {
     } as CreateProductDto;
 
     it("persists via prisma.product.create and returns the mapped product", async () => {
-      const newRow = { ...DB_ROW, id: 2, productId: "prod_abcd1234", sku: "SKU-NEW-01", name: "Croissant" };
+      const newRow = {
+        ...DB_ROW,
+        id: 2,
+        productId: "prod_abcd1234",
+        sku: "SKU-NEW-01",
+        name: "Croissant",
+      };
       prisma.product.create.mockResolvedValue(newRow);
 
       const product = await service.create(DTO);
@@ -128,7 +134,13 @@ describe("CatalogService", () => {
     });
 
     it("appends the new product to the cache so list() sees it immediately", async () => {
-      const newRow = { ...DB_ROW, id: 2, productId: "prod_abcd1234", sku: "SKU-NEW-01", name: "Croissant" };
+      const newRow = {
+        ...DB_ROW,
+        id: 2,
+        productId: "prod_abcd1234",
+        sku: "SKU-NEW-01",
+        name: "Croissant",
+      };
       prisma.product.create.mockResolvedValue(newRow);
 
       await service.create(DTO);
@@ -136,7 +148,13 @@ describe("CatalogService", () => {
     });
 
     it("emits a domain-change signal so the visualization SSE stream sees the new product", async () => {
-      const newRow = { ...DB_ROW, id: 2, productId: "prod_abcd1234", sku: "SKU-NEW-01", name: "Croissant" };
+      const newRow = {
+        ...DB_ROW,
+        id: 2,
+        productId: "prod_abcd1234",
+        sku: "SKU-NEW-01",
+        name: "Croissant",
+      };
       prisma.product.create.mockResolvedValue(newRow);
 
       expect(domainEvents.emit).not.toHaveBeenCalled();

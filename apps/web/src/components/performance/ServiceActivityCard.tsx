@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * ServiceActivityCard - Displays service health and activity metrics
@@ -7,7 +7,7 @@
  * Redesigned with a clean, modern interface.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   Activity,
   Database,
@@ -16,9 +16,17 @@ import {
   Package,
   Server,
   Layers,
-} from 'lucide-react';
-import type { ServiceMetrics, ServiceName } from '@/lib/performance/performance-adapter';
-import { getHealthColor, formatCompact, formatLatency, formatPercent } from '@/lib/performance/performance-adapter';
+} from "lucide-react";
+import type {
+  ServiceMetrics,
+  ServiceName,
+} from "@/lib/performance/performance-adapter";
+import {
+  getHealthColor,
+  formatCompact,
+  formatLatency,
+  formatPercent,
+} from "@/lib/performance/performance-adapter";
 
 interface ServiceActivityCardProps {
   service: ServiceMetrics;
@@ -34,23 +42,32 @@ const SERVICE_ICONS: Record<ServiceName, typeof Activity> = {
   persistence: Database,
 };
 
-export function ServiceActivityCard({ service, isAnimated = true }: ServiceActivityCardProps) {
+export function ServiceActivityCard({
+  service,
+  isAnimated = true,
+}: ServiceActivityCardProps) {
   const [pulse, setPulse] = useState(false);
   const Icon = SERVICE_ICONS[service.name];
   const healthColor = getHealthColor(service.healthState);
   const hasActivity = service.requestsPerSecond > 0;
-  const pressurePercent = Math.min(100, Math.round(service.requestsPerSecond / 3));
+  const pressurePercent = Math.min(
+    100,
+    Math.round(service.requestsPerSecond / 3),
+  );
   const isHighPressure = pressurePercent > 60;
   const isCriticalPressure = pressurePercent > 80;
 
   // Pulse effect when receiving requests
   useEffect(() => {
     if (!isAnimated || !hasActivity) return;
-    
-    const interval = setInterval(() => {
-      setPulse(true);
-      setTimeout(() => setPulse(false), 200);
-    }, 1000 + Math.random() * 500);
+
+    const interval = setInterval(
+      () => {
+        setPulse(true);
+        setTimeout(() => setPulse(false), 200);
+      },
+      1000 + Math.random() * 500,
+    );
 
     return () => clearInterval(interval);
   }, [isAnimated, hasActivity]);
@@ -59,8 +76,8 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
     <div
       className="rounded-xl border p-4 transition-all duration-200"
       style={{
-        backgroundColor: 'var(--card)',
-        borderColor: pulse ? healthColor : 'var(--border)',
+        backgroundColor: "var(--card)",
+        borderColor: pulse ? healthColor : "var(--border)",
       }}
     >
       {/* Header */}
@@ -80,7 +97,10 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
               />
             )}
           </div>
-          <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+          <span
+            className="font-medium text-sm"
+            style={{ color: "var(--foreground)" }}
+          >
             {service.displayName}
           </span>
         </div>
@@ -113,17 +133,17 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
       </div>
 
       {/* Pressure Bar */}
-      <div className="pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+      <div className="pt-3 border-t" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between text-xs mb-1.5">
-          <span style={{ color: 'var(--muted-foreground)' }}>Load</span>
+          <span style={{ color: "var(--muted-foreground)" }}>Load</span>
           <span
             className="font-mono font-medium"
             style={{
               color: isCriticalPressure
-                ? 'var(--destructive)'
+                ? "var(--destructive)"
                 : isHighPressure
-                  ? 'var(--warning)'
-                  : 'var(--foreground)',
+                  ? "var(--warning)"
+                  : "var(--foreground)",
             }}
           >
             {pressurePercent}%
@@ -131,16 +151,16 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
         </div>
         <div
           className="h-1.5 rounded-full overflow-hidden"
-          style={{ backgroundColor: 'var(--secondary)' }}
+          style={{ backgroundColor: "var(--secondary)" }}
         >
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${pressurePercent}%`,
               backgroundColor: isCriticalPressure
-                ? 'var(--destructive)'
+                ? "var(--destructive)"
                 : isHighPressure
-                  ? 'var(--warning)'
+                  ? "var(--warning)"
                   : healthColor,
             }}
           />
@@ -150,13 +170,13 @@ export function ServiceActivityCard({ service, isAnimated = true }: ServiceActiv
   );
 }
 
-function HealthBadge({ state }: { state: ServiceMetrics['healthState'] }) {
+function HealthBadge({ state }: { state: ServiceMetrics["healthState"] }) {
   const color = getHealthColor(state);
-  const labels: Record<ServiceMetrics['healthState'], string> = {
-    healthy: 'OK',
-    degraded: 'Degraded',
-    critical: 'Critical',
-    idle: 'Idle',
+  const labels: Record<ServiceMetrics["healthState"], string> = {
+    healthy: "OK",
+    degraded: "Degraded",
+    critical: "Critical",
+    idle: "Idle",
   };
 
   return (
@@ -183,7 +203,7 @@ function MetricItem({
   label,
   value,
   highlight = false,
-  highlightColor = 'var(--primary)',
+  highlightColor = "var(--primary)",
 }: {
   label: string;
   value: string;
@@ -194,13 +214,13 @@ function MetricItem({
     <div>
       <div
         className="text-[10px] uppercase tracking-wider font-medium mb-0.5"
-        style={{ color: 'var(--muted-foreground)' }}
+        style={{ color: "var(--muted-foreground)" }}
       >
         {label}
       </div>
       <div
         className="text-sm font-mono font-medium"
-        style={{ color: highlight ? highlightColor : 'var(--foreground)' }}
+        style={{ color: highlight ? highlightColor : "var(--foreground)" }}
       >
         {value}
       </div>

@@ -10,11 +10,11 @@
 
 ## Most Valuable Cases
 
-| Rank | Flow | Business value | Primary success signal |
-| --- | --- | --- | --- |
-| MVC-01 | Catalog browse -> add to cart -> checkout -> order detail -> order action | Direct revenue path and core product proof | Shopper can place an order and see/manage its persisted status |
-| MVC-02 | Order lookup/list -> order detail -> status transition/cancel | Retention and operational trust after purchase | User can find an order and valid actions update visible status |
-| MVC-03 | Performance playground -> scenario selection -> service health inspection | Developer confidence and system observability | Reviewer can run scenarios and inspect metrics without backend ambiguity |
+| Rank   | Flow                                                                      | Business value                                 | Primary success signal                                                   |
+| ------ | ------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
+| MVC-01 | Catalog browse -> add to cart -> checkout -> order detail -> order action | Direct revenue path and core product proof     | Shopper can place an order and see/manage its persisted status           |
+| MVC-02 | Order lookup/list -> order detail -> status transition/cancel             | Retention and operational trust after purchase | User can find an order and valid actions update visible status           |
+| MVC-03 | Performance playground -> scenario selection -> service health inspection | Developer confidence and system observability  | Reviewer can run scenarios and inspect metrics without backend ambiguity |
 
 ## MVC-01 Flow Map
 
@@ -30,27 +30,27 @@
 
 ## MVC-01 Edge Cases
 
-| Risk area | Edge case | Expected behavior | Automation approach |
-| --- | --- | --- | --- |
-| Catalog API | `GET /catalog/products` fails or returns empty | Error or empty state with recovery path | Planned negative spec with route fulfillment |
-| Cart mutation | Add-to-cart request fails | Cart count does not increment; user-facing error should be added | Planned after toast/error UX exists |
-| Cart state | Cart is empty on direct `/checkout` visit | Checkout redirects or shows empty-cart guidance | Planned direct checkout spec |
-| Form validation | Customer name is blank | `Place Order` remains disabled | Covered in MVC-01 spec |
-| Checkout API | Network drop during `POST /checkout` | User remains on checkout and sees retryable error | Covered with `route.abort()` |
-| Checkout API | 400 or 409 response | Domain-specific alert shown | Planned API-status matrix |
-| Responsive layout | Mobile viewport cannot access cart/checkout | Same journey works on mobile Chrome profile | Covered in MVC-01 spec |
-| Order action | Manage-order request fails | Status remains unchanged and error is visible | Planned negative order-action spec |
+| Risk area         | Edge case                                      | Expected behavior                                                | Automation approach                          |
+| ----------------- | ---------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------- |
+| Catalog API       | `GET /catalog/products` fails or returns empty | Error or empty state with recovery path                          | Planned negative spec with route fulfillment |
+| Cart mutation     | Add-to-cart request fails                      | Cart count does not increment; user-facing error should be added | Planned after toast/error UX exists          |
+| Cart state        | Cart is empty on direct `/checkout` visit      | Checkout redirects or shows empty-cart guidance                  | Planned direct checkout spec                 |
+| Form validation   | Customer name is blank                         | `Place Order` remains disabled                                   | Covered in MVC-01 spec                       |
+| Checkout API      | Network drop during `POST /checkout`           | User remains on checkout and sees retryable error                | Covered with `route.abort()`                 |
+| Checkout API      | 400 or 409 response                            | Domain-specific alert shown                                      | Planned API-status matrix                    |
+| Responsive layout | Mobile viewport cannot access cart/checkout    | Same journey works on mobile Chrome profile                      | Covered in MVC-01 spec                       |
+| Order action      | Manage-order request fails                     | Status remains unchanged and error is visible                    | Planned negative order-action spec           |
 
 ## Coverage Matrix
 
-| Area | Happy path | Negative path | Responsive | Network mocking |
-| --- | --- | --- | --- | --- |
-| Catalog | MVC-01 | Planned API empty/error | Desktop, mobile | `GET /catalog/products` |
-| Cart drawer | MVC-01 | Planned mutation failure | Desktop, mobile | `GET /cart`, `POST /cart/items` |
-| Checkout | MVC-01 | Blank name, network drop | Desktop, mobile | `POST /checkout` |
-| Order detail | MVC-01 | Planned not found/manage failure | Desktop, mobile | `GET /orders/:id`, `POST /orders/:id/manage` |
-| Orders list/lookup | MVC-02 planned | Empty list, invalid ID | Desktop, mobile | `GET /orders` |
-| Performance playground | MVC-03 planned | Scenario stop/error states | Desktop, mobile | Frontend fixtures only |
+| Area                   | Happy path     | Negative path                    | Responsive      | Network mocking                              |
+| ---------------------- | -------------- | -------------------------------- | --------------- | -------------------------------------------- |
+| Catalog                | MVC-01         | Planned API empty/error          | Desktop, mobile | `GET /catalog/products`                      |
+| Cart drawer            | MVC-01         | Planned mutation failure         | Desktop, mobile | `GET /cart`, `POST /cart/items`              |
+| Checkout               | MVC-01         | Blank name, network drop         | Desktop, mobile | `POST /checkout`                             |
+| Order detail           | MVC-01         | Planned not found/manage failure | Desktop, mobile | `GET /orders/:id`, `POST /orders/:id/manage` |
+| Orders list/lookup     | MVC-02 planned | Empty list, invalid ID           | Desktop, mobile | `GET /orders`                                |
+| Performance playground | MVC-03 planned | Scenario stop/error states       | Desktop, mobile | Frontend fixtures only                       |
 
 ## Risk Analysis
 

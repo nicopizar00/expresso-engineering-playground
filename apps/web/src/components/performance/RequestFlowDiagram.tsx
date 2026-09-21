@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * RequestFlowDiagram - Visual representation of request flow through services
@@ -7,36 +7,50 @@
  * Redesigned with a clean, modern interface.
  */
 
-import { useEffect, useState } from 'react';
-import { Users, ArrowRight, Database, Server, Activity } from 'lucide-react';
-import type { RequestFlowStep } from '@/lib/performance/performance-adapter';
-import { formatCompact, formatLatency, formatPercent } from '@/lib/performance/performance-adapter';
+import { useEffect, useState } from "react";
+import { Users, ArrowRight, Database, Server, Activity } from "lucide-react";
+import type { RequestFlowStep } from "@/lib/performance/performance-adapter";
+import {
+  formatCompact,
+  formatLatency,
+  formatPercent,
+} from "@/lib/performance/performance-adapter";
 
 interface RequestFlowDiagramProps {
   flow: RequestFlowStep[];
   isAnimated?: boolean;
 }
 
-export function RequestFlowDiagram({ flow, isAnimated = true }: RequestFlowDiagramProps) {
+export function RequestFlowDiagram({
+  flow,
+  isAnimated = true,
+}: RequestFlowDiagramProps) {
   const hasFlow = flow.length > 0;
 
   // Group flows by layer
-  const userToBff = flow.find((f) => f.from === 'Users' && f.to === 'BFF Gateway');
-  const bffToServices = flow.filter((f) => f.from === 'BFF Gateway' && f.to !== 'Persistence');
-  const servicesToPersistence = flow.filter((f) => f.to === 'Persistence');
+  const userToBff = flow.find(
+    (f) => f.from === "Users" && f.to === "BFF Gateway",
+  );
+  const bffToServices = flow.filter(
+    (f) => f.from === "BFF Gateway" && f.to !== "Persistence",
+  );
+  const servicesToPersistence = flow.filter((f) => f.to === "Persistence");
 
   return (
     <div
       className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
     >
       {/* Header */}
-      <div 
+      <div
         className="flex items-center gap-2 px-4 py-3 border-b"
-        style={{ borderColor: 'var(--border)' }}
+        style={{ borderColor: "var(--border)" }}
       >
-        <Activity className="h-4 w-4" style={{ color: 'var(--primary)' }} />
-        <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+        <Activity className="h-4 w-4" style={{ color: "var(--primary)" }} />
+        <span
+          className="text-sm font-medium"
+          style={{ color: "var(--foreground)" }}
+        >
           Request Flow
         </span>
       </div>
@@ -45,7 +59,7 @@ export function RequestFlowDiagram({ flow, isAnimated = true }: RequestFlowDiagr
         {!hasFlow ? (
           <div
             className="text-center py-8"
-            style={{ color: 'var(--muted-foreground)' }}
+            style={{ color: "var(--muted-foreground)" }}
           >
             <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
             <p className="text-sm">Start a scenario to see request flow</p>
@@ -58,7 +72,11 @@ export function RequestFlowDiagram({ flow, isAnimated = true }: RequestFlowDiagr
               {userToBff && (
                 <>
                   <FlowConnection step={userToBff} isAnimated={isAnimated} />
-                  <FlowNode type="bff" label="BFF Gateway" isAnimated={isAnimated} />
+                  <FlowNode
+                    type="bff"
+                    label="BFF Gateway"
+                    isAnimated={isAnimated}
+                  />
                 </>
               )}
             </FlowLayer>
@@ -82,15 +100,28 @@ export function RequestFlowDiagram({ flow, isAnimated = true }: RequestFlowDiagr
             {servicesToPersistence.length > 0 && (
               <FlowLayer>
                 <div className="flex items-center justify-center gap-4 w-full">
-                  <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  <div
+                    className="flex items-center gap-2 text-xs"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
                     <span>from services</span>
                     <ArrowRight className="h-3 w-3" />
                   </div>
-                  <FlowNode type="persistence" label="PostgreSQL" isAnimated={isAnimated}>
-                    <div className="text-[10px] mt-1 font-mono" style={{ color: 'var(--muted-foreground)' }}>
+                  <FlowNode
+                    type="persistence"
+                    label="PostgreSQL"
+                    isAnimated={isAnimated}
+                  >
+                    <div
+                      className="text-[10px] mt-1 font-mono"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
                       {formatCompact(
-                        servicesToPersistence.reduce((sum, s) => sum + s.requestsPerSecond, 0)
-                      )}{' '}
+                        servicesToPersistence.reduce(
+                          (sum, s) => sum + s.requestsPerSecond,
+                          0,
+                        ),
+                      )}{" "}
                       req/s
                     </div>
                   </FlowNode>
@@ -118,7 +149,7 @@ function FlowNode({
   isAnimated,
   children,
 }: {
-  type: 'users' | 'bff' | 'persistence';
+  type: "users" | "bff" | "persistence";
   label: string;
   isAnimated: boolean;
   children?: React.ReactNode;
@@ -127,7 +158,7 @@ function FlowNode({
 
   useEffect(() => {
     if (!isAnimated) return;
-    
+
     const interval = setInterval(() => {
       setPulse(true);
       setTimeout(() => setPulse(false), 300);
@@ -147,12 +178,15 @@ function FlowNode({
     <div
       className="flex flex-col items-center p-3 rounded-lg border transition-all duration-200"
       style={{
-        backgroundColor: 'var(--secondary)',
-        borderColor: pulse ? 'var(--primary)' : 'var(--border)',
+        backgroundColor: "var(--secondary)",
+        borderColor: pulse ? "var(--primary)" : "var(--border)",
       }}
     >
-      <Icon className="h-5 w-5 mb-1" style={{ color: 'var(--primary)' }} />
-      <span className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
+      <Icon className="h-5 w-5 mb-1" style={{ color: "var(--primary)" }} />
+      <span
+        className="text-xs font-medium"
+        style={{ color: "var(--foreground)" }}
+      >
         {label}
       </span>
       {children}
@@ -177,15 +211,21 @@ function FlowConnection({
               key={i}
               className="w-1.5 h-1.5 rounded-full animate-pulse"
               style={{
-                backgroundColor: 'var(--primary)',
+                backgroundColor: "var(--primary)",
                 animationDelay: `${i * 200}ms`,
               }}
             />
           ))}
-        <ArrowRight className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+        <ArrowRight
+          className="h-4 w-4"
+          style={{ color: "var(--muted-foreground)" }}
+        />
       </div>
       {/* Metrics */}
-      <div className="text-[10px] text-center font-mono" style={{ color: 'var(--muted-foreground)' }}>
+      <div
+        className="text-[10px] text-center font-mono"
+        style={{ color: "var(--muted-foreground)" }}
+      >
         <div>{formatCompact(step.requestsPerSecond)} req/s</div>
         <div>{formatLatency(step.latencyMs)}</div>
       </div>
@@ -205,11 +245,14 @@ function ServiceFlowCard({
 
   useEffect(() => {
     if (!isAnimated) return;
-    
-    const interval = setInterval(() => {
-      setPulse(true);
-      setTimeout(() => setPulse(false), 200);
-    }, 800 + Math.random() * 400);
+
+    const interval = setInterval(
+      () => {
+        setPulse(true);
+        setTimeout(() => setPulse(false), 200);
+      },
+      800 + Math.random() * 400,
+    );
 
     return () => clearInterval(interval);
   }, [isAnimated]);
@@ -218,23 +261,26 @@ function ServiceFlowCard({
     <div
       className="p-2 rounded-lg border text-center transition-all duration-200"
       style={{
-        backgroundColor: 'var(--background)',
+        backgroundColor: "var(--background)",
         borderColor: pulse
           ? hasErrors
-            ? 'var(--destructive)'
-            : 'var(--success)'
-          : 'var(--border)',
+            ? "var(--destructive)"
+            : "var(--success)"
+          : "var(--border)",
       }}
     >
-      <div className="text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+      <div
+        className="text-xs font-medium mb-1"
+        style={{ color: "var(--foreground)" }}
+      >
         {step.to}
       </div>
       <div className="flex items-center justify-center gap-2 text-[10px] font-mono">
-        <span style={{ color: 'var(--muted-foreground)' }}>
+        <span style={{ color: "var(--muted-foreground)" }}>
           {formatCompact(step.requestsPerSecond)}/s
         </span>
         {hasErrors && (
-          <span style={{ color: 'var(--destructive)' }}>
+          <span style={{ color: "var(--destructive)" }}>
             {formatPercent(step.errorRate)}
           </span>
         )}

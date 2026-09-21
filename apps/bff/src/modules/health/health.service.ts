@@ -13,7 +13,10 @@ export interface HealthReport {
 @Injectable()
 export class HealthService {
   // TODO: ping Prisma once persistence is wired and flip db check to real.
-  check(now: number = Date.now(), startedAt: number = HealthService.startedAt): HealthReport {
+  check(
+    now: number = Date.now(),
+    startedAt: number = HealthService.startedAt,
+  ): HealthReport {
     return {
       status: "ok",
       service: "bff",

@@ -1,7 +1,14 @@
-import { NotFoundException, BadRequestException, ConflictException } from "@nestjs/common";
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Order as DbOrder, OrderLine as DbOrderLine } from "@prisma/client";
+import type {
+  Order as DbOrder,
+  OrderLine as DbOrderLine,
+} from "@prisma/client";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { PrismaService } from "../../prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
@@ -60,7 +67,9 @@ function makePrisma() {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   };
-  prisma.$transaction = vi.fn(async (cb: (tx: typeof prisma) => unknown) => cb(prisma));
+  prisma.$transaction = vi.fn(async (cb: (tx: typeof prisma) => unknown) =>
+    cb(prisma),
+  );
   return prisma;
 }
 
@@ -259,7 +268,9 @@ describe("OrdersService", () => {
 
     it("decrements inventory atomically per line inside the transaction", async () => {
       const newRow: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER, id: 2, orderId: "ord_001",
+        ...DB_ORDER,
+        id: 2,
+        orderId: "ord_001",
       };
       prisma.order.create.mockResolvedValue(newRow);
 
@@ -274,13 +285,18 @@ describe("OrdersService", () => {
 
     it("applies inventory delta to catalog cache after the transaction commits", async () => {
       const newRow: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER, id: 2, orderId: "ord_001",
+        ...DB_ORDER,
+        id: 2,
+        orderId: "ord_001",
       };
       prisma.order.create.mockResolvedValue(newRow);
 
       await service.create(INPUT);
 
-      expect(catalog.applyInventoryDelta).toHaveBeenCalledWith("prod_latte", -1);
+      expect(catalog.applyInventoryDelta).toHaveBeenCalledWith(
+        "prod_latte",
+        -1,
+      );
     });
 
     it("throws ConflictException when inventory CAS guard fails", async () => {
@@ -340,7 +356,10 @@ describe("OrdersService", () => {
 
     it("persists clientRequestId when supplied", async () => {
       const newRow: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER, id: 2, orderId: "ord_001", clientRequestId: "key-1",
+        ...DB_ORDER,
+        id: 2,
+        orderId: "ord_001",
+        clientRequestId: "key-1",
       };
       prisma.order.create.mockResolvedValue(newRow);
 
@@ -356,10 +375,16 @@ describe("OrdersService", () => {
     it("replays from cache without touching the DB on a known key", async () => {
       // First call seeds the idempotency index.
       const firstRow: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER, id: 2, orderId: "ord_001", clientRequestId: "key-1",
+        ...DB_ORDER,
+        id: 2,
+        orderId: "ord_001",
+        clientRequestId: "key-1",
       };
       prisma.order.create.mockResolvedValue(firstRow);
-      const first = await service.create({ ...INPUT, clientRequestId: "key-1" });
+      const first = await service.create({
+        ...INPUT,
+        clientRequestId: "key-1",
+      });
 
       // Reset call counters so we can assert the replay path is a pure short-circuit.
       prisma.$transaction.mockClear();
@@ -368,7 +393,10 @@ describe("OrdersService", () => {
       catalog.applyInventoryDelta.mockClear();
       domainEvents.emit.mockClear();
 
-      const replay = await service.create({ ...INPUT, clientRequestId: "key-1" });
+      const replay = await service.create({
+        ...INPUT,
+        clientRequestId: "key-1",
+      });
 
       expect(replay.orderId).toBe(first.orderId);
       expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -382,7 +410,10 @@ describe("OrdersService", () => {
       // Both retries reached the transaction; the other one won. Our tx
       // rolled back (so no inventory drift). We refetch and return the winner.
       const winner: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER, id: 2, orderId: "ord_001", clientRequestId: "key-race",
+        ...DB_ORDER,
+        id: 2,
+        orderId: "ord_001",
+        clientRequestId: "key-race",
       };
       prisma.order.create.mockRejectedValue(
         Object.assign(new Error("Unique constraint failed"), {
@@ -392,7 +423,10 @@ describe("OrdersService", () => {
       );
       prisma.order.findUnique.mockResolvedValue(winner);
 
-      const replay = await service.create({ ...INPUT, clientRequestId: "key-race" });
+      const replay = await service.create({
+        ...INPUT,
+        clientRequestId: "key-race",
+      });
 
       expect(replay.orderId).toBe("ord_001");
       expect(prisma.order.findUnique).toHaveBeenCalledWith({
@@ -406,7 +440,8 @@ describe("OrdersService", () => {
 
     it("warms idempotencyIndex from DB on boot so cross-process replays hit the cache", async () => {
       const dbOrderWithKey: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER, clientRequestId: "key-boot",
+        ...DB_ORDER,
+        clientRequestId: "key-boot",
       };
       const freshPrisma = makePrisma();
       freshPrisma.order.findMany.mockResolvedValue([dbOrderWithKey]);
@@ -442,7 +477,9 @@ describe("OrdersService", () => {
     it("marks an order as prepared and updates cache", async () => {
       prisma.order.update.mockResolvedValue(DB_ORDER);
 
-      const response = await service.manage("ord_demo", { action: "mark_prepared" });
+      const response = await service.manage("ord_demo", {
+        action: "mark_prepared",
+      });
 
       expect(response.status).toBe("prepared");
       expect(service.get("ord_demo").status).toBe("prepared");

@@ -53,7 +53,7 @@ import {
   getMockScenario,
   getSampleOrderId,
   type MockScenario,
-} from './mock-data';
+} from "./mock-data";
 
 // ---------------------------------------------------------------------------
 // Types - canonical wire shapes re-exported from @mini-commerce/contracts.
@@ -80,7 +80,7 @@ import type {
   ManageOrderRequest,
   ManageOrderResponse,
   HealthReport,
-} from '@mini-commerce/contracts';
+} from "@mini-commerce/contracts";
 
 export type {
   Money,
@@ -110,14 +110,14 @@ export type ManageOrderInput = ManageOrderRequest;
 // ---------------------------------------------------------------------------
 
 function isDemoMode(): boolean {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     // Server-side: check env
-    return process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+    return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   }
   // Client-side: check env (baked at build) or localStorage override
   return (
-    process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
-    localStorage.getItem('expresso_demo_mode') === 'true'
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
+    localStorage.getItem("expresso_demo_mode") === "true"
   );
 }
 
@@ -126,11 +126,11 @@ function isDemoMode(): boolean {
  * Useful for development and demonstrations.
  */
 export function setDemoMode(enabled: boolean): void {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     if (enabled) {
-      localStorage.setItem('expresso_demo_mode', 'true');
+      localStorage.setItem("expresso_demo_mode", "true");
     } else {
-      localStorage.removeItem('expresso_demo_mode');
+      localStorage.removeItem("expresso_demo_mode");
     }
     // Reload to apply
     window.location.reload();
@@ -142,7 +142,12 @@ export function getDemoModeStatus(): boolean {
 }
 
 // Re-export scenario management for demo controls
-export { setMockScenario, getMockScenario, getSampleOrderId, type MockScenario };
+export {
+  setMockScenario,
+  getMockScenario,
+  getSampleOrderId,
+  type MockScenario,
+};
 
 // ---------------------------------------------------------------------------
 // HTTP Client
@@ -152,19 +157,22 @@ export { setMockScenario, getMockScenario, getSampleOrderId, type MockScenario }
 // (next.config.mjs rewrites it to the internal BFF container). Server-side code
 // reaches the BFF directly over the internal network. NEXT_PUBLIC_API_BASE_URL
 // is an explicit escape hatch that overrides both when set.
-const BROWSER_PROXY_BASE = '/api/bff';
-const SERVER_BASE_FALLBACK = 'http://localhost:3001';
+const BROWSER_PROXY_BASE = "/api/bff";
+const SERVER_BASE_FALLBACK = "http://localhost:3001";
 
 function resolveBaseUrl(): string {
   // Read at call time, not module load time, so SSR + test overrides work.
   const override = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (override && override.length > 0) {
-    return override.replace(/\/$/, '');
+    return override.replace(/\/$/, "");
   }
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     // SSR / route handlers run inside the web container — go straight to the
     // internal BFF service name (set by compose) or the host fallback.
-    return (process.env.BFF_INTERNAL_URL || SERVER_BASE_FALLBACK).replace(/\/$/, '');
+    return (process.env.BFF_INTERNAL_URL || SERVER_BASE_FALLBACK).replace(
+      /\/$/,
+      "",
+    );
   }
   return BROWSER_PROXY_BASE;
 }
@@ -174,10 +182,10 @@ export class ExpressoApiError extends Error {
     readonly method: string,
     readonly path: string,
     readonly status: number,
-    readonly body: unknown
+    readonly body: unknown,
   ) {
     super(`${method} ${path} → HTTP ${status}`);
-    this.name = 'ExpressoApiError';
+    this.name = "ExpressoApiError";
   }
 }
 
@@ -185,12 +193,12 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<T> {
   const url = `${resolveBaseUrl()}${path}`;
   const res = await fetch(url, {
     method,
-    headers: body ? { 'content-type': 'application/json' } : undefined,
+    headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
     // TODO(api-wire): Add AbortController + per-call timeout for production use
     ...init,
@@ -221,7 +229,9 @@ const mockApi = {
   async getHealth(): Promise<HealthReport> {
     await simulateLatency();
     if (shouldSimulateError()) {
-      throw new ExpressoApiError('GET', '/health', 503, { message: 'Service unavailable (mock)' });
+      throw new ExpressoApiError("GET", "/health", 503, {
+        message: "Service unavailable (mock)",
+      });
     }
     return getMockHealth();
   },
@@ -229,7 +239,9 @@ const mockApi = {
   async getProducts(): Promise<ProductsResponse> {
     await simulateLatency();
     if (shouldSimulateError()) {
-      throw new ExpressoApiError('GET', '/catalog/products', 500, { message: 'Internal error (mock)' });
+      throw new ExpressoApiError("GET", "/catalog/products", 500, {
+        message: "Internal error (mock)",
+      });
     }
     return { items: getMockProducts() };
   },
@@ -237,13 +249,15 @@ const mockApi = {
   async getProductById(productId: string): Promise<Product> {
     await simulateLatency();
     if (shouldSimulateError()) {
-      throw new ExpressoApiError('GET', `/catalog/products/${productId}`, 500, { message: 'Internal error (mock)' });
+      throw new ExpressoApiError("GET", `/catalog/products/${productId}`, 500, {
+        message: "Internal error (mock)",
+      });
     }
     const products = getMockProducts();
     const product = products.find((p) => p.productId === productId);
     if (!product) {
-      throw new ExpressoApiError('GET', `/catalog/products/${productId}`, 404, {
-        message: 'Product not found',
+      throw new ExpressoApiError("GET", `/catalog/products/${productId}`, 404, {
+        message: "Product not found",
       });
     }
     return product;
@@ -254,7 +268,10 @@ const mockApi = {
     return addMockCartItem(input.productId, input.quantity);
   },
 
-  async updateCartItem(itemId: string, input: UpdateCartItemInput): Promise<Cart> {
+  async updateCartItem(
+    itemId: string,
+    input: UpdateCartItemInput,
+  ): Promise<Cart> {
     await simulateLatency();
     return updateMockCartItem(itemId, input.quantity);
   },
@@ -273,8 +290,8 @@ const mockApi = {
     await simulateLatency(300);
     const cart = getMockCart();
     if (cart.items.length === 0) {
-      throw new ExpressoApiError('POST', '/checkout', 400, {
-        message: 'Cart is empty',
+      throw new ExpressoApiError("POST", "/checkout", 400, {
+        message: "Cart is empty",
       });
     }
     return createMockOrder();
@@ -289,8 +306,8 @@ const mockApi = {
     await simulateLatency();
     const order = getMockOrder(orderId);
     if (!order) {
-      throw new ExpressoApiError('GET', `/orders/${orderId}`, 404, {
-        message: 'Order not found',
+      throw new ExpressoApiError("GET", `/orders/${orderId}`, 404, {
+        message: "Order not found",
       });
     }
     return order;
@@ -298,24 +315,24 @@ const mockApi = {
 
   async manageOrder(
     orderId: string,
-    input: ManageOrderInput
+    input: ManageOrderInput,
   ): Promise<ManageOrderResponse> {
     await simulateLatency();
     const order = getMockOrder(orderId);
     if (!order) {
-      throw new ExpressoApiError('POST', `/orders/${orderId}/manage`, 404, {
-        message: 'Order not found',
+      throw new ExpressoApiError("POST", `/orders/${orderId}/manage`, 404, {
+        message: "Order not found",
       });
     }
 
     const previousStatus = order.status;
     let newStatus: OrderStatus = order.status;
 
-    if (input.action === 'cancel') {
-      newStatus = 'cancelled';
-    } else if (input.action === 'mark_prepared') {
-      newStatus = 'prepared';
-    } else if (input.action === 'update_status' && input.nextStatus) {
+    if (input.action === "cancel") {
+      newStatus = "cancelled";
+    } else if (input.action === "mark_prepared") {
+      newStatus = "prepared";
+    } else if (input.action === "update_status" && input.nextStatus) {
       newStatus = input.nextStatus;
     }
 
@@ -342,59 +359,62 @@ function simulateLatency(ms = 150): Promise<void> {
 
 const realApi = {
   getHealth(): Promise<HealthReport> {
-    return request<HealthReport>('GET', '/health');
+    return request<HealthReport>("GET", "/health");
   },
 
   getProducts(): Promise<ProductsResponse> {
-    return request<ProductsResponse>('GET', '/catalog/products');
+    return request<ProductsResponse>("GET", "/catalog/products");
   },
 
   getProductById(productId: string): Promise<Product> {
     return request<Product>(
-      'GET',
-      `/catalog/products/${encodeURIComponent(productId)}`
+      "GET",
+      `/catalog/products/${encodeURIComponent(productId)}`,
     );
   },
 
   addCartItem(input: AddCartItemInput): Promise<Cart> {
     // TODO(api-wire): BFF cart is session-based; consider cookie/header strategy
-    return request<Cart>('POST', '/cart/items', input);
+    return request<Cart>("POST", "/cart/items", input);
   },
 
   updateCartItem(itemId: string, input: UpdateCartItemInput): Promise<Cart> {
     return request<Cart>(
-      'PATCH',
+      "PATCH",
       `/cart/items/${encodeURIComponent(itemId)}`,
-      input
+      input,
     );
   },
 
   removeCartItem(itemId: string): Promise<Cart> {
-    return request<Cart>('DELETE', `/cart/items/${encodeURIComponent(itemId)}`);
+    return request<Cart>("DELETE", `/cart/items/${encodeURIComponent(itemId)}`);
   },
 
   getCart(): Promise<Cart> {
     // TODO(api-wire): BFF cart is session-based; consider cookie/header strategy
-    return request<Cart>('GET', '/cart');
+    return request<Cart>("GET", "/cart");
   },
 
   checkout(input: CheckoutInput): Promise<CheckoutResponse> {
-    return request<CheckoutResponse>('POST', '/checkout', input);
+    return request<CheckoutResponse>("POST", "/checkout", input);
   },
 
   getOrders(): Promise<OrdersResponse> {
-    return request<OrdersResponse>('GET', '/orders');
+    return request<OrdersResponse>("GET", "/orders");
   },
 
   getOrderById(orderId: string): Promise<Order> {
-    return request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`);
+    return request<Order>("GET", `/orders/${encodeURIComponent(orderId)}`);
   },
 
-  manageOrder(orderId: string, input: ManageOrderInput): Promise<ManageOrderResponse> {
+  manageOrder(
+    orderId: string,
+    input: ManageOrderInput,
+  ): Promise<ManageOrderResponse> {
     return request<ManageOrderResponse>(
-      'POST',
+      "POST",
       `/orders/${encodeURIComponent(orderId)}/manage`,
-      input
+      input,
     );
   },
 };
@@ -422,7 +442,9 @@ export const expressoApi = {
   },
 
   addCartItem(input: AddCartItemInput): Promise<Cart> {
-    return isDemoMode() ? mockApi.addCartItem(input) : realApi.addCartItem(input);
+    return isDemoMode()
+      ? mockApi.addCartItem(input)
+      : realApi.addCartItem(input);
   },
 
   updateCartItem(itemId: string, input: UpdateCartItemInput): Promise<Cart> {
@@ -455,7 +477,10 @@ export const expressoApi = {
       : realApi.getOrderById(orderId);
   },
 
-  manageOrder(orderId: string, input: ManageOrderInput): Promise<ManageOrderResponse> {
+  manageOrder(
+    orderId: string,
+    input: ManageOrderInput,
+  ): Promise<ManageOrderResponse> {
     return isDemoMode()
       ? mockApi.manageOrder(orderId, input)
       : realApi.manageOrder(orderId, input);

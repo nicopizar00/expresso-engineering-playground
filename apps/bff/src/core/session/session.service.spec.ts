@@ -26,7 +26,12 @@ describe("SessionService", () => {
     expect(res.cookie).toHaveBeenCalledWith(
       "sid",
       sessionId,
-      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", secure: false }),
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      }),
     );
   });
 

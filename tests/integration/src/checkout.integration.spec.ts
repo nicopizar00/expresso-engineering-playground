@@ -101,8 +101,14 @@ describe("OrdersService.create (real Postgres)", () => {
     const { orders } = await makeOrders(5);
     const key = "00000000-0000-4000-8000-000000000001";
 
-    const first = await orders.create({ ...baseInput(1), clientRequestId: key });
-    const second = await orders.create({ ...baseInput(1), clientRequestId: key });
+    const first = await orders.create({
+      ...baseInput(1),
+      clientRequestId: key,
+    });
+    const second = await orders.create({
+      ...baseInput(1),
+      clientRequestId: key,
+    });
 
     expect(second.orderId).toBe(first.orderId);
     expect(await prisma.order.count()).toBe(1);

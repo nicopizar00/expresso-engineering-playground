@@ -22,7 +22,9 @@ async function fetchProducts(): Promise<ProductsResponse> {
 export default function HomeWorkspace() {
   const { section, setSection } = useSection();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [justPlacedOrderId, setJustPlacedOrderId] = useState<string | null>(null);
+  const [justPlacedOrderId, setJustPlacedOrderId] = useState<string | null>(
+    null,
+  );
 
   const { data, error, isLoading, mutate } = useSWR<ProductsResponse, Error>(
     "products",

@@ -44,20 +44,20 @@ src/
 
 ## HTTP surface
 
-| Method | Path                    | Notes                                                   |
-| ------ | ----------------------- | ------------------------------------------------------- |
-| GET    | `/health`               | Liveness; `checks.db` is `"skipped"` for now.           |
-| GET    | `/catalog/products`     | Deterministic catalog of exactly one product (Cup of Coffee). |
-| GET    | `/catalog/products/:id` | `prod_unknown` returns 404 for error-path tests.        |
-| GET    | `/cart`                 | Current cart snapshot; empty or one Cup of Coffee at quantity 1. |
-| POST   | `/cart/items`           | Adds the one allowed line; rejects a second add (409), a bad quantity (400), or an unknown product (404). |
-| PATCH  | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — quantity can never change. |
-| DELETE | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — only Place Order clears the cart. |
+| Method | Path                    | Notes                                                                                                               |
+| ------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`               | Liveness; `checks.db` is `"skipped"` for now.                                                                       |
+| GET    | `/catalog/products`     | Deterministic catalog of exactly one product (Cup of Coffee).                                                       |
+| GET    | `/catalog/products/:id` | `prod_unknown` returns 404 for error-path tests.                                                                    |
+| GET    | `/cart`                 | Current cart snapshot; empty or one Cup of Coffee at quantity 1.                                                    |
+| POST   | `/cart/items`           | Adds the one allowed line; rejects a second add (409), a bad quantity (400), or an unknown product (404).           |
+| PATCH  | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — quantity can never change.                                                  |
+| DELETE | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — only Place Order clears the cart.                                           |
 | POST   | `/checkout`             | Anonymous, terminal Place Order; converts the cart to an order and resets it. Rejects a `customerName` field (400). |
-| GET    | `/orders`               | Lists persisted orders, including seeded `ord_demo`.    |
-| GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.        |
-| POST   | `/orders/:id/manage`    | Persists `cancel`, `update_status`, `mark_prepared`.    |
-| GET    | `/visualization-data`   | Aggregates catalog, orders, and cart for the 3D client. |
+| GET    | `/orders`               | Lists persisted orders, including seeded `ord_demo`.                                                                |
+| GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.                                                                    |
+| POST   | `/orders/:id/manage`    | Persists `cancel`, `update_status`, `mark_prepared`.                                                                |
+| GET    | `/visualization-data`   | Aggregates catalog, orders, and cart for the 3D client.                                                             |
 
 ## Local run
 

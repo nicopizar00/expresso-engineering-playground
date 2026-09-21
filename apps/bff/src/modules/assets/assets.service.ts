@@ -1,6 +1,9 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 // TODO(vercel-build): @prisma/client types require `prisma generate` — ensured by package.json#build
-import type { AssetConfig as DbAssetConfig, AssetModel as DbAssetModel } from "@prisma/client";
+import type {
+  AssetConfig as DbAssetConfig,
+  AssetModel as DbAssetModel,
+} from "@prisma/client";
 import { PrismaService } from "../../prisma.service";
 import type { AssetModelRef, AssetParams } from "./assets.types";
 

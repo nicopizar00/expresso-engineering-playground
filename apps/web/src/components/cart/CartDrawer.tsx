@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * CartDrawer - Slide-over cart panel
@@ -10,14 +10,14 @@
  * TODO(v0-export): Extract CartItemRow to separate file for reusability
  */
 
-import { useRef } from 'react';
-import { X, ShoppingCart, ArrowRight } from 'lucide-react';
-import { useCart } from './CartProvider';
-import { EmptyState } from '@/components/system/EmptyState';
-import { LoadingSpinner } from '@/components/system/LoadingSkeleton';
-import { formatMoney, CartItem as CartItemType } from '@/lib/api/expresso-api';
-import { useDialogA11y } from '@/lib/hooks/useDialogA11y';
-import { useSection } from '@/components/system/SectionProvider';
+import { useRef } from "react";
+import { X, ShoppingCart, ArrowRight } from "lucide-react";
+import { useCart } from "./CartProvider";
+import { EmptyState } from "@/components/system/EmptyState";
+import { LoadingSpinner } from "@/components/system/LoadingSkeleton";
+import { formatMoney, CartItem as CartItemType } from "@/lib/api/expresso-api";
+import { useDialogA11y } from "@/lib/hooks/useDialogA11y";
+import { useSection } from "@/components/system/SectionProvider";
 
 interface CartDrawerProps {
   open: boolean;
@@ -50,8 +50,8 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         tabIndex={-1}
         className="cart-panel animate-receiptUnfurl"
         style={{
-          backgroundColor: 'var(--card)',
-          boxShadow: 'var(--shadow-lg)',
+          backgroundColor: "var(--card)",
+          boxShadow: "var(--shadow-lg)",
         }}
         role="dialog"
         aria-modal="true"
@@ -60,20 +60,23 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-4 border-b"
-          style={{ borderColor: 'var(--border)' }}
+          style={{ borderColor: "var(--border)" }}
         >
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" style={{ color: 'var(--primary)' }} />
+            <ShoppingCart
+              className="h-5 w-5"
+              style={{ color: "var(--primary)" }}
+            />
             <h2
               id="cart-drawer-title"
               className="font-semibold text-lg"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: "var(--foreground)" }}
             >
               Cart
             </h2>
             {itemCount > 0 && (
               <span className="px-2 py-0.5 text-xs font-medium rounded-full tone-muted">
-                {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                {itemCount} {itemCount === 1 ? "item" : "items"}
               </span>
             )}
           </div>
@@ -96,13 +99,13 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             <EmptyState
               variant="cart"
               action={{
-                label: 'Browse Products',
-                href: '/',
+                label: "Browse Products",
+                href: "/",
                 onClick: onClose,
               }}
             />
           ) : (
-            <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+            <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
               {cart?.items.map((item) => (
                 <CartItemRow key={item.itemId} item={item} />
               ))}
@@ -114,15 +117,18 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         {!isEmpty && (
           <div
             className="border-t p-4 space-y-4"
-            style={{ borderColor: 'var(--border)' }}
+            style={{ borderColor: "var(--border)" }}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              <span
+                className="text-sm"
+                style={{ color: "var(--muted-foreground)" }}
+              >
                 Subtotal
               </span>
               <span
                 className="text-lg font-semibold"
-                style={{ color: 'var(--foreground)' }}
+                style={{ color: "var(--foreground)" }}
               >
                 {formattedTotal}
               </span>
@@ -136,7 +142,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             <button
               type="button"
               onClick={() => {
-                setSection('catalog');
+                setSection("catalog");
                 onClose();
               }}
               className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-colors tone-primary"
@@ -146,7 +152,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             </button>
             <p
               className="text-xs text-center"
-              style={{ color: 'var(--muted-foreground)' }}
+              style={{ color: "var(--muted-foreground)" }}
             >
               Cart is in-memory and resets on BFF restart. Orders are persisted.
             </p>
@@ -169,12 +175,12 @@ function CartItemRow({ item }: { item: CartItemType }) {
         {/* Product placeholder */}
         <div
           className="w-16 h-16 rounded-md flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: 'var(--secondary)' }}
+          style={{ backgroundColor: "var(--secondary)" }}
           aria-hidden="true"
         >
           <ShoppingCart
             className="h-6 w-6"
-            style={{ color: 'var(--muted-foreground)' }}
+            style={{ color: "var(--muted-foreground)" }}
           />
         </div>
 
@@ -182,20 +188,20 @@ function CartItemRow({ item }: { item: CartItemType }) {
         <div className="flex-1 min-w-0">
           <h3
             className="font-medium text-sm truncate"
-            style={{ color: 'var(--foreground)' }}
+            style={{ color: "var(--foreground)" }}
           >
             {item.name}
           </h3>
           <div className="flex items-center justify-between mt-2">
             <span
               className="text-sm font-medium"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: "var(--foreground)" }}
             >
               Qty: {item.quantity}
             </span>
             <span
               className="font-medium text-sm"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: "var(--foreground)" }}
             >
               {formatMoney(item.lineTotal.amountMinor, item.lineTotal.currency)}
             </span>

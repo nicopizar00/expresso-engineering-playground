@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * FutureIntegrationPanel - Information panel for potential data adapters
@@ -7,7 +7,7 @@
  * Redesigned with a clean, modern interface.
  */
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Info,
   ChevronDown,
@@ -17,7 +17,7 @@ import {
   Link2,
   Database,
   FlaskConical,
-} from 'lucide-react';
+} from "lucide-react";
 
 export function FutureIntegrationPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -25,7 +25,7 @@ export function FutureIntegrationPanel() {
   return (
     <div
       className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -33,45 +33,64 @@ export function FutureIntegrationPanel() {
         aria-expanded={isExpanded}
       >
         <div className="flex items-center gap-2">
-          <Info className="h-4 w-4" style={{ color: 'var(--info)' }} />
-          <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+          <Info className="h-4 w-4" style={{ color: "var(--info)" }} />
+          <span
+            className="font-medium text-sm"
+            style={{ color: "var(--foreground)" }}
+          >
             Data Sources
           </span>
           <span
             className="px-1.5 py-0.5 text-[9px] font-medium rounded uppercase tracking-wide"
             style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              color: 'var(--info)',
+              backgroundColor: "rgba(59, 130, 246, 0.1)",
+              color: "var(--info)",
             }}
           >
             Mock
           </span>
         </div>
         {isExpanded ? (
-          <ChevronUp className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+          <ChevronUp
+            className="h-4 w-4"
+            style={{ color: "var(--muted-foreground)" }}
+          />
         ) : (
-          <ChevronDown className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+          <ChevronDown
+            className="h-4 w-4"
+            style={{ color: "var(--muted-foreground)" }}
+          />
         )}
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 border-t pt-4 space-y-4" style={{ borderColor: 'var(--border)' }}>
+        <div
+          className="px-4 pb-4 border-t pt-4 space-y-4"
+          style={{ borderColor: "var(--border)" }}
+        >
           {/* Current State */}
           <div>
             <h3
               className="text-[10px] font-medium uppercase tracking-wider mb-2"
-              style={{ color: 'var(--muted-foreground)' }}
+              style={{ color: "var(--muted-foreground)" }}
             >
               Current State
             </h3>
-            <div 
+            <div
               className="flex items-start gap-2 p-3 rounded-lg"
-              style={{ backgroundColor: 'var(--secondary)' }}
+              style={{ backgroundColor: "var(--secondary)" }}
             >
-              <FlaskConical className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--info)' }} />
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                All metrics shown are deterministic mock data for design validation.
-                This does not represent live telemetry or real performance data.
+              <FlaskConical
+                className="h-4 w-4 mt-0.5 shrink-0"
+                style={{ color: "var(--info)" }}
+              />
+              <p
+                className="text-xs"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                All metrics shown are deterministic mock data for design
+                validation. This does not represent live telemetry or real
+                performance data.
               </p>
             </div>
           </div>
@@ -80,7 +99,7 @@ export function FutureIntegrationPanel() {
           <div>
             <h3
               className="text-[10px] font-medium uppercase tracking-wider mb-2"
-              style={{ color: 'var(--muted-foreground)' }}
+              style={{ color: "var(--muted-foreground)" }}
             >
               Potential Adapters
             </h3>
@@ -112,15 +131,15 @@ export function FutureIntegrationPanel() {
           <div>
             <h3
               className="text-[10px] font-medium uppercase tracking-wider mb-2"
-              style={{ color: 'var(--muted-foreground)' }}
+              style={{ color: "var(--muted-foreground)" }}
             >
               Source
             </h3>
             <div
               className="p-2 rounded-lg font-mono text-[10px]"
               style={{
-                backgroundColor: 'var(--background)',
-                color: 'var(--muted-foreground)',
+                backgroundColor: "var(--background)",
+                color: "var(--muted-foreground)",
               }}
             >
               <div>lib/performance/mock-performance-data.ts</div>
@@ -140,15 +159,21 @@ function IntegrationCard({
 }: {
   icon: typeof FileJson;
   title: string;
-  status: 'planned' | 'in-progress' | 'ready';
+  status: "planned" | "in-progress" | "ready";
 }) {
   return (
     <div
       className="flex items-center gap-2 p-2 rounded-lg"
-      style={{ backgroundColor: 'var(--background)' }}
+      style={{ backgroundColor: "var(--background)" }}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-      <span className="text-[10px] font-medium" style={{ color: 'var(--foreground)' }}>
+      <Icon
+        className="h-3.5 w-3.5 shrink-0"
+        style={{ color: "var(--muted-foreground)" }}
+      />
+      <span
+        className="text-[10px] font-medium"
+        style={{ color: "var(--foreground)" }}
+      >
         {title}
       </span>
     </div>

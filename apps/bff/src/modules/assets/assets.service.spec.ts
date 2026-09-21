@@ -1,17 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { AssetsService } from "./assets.service";
 
-function makeService(opts: {
-  configs?: Array<{ category: string; params: Record<string, number> }>;
-  models?: Array<{
-    category: string;
-    variant?: string;
-    assetUrl: string;
-    assetFormat?: string;
-    isPrimary?: boolean;
-    updatedAt?: Date;
-  }>;
-} = {}) {
+function makeService(
+  opts: {
+    configs?: Array<{ category: string; params: Record<string, number> }>;
+    models?: Array<{
+      category: string;
+      variant?: string;
+      assetUrl: string;
+      assetFormat?: string;
+      isPrimary?: boolean;
+      updatedAt?: Date;
+    }>;
+  } = {},
+) {
   const configs = opts.configs ?? [];
   const models = (opts.models ?? []).map((m) => ({
     variant: "default",
@@ -63,8 +65,18 @@ describe("AssetsService", () => {
     // row arrives first. The service must keep it and ignore later variants.
     const { svc } = makeService({
       models: [
-        { category: "drink", variant: "default", assetUrl: "/viz/models/new.glb", updatedAt: newer },
-        { category: "drink", variant: "lod1", assetUrl: "/viz/models/old.glb", updatedAt: older },
+        {
+          category: "drink",
+          variant: "default",
+          assetUrl: "/viz/models/new.glb",
+          updatedAt: newer,
+        },
+        {
+          category: "drink",
+          variant: "lod1",
+          assetUrl: "/viz/models/old.glb",
+          updatedAt: older,
+        },
       ],
     });
     await svc.onModuleInit();
@@ -103,7 +115,14 @@ describe("AssetsService", () => {
     expect(svc.getPrimaryModel("drink")?.assetUrl).toBe("/viz/models/old.glb");
 
     prisma.assetModel.findMany.mockResolvedValue([
-      { category: "drink", variant: "default", assetFormat: "glb", isPrimary: true, updatedAt: new Date(), assetUrl: "/viz/models/new.glb" },
+      {
+        category: "drink",
+        variant: "default",
+        assetFormat: "glb",
+        isPrimary: true,
+        updatedAt: new Date(),
+        assetUrl: "/viz/models/new.glb",
+      },
     ]);
     await svc.refreshAssets();
     expect(svc.getPrimaryModel("drink")?.assetUrl).toBe("/viz/models/new.glb");
