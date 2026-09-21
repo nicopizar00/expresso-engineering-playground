@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 *,
 *::before,
@@ -14,70 +14,61 @@ a {
 }
 
 :root {
-  /* Core palette — order-counter POS terminal: roasted-coffee dark ground,
-     crema highlight, brass + steam as the two working accents. Values are
-     shared in spirit with apps/visualizer-3d's ESPRESSO_PALETTE so the
-     shell reads as sibling hardware to the 3D scene, not a themed skin. */
-  --roast: #1c140d;
-  --crema: #f1ecda;
-  --barrel: #5b3a1e;
-  --brass: #c68a3d;
-  --steam: #8fa69b;
-  --char: #2e251c;
-
-  --background: var(--roast);
-  --foreground: var(--crema);
-  --card: #26190f;
-  --card-foreground: var(--crema);
-  --popover: #26190f;
-  --popover-foreground: var(--crema);
-  --primary: var(--brass);
-  --primary-foreground: var(--roast);
-  --secondary: var(--barrel);
-  --secondary-foreground: var(--crema);
-  --muted: var(--char);
-  --muted-foreground: #b8a488;
-  --accent: var(--steam);
-  --accent-foreground: var(--roast);
-  --destructive: #c1553a;
-  --destructive-foreground: var(--crema);
-  --border: #3a2c1e;
-  --input: var(--char);
-  --ring: var(--brass);
+  /* Core palette - warm espresso tones with modern neutrals */
+  --background: #0a0a0b;
+  --foreground: #fafafa;
+  --card: #141415;
+  --card-foreground: #fafafa;
+  --popover: #141415;
+  --popover-foreground: #fafafa;
+  --primary: #d4a574;
+  --primary-foreground: #0a0a0b;
+  --secondary: #1f1f22;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #c9956c;
+  --accent-foreground: #0a0a0b;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #d4a574;
 
   /* Status colors */
-  --success: #6fa37c;
-  --success-foreground: var(--roast);
-  --warning: #d9a441;
-  --warning-foreground: var(--roast);
-  --info: var(--steam);
-  --info-foreground: var(--roast);
+  --success: #22c55e;
+  --success-foreground: #0a0a0b;
+  --warning: #f59e0b;
+  --warning-foreground: #0a0a0b;
+  --info: #3b82f6;
+  --info-foreground: #fafafa;
 
   /* Category colors */
-  --drink: var(--brass);
-  --food: #6fa37c;
-  --accessory: var(--steam);
+  --drink: #d4a574;
+  --food: #22c55e;
+  --accessory: #3b82f6;
 
-  /* Radius — sharp, angular corners rhyme with the visualizer's PS1 "all
-     angles 90°" rule. Only rounded-full (badges/LEDs/counts) stays circular. */
-  --radius: 0;
+  /* Radius */
+  --radius: 0.5rem;
 
-  /* Shadows — hard offset, no blur. Pixel-art drop-shadow, not soft SaaS glow. */
-  --shadow-color: #0e0904;
-  --shadow-sm: 2px 2px 0 0 var(--shadow-color);
-  --shadow: 3px 3px 0 0 var(--shadow-color);
-  --shadow-md: 4px 4px 0 0 var(--shadow-color);
-  --shadow-lg: 6px 6px 0 0 var(--shadow-color);
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg:
+    0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
 }
 
 html {
   font-family:
-    "Fraunces",
-    Georgia,
-    "Times New Roman",
-    serif;
+    "Inter",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -476,10 +467,8 @@ body {
   font-weight: 600;
 }
 .font-mono {
-  /* Register-tape typewriter face for every numeric/technical readout:
-     prices, order IDs, SKUs, timestamps, health/version strings. */
-  font-family: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
   letter-spacing: 0.01em;
 }
 .uppercase {
