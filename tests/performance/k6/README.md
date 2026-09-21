@@ -131,10 +131,38 @@ On a successful run, `./dev perf:cart-fulfill` also duplicates
 separate, gitignored folder for data a *later* workflow consumes (`reports/`
 stays evidence-only and untouched). `place-order` below reads that duplicate.
 
+## Run cart-fulfill-browser
+
+`cart-fulfill-browser` is `cart-fulfill`'s browser-driven twin: same
+outcome (a reserved cart, emitted as `[CSV] <cartId>,,<sid>`), but reached by
+driving the web app's real UI with Chromium instead of calling the BFF over
+HTTP — add to cart, wait for the checkout panel, stop before clicking
+"Place Order". It writes to the exact same
+`reports/cart-fulfill-carts.csv`, so `place-order` consumes either
+producer's output unchanged:
+
+```bash
+./dev up web
+docker compose -f infra/docker/compose.performance.yaml build k6-browser
+./dev perf:cart-fulfill-browser --confirm-output-data
+./dev perf:place-order
+```
+
+`cartId` is required verbatim at checkout but was never rendered anywhere in
+the DOM, so `CartCheckoutPanel.tsx` carries a `data-cart-id` attribute
+specifically for this scenario to read via `page.getAttribute()` — k6's
+browser module has no request/response interception to read it off the
+`POST /cart/items` response body instead. The emitted row's `productId`
+field is intentionally blank: `place-order.ts` never reads that column, and
+there's no DOM-exposed productId to report honestly in its place. It
+forwards `VUS`/`ITERATIONS` only, same as `purchase-flow-browser` — one
+Chromium instance per VU, default one iteration.
+
 ## Run place-order
 
 `place-order` is `cart-fulfill`'s pair: it checks out the carts `cart-fulfill`
-reserved instead of creating its own. Its scenario loads
+(or its browser-driven twin, `cart-fulfill-browser`) reserved instead of
+creating its own. Its scenario loads
 `data/cart-fulfill-carts.csv` into a k6 `SharedArray` at init time (one row
 per cart, read-only, shared across VUs) and, for each iteration, completes
 `POST /checkout` for one row, then verifies the order and the visualizer feed
@@ -187,6 +215,7 @@ The current mappings are:
 | `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` |
 | `scenarios/purchase-flow-browser/purchase-flow-browser.ts` | `workflows/purchase-flow-browser.yaml` |
 | `scenarios/cart-fulfill/cart-fulfill.ts` | `workflows/cart-fulfill.yaml` |
+| `scenarios/cart-fulfill-browser/cart-fulfill-browser.ts` | `workflows/cart-fulfill-browser.yaml` |
 | `scenarios/place-order/place-order.ts` | `workflows/place-order.yaml` |
 
 `purchase-flow` is the one full load/perf workflow: it mimics the web app
@@ -201,9 +230,11 @@ entries nor workflows.
 
 ## Optional CSV output
 
-`cart-fulfill` is the only workflow that declares `outputs.csv` today. Any
-other future workflow can declare `spec.outputs.csv.path` only when its data
-output is intentional.
+`cart-fulfill` and `cart-fulfill-browser` are the only workflows that declare
+`outputs.csv` today — both to the same `cart-fulfill-carts.csv` path, since
+they're interchangeable producers for `place-order`. Any other future
+workflow can declare `spec.outputs.csv.path` only when its data output is
+intentional.
 
 - A candidate record is exactly one stdout line beginning `[CSV]`; Punch strips
   that prefix and parses its payload as strict CSV. Stderr is log-only and is

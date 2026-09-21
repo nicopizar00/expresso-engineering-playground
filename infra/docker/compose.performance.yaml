@@ -119,6 +119,11 @@ services:
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3000}
       K6_ENV: ${K6_ENV:-local}
+      # See the `k6` service's identical pair above: without these,
+      # cart-fulfill-browser's [CSV] console.log records never reach the
+      # stdout stream Punch harvests.
+      K6_LOG_OUTPUT: stdout
+      K6_LOG_FORMAT: raw
       SCENARIO: ${SCENARIO:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"

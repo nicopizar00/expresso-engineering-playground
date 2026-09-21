@@ -36,6 +36,7 @@
     "pg:perf:purchase-flow": "./dev perf:purchase-flow",
     "pg:perf:purchase-flow-browser": "./dev perf:purchase-flow-browser",
     "pg:perf:cart-fulfill": "./dev perf:cart-fulfill",
+    "pg:perf:cart-fulfill-browser": "./dev perf:cart-fulfill-browser",
     "pg:perf:place-order": "./dev perf:place-order",
     "pg:perf:open-report": "./dev perf:open-report",
     "pg:perf:clean": "./dev perf:clean",

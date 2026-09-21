@@ -25,13 +25,17 @@ fi
 
 echo "Punch orchestrator — k6 image build is optional before workflow selection."
 
-read -r -p "Run 'docker compose build k6'? [y/N] " reply
+# Builds both images since the menu can select either service (a browser
+# workflow like purchase-flow-browser/cart-fulfill-browser needs k6-browser,
+# every other workflow needs k6) and the build happens before the operator
+# has picked a workflow to know which one.
+read -r -p "Run 'docker compose build k6 k6-browser'? [y/N] " reply
 case "$reply" in
     [yY]|[yY][eE][sS])
-        docker compose -f "$REPO_ROOT/infra/docker/compose.performance.yaml" build k6
+        docker compose -f "$REPO_ROOT/infra/docker/compose.performance.yaml" build k6 k6-browser
         ;;
     *)
-        echo "Skipping k6 image build."
+        echo "Skipping k6/k6-browser image build."
         ;;
 esac
 

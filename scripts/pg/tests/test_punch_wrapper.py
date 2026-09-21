@@ -123,7 +123,7 @@ class PunchWrapperTests(unittest.TestCase):
             events,
             [
                 "docker\tcompose\t-f\t"
-                f"{REPO_ROOT / 'infra/docker/compose.performance.yaml'}\tbuild\tk6",
+                f"{REPO_ROOT / 'infra/docker/compose.performance.yaml'}\tbuild\tk6\tk6-browser",
                 "python3\t-m\tpunch\tmenu\t"
                 f"{REPO_ROOT / 'tests/performance/k6/workflows'}",
             ],

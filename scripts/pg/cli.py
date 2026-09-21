@@ -90,6 +90,11 @@ def _perf_cart_fulfill(args: Sequence[str]) -> int:
     return perf.cart_fulfill(args)
 
 
+def _perf_cart_fulfill_browser(args: Sequence[str]) -> int:
+    from pg import perf
+    return perf.cart_fulfill_browser(args)
+
+
 def _perf_place_order(args: Sequence[str]) -> int:
     from pg import perf
     return perf.place_order(args)
@@ -132,6 +137,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "perf:purchase-flow": _perf_purchase_flow,
     "perf:purchase-flow-browser": _perf_purchase_flow_browser,
     "perf:cart-fulfill": _perf_cart_fulfill,
+    "perf:cart-fulfill-browser": _perf_cart_fulfill_browser,
     "perf:place-order": _perf_place_order,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,

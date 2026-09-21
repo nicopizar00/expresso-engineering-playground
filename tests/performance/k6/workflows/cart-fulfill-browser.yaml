@@ -1,0 +1,18 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: cart-fulfill-browser
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6-browser
+  k6:
+    script: /scripts/scenarios/cart-fulfill-browser/cart-fulfill-browser.js
+  environment:
+    forward: [BASE_URL, VUS, ITERATIONS]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/cart-fulfill-browser-summary.json
+    csv:
+      path: tests/performance/k6/reports/cart-fulfill-carts.csv

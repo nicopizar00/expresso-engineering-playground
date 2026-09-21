@@ -127,6 +127,11 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
                         {"default_port": WEB_PORT},
                     ),
                     (perf.cart_fulfill, "cart-fulfill", {}),
+                    (
+                        perf.cart_fulfill_browser,
+                        "cart-fulfill-browser",
+                        {"default_port": WEB_PORT},
+                    ),
                     (perf.place_order, "place-order", {}),
                 ):
                     with self.subTest(workflow_name=workflow_name):
@@ -144,6 +149,9 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
                 perf, "purchase_flow_browser", return_value=0
             ) as purchase_flow_browser_mock,
             patch.object(perf, "cart_fulfill", return_value=0) as cart_fulfill_mock,
+            patch.object(
+                perf, "cart_fulfill_browser", return_value=0
+            ) as cart_fulfill_browser_mock,
             patch.object(perf, "place_order", return_value=0) as place_order_mock,
         ):
             self.assertEqual(cli._perf_smoke(["--confirm-output-data"]), 0)
@@ -152,12 +160,16 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
                 cli._perf_purchase_flow_browser(["--confirm-output-data"]), 0
             )
             self.assertEqual(cli._perf_cart_fulfill(["--confirm-output-data"]), 0)
+            self.assertEqual(
+                cli._perf_cart_fulfill_browser(["--confirm-output-data"]), 0
+            )
             self.assertEqual(cli._perf_place_order(["--confirm-output-data"]), 0)
 
         smoke_mock.assert_called_once_with(["--confirm-output-data"])
         purchase_flow_mock.assert_called_once_with(["--confirm-output-data"])
         purchase_flow_browser_mock.assert_called_once_with(["--confirm-output-data"])
         cart_fulfill_mock.assert_called_once_with(["--confirm-output-data"])
+        cart_fulfill_browser_mock.assert_called_once_with(["--confirm-output-data"])
         place_order_mock.assert_called_once_with(["--confirm-output-data"])
 
 
@@ -208,6 +220,30 @@ class CartFulfillDuplicatesCsvForPlaceOrderTests(unittest.TestCase):
         source.write_text("stale-cart,prod-1\n", encoding="utf-8")
 
         self.assertEqual(perf.cart_fulfill([]), 1)
+
+        self.assertFalse((self.data_dir / perf.CART_FULFILL_CSV_NAME).exists())
+
+    @patch("pg.perf.run_k6", return_value=0)
+    def test_browser_successful_run_duplicates_reports_csv_into_data_dir(
+        self, _run_k6_mock
+    ) -> None:
+        source = self.reports_dir / perf.CART_FULFILL_CSV_NAME
+        source.write_text("cart-1,,sid-1\n", encoding="utf-8")
+
+        self.assertEqual(perf.cart_fulfill_browser([]), 0)
+
+        duplicate = self.data_dir / perf.CART_FULFILL_CSV_NAME
+        self.assertEqual(duplicate.read_text(encoding="utf-8"), "cart-1,,sid-1\n")
+        self.assertTrue(source.exists())
+
+    @patch("pg.perf.run_k6", return_value=1)
+    def test_browser_failed_run_does_not_duplicate_stale_csv(
+        self, _run_k6_mock
+    ) -> None:
+        source = self.reports_dir / perf.CART_FULFILL_CSV_NAME
+        source.write_text("stale-cart,,sid-1\n", encoding="utf-8")
+
+        self.assertEqual(perf.cart_fulfill_browser([]), 1)
 
         self.assertFalse((self.data_dir / perf.CART_FULFILL_CSV_NAME).exists())
 

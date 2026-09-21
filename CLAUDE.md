@@ -139,9 +139,9 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ```
 
 Each performance command selects one repository-owned YAML workflow; Punch
-loads, validates, and runs it once through Docker Compose. Current workflows
-do not declare CSV output. If a future workflow declares `outputs.csv`, a
-non-interactive invocation must explicitly include `--confirm-output-data`.
+loads, validates, and runs it once through Docker Compose. `cart-fulfill` and
+`cart-fulfill-browser` declare `outputs.csv`; a non-interactive invocation of
+either must explicitly include `--confirm-output-data`.
 
 ## Out of scope for this phase
 

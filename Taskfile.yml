@@ -134,6 +134,11 @@ tasks:
     cmds:
       - pnpm pg:perf:cart-fulfill
 
+  perf:cart-fulfill-browser:
+    desc: k6 cart-fulfill profile driven by a real browser (Chromium), stop before Place Order, emit [CSV] cart ids
+    cmds:
+      - pnpm pg:perf:cart-fulfill-browser
+
   perf:place-order:
     desc: k6 place-order profile in Docker (checkout carts reserved by cart-fulfill, verify order + visualizer)
     cmds:

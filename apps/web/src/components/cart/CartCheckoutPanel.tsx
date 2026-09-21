@@ -103,7 +103,11 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
   const cardClass = "rounded-lg border overflow-hidden";
 
   return (
-    <div className="space-y-3" data-testid="cart-checkout-panel">
+    <div
+      className="space-y-3"
+      data-testid="cart-checkout-panel"
+      data-cart-id={cart?.cartId ?? ""}
+    >
       {/* Order summary card */}
       <div
         className={cardClass}

@@ -56,6 +56,21 @@ def cart_fulfill(args: Sequence[str]) -> int:
     return result
 
 
+def cart_fulfill_browser(args: Sequence[str]) -> int:
+    header("cart-fulfill-browser produces data")
+    info("Reserves a cart via the web UI, stops before Place Order; each cart emitted as a [CSV] record.")
+    info("Target workflows (consume these cart ids):")
+    info("  place-order — ./dev perf:place-order")
+    result = run_k6(
+        "cart-fulfill-browser",
+        confirm_output_data_flag=_confirm_output_data(args, "perf:cart-fulfill-browser"),
+        default_port=WEB_PORT,
+    )
+    if result == 0:
+        _duplicate_cart_fulfill_csv()
+    return result
+
+
 def _duplicate_cart_fulfill_csv() -> None:
     """Keep reports/ (Punch's declared evidence record) untouched; place-order
     reads a separate duplicate under data/ instead — see the design note in

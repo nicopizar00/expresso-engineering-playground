@@ -20,8 +20,8 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ```
 
 Expresso owns its TypeScript scenarios (BFF-targeting and, for
-purchase-flow-browser, web-app-targeting), their build entries, and the five
-workflow YAML files. Punch owns YAML loading and validation,
+purchase-flow-browser/cart-fulfill-browser, web-app-targeting), their build
+entries, and the six workflow YAML files. Punch owns YAML loading and validation,
 data-output confirmation, Compose command construction, stream handling, and
 CSV publication. The adapter in `scripts/pg/k6runner.py` only selects a named
 repository workflow and presents its result. Punch's workflow schema has no
@@ -55,17 +55,19 @@ that result and record before treating generated artifacts as evidence.
 
 ## Repository workflow mapping
 
-There are five YAML files, exactly one for every TypeScript k6 build entry.
-All five select `infra/docker/compose.performance.yaml` and forward
+There are six YAML files, exactly one for every TypeScript k6 build entry.
+All six select `infra/docker/compose.performance.yaml` and forward
 `BASE_URL`; `purchase-flow` and `cart-fulfill` additionally forward `VUS`,
-`DURATION`, and `ITERATIONS`; `purchase-flow-browser` and `place-order`
-forward `VUS` and `ITERATIONS` (no `DURATION` — each is a fixed-size run,
-either one Chromium instance per VU or one reserved cart per iteration, not a
-time-based soak), so their load shape is configurable without editing YAML.
+`DURATION`, and `ITERATIONS`; `purchase-flow-browser`, `cart-fulfill-browser`,
+and `place-order` forward `VUS` and `ITERATIONS` (no `DURATION` — each is a
+fixed-size run, either one Chromium instance per VU or one reserved cart per
+iteration, not a time-based soak), so their load shape is configurable
+without editing YAML.
 
 `purchase-flow`, `cart-fulfill`, `place-order`, and `smoke` select service
 `k6` (bare `grafana/k6` image, the BFF as target). `purchase-flow-browser`
-selects service `k6-browser` instead — a separate image
+and `cart-fulfill-browser` select service `k6-browser` instead — a separate
+image
 ([`infra/docker/k6-browser.Dockerfile`](../../infra/docker/k6-browser.Dockerfile),
 layered on Grafana's official `-with-browser` Chromium-bundled tag) and a
 different target (the web app, not the BFF) — see
@@ -77,6 +79,7 @@ different target (the web app, not the BFF) — see
 | `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` | `/scripts/scenarios/purchase-flow/purchase-flow.js` |
 | `scenarios/purchase-flow-browser/purchase-flow-browser.ts` | `workflows/purchase-flow-browser.yaml` | `/scripts/scenarios/purchase-flow-browser/purchase-flow-browser.js` |
 | `scenarios/cart-fulfill/cart-fulfill.ts` | `workflows/cart-fulfill.yaml` | `/scripts/scenarios/cart-fulfill/cart-fulfill.js` |
+| `scenarios/cart-fulfill-browser/cart-fulfill-browser.ts` | `workflows/cart-fulfill-browser.yaml` | `/scripts/scenarios/cart-fulfill-browser/cart-fulfill-browser.js` |
 | `scenarios/place-order/place-order.ts` | `workflows/place-order.yaml` | `/scripts/scenarios/place-order/place-order.js` |
 
 The unwired `load` and `stress` placeholders are not build entries and have no
@@ -85,10 +88,13 @@ script path to `perf.py`.
 
 ## Optional CSV output protocol
 
-`cart-fulfill` is the first workflow to declare `outputs.csv`: it stops
+`cart-fulfill` was the first workflow to declare `outputs.csv`: it stops
 before checkout and emits each reserved cart as a `[CSV]` stdout record
-instead. Any other future workflow may declare `spec.outputs.csv.path` the
-same way; that is an explicit data-output contract.
+instead. `cart-fulfill-browser` declares the exact same `outputs.csv.path` —
+an interchangeable, browser-driven producer for the same downstream
+`place-order` consumer. Any other future workflow may declare
+`spec.outputs.csv.path` the same way; that is an explicit data-output
+contract.
 
 - Only stdout lines beginning exactly with `[CSV]` are candidates. The prefix
   is removed before a strict CSV row is parsed; ordinary stdout and every
@@ -105,16 +111,18 @@ same way; that is an explicit data-output contract.
 
 ## Cart data handoff (cart-fulfill -> place-order)
 
-`cart-fulfill` and `place-order` are a pair: the first reserves carts and
-stops before checkout, the second checks them out. Handing the cart ids from
-one to the other is repository-owned logic in `scripts/pg/perf.py`, not a
-Punch contract — Punch's workflow schema only knows about declared *output*
-(`outputs.csv`/`outputs.summary`), not input.
+`cart-fulfill` (or `cart-fulfill-browser`) and `place-order` are a pair: the
+first reserves carts and stops before checkout, the second checks them out.
+Handing the cart ids from one to the other is repository-owned logic in
+`scripts/pg/perf.py`, not a Punch contract — Punch's workflow schema only
+knows about declared *output* (`outputs.csv`/`outputs.summary`), not input.
 
-- `cart_fulfill()` runs the workflow as usual, then — only on a successful
-  run — copies its declared `reports/cart-fulfill-carts.csv` (Punch's
-  evidence record, left untouched) to a new `data/cart-fulfill-carts.csv`.
-  `data/` is gitignored, mirroring `reports/`.
+- `cart_fulfill()` and `cart_fulfill_browser()` run their workflow as usual,
+  then — only on a successful run — both call the same
+  `_duplicate_cart_fulfill_csv()`, copying the declared
+  `reports/cart-fulfill-carts.csv` (Punch's evidence record, left untouched)
+  to a new `data/cart-fulfill-carts.csv`. `data/` is gitignored, mirroring
+  `reports/`.
 - `place-order`'s scenario loads that duplicate into a `SharedArray` via k6's
   `open()` at init time. Since scenarios are baked into the image at build
   time but the duplicate is written per-run on the host, `data/` — like
@@ -130,7 +138,7 @@ Punch contract — Punch's workflow schema only knows about declared *output*
 
 ## Summary output and Docker Compose confirmation
 
-All five bundled workflows declare `spec.outputs.summary.path`, pointing at the
+All six bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
 `tests/performance/k6/reports/smoke-summary.json`). Unlike `outputs.csv`,
 this is read-only and needs no confirmation flag — after a passing run,
@@ -143,8 +151,9 @@ a "Punch orchestrator" banner and asks for confirmation — but only on a real
 interactive terminal; CI and other non-interactive workflow runs proceed
 automatically. The separate `./bin/punch` menu requires a terminal and exits
 before any build if one is unavailable. Before opening its menu, it offers an optional
-`docker compose build k6` step: Yes builds, while No skips the build and
-continues to workflow selection. The interactive menu (`punch menu`) runs
+`docker compose build k6 k6-browser` step (both images, since the menu can
+select either service before a workflow is picked): Yes builds, while No
+skips the build and continues to workflow selection. The interactive menu (`punch menu`) runs
 exactly one workflow per invocation and exits — no "run another?" loop.
 Its terminal picker supports arrow keys, `j`/`k`, and `/` search; Escape or
 `q` cancels before running a workflow. After the `BASE_URL` target, it also

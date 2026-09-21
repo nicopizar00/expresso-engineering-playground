@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "esbuild scenarios/smoke/smoke.ts scenarios/purchase-flow/purchase-flow.ts scenarios/purchase-flow-browser/purchase-flow-browser.ts scenarios/cart-fulfill/cart-fulfill.ts scenarios/place-order/place-order.ts --bundle --platform=browser --target=es2017 --format=esm --external:k6 --external:'k6/*' --outbase=scenarios --outdir=dist/",
+    "build": "esbuild scenarios/smoke/smoke.ts scenarios/purchase-flow/purchase-flow.ts scenarios/purchase-flow-browser/purchase-flow-browser.ts scenarios/cart-fulfill/cart-fulfill.ts scenarios/cart-fulfill-browser/cart-fulfill-browser.ts scenarios/place-order/place-order.ts --bundle --platform=browser --target=es2017 --format=esm --external:k6 --external:'k6/*' --outbase=scenarios --outdir=dist/",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

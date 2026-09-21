@@ -35,6 +35,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "purchase-flow",
             "purchase-flow-browser",
             "cart-fulfill",
+            "cart-fulfill-browser",
             "place-order",
         }
         expected_compose_service = {
@@ -42,6 +43,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "purchase-flow": "k6",
             "purchase-flow-browser": "k6-browser",
             "cart-fulfill": "k6",
+            "cart-fulfill-browser": "k6-browser",
             "place-order": "k6",
         }
         expected_environment_forward = {
@@ -49,12 +51,14 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "purchase-flow": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
             "purchase-flow-browser": ["BASE_URL", "VUS", "ITERATIONS"],
             "cart-fulfill": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
+            "cart-fulfill-browser": ["BASE_URL", "VUS", "ITERATIONS"],
             "place-order": ["BASE_URL", "VUS", "ITERATIONS"],
         }
         expected_csv_output_path = {
             "cart-fulfill": "tests/performance/k6/reports/cart-fulfill-carts.csv",
+            "cart-fulfill-browser": "tests/performance/k6/reports/cart-fulfill-carts.csv",
         }
-        self.assertEqual(len(workflow_paths), 5)
+        self.assertEqual(len(workflow_paths), 6)
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
         self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
         self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
