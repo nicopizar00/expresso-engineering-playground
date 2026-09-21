@@ -1,12 +1,46 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import useSWR from "swr";
 import { ExternalLink, RefreshCw, XCircle, Layers } from "lucide-react";
+import { useCart } from "../cart/CartProvider";
+import { expressoApi, Product, ProductsResponse } from "@/lib/api/expresso-api";
 
 const EMBED_PATH = "/viz/index.html";
 const STANDALONE_URL = process.env.NEXT_PUBLIC_VISUALIZER_URL || "";
+// Same SWR key page.tsx uses for its own catalog fetch — dedupes instead of
+// firing a second /products request.
+const PRODUCTS_SWR_KEY = "products";
 
 type IframeStatus = "loading" | "loaded" | "error" | "not-configured";
+
+// Minimal product shape the visualizer needs to build the hero mesh.
+// Mirrors the fields VisualizationService.productStatus/toSceneProduct
+// compute server-side for the SSE feed — recomputed here so the Web App's
+// selection signal doesn't have to wait for that feed to resolve the same
+// product.
+interface SelectionProduct {
+  productId: string;
+  name: string;
+  category: string;
+  status: "ok" | "warn" | "error";
+}
+
+export interface VisualizerSelection {
+  productId: string;
+  product?: SelectionProduct;
+  phase: "selected" | "ordered";
+  orderId?: string;
+}
+
+function toSelectionProduct(product: Product): SelectionProduct {
+  return {
+    productId: product.productId,
+    name: product.name,
+    category: product.category,
+    status: product.inventory === 0 ? "error" : product.inventory < 20 ? "warn" : "ok",
+  };
+}
 
 interface VisualizerEmbedProps {
   /** When true, appends ?embed=1 so the visualizer hides its HUD. */
@@ -32,6 +66,13 @@ interface VisualizerEmbedProps {
    * `aspectRatio` and is unaffected.
    */
   fill?: boolean;
+  /**
+   * The orderId of a checkout that just succeeded, held true for a brief
+   * window by the caller (page.tsx) — distinguishes "cart just emptied
+   * because Place Order succeeded" (play the ordered-phase hero animation)
+   * from "cart emptied because the reservation expired" (don't).
+   */
+  justPlacedOrderId?: string | null;
 }
 
 export function VisualizerEmbed({
@@ -42,6 +83,7 @@ export function VisualizerEmbed({
   title = "Hello Room Scene",
   compact,
   fill = false,
+  justPlacedOrderId = null,
 }: VisualizerEmbedProps) {
   const isCompact = compact ?? embed;
   const buttonClass = isCompact
@@ -50,8 +92,75 @@ export function VisualizerEmbed({
   const buttonIconSize = isCompact ? "h-3 w-3" : "h-3.5 w-3.5";
   const [iframeStatus, setIframeStatus] = useState<IframeStatus>("loading");
   const [retryCount, setRetryCount] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const handleLoad = useCallback(() => setIframeStatus("loaded"), []);
+  // Selection: derived from the cart (CUP-001 makes "cart occupied" and
+  // "selected" the same fact — no separate click-tracked state to drift
+  // out of sync with it), sent into the iframe via postMessage rather than
+  // a BFF endpoint. `lastProductRef` remembers the product across the
+  // moment Place Order clears the cart, so the brief "ordered" phase still
+  // knows what to show.
+  const { cart } = useCart();
+  const { data: productsData } = useSWR<ProductsResponse, Error>(
+    PRODUCTS_SWR_KEY,
+    () => expressoApi.getProducts(),
+    { revalidateOnFocus: false },
+  );
+  const lastProductRef = useRef<SelectionProduct | null>(null);
+  const [selection, setSelection] = useState<VisualizerSelection | null>(null);
+
+  useEffect(() => {
+    const item = cart?.items[0];
+    if (item) {
+      const product = productsData?.items.find((p) => p.productId === item.productId);
+      const resolved: SelectionProduct = product
+        ? toSelectionProduct(product)
+        : { productId: item.productId, name: item.name, category: "drink", status: "ok" };
+      lastProductRef.current = resolved;
+      setSelection({ productId: resolved.productId, product: resolved, phase: "selected" });
+      return;
+    }
+    if (justPlacedOrderId && lastProductRef.current) {
+      setSelection({
+        productId: lastProductRef.current.productId,
+        product: lastProductRef.current,
+        phase: "ordered",
+        orderId: justPlacedOrderId,
+      });
+      return;
+    }
+    setSelection(null);
+  }, [cart, productsData, justPlacedOrderId]);
+
+  const sendSelection = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "expresso:visualizer-selection", selection },
+      window.location.origin,
+    );
+  }, [selection]);
+
+  // Resend whenever selection changes, and answer the iframe's own
+  // "ready" ping (it posts this once its message listener is wired up,
+  // which can be after this effect's initial send races the iframe load).
+  useEffect(() => {
+    function handleReady(event: MessageEvent) {
+      if (
+        event.origin === window.location.origin &&
+        event.source === iframeRef.current?.contentWindow &&
+        event.data?.type === "expresso:visualizer-ready"
+      ) {
+        sendSelection();
+      }
+    }
+    window.addEventListener("message", handleReady);
+    sendSelection();
+    return () => window.removeEventListener("message", handleReady);
+  }, [sendSelection]);
+
+  const handleLoad = useCallback(() => {
+    setIframeStatus("loaded");
+    sendSelection();
+  }, [sendSelection]);
   const handleError = useCallback(() => setIframeStatus("error"), []);
   const handleRetry = useCallback(() => {
     setIframeStatus("loading");
@@ -134,6 +243,7 @@ export function VisualizerEmbed({
             {iframeStatus === "loading" && <LoadingOverlay />}
             <iframe
               key={retryCount}
+              ref={iframeRef}
               src={src}
               className="w-full h-full border-0"
               title="3D Visualizer - Hello Room"

@@ -1,141 +1,98 @@
-import { clamp } from "../utils.js";
-import { ROOM } from "../objects/room.js";
 import { clearGroup } from "../objects/disposal.js";
-import {
-  buildProductMesh,
-  buildOrderMesh,
-  buildAggregateMesh,
-  buildCartMesh,
-} from "../objects/scene-meshes.js";
+import { buildProductMesh } from "../objects/scene-meshes.js";
 
-// Hero-vs-history visual language.
-// The latest cart/order event becomes the HERO: scaled up, pulled to
-// centre-stage, brightened, and given a brief spawn-burst animation.
-// All other items recede: smaller scale, desaturated palette, no rotation.
-// This keeps the stage about the LATEST user action, with history present
-// but quiet.
+// Foreground state belongs to this browser's own interactive selection
+// (posted in from the Web App via scene.js's postMessage bridge), not to
+// the newest global cart/order event — that's what let other sessions'
+// (including k6's) cart traffic leak into the hero slot before. The domain
+// feed (renderScene) still supplies live product asset/category/status
+// data; it no longer picks what's on stage.
 export const HERO_SCALE        = 1.45;
-export const HISTORY_SCALE     = 0.55;
 export const HERO_FLOOR_Y      = 0.002;
+export const SELECTED_Z        = 0;
+export const ORDERED_Z         = 0.95;
 export const SPAWN_DURATION_MS = 700;
 
-// Hero priority: cart wins, else newest recent order, else first product.
-function pickSceneHero(scene) {
-  if (scene?.cart) return { kind: "cart" };
-  if (scene?.recentOrders?.length > 0) return { kind: "order", id: scene.recentOrders[0].orderId };
-  if (scene?.products?.length > 0) return { kind: "product", id: scene.products[0].productId };
-  return null;
-}
-
-function sceneHeroKey(hero) {
-  if (!hero) return null;
-  if (hero.kind === "cart") return "cart";
-  return `${hero.kind}:${hero.id}`;
-}
-
-function placeMesh(mesh, position, isHero, userData) {
-  const baseScale = isHero ? HERO_SCALE : HISTORY_SCALE;
-  mesh.position.set(position.x, position.y, position.z);
-  mesh.scale.setScalar(baseScale);
-  mesh.userData = { ...userData, baseScale, idleRotate: isHero, isHero };
-  return mesh;
-}
-
-export function sceneObjectCount(scene) {
-  return (scene.products?.length ?? 0)
-    + (scene.recentOrders?.length ?? 0)
-    + (scene.cart ? 1 : 0)
-    + (scene.orderAggregates?.olderCount > 0 ? 1 : 0);
-}
-
-// =============================================================================
-// createRenderer — closes over dataGroup so transport can fire renderScene
-// without re-passing the group every call.
-//
-// Layout (this iteration — minimal, EOC-5 will turn it into a real counter):
-//   • Hero       — cart > newest recent order > first product, centre stage.
-//   • Products   — back-left grid (excluding the hero if a product was picked).
-//   • Orders     — right column, newest at the front.
-//   • Aggregate  — single low-poly stack in the back-right corner when
-//                  orderAggregates.olderCount > 0.
-// =============================================================================
 export function createRenderer({ dataGroup }) {
-  function renderScene(scene) {
-    const hero = pickSceneHero(scene);
-    const heroKey = sceneHeroKey(hero);
-    const heroChanged = heroKey !== null && heroKey !== dataGroup.userData.heroKey;
+  let currentScene = null;
+  let selection = null;
+  let assetKey = null;
 
-    clearGroup(dataGroup);
+  function renderSelection() {
+    const product = selection && (
+      currentScene?.products?.find((item) => item.productId === selection.productId)
+      ?? selection.product
+    );
 
-    // Cart — when present, takes the centre stage as hero.
-    if (scene.cart) {
-      const isHero = hero?.kind === "cart";
-      const mesh = buildCartMesh(scene.cart, isHero);
-      const pos = isHero
-        ? { x: 0, y: HERO_FLOOR_Y, z: 0 }
-        : { x: 0, y: 0.35, z: 1.0 };
-      placeMesh(mesh, pos, isHero, { id: "cart", label: `Cart · ${scene.cart.itemCount}` });
-      if (isHero && heroChanged) mesh.userData.spawnedAt = performance.now();
-      dataGroup.add(mesh);
+    if (!product) {
+      clearGroup(dataGroup);
+      assetKey = null;
+      return;
     }
 
-    // Recent orders — newest at front of the right column.
-    for (let i = 0; i < scene.recentOrders.length; i++) {
-      const order = scene.recentOrders[i];
-      const isHero = hero?.kind === "order" && hero.id === order.orderId;
-      const mesh = buildOrderMesh(order, isHero);
-      const pos = isHero
-        ? { x: 0, y: HERO_FLOOR_Y, z: 0 }
-        : { x: clamp(1.6, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-            y: 0.05,
-            z: clamp(-2.0 + i * 0.5, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5) };
-      placeMesh(mesh, pos, isHero, { id: `order:${order.orderId}`, label: order.orderId });
-      if (isHero && heroChanged) mesh.userData.spawnedAt = performance.now();
+    // Repeated SSE snapshots must not reset the spin, spawn animation, or
+    // depth easing. Rebuild only when the selected asset actually changes.
+    const nextKey = JSON.stringify([
+      product.productId, product.category, product.status, product.assetConfig,
+    ]);
+    const targetZ = selection.phase === "ordered" ? ORDERED_Z : SELECTED_Z;
+    if (assetKey !== nextKey) {
+      const previous = dataGroup.children[0];
+      const sameProduct = previous?.userData.productId === product.productId;
+      const rotationY = sameProduct ? previous.rotation.y : 0;
+      const positionZ = sameProduct ? previous.position.z : targetZ;
+      const mesh = buildProductMesh(product, true);
+      clearGroup(dataGroup);
+      mesh.position.set(0, HERO_FLOOR_Y, positionZ);
+      mesh.rotation.y = rotationY;
+      mesh.scale.setScalar(HERO_SCALE);
+      mesh.userData = {
+        id: `product:${product.productId}`,
+        productId: product.productId,
+        label: product.name,
+        baseScale: HERO_SCALE,
+        idleRotate: true,
+        isHero: true,
+        spawnedAt: sameProduct ? -Infinity : performance.now(),
+      };
       dataGroup.add(mesh);
+      assetKey = nextKey;
     }
-
-    // Aggregate stack — at most one mesh; signals "older history exists".
-    if (scene.orderAggregates && scene.orderAggregates.olderCount > 0) {
-      const mesh = buildAggregateMesh();
-      const pos = { x: clamp(2.0, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-                    y: 0.05,
-                    z: clamp(1.5, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5) };
-      placeMesh(mesh, pos, false, {
-        id: "aggregate",
-        label: `+${scene.orderAggregates.olderCount} older`,
-      });
-      dataGroup.add(mesh);
-    }
-
-    // Products — back-left grid.
-    for (let i = 0; i < scene.products.length; i++) {
-      const product = scene.products[i];
-      const isHero = hero?.kind === "product" && hero.id === product.productId;
-      const mesh = buildProductMesh(product, isHero);
-      const pos = isHero
-        ? { x: 0, y: HERO_FLOOR_Y, z: 0 }
-        : { x: clamp(-2.0 + (i % 3) * 1.2, -ROOM.width / 2 + 0.5, ROOM.width / 2 - 0.5),
-            y: 0.05,
-            z: clamp(-2.2 + Math.floor(i / 3) * 1.2, -ROOM.depth / 2 + 0.5, ROOM.depth / 2 - 0.5) };
-      placeMesh(mesh, pos, isHero, { id: `product:${product.productId}`, label: product.name });
-      if (isHero && heroChanged) mesh.userData.spawnedAt = performance.now();
-      dataGroup.add(mesh);
-    }
-
-    dataGroup.userData.heroKey = heroKey;
+    Object.assign(dataGroup.children[0].userData, {
+      phase: selection.phase,
+      orderId: selection.orderId,
+      targetZ,
+    });
   }
 
-  return { renderScene, sceneObjectCount };
+  function renderScene(scene) {
+    currentScene = scene;
+    renderSelection();
+  }
+
+  // scene.js re-checks message origin/type before calling this, but the
+  // shape itself is re-validated here too — this is the boundary a
+  // malformed postMessage payload would actually corrupt render state
+  // through.
+  function setSelection(next) {
+    if (next !== null && (
+      !next || typeof next.productId !== "string" || !next.productId ||
+      !["selected", "ordered"].includes(next.phase) ||
+      (next.product && next.product.productId !== next.productId)
+    )) return;
+    selection = next;
+    renderSelection();
+  }
+
+  return {
+    renderScene,
+    setSelection,
+    sceneObjectCount: () => dataGroup.children.length,
+  };
 }
 
-// =============================================================================
-// createAnimator — owns the requestAnimationFrame loop.
-//
-// Hero spins faster than history (which doesn't spin at all). On hero promotion
-// a brief scale-burst plays: ease-out cubic toward baseScale with a sinusoidal
-// overshoot so the new item visibly "lands" on the stage.
-// << EXTEND: replace the += with clock-delta maths for frame-rate independence.
-// =============================================================================
+// Hero keeps its idle spin and spawn burst, and eases toward the checkout
+// foreground depth (ORDERED_Z) once Place Order succeeds.
 export function createAnimator({ scene, camera, renderer, controls, dataGroup }) {
   function frame() {
     controls.update();
@@ -143,6 +100,10 @@ export function createAnimator({ scene, camera, renderer, controls, dataGroup })
     for (const child of dataGroup.children) {
       const ud = child.userData;
       if (ud.idleRotate) child.rotation.y += ud.isHero ? 0.008 : 0.0;
+
+      if (ud.targetZ !== undefined) {
+        child.position.z += (ud.targetZ - child.position.z) * 0.1;
+      }
 
       if (ud.spawnedAt !== undefined && ud.spawnedAt > 0) {
         const t = (now - ud.spawnedAt) / SPAWN_DURATION_MS;

@@ -8,7 +8,7 @@
 //   • objects/espresso-cup.js — Classic Espresso (ESPRESSO_CFG dev entry)
 //   • objects/scene-meshes.js — typed scene per-role meshes
 //   • objects/disposal.js   — clearGroup (canvas-texture-aware)
-//   • layout/render.js      — renderScene + animator factories
+//   • layout/render.js      — postMessage-driven selection hero + animator factories
 //   • layout/rain-render.js — placed-order falling-cup rain (CUP-006)
 //   • transport.js          — SSE primary + polling fallback
 //   • fallback.js           — offline typed scene
@@ -67,7 +67,7 @@ scene.add(dataGroup);
 // Factories: renderer + animator both close over dataGroup so transport can
 // fire renderScene without re-passing it. Same dataGroup instance flows into
 // transport for the "previous scene stays on error" guard.
-const { renderScene, sceneObjectCount } = createRenderer({ dataGroup });
+const { renderScene, setSelection, sceneObjectCount } = createRenderer({ dataGroup });
 const animator = createAnimator({ scene, camera, renderer, controls, dataGroup });
 
 // Placed-order rain — separate group and a separate tick loop from the
@@ -108,6 +108,20 @@ function tickRain() {
 reloadBtn.addEventListener("click", () => transport.connect());
 window.addEventListener("resize", onResize);
 onResize();
+
+// Selection bridge — the Web App (parent window, same-origin through the
+// /viz proxy) posts the current catalog selection / just-placed order in;
+// this is the only source of the foreground hero (see layout/render.js).
+// Standalone (no parent window) never receives this and stays hero-less.
+window.addEventListener("message", (event) => {
+  if (window.parent === window || event.source !== window.parent ||
+      event.origin !== window.location.origin ||
+      event.data?.type !== "expresso:visualizer-selection") return;
+  setSelection(event.data.selection);
+});
+if (window.parent !== window) {
+  window.parent.postMessage({ type: "expresso:visualizer-ready" }, window.location.origin);
+}
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) transport.pauseForHidden();

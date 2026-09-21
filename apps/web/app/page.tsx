@@ -22,6 +22,7 @@ async function fetchProducts(): Promise<ProductsResponse> {
 export default function HomeWorkspace() {
   const { section, setSection } = useSection();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [justPlacedOrderId, setJustPlacedOrderId] = useState<string | null>(null);
 
   const { data, error, isLoading, mutate } = useSWR<ProductsResponse, Error>(
     "products",
@@ -34,6 +35,11 @@ export default function HomeWorkspace() {
   const handleOrderPlaced = useCallback(
     (orderId: string) => {
       setSelectedOrderId(orderId);
+      // Held briefly so VisualizerEmbed can tell "cart just emptied because
+      // Place Order succeeded" from "cart emptied because the reservation
+      // expired" and only animate the hero cup for the former.
+      setJustPlacedOrderId(orderId);
+      setTimeout(() => setJustPlacedOrderId(null), 1000);
       setSection("orders");
     },
     [setSection],
@@ -135,7 +141,12 @@ export default function HomeWorkspace() {
       </div>
 
       <section className="home-stage-viz" aria-label="3D order counter">
-        <VisualizerEmbed embed fill title="Order counter" />
+        <VisualizerEmbed
+          embed
+          fill
+          title="Order counter"
+          justPlacedOrderId={justPlacedOrderId}
+        />
       </section>
     </div>
   );
