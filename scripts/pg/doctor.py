@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 
-from pg.ansi import bold, fail, green, header, info, pass_, red, warn
+from pg.ansi import fail, green, header, info, pass_, red, warn
 from pg.compose import compose_available, docker_available
 from pg.paths import BFF_PORT, ENV_BOOTSTRAPPED, ENV_PATH, PUNCH_SRC, WEB_PORT
 from pg.ports import port_in_use

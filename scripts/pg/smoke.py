@@ -6,9 +6,9 @@ statuses, and SSE frame assertion are byte-equivalent.
 from __future__ import annotations
 
 import http.cookiejar
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional
 
-from pg.ansi import bold, dim, fail, green, header, pass_, red
+from pg.ansi import dim, fail, green, header, pass_, red
 from pg.http import HttpError, read_sse_data_frame, request_json
 from pg.paths import API_BASE
 

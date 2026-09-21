@@ -7,7 +7,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-from pg.ansi import bold, dim, fail, header
+from pg.ansi import dim, fail, header
 from pg.paths import COMPOSE_DEV_FILE, COMPOSE_FILE
 
 

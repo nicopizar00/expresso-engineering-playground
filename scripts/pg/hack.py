@@ -17,10 +17,8 @@ import json
 import os
 import re
 import secrets
-import shutil
 import socket
 import subprocess
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -28,8 +26,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from pg import compose
-from pg.ansi import bold, dim, fail, green, header, info, pass_, red, warn, yellow
-from pg.http import HttpError, request_json
+from pg.ansi import bold, dim, fail, header, info, pass_, red, warn, yellow
 from pg.paths import API_BASE, ENV_PATH, TEMPO_PORT
 
 
