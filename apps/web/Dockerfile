@@ -78,6 +78,6 @@ COPY --from=builder /workspace/apps/web/.next/static ./apps/web/.next/static
 EXPOSE 3000
 
 HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=10 \
-  CMD node -e "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
+  CMD ["node", "-e", "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
 
 CMD ["node", "apps/web/server.js"]

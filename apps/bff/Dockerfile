@@ -60,8 +60,8 @@ RUN pnpm install --frozen-lockfile
 COPY packages/ packages/
 COPY apps/bff/ apps/bff/
 
-RUN pnpm --filter @mini-commerce/bff exec prisma generate
-RUN pnpm --filter @mini-commerce/bff build
+RUN pnpm --filter @mini-commerce/bff exec prisma generate && \
+    pnpm --filter @mini-commerce/bff build
 
 # ---- runtime ----------------------------------------------------------------
 FROM node:20-alpine AS runtime
@@ -79,14 +79,14 @@ COPY --from=builder /workspace/apps/bff/dist apps/bff/dist/
 # Prisma schema required for prisma generate in the runtime stage.
 COPY --from=builder /workspace/apps/bff/prisma apps/bff/prisma/
 
-RUN pnpm install --prod --frozen-lockfile --filter @mini-commerce/bff...
-RUN pnpm --filter @mini-commerce/bff exec prisma generate
+RUN pnpm install --prod --frozen-lockfile --filter @mini-commerce/bff... && \
+    pnpm --filter @mini-commerce/bff exec prisma generate
 
 EXPOSE 3001
 
 # Node-based probe — Alpine has no curl by default and we want to avoid an
 # apk layer just for healthcheck plumbing.
 HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=10 \
-  CMD node -e "require('http').get('http://127.0.0.1:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+  CMD ["node", "-e", "require('http').get('http://127.0.0.1:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
 
 CMD ["node", "apps/bff/dist/main.js"]
