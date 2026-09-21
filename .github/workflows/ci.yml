@@ -188,19 +188,16 @@ jobs:
       - name: Install Punch dependencies
         run: python -m pip install --quiet -r vendor/punch/requirements.txt
       - name: Start BFF stack
+        # Raw `docker compose up` skips migrations (those run via `./dev up`'s
+        # one-off dev-stage container, see scripts/pg/up.py) - the bff service
+        # would crash-loop querying tables that don't exist yet.
         run: |
-          docker compose -f infra/docker/compose.yaml up -d
-          for i in $(seq 1 60); do
-            if curl -fsS http://localhost:3001/health >/dev/null; then
-              echo "BFF is healthy after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "BFF did not become healthy within 60s" >&2
-          docker compose -f infra/docker/compose.yaml ps
-          docker compose -f infra/docker/compose.yaml logs --tail=200
-          exit 1
+          ./dev up || {
+            echo "./dev up failed" >&2
+            docker compose -f infra/docker/compose.yaml ps
+            docker compose -f infra/docker/compose.yaml logs --tail=200
+            exit 1
+          }
       - name: Build k6 image
         run: docker compose -f infra/docker/compose.performance.yaml build k6
       - name: Run k6 smoke workflow
