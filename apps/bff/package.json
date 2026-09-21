@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "nest start --watch",
     "start": "node dist/main.js",
-    "postinstall": "prisma generate",
     "build": "prisma generate && nest build",
     "lint": "eslint .",
     "format": "prettier --check .",

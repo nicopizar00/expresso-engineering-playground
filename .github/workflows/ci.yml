@@ -46,6 +46,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # tsc needs the generated Prisma Client (Order/Product/etc. model
+      # types); plain `pnpm install` doesn't produce it (see bff's own
+      # `build` script - generation is explicit, not a postinstall, because
+      # the bff Dockerfile installs deps before the schema is even copied in).
+      - run: pnpm --filter @mini-commerce/bff exec prisma generate
       - run: pnpm lint
       - run: pnpm format
       - run: pnpm typecheck
@@ -81,6 +86,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mini-commerce/bff exec prisma generate
       - run: pnpm test
       - run: pnpm test:integration
 
