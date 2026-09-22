@@ -13,7 +13,10 @@
 // Load shape:
 //   Set DURATION (+ VUS) for a constant-VU soak, or set ITERATIONS (+ VUS)
 //   for a fixed number of purchase-flow runs instead of a time budget.
-//   ITERATIONS takes precedence when both are set.
+//   ITERATIONS takes precedence when both are set. Neither set: defaults to
+//   5 iterations — environment independent, unlike a DURATION-based soak
+//   whose throughput (and therefore op count) varies with how fast the
+//   target environment is.
 //
 // Coverage:
 //   GET  /catalog/products    — browse/search the grid
@@ -31,7 +34,11 @@ import { buildHtml, buildSummaryJson } from "../../support/report";
 
 const VUS = Number(__ENV.VUS) || 1;
 const DURATION = __ENV.DURATION || "30s";
-const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : undefined;
+const ITERATIONS = __ENV.ITERATIONS
+  ? Number(__ENV.ITERATIONS)
+  : __ENV.DURATION
+    ? undefined
+    : 5;
 
 const scenario = ITERATIONS
   ? {

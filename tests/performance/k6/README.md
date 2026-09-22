@@ -38,11 +38,15 @@ VUS=5 DURATION=1m ./dev perf:purchase-flow       # constant VUs for a time budge
 ITERATIONS=5 ./dev perf:purchase-flow            # fixed run count instead of a time budget
 ```
 
-`VUS` defaults to `1`, `DURATION` to `30s`. `ITERATIONS` is unset by default;
-when set it switches the scenario to a fixed iteration count (`shared-iterations`)
-and takes precedence over `DURATION`. The BFF cart is keyed by session (the
-`sid` cookie), and k6 gives each VU its own cookie jar, so raising `VUS` is
-safe — concurrent VUs land on distinct carts, not a shared one.
+`VUS` defaults to `1`. With neither `DURATION` nor `ITERATIONS` set, `ITERATIONS`
+defaults to `5` (`shared-iterations`) — a fixed op count, environment
+independent, unlike a `DURATION`-based soak whose throughput (and therefore
+op count) varies with how fast the target environment is. Set `DURATION`
+explicitly to switch to a constant-VU time budget instead; `ITERATIONS`
+takes precedence over `DURATION` whenever both are set. The BFF cart is
+keyed by session (the `sid` cookie), and k6 gives each VU its own cookie
+jar, so raising `VUS` is safe — concurrent VUs land on distinct carts, not a
+shared one.
 
 Common combinations are saved as presets in [`options/`](options/); export one
 with `jq` before running:
@@ -59,7 +63,10 @@ workflow and a `BASE_URL` target, it offers to load one of these same
 `options/*.json` presets — skip it to fall back to the shell environment.
 The step is only shown for a workflow that forwards a name besides
 `BASE_URL` (e.g. `purchase-flow`, not `smoke`), and only when `options/`
-holds at least one preset.
+holds at least one preset. Every preset is offered to every such workflow
+regardless of which vars it forwards — a var the workflow doesn't forward
+is dropped, same as setting it directly in the shell. The menu's cursor
+defaults to `5-iterations`, matching the scenarios' own default.
 
 ## Run the browser variant
 
@@ -78,10 +85,13 @@ docker compose -f infra/docker/compose.performance.yaml build k6-browser
 ./dev perf:purchase-flow-browser
 ```
 
-Each VU is a full Chromium instance, so it defaults to one run
-(`VUS=1 ITERATIONS=1`, [`options/1-iteration-browser.json`](options/1-iteration-browser.json))
-rather than `purchase-flow`'s time-based soak — set `ITERATIONS` explicitly
-to run more. It forwards `VUS`/`ITERATIONS` only, not `DURATION`. Its report
+Each VU is a full Chromium instance, so this stays iteration-count based
+rather than `purchase-flow`'s time-based soak — a `DURATION`-based default
+here would silently multiply browser sessions. It defaults to 5 runs
+(`VUS=1 ITERATIONS=5`), same fixed-count default as every other scenario;
+set `ITERATIONS` explicitly for a different count (e.g.
+[`options/1-iteration-browser.json`](options/1-iteration-browser.json) for
+a single run). It forwards `VUS`/`ITERATIONS` only, not `DURATION`. Its report
 still uses the shared HTML/JSON helpers, but no `k6/http` calls happen in a
 browser test, so every `http_req_*` metric is absent — `checks` is the only
 meaningful signal there, and it drives the real `passed` verdict (both the
@@ -156,7 +166,7 @@ browser module has no request/response interception to read it off the
 field is intentionally blank: `place-order.ts` never reads that column, and
 there's no DOM-exposed productId to report honestly in its place. It
 forwards `VUS`/`ITERATIONS` only, same as `purchase-flow-browser` — one
-Chromium instance per VU, default one iteration.
+Chromium instance per VU, default 5 iterations.
 
 ## Run place-order
 
@@ -174,10 +184,11 @@ per cart, read-only, shared across VUs) and, for each iteration, completes
 ```
 
 It forwards `VUS`/`ITERATIONS` only, no `DURATION` — a fixed cart pool
-doesn't fit a time-based soak. `ITERATIONS` defaults to the row count (each
-cart checked out exactly once); set it lower to consume a subset, or higher
-to wrap around and re-attempt already-placed orders (those checks fail, they
-don't crash the run).
+doesn't fit a time-based soak. `ITERATIONS` defaults to `5`, matching
+`cart-fulfill`'s own default batch size rather than tracking however many
+rows happen to be in the pool; set it explicitly to consume a different
+subset, or higher than the pool size to wrap around and re-attempt
+already-placed orders (those checks fail, they don't crash the run).
 
 It fails fast, before Docker starts, if `data/cart-fulfill-carts.csv` is
 missing or empty — run `perf:cart-fulfill` first. After the run finishes

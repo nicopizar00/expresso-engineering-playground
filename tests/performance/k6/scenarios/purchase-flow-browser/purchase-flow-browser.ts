@@ -37,11 +37,12 @@ import { purchaseFlowBrowserThresholds } from "../../config/thresholds";
 import { buildHtml, buildSummaryJson } from "../../support/report";
 
 const VUS = Number(__ENV.VUS) || 1;
-// Each VU drives a full Chromium instance, so default to a single run
-// instead of purchase-flow.ts's time-based soak — a DURATION-based default
-// here would silently multiply browser sessions. Set ITERATIONS explicitly
-// to run more.
-const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 1;
+// Each VU drives a full Chromium instance, so this stays iteration-count
+// based instead of purchase-flow.ts's time-based soak — a DURATION-based
+// default here would silently multiply browser sessions. Defaults to 5,
+// same fixed-count default as every other scenario (environment
+// independent); set ITERATIONS explicitly to run a different count.
+const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 
 export const options = {
   scenarios: {

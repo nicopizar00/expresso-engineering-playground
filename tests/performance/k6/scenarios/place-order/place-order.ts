@@ -28,10 +28,13 @@
 // Load shape:
 //   VUS/ITERATIONS only — no DURATION. A fixed cart pool doesn't fit a
 //   time-based soak: each row should be consumed once. ITERATIONS defaults
-//   to the row count; set it lower to consume a subset, or higher to wrap
-//   around and re-attempt already-placed orders (those checks will fail,
-//   not crash — see scripts/pg/perf.py's place_order() preflight for the
-//   "no data" case instead).
+//   to 5 — same fixed-count default as every other scenario (environment
+//   independent) — matching cart-fulfill's own 5-iteration default rather
+//   than tracking however many rows happen to be in the pool. Set it
+//   explicitly to consume a different subset, or higher than the pool size
+//   to wrap around and re-attempt already-placed orders (those checks will
+//   fail, not crash — see scripts/pg/perf.py's place_order() preflight for
+//   the "no data" case instead).
 //
 // Coverage:
 //   POST /checkout            — place order for a cart-fulfill-reserved cart
@@ -65,9 +68,7 @@ const reservedCarts = new SharedArray<ReservedCart>("reserved-carts", () => {
 });
 
 const VUS = Number(__ENV.VUS) || 1;
-const ITERATIONS = __ENV.ITERATIONS
-  ? Number(__ENV.ITERATIONS)
-  : reservedCarts.length;
+const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 
 export const options = {
   scenarios: {

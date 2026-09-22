@@ -32,10 +32,10 @@ import { buildHtml, buildSummaryJson } from "../../support/report";
 declare const console: { log: (message: string) => void };
 
 const VUS = Number(__ENV.VUS) || 1;
-// Each VU drives a full Chromium instance — default to a single run, same
-// reasoning as purchase-flow-browser.ts. Set ITERATIONS explicitly to
-// generate a bigger batch of reserved carts.
-const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 1;
+// Each VU drives a full Chromium instance — same reasoning as
+// purchase-flow-browser.ts, defaults to 5 reserved carts. Set ITERATIONS
+// explicitly for a different batch size.
+const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 
 export const options = {
   scenarios: {
