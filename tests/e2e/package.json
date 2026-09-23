@@ -10,7 +10,7 @@
     "certify": "node scripts/certify-e2e.mjs",
     "report": "playwright show-report playwright-report",
     "lint": "eslint .",
-    "format": "prettier --check .",
+    "format": "prettier --check . --ignore-path ../../.prettierignore",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -1,0 +1,9 @@
+**/.next/
+**/dist/
+**/node_modules/
+**/coverage/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
+tests/performance/k6/data/
+tests/performance/k6/reports/
+vendor/

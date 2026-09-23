@@ -6,7 +6,7 @@
   "scripts": {
     "test:contract": "echo 'TODO: wire pact consumer + provider verification'",
     "lint": "eslint .",
-    "format": "prettier --check .",
+    "format": "prettier --check . --ignore-path ../../.prettierignore",
     "typecheck": "echo 'TODO: wire tsc --noEmit'"
   }
 }

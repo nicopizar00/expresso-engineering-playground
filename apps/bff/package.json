@@ -9,7 +9,7 @@
     "start": "node dist/main.js",
     "build": "prisma generate && nest build",
     "lint": "eslint .",
-    "format": "prettier --check .",
+    "format": "prettier --check . --ignore-path ../../.prettierignore",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
