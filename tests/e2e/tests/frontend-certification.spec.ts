@@ -1,39 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-
-type Money = { amountMinor: number; currency: string };
-type Product = {
-  productId: string;
-  sku: string;
-  name: string;
-  description: string;
-  category: "drink" | "food" | "accessory";
-  price: Money;
-  inventory: number;
-};
-type CartItem = {
-  itemId: string;
-  productId: string;
-  name: string;
-  unitPrice: Money;
-  quantity: number;
-  lineTotal: Money;
-};
-type OrderStatus = "pending" | "preparing" | "prepared" | "cancelled";
-type Order = {
-  orderId: string;
-  customerName: string;
-  status: OrderStatus;
-  lines: Array<{
-    productId: string;
-    name: string;
-    quantity: number;
-    unitPrice: Money;
-    lineTotal: Money;
-  }>;
-  total: Money;
-  placedAt: string;
-  updatedAt: string;
-};
+import { installCommerceApiMock, type Product } from "../fixtures/commerce-api";
 
 const products: Product[] = [
   {
@@ -81,230 +47,21 @@ function collectBrowserErrors(page: Page): string[] {
   return errors;
 }
 
-async function installCommerceMock(
-  page: Page,
-  options: { failAddToCart?: boolean } = {},
-) {
-  let itemSeq = 1;
-  let cartItems: CartItem[] = [];
-  const orders = new Map<string, Order>();
-
-  const money = (amountMinor: number): Money => ({
-    amountMinor,
-    currency: "EUR",
-  });
-  const cart = () => {
-    const amountMinor = cartItems.reduce(
-      (sum, item) => sum + item.lineTotal.amountMinor,
-      0,
-    );
-    return {
-      cartId: "cart_e2e",
-      items: cartItems,
-      itemCount: cartItems.reduce((sum, item) => sum + item.quantity, 0),
-      total: money(amountMinor),
-      updatedAt: "2026-05-29T12:00:00.000Z",
-    };
-  };
-
-  const buildOrder = (customerName: string): Order => {
-    const now = new Date().toISOString();
-    return {
-      orderId: `ord_e2e_${String(orders.size + 1).padStart(3, "0")}`,
-      customerName,
-      status: "pending",
-      lines: cartItems.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        lineTotal: item.lineTotal,
-      })),
-      total: cart().total,
-      placedAt: now,
-      updatedAt: now,
-    };
-  };
-
-  await page.addInitScript(() => {
-    localStorage.removeItem("expresso_demo_mode");
-  });
-
-  await page.route("**/api/bff/**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const path = url.pathname.replace("/api/bff", "");
-    const method = request.method();
-
-    if (method === "GET" && path === "/health") {
-      await route.fulfill({
-        json: {
-          status: "ok",
-          service: "bff",
-          version: "e2e",
-          uptimeSeconds: 42,
-          checks: { db: "ok" },
-        },
-      });
-      return;
-    }
-
-    if (method === "GET" && path === "/catalog/products") {
-      await route.fulfill({ json: { items: products } });
-      return;
-    }
-
-    if (method === "GET" && path === "/cart") {
-      await route.fulfill({ json: cart() });
-      return;
-    }
-
-    if (method === "POST" && path === "/cart/items") {
-      if (options.failAddToCart) {
-        await route.fulfill({
-          status: 500,
-          json: { message: "cart unavailable" },
-        });
-        return;
-      }
-      const body = request.postDataJSON() as {
-        productId: string;
-        quantity: number;
-      };
-      const product = products.find(
-        (item) => item.productId === body.productId,
-      );
-      if (!product) {
-        await route.fulfill({ status: 404, json: { message: "not found" } });
-        return;
-      }
-      cartItems = [
-        ...cartItems,
-        {
-          itemId: `ci_${String(itemSeq++).padStart(3, "0")}`,
-          productId: product.productId,
-          name: product.name,
-          unitPrice: product.price,
-          quantity: body.quantity,
-          lineTotal: money(product.price.amountMinor * body.quantity),
-        },
-      ];
-      await route.fulfill({ status: 201, json: cart() });
-      return;
-    }
-
-    const cartItemMatch = path.match(/^\/cart\/items\/([^/]+)$/);
-    if (cartItemMatch && method === "PATCH") {
-      const itemId = decodeURIComponent(cartItemMatch[1]!);
-      const body = request.postDataJSON() as { quantity: number };
-      cartItems = cartItems.map((item) =>
-        item.itemId === itemId
-          ? {
-              ...item,
-              quantity: body.quantity,
-              lineTotal: money(item.unitPrice.amountMinor * body.quantity),
-            }
-          : item,
-      );
-      await route.fulfill({ json: cart() });
-      return;
-    }
-
-    if (cartItemMatch && method === "DELETE") {
-      const itemId = decodeURIComponent(cartItemMatch[1]!);
-      cartItems = cartItems.filter((item) => item.itemId !== itemId);
-      await route.fulfill({ json: cart() });
-      return;
-    }
-
-    if (method === "POST" && path === "/checkout") {
-      const body = request.postDataJSON() as { customerName?: string };
-      const order = buildOrder(body.customerName || "E2E Customer");
-      orders.set(order.orderId, order);
-      cartItems = [];
-      await route.fulfill({
-        status: 201,
-        json: {
-          orderId: order.orderId,
-          cartId: "cart_e2e",
-          customerName: order.customerName,
-          status: "pending",
-          total: order.total,
-          placedAt: order.placedAt,
-        },
-      });
-      return;
-    }
-
-    if (method === "GET" && path === "/orders") {
-      await route.fulfill({ json: { items: Array.from(orders.values()) } });
-      return;
-    }
-
-    const orderMatch = path.match(/^\/orders\/([^/]+)$/);
-    if (orderMatch && method === "GET") {
-      const order = orders.get(decodeURIComponent(orderMatch[1]!));
-      await route.fulfill(
-        order
-          ? { json: order }
-          : { status: 404, json: { message: "not found" } },
-      );
-      return;
-    }
-
-    const manageMatch = path.match(/^\/orders\/([^/]+)\/manage$/);
-    if (manageMatch && method === "POST") {
-      const orderId = decodeURIComponent(manageMatch[1]!);
-      const order = orders.get(orderId);
-      if (!order) {
-        await route.fulfill({ status: 404, json: { message: "not found" } });
-        return;
-      }
-      const body = request.postDataJSON() as {
-        action: "update_status" | "mark_prepared" | "cancel";
-        nextStatus?: OrderStatus;
-      };
-      const previousStatus = order.status;
-      const status =
-        body.action === "mark_prepared"
-          ? "prepared"
-          : body.action === "cancel"
-            ? "cancelled"
-            : (body.nextStatus ?? order.status);
-      const updated = { ...order, status, updatedAt: new Date().toISOString() };
-      orders.set(orderId, updated);
-      await route.fulfill({
-        status: 202,
-        json: {
-          orderId,
-          action: body.action,
-          previousStatus,
-          status,
-          acceptedAt: updated.updatedAt,
-        },
-      });
-      return;
-    }
-
-    await route.fulfill({
-      status: 404,
-      json: { message: `Unhandled ${method} ${path}` },
-    });
-  });
-
-  await page.route(/\/viz\/index\.html(\?.*)?$/, async (route) => {
-    await route.fulfill({
+async function installVisualizerMock(page: Page): Promise<void> {
+  await page.route(/\/viz\/index\.html(\?.*)?$/, (route) =>
+    route.fulfill({
       contentType: "text/html",
       body: "<!doctype html><html><body><main><h1>Visualizer Ready</h1><p>live · 3 items</p></main></body></html>",
-    });
-  });
+    }),
+  );
 }
 
 test("certifies catalog, cart CRUD, checkout, and order management", async ({
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
-  await installCommerceMock(page);
+  await installCommerceApiMock(page, { products });
+  await installVisualizerMock(page);
 
   await page.goto("/");
   await expect(
@@ -369,7 +126,8 @@ test("keeps product mutation failures visible and out of console errors", async 
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
-  await installCommerceMock(page, { failAddToCart: true });
+  await installCommerceApiMock(page, { products, failAddToCart: true });
+  await installVisualizerMock(page);
 
   await page.goto("/");
   await page
@@ -388,7 +146,8 @@ test("certifies dialog focus restore, shell navigation, performance copy, and vi
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
-  await installCommerceMock(page);
+  await installCommerceApiMock(page, { products });
+  await installVisualizerMock(page);
 
   await page.goto("/");
   const viewButton = page.getByRole("button", {
@@ -443,13 +202,20 @@ test("certifies dialog focus restore, shell navigation, performance copy, and vi
   await expect(
     page.getByRole("heading", { name: "Developer Tools" }),
   ).toBeVisible();
+
+  const unknownStatus = await page.evaluate(async () => {
+    const response = await fetch("/api/bff/unhandled-fixture-probe");
+    return response.status;
+  });
+  expect(unknownStatus).toBe(404);
   expect(browserErrors).toEqual([]);
 });
 
 test("keeps the same visualizer iframe DOM node across every section switch", async ({
   page,
 }) => {
-  await installCommerceMock(page);
+  await installCommerceApiMock(page, { products });
+  await installVisualizerMock(page);
   await page.goto("/");
 
   const frame = page.locator('iframe[title="3D Visualizer - Hello Room"]');

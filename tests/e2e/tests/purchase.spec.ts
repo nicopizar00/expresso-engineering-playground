@@ -1,39 +1,11 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import {
+  installCommerceApiMock as installCommerceRoutes,
+  type Product,
+} from "../fixtures/commerce-api";
 import { CatalogPage } from "../pages/CatalogPage";
 
 test.describe.configure({ mode: "parallel" });
-
-type Money = {
-  amountMinor: number;
-  currency: "USD";
-};
-
-type Product = {
-  productId: string;
-  sku: string;
-  name: string;
-  description: string;
-  category: "drink" | "food" | "accessory";
-  price: Money;
-  inventory: number;
-};
-
-type CartItem = {
-  itemId: string;
-  productId: string;
-  name: string;
-  unitPrice: Money;
-  quantity: number;
-  lineTotal: Money;
-};
-
-type Cart = {
-  cartId: string;
-  items: CartItem[];
-  itemCount: number;
-  total: Money;
-  updatedAt: string;
-};
 
 type ApiMockMode = "happy" | "product-fetch-fails";
 
@@ -45,7 +17,7 @@ const products: Product[] = [
     description:
       "Rich, bold single-shot espresso made from premium Arabica beans.",
     category: "drink",
-    price: money(350),
+    price: { amountMinor: 350, currency: "USD" },
     inventory: 50,
   },
   {
@@ -54,7 +26,7 @@ const products: Product[] = [
     name: "Chocolate Chip Cookie",
     description: "Warm, gooey chocolate chip cookie made with real butter.",
     category: "food",
-    price: money(300),
+    price: { amountMinor: 300, currency: "USD" },
     inventory: 30,
   },
 ];
@@ -151,150 +123,8 @@ async function installCommerceApiMock(
   page: Page,
   mode: ApiMockMode = "happy",
 ): Promise<void> {
-  let cartItems: CartItem[] = [];
-
-  await page.addInitScript(() => {
-    localStorage.removeItem("expresso_demo_mode");
-  });
-
-  await page.route("**/api/**", async (route) => {
-    const request = route.request();
-    const method = request.method();
-    const path = new URL(request.url()).pathname;
-
-    if (isProductListRequest(method, path)) {
-      if (mode === "product-fetch-fails") {
-        return fulfillJson(route, 500, { message: "Catalog unavailable" });
-      }
-      return fulfillJson(route, 200, { items: products });
-    }
-
-    if (method === "GET" && path === "/api/bff/health") {
-      return fulfillJson(route, 200, {
-        status: "ok",
-        service: "bff",
-        version: "e2e",
-        uptimeSeconds: 600,
-        checks: { db: "ok" },
-      });
-    }
-
-    if (method === "GET" && path === "/api/bff/cart") {
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    if (method === "POST" && path === "/api/bff/cart/items") {
-      const body = request.postDataJSON() as {
-        productId?: string;
-        quantity?: number;
-      } | null;
-      const product = products.find(
-        (item) => item.productId === body?.productId,
-      );
-
-      if (!product) {
-        return fulfillJson(route, 404, { message: "Product not found" });
-      }
-
-      cartItems = upsertCartItem(cartItems, product, body?.quantity ?? 1);
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    const cartItemMatch = path.match(/^\/api\/bff\/cart\/items\/([^/]+)$/);
-    if (cartItemMatch?.[1] && method === "PATCH") {
-      const body = request.postDataJSON() as { quantity?: number } | null;
-      cartItems = cartItems.map((item) => {
-        if (item.itemId !== cartItemMatch[1]) {
-          return item;
-        }
-
-        const quantity = body?.quantity ?? item.quantity;
-        return {
-          ...item,
-          quantity,
-          lineTotal: money(item.unitPrice.amountMinor * quantity),
-        };
-      });
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    if (cartItemMatch?.[1] && method === "DELETE") {
-      cartItems = cartItems.filter((item) => item.itemId !== cartItemMatch[1]);
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    return route.fallback();
-  });
-}
-
-function isProductListRequest(method: string, path: string): boolean {
-  return (
-    method === "GET" &&
-    (path === "/api/products" || path === "/api/bff/catalog/products")
-  );
-}
-
-function upsertCartItem(
-  currentItems: CartItem[],
-  product: Product,
-  quantity: number,
-): CartItem[] {
-  const existing = currentItems.find(
-    (item) => item.productId === product.productId,
-  );
-
-  if (!existing) {
-    return [
-      ...currentItems,
-      {
-        itemId: `item_${product.productId}`,
-        productId: product.productId,
-        name: product.name,
-        unitPrice: product.price,
-        quantity,
-        lineTotal: money(product.price.amountMinor * quantity),
-      },
-    ];
-  }
-
-  return currentItems.map((item) => {
-    if (item.productId !== product.productId) {
-      return item;
-    }
-
-    const nextQuantity = item.quantity + quantity;
-    return {
-      ...item,
-      quantity: nextQuantity,
-      lineTotal: money(item.unitPrice.amountMinor * nextQuantity),
-    };
-  });
-}
-
-function buildCart(items: CartItem[]): Cart {
-  return {
-    cartId: "cart_e2e_001",
-    items,
-    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    total: money(
-      items.reduce((sum, item) => sum + item.lineTotal.amountMinor, 0),
-    ),
-    updatedAt: "2026-05-29T12:00:00.000Z",
-  };
-}
-
-function money(amountMinor: number): Money {
-  return { amountMinor, currency: "USD" };
-}
-
-async function fulfillJson(
-  route: Route,
-  status: number,
-  body: unknown,
-): Promise<void> {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
+  await installCommerceRoutes(page, {
+    products,
+    failCatalog: mode === "product-fetch-fails",
   });
 }

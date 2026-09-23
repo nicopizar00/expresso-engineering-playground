@@ -1,69 +1,12 @@
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
-  expect,
-  test,
-  type Locator,
-  type Page,
-  type Route,
-} from "@playwright/test";
+  installCommerceApiMock,
+  type CommerceApiMockOptions,
+  type Product,
+} from "../fixtures/commerce-api";
 import { StorefrontPage } from "../pages/StorefrontPage";
 
 test.describe.configure({ mode: "parallel" });
-
-type Money = {
-  amountMinor: number;
-  currency: "USD";
-};
-
-type Product = {
-  productId: string;
-  sku: string;
-  name: string;
-  description: string;
-  category: "drink" | "food" | "accessory";
-  price: Money;
-  inventory: number;
-};
-
-type CartItem = {
-  itemId: string;
-  productId: string;
-  name: string;
-  unitPrice: Money;
-  quantity: number;
-  lineTotal: Money;
-};
-
-type Cart = {
-  cartId: string;
-  items: CartItem[];
-  itemCount: number;
-  total: Money;
-  updatedAt: string;
-};
-
-type OrderStatus = "pending" | "preparing" | "prepared" | "cancelled";
-
-type Order = {
-  orderId: string;
-  customerName: string | null;
-  status: OrderStatus;
-  lines: Array<{
-    productId: string;
-    name: string;
-    quantity: number;
-    unitPrice: Money;
-    lineTotal: Money;
-  }>;
-  total: Money;
-  placedAt: string;
-  updatedAt: string;
-};
-
-type CommerceMockOptions = {
-  checkoutFailure?: "network-drop";
-};
-
-const now = "2026-05-29T12:00:00.000Z";
 
 const products: Product[] = [
   {
@@ -73,7 +16,7 @@ const products: Product[] = [
     description:
       "Rich, bold single-shot espresso made from premium Arabica beans.",
     category: "drink",
-    price: money(350),
+    price: { amountMinor: 350, currency: "USD" },
     inventory: 50,
   },
   {
@@ -82,7 +25,7 @@ const products: Product[] = [
     name: "Chocolate Chip Cookie",
     description: "Warm, gooey chocolate chip cookie made with real butter.",
     category: "food",
-    price: money(300),
+    price: { amountMinor: 300, currency: "USD" },
     inventory: 30,
   },
   {
@@ -92,7 +35,7 @@ const products: Product[] = [
     description:
       "A5 lined notebook with soft-touch cover and Expresso branding.",
     category: "accessory",
-    price: money(1200),
+    price: { amountMinor: 1200, currency: "USD" },
     inventory: 25,
   },
 ];
@@ -169,9 +112,9 @@ for (const profile of viewportProfiles) {
 
 async function prepareCheckout(
   page: Page,
-  options: CommerceMockOptions = {},
+  options: Omit<CommerceApiMockOptions, "products"> = {},
 ): Promise<StorefrontPage> {
-  await installCommerceApiMock(page, options);
+  await installCommerceApiMock(page, { products, ...options });
 
   const storefront = new StorefrontPage(page);
   await storefront.gotoCatalog();
@@ -211,232 +154,4 @@ async function prepareCheckout(
 async function expectActionable(locator: Locator): Promise<void> {
   await expect(locator).toBeVisible();
   await expect(locator).toBeEnabled();
-}
-
-async function installCommerceApiMock(
-  page: Page,
-  options: CommerceMockOptions,
-): Promise<void> {
-  let cartItems: CartItem[] = [];
-  let order: Order | null = null;
-
-  await page.addInitScript(() => {
-    localStorage.removeItem("expresso_demo_mode");
-  });
-
-  await page.route("**/api/bff/**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const path = url.pathname.replace(/^\/api\/bff/, "") || "/";
-    const method = request.method();
-
-    if (method === "GET" && path === "/health") {
-      return fulfillJson(route, 200, {
-        status: "ok",
-        service: "bff",
-        version: "e2e",
-        uptimeSeconds: 120,
-        checks: { db: "ok" },
-      });
-    }
-
-    if (method === "GET" && path === "/catalog/products") {
-      return fulfillJson(route, 200, { items: products });
-    }
-
-    if (method === "GET" && path === "/cart") {
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    if (method === "POST" && path === "/cart/items") {
-      const body = request.postDataJSON() as {
-        productId?: string;
-        quantity?: number;
-      } | null;
-      const product = products.find(
-        (item) => item.productId === body?.productId,
-      );
-
-      if (!product) {
-        return fulfillJson(route, 404, { message: "Product not found" });
-      }
-
-      cartItems = upsertCartItem(cartItems, product, body?.quantity ?? 1);
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    const cartItemMatch = path.match(/^\/cart\/items\/([^/]+)$/);
-    if (cartItemMatch?.[1] && method === "PATCH") {
-      const body = request.postDataJSON() as { quantity?: number } | null;
-      cartItems = cartItems.map((item) =>
-        item.itemId === cartItemMatch[1]
-          ? {
-              ...item,
-              quantity: body?.quantity ?? item.quantity,
-              lineTotal: money(
-                item.unitPrice.amountMinor * (body?.quantity ?? item.quantity),
-              ),
-            }
-          : item,
-      );
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    if (cartItemMatch?.[1] && method === "DELETE") {
-      cartItems = cartItems.filter((item) => item.itemId !== cartItemMatch[1]);
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-
-    if (method === "POST" && path === "/checkout") {
-      if (options.checkoutFailure === "network-drop") {
-        return route.abort("failed");
-      }
-
-      const cart = buildCart(cartItems);
-
-      if (cart.items.length === 0) {
-        return fulfillJson(route, 400, { message: "Invalid checkout request" });
-      }
-
-      order = {
-        orderId: "ord_e2e_1001",
-        customerName: null,
-        status: "pending",
-        lines: cart.items.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          lineTotal: item.lineTotal,
-        })),
-        total: cart.total,
-        placedAt: now,
-        updatedAt: now,
-      };
-      cartItems = [];
-
-      return fulfillJson(route, 200, {
-        orderId: order.orderId,
-        cartId: cart.cartId,
-        status: order.status,
-        total: order.total,
-        placedAt: order.placedAt,
-      });
-    }
-
-    if (method === "GET" && path === "/orders") {
-      return fulfillJson(route, 200, { items: order ? [order] : [] });
-    }
-
-    const orderMatch = path.match(/^\/orders\/([^/]+)$/);
-    if (orderMatch?.[1] && method === "GET") {
-      if (!order || order.orderId !== orderMatch[1]) {
-        return fulfillJson(route, 404, { message: "Order not found" });
-      }
-      return fulfillJson(route, 200, order);
-    }
-
-    const manageOrderMatch = path.match(/^\/orders\/([^/]+)\/manage$/);
-    if (manageOrderMatch?.[1] && method === "POST") {
-      if (!order || order.orderId !== manageOrderMatch[1]) {
-        return fulfillJson(route, 404, { message: "Order not found" });
-      }
-
-      const body = request.postDataJSON() as {
-        action?: string;
-        nextStatus?: OrderStatus;
-      } | null;
-      const previousStatus = order.status;
-      const nextStatus =
-        body?.action === "cancel"
-          ? "cancelled"
-          : body?.action === "mark_prepared"
-            ? "prepared"
-            : (body?.nextStatus ?? order.status);
-
-      order = {
-        ...order,
-        status: nextStatus,
-        updatedAt: "2026-05-29T12:05:00.000Z",
-      };
-
-      return fulfillJson(route, 200, {
-        orderId: order.orderId,
-        action: body?.action,
-        previousStatus,
-        status: order.status,
-        acceptedAt: order.updatedAt,
-      });
-    }
-
-    return fulfillJson(route, 404, { message: `Unhandled mock route ${path}` });
-  });
-}
-
-function upsertCartItem(
-  currentItems: CartItem[],
-  product: Product,
-  quantity: number,
-): CartItem[] {
-  const existing = currentItems.find(
-    (item) => item.productId === product.productId,
-  );
-
-  if (!existing) {
-    return [
-      ...currentItems,
-      {
-        itemId: `item_${product.productId}`,
-        productId: product.productId,
-        name: product.name,
-        unitPrice: product.price,
-        quantity,
-        lineTotal: money(product.price.amountMinor * quantity),
-      },
-    ];
-  }
-
-  return currentItems.map((item) => {
-    if (item.productId !== product.productId) {
-      return item;
-    }
-
-    const nextQuantity = item.quantity + quantity;
-    return {
-      ...item,
-      quantity: nextQuantity,
-      lineTotal: money(item.unitPrice.amountMinor * nextQuantity),
-    };
-  });
-}
-
-function buildCart(items: CartItem[]): Cart {
-  const totalAmount = items.reduce(
-    (sum, item) => sum + item.lineTotal.amountMinor,
-    0,
-  );
-
-  return {
-    cartId: "cart_e2e_001",
-    items,
-    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    total: money(totalAmount),
-    updatedAt: now,
-  };
-}
-
-function money(amountMinor: number): Money {
-  return { amountMinor, currency: "USD" };
-}
-
-async function fulfillJson(
-  route: Route,
-  status: number,
-  body: unknown,
-): Promise<void> {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
 }

@@ -1,31 +1,11 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { installCommerceApiMock, type Product } from "../fixtures/commerce-api";
 import {
   expectIframeCanvasPainted,
   expectVisualActionable,
 } from "../fixtures/visual-ui";
 
 test.describe.configure({ mode: "parallel" });
-
-type Money = { amountMinor: number; currency: "USD" };
-
-type Product = {
-  productId: string;
-  sku: string;
-  name: string;
-  description: string;
-  category: "drink" | "food" | "accessory";
-  price: Money;
-  inventory: number;
-};
-
-type CartItem = {
-  itemId: string;
-  productId: string;
-  name: string;
-  unitPrice: Money;
-  quantity: number;
-  lineTotal: Money;
-};
 
 const products: Product[] = [
   {
@@ -34,7 +14,7 @@ const products: Product[] = [
     name: "Workspace Espresso",
     description: "Espresso shot used to drive the homepage workspace tests.",
     category: "drink",
-    price: money(350),
+    price: { amountMinor: 350, currency: "USD" },
     inventory: 25,
   },
   {
@@ -43,7 +23,7 @@ const products: Product[] = [
     name: "Workspace Cookie",
     description: "Cookie that keeps the food category populated.",
     category: "food",
-    price: money(225),
+    price: { amountMinor: 225, currency: "USD" },
     inventory: 12,
   },
 ];
@@ -160,20 +140,8 @@ test.describe("homepage workspace - desktop", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
-
 async function installHomeMocks(page: Page): Promise<void> {
-  let cartItems: CartItem[] = [];
-
-  await page.addInitScript(() => {
-    localStorage.removeItem("expresso_demo_mode");
-  });
-
-  // Serve a non-trivial mock document so expectIframeCanvasPainted has pixels
-  // to inspect. SVG gradient guarantees pixel variance regardless of WebGL
-  // setup in CI.
+  await installCommerceApiMock(page, { products });
   await page.route(/\/viz\/index\.html(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "text/html",
@@ -193,104 +161,4 @@ async function installHomeMocks(page: Page): Promise<void> {
       ].join(""),
     }),
   );
-
-  await page.route("**/api/bff/**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const path = url.pathname.replace(/^\/api\/bff/, "") || "/";
-    const method = request.method();
-
-    if (method === "GET" && path === "/health") {
-      return fulfillJson(route, 200, {
-        checks: { db: "ok" },
-        service: "bff",
-        status: "ok",
-        uptimeSeconds: 100,
-        version: "home-e2e",
-      });
-    }
-    if (method === "GET" && path === "/catalog/products") {
-      return fulfillJson(route, 200, { items: products });
-    }
-    if (method === "GET" && path === "/cart") {
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-    if (method === "POST" && path === "/cart/items") {
-      const body = request.postDataJSON() as {
-        productId?: string;
-        quantity?: number;
-      } | null;
-      const product = products.find((p) => p.productId === body?.productId);
-      if (!product)
-        return fulfillJson(route, 404, { message: "Product not found" });
-      cartItems = upsertCartItem(cartItems, product, body?.quantity ?? 1);
-      return fulfillJson(route, 200, buildCart(cartItems));
-    }
-    if (method === "GET" && path === "/orders") {
-      return fulfillJson(route, 200, { items: [] });
-    }
-    return route.fallback();
-  });
-}
-
-function money(amountMinor: number): Money {
-  return { amountMinor, currency: "USD" };
-}
-
-function buildCart(items: CartItem[]) {
-  const amountMinor = items.reduce(
-    (sum, item) => sum + item.lineTotal.amountMinor,
-    0,
-  );
-  return {
-    cartId: "cart_home",
-    items,
-    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    total: money(amountMinor),
-    updatedAt: "2026-06-07T00:00:00.000Z",
-  };
-}
-
-function upsertCartItem(
-  items: CartItem[],
-  product: Product,
-  quantity: number,
-): CartItem[] {
-  const existing = items.find((i) => i.productId === product.productId);
-  if (!existing) {
-    return [
-      ...items,
-      {
-        itemId: `ci_home_${items.length + 1}`,
-        productId: product.productId,
-        name: product.name,
-        unitPrice: product.price,
-        quantity,
-        lineTotal: money(product.price.amountMinor * quantity),
-      },
-    ];
-  }
-  return items.map((item) =>
-    item.productId === product.productId
-      ? {
-          ...item,
-          quantity: item.quantity + quantity,
-          lineTotal: money(
-            item.unitPrice.amountMinor * (item.quantity + quantity),
-          ),
-        }
-      : item,
-  );
-}
-
-function fulfillJson(
-  route: Route,
-  status: number,
-  body: unknown,
-): Promise<void> {
-  return route.fulfill({
-    body: JSON.stringify(body),
-    contentType: "application/json",
-    status,
-  });
 }
