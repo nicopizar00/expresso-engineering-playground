@@ -92,7 +92,7 @@ export function shouldSimulateError(): boolean {
   return currentScenario === "error" || currentScenario === "checkout-failure";
 }
 
-export function shouldSimulateEmpty(): boolean {
+function shouldSimulateEmpty(): boolean {
   return currentScenario === "empty";
 }
 
@@ -184,8 +184,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     inventory: 10,
   },
 ];
-
-export const MOCK_PRODUCTS: Product[] = FULL_PRODUCT_CATALOG;
 
 export function getMockProducts(): Product[] {
   if (shouldSimulateEmpty()) {
@@ -279,7 +277,7 @@ export function removeMockCartItem(itemId: string): Cart {
   return buildMockCart();
 }
 
-export function clearMockCart(): void {
+function clearMockCart(): void {
   mockCartItems = [];
 }
 

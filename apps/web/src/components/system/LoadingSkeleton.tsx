@@ -5,7 +5,7 @@ interface LoadingSkeletonProps {
   variant?: "text" | "card" | "avatar" | "button";
 }
 
-export function LoadingSkeleton({
+function LoadingSkeleton({
   className = "",
   variant = "text",
 }: LoadingSkeletonProps) {
@@ -52,7 +52,7 @@ export function LoadingSpinner({
   );
 }
 
-export function ProductCardSkeleton() {
+function ProductCardSkeleton() {
   return (
     <div
       className="rounded-lg border p-4 space-y-3"

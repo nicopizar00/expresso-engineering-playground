@@ -9,12 +9,12 @@ import type { Money, OrderStatus } from "@mini-commerce/shared-types";
 
 export type VisualizationItemStatus = "ok" | "warn" | "error" | "idle";
 
-export interface SceneAssetRef {
+interface SceneAssetRef {
   readonly url: string;
   readonly format: string;
 }
 
-export type SceneAssetParams = Readonly<Record<string, number>>;
+type SceneAssetParams = Readonly<Record<string, number>>;
 
 export interface SceneProduct {
   readonly productId: string;
@@ -67,7 +67,7 @@ export interface VisualizationScene {
 // ---------------------------------------------------------------------------
 
 /** @deprecated — representation belongs in the visualizer. Read `scene` instead. */
-export type VisualizationItemType = "cube" | "sphere" | "marker";
+type VisualizationItemType = "cube" | "sphere" | "marker";
 
 // A hint, not a guarantee. The visualizer is free to clamp / re-map these
 // to its own scene scale and layout. Axes use the Three.js convention:

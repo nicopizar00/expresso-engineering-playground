@@ -75,7 +75,7 @@ export interface PerformanceSnapshot {
 // Scenarios
 // ---------------------------------------------------------------------------
 
-export const PERFORMANCE_SCENARIOS: PerformanceScenario[] = [
+const PERFORMANCE_SCENARIOS: PerformanceScenario[] = [
   {
     id: "browsing-load",
     name: "Browsing Load",
@@ -148,7 +148,7 @@ export const PERFORMANCE_SCENARIOS: PerformanceScenario[] = [
 // Service Display Names
 // ---------------------------------------------------------------------------
 
-export const SERVICE_DISPLAY_NAMES: Record<ServiceName, string> = {
+const SERVICE_DISPLAY_NAMES: Record<ServiceName, string> = {
   catalog: "Catalog",
   cart: "Cart",
   checkout: "Checkout",

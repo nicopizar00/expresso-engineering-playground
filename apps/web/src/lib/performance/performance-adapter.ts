@@ -16,8 +16,6 @@ import {
   getScenarios,
   startScenario,
   stopScenario,
-  isScenarioRunning,
-  getActiveScenario,
   type PerformanceSnapshot,
   type PerformanceScenario,
   type ServiceMetrics,
@@ -39,47 +37,6 @@ export type {
   HealthState,
   ScenarioIntensity,
 };
-
-// ---------------------------------------------------------------------------
-// Adapter Configuration
-// ---------------------------------------------------------------------------
-
-export interface PerformanceAdapterConfig {
-  /**
-   * Polling interval for simulated snapshot refreshes in milliseconds.
-   * Default: 1000ms (1 second)
-   */
-  pollingIntervalMs: number;
-
-  /**
-   * Whether to use mock data. This surface currently supports mock data only.
-   */
-  useMockData: boolean;
-}
-
-const DEFAULT_CONFIG: PerformanceAdapterConfig = {
-  pollingIntervalMs: 1000,
-  useMockData: true,
-};
-
-let config: PerformanceAdapterConfig = { ...DEFAULT_CONFIG };
-
-/**
- * Configure the performance adapter.
- * Call this during app initialization if custom config is needed.
- */
-export function configurePerformanceAdapter(
-  newConfig: Partial<PerformanceAdapterConfig>,
-): void {
-  config = { ...config, ...newConfig };
-}
-
-/**
- * Get the current adapter configuration.
- */
-export function getAdapterConfig(): PerformanceAdapterConfig {
-  return { ...config };
-}
 
 // ---------------------------------------------------------------------------
 // Public Adapter API
@@ -119,20 +76,6 @@ export async function runScenario(
 export async function haltScenario(): Promise<void> {
   stopScenario();
   return Promise.resolve();
-}
-
-/**
- * Check if any scenario is currently active.
- */
-export function hasActiveScenario(): boolean {
-  return isScenarioRunning();
-}
-
-/**
- * Get the currently running scenario.
- */
-export function getCurrentScenario(): PerformanceScenario | null {
-  return getActiveScenario();
 }
 
 // ---------------------------------------------------------------------------

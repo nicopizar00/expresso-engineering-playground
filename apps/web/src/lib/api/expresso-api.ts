@@ -73,10 +73,8 @@ import type {
   CheckoutRequest,
   CheckoutResponse,
   OrderStatus,
-  OrderLine,
   Order,
   OrdersResponse,
-  OrderManageAction,
   ManageOrderRequest,
   ManageOrderResponse,
   HealthReport,
@@ -91,10 +89,8 @@ export type {
   Cart,
   CheckoutResponse,
   OrderStatus,
-  OrderLine,
   Order,
   OrdersResponse,
-  OrderManageAction,
   ManageOrderResponse,
   HealthReport,
 };
@@ -486,8 +482,6 @@ export const expressoApi = {
       : realApi.manageOrder(orderId, input);
   },
 };
-
-export type ExpressoApi = typeof expressoApi;
 
 // ---------------------------------------------------------------------------
 // Utility: Format money for display
