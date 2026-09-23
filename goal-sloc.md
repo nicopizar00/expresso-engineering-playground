@@ -5,14 +5,15 @@
 - Tracked raw lines: 57,408.
 - Selected maintained-code raw lines (`ts`, `tsx`, `js`, `mjs`, `py`, `css`, `html`, `sh`): 22,932.
 - Documentation raw lines: 21,893.
-- Completed implementation-plan lines: 13,543 across eight files.
+- Completed implementation-plan lines: 12,462 across eight files. This direct
+  Git-blob recount supersedes the initial 13,543-line preflight estimate.
 - Detected duplicated lines: 692 across maintained code and tests.
 
 ## Milestones
 
 | Milestone           | Result                                                                                       | Verification                                                                                |
 | ------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Completed plans     | Removed 13,543 lines across eight shipped implementation plans; specifications preserved     | Specification deletion scan empty                                                           |
+| Completed plans     | Removed 12,462 lines across eight shipped implementation plans; specifications preserved     | Specification deletion scan empty                                                           |
 | Backend cleanup     | Removed two empty modules, four unused direct dependencies, and stale placeholder references | Strict TypeScript, 117 BFF tests, and BFF build passed                                      |
 | Frontend cleanup    | Removed unused UI and adapter implementations and narrowed internal-only exports             | Web/BFF TypeScript, web lint, and four frontend-certification tests passed                  |
 | Formatting boundary | Added one shared generated-output ignore policy                                              | Root format and focused BFF/web Prettier checks passed with build trees present             |
@@ -20,13 +21,13 @@
 
 ## Final audit
 
-- Tracked raw lines: 43,968, down 13,440 from 57,408 (23.41%).
+- Tracked raw lines: 44,009, down 13,399 from 57,408 (23.34%).
 - Selected maintained-code raw lines: 21,952, down 980 from 22,932
   (4.27%).
 - Documentation raw lines: 9,604, down 12,289 from 21,893 (56.13%).
-  The completed-plan deletion itself is the fixed 13,543-line reduction;
-  retained architecture updates, this record, and the new approved design spec
-  account for the difference between that gross deletion and the net docs
+  The completed-plan deletion itself is the fixed 12,462-line reduction.
+  Together with the four-line architecture-doc reduction and the 177-line
+  approved design spec addition, that reconciles exactly to the net docs
   result.
 - Detected duplicated lines: 367, down 325 from 692 (46.97%). The repeated
   commerce route/state clones are gone; the remaining candidates include

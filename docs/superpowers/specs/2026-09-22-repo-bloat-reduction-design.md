@@ -31,7 +31,7 @@ line-packing tricks.
 The repository starts at 57,408 tracked raw lines. Maintained code in the
 selected extensions (`ts`, `tsx`, `js`, `mjs`, `py`, `css`, `html`, `sh`)
 contains 22,932 raw lines. Documentation contains 21,893 raw lines, of which
-the eight completed implementation plans account for 13,543 lines.
+the eight completed implementation plans account for 12,462 lines.
 
 Read-only analysis found:
 
