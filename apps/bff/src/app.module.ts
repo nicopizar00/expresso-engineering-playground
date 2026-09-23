@@ -4,8 +4,6 @@
 // on other modules' public exports (services exported via `exports: [...]`),
 // never on their internal classes. This is what keeps Phase 3 extraction
 // mechanical instead of structural.
-//
-// Not yet wired here: CustomersModule, NotificationsModule (placeholders only).
 
 import { Module } from "@nestjs/common";
 import { AssetsModule } from "./modules/assets/assets.module";

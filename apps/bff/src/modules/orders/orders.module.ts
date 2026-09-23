@@ -14,7 +14,7 @@
 // TODO (next iterations):
 //   - Real state machine (pending → preparing → prepared, plus cancelled)
 //   - Idempotency keys backed by Postgres
-//   - Outbox for order.placed / order.prepared events to NotificationsModule
+//   - Publish order lifecycle events through a notification outbox
 
 import { Module } from "@nestjs/common";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";

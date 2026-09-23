@@ -8,7 +8,6 @@
 
 ```mermaid
 flowchart TD
-  classDef placeholder fill:#f5f5f5,stroke:#999,color:#666,stroke-dasharray: 4 2;
   classDef infra fill:#eef6ff,stroke:#2a6fc4,color:#000;
   classDef domain fill:#fff5e6,stroke:#c47a2a,color:#000;
 
@@ -21,9 +20,6 @@ flowchart TD
   Checkout["CheckoutModule"]:::domain
   Orders["OrdersModule"]:::domain
   Viz["VisualizationModule"]:::domain
-
-  Customers["CustomersModule<br/>(placeholder)"]:::placeholder
-  Notifications["NotificationsModule<br/>(placeholder)"]:::placeholder
 
   Catalog --> Prisma
   Orders  --> Prisma
@@ -65,9 +61,9 @@ Tests sit beside source as `*.spec.ts`.
 2. **`DomainEventsModule` is not `@Global()`.** Modules that publish or
    subscribe declare it explicitly. This keeps test isolation clean —
    `Test.createTestingModule` builds the minimum graph.
-3. **Placeholder modules stay empty.** `CustomersModule` and
-   `NotificationsModule` exist so future ADRs can claim the namespace, but they
-   must not gain transitive dependencies until the matching domain ships.
+3. **Future domains start with an ADR, not an empty module.** Customer and
+   notification capabilities remain planned namespaces. Add their source
+   modules only when the matching domain ships with behavior and tests.
 
 ## Cross-cutting concerns
 

@@ -10,7 +10,7 @@
 // TODO (next iterations):
 //   - Real idempotency keyed by Idempotency-Key header
 //   - Payment integration placeholder
-//   - Emit order.placed via NotificationsModule (outbox)
+//   - Publish order.placed through a notification outbox
 
 import { Module } from "@nestjs/common";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
