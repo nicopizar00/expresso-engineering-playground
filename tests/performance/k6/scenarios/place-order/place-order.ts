@@ -47,7 +47,7 @@ import { SharedArray } from "k6/data";
 import exec from "k6/execution";
 import { url } from "../../config/env";
 import { purchaseFlowThresholds } from "../../config/thresholds";
-import { buildHtml, buildSummaryJson } from "../../support/report";
+import { buildSummaryOutputs } from "../../support/report";
 
 interface ReservedCart {
   cartId: string;
@@ -155,12 +155,10 @@ export function handleSummary(data: any) {
     testType: "place-order",
     targetUrl: url(""),
   };
-  return {
-    "/scripts/reports/place-order-report.html": buildHtml(data, meta),
-    "/scripts/reports/place-order-summary.json": JSON.stringify(
-      buildSummaryJson(data, meta),
-      null,
-      2,
-    ),
-  };
+  return buildSummaryOutputs(
+    data,
+    meta,
+    "/scripts/reports/place-order-report.html",
+    "/scripts/reports/place-order-summary.json",
+  );
 }

@@ -34,7 +34,7 @@ import { browser } from "k6/browser";
 import { check } from "k6";
 import { BASE_URL } from "../../config/env";
 import { purchaseFlowBrowserThresholds } from "../../config/thresholds";
-import { buildHtml, buildSummaryJson } from "../../support/report";
+import { buildSummaryOutputs } from "../../support/report";
 
 const VUS = Number(__ENV.VUS) || 1;
 // Each VU drives a full Chromium instance, so this stays iteration-count
@@ -109,15 +109,10 @@ export function handleSummary(data: any) {
     testType: "purchase-flow-browser",
     targetUrl: BASE_URL,
   };
-  return {
-    "/scripts/reports/purchase-flow-browser-report.html": buildHtml(
-      data,
-      meta,
-    ),
-    "/scripts/reports/purchase-flow-browser-summary.json": JSON.stringify(
-      buildSummaryJson(data, meta),
-      null,
-      2,
-    ),
-  };
+  return buildSummaryOutputs(
+    data,
+    meta,
+    "/scripts/reports/purchase-flow-browser-report.html",
+    "/scripts/reports/purchase-flow-browser-summary.json",
+  );
 }

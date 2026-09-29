@@ -35,7 +35,7 @@ import http from "k6/http";
 import { check, group, sleep } from "k6";
 import { url } from "../../config/env";
 import { purchaseFlowThresholds } from "../../config/thresholds";
-import { buildHtml, buildSummaryJson } from "../../support/report";
+import { buildSummaryOutputs } from "../../support/report";
 
 // @types/k6 doesn't declare k6's global `console` (see k6/console docs);
 // this is the first TS scenario to need it for the [CSV] harvest protocol.
@@ -140,12 +140,10 @@ export function handleSummary(data: any) {
     testType: "cart-fulfill",
     targetUrl: url(""),
   };
-  return {
-    "/scripts/reports/cart-fulfill-report.html": buildHtml(data, meta),
-    "/scripts/reports/cart-fulfill-summary.json": JSON.stringify(
-      buildSummaryJson(data, meta),
-      null,
-      2,
-    ),
-  };
+  return buildSummaryOutputs(
+    data,
+    meta,
+    "/scripts/reports/cart-fulfill-report.html",
+    "/scripts/reports/cart-fulfill-summary.json",
+  );
 }

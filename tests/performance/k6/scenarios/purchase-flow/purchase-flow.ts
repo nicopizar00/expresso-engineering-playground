@@ -30,7 +30,7 @@ import http from "k6/http";
 import { check, group, sleep } from "k6";
 import { url } from "../../config/env";
 import { purchaseFlowThresholds } from "../../config/thresholds";
-import { buildHtml, buildSummaryJson } from "../../support/report";
+import { buildSummaryOutputs } from "../../support/report";
 
 const VUS = Number(__ENV.VUS) || 1;
 const DURATION = __ENV.DURATION || "30s";
@@ -178,12 +178,10 @@ export function handleSummary(data: any) {
     testType: "purchase-flow",
     targetUrl: url(""),
   };
-  return {
-    "/scripts/reports/purchase-flow-report.html": buildHtml(data, meta),
-    "/scripts/reports/purchase-flow-summary.json": JSON.stringify(
-      buildSummaryJson(data, meta),
-      null,
-      2,
-    ),
-  };
+  return buildSummaryOutputs(
+    data,
+    meta,
+    "/scripts/reports/purchase-flow-report.html",
+    "/scripts/reports/purchase-flow-summary.json",
+  );
 }

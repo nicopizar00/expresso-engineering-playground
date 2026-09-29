@@ -25,7 +25,7 @@ import { browser } from "k6/browser";
 import { check } from "k6";
 import { BASE_URL } from "../../config/env";
 import { purchaseFlowBrowserThresholds } from "../../config/thresholds";
-import { buildHtml, buildSummaryJson } from "../../support/report";
+import { buildSummaryOutputs } from "../../support/report";
 
 // @types/k6 doesn't declare k6's global `console` (see k6/console docs);
 // mirrors cart-fulfill.ts's declaration for the [CSV] harvest protocol.
@@ -97,15 +97,10 @@ export function handleSummary(data: any) {
     testType: "cart-fulfill-browser",
     targetUrl: BASE_URL,
   };
-  return {
-    "/scripts/reports/cart-fulfill-browser-report.html": buildHtml(
-      data,
-      meta,
-    ),
-    "/scripts/reports/cart-fulfill-browser-summary.json": JSON.stringify(
-      buildSummaryJson(data, meta),
-      null,
-      2,
-    ),
-  };
+  return buildSummaryOutputs(
+    data,
+    meta,
+    "/scripts/reports/cart-fulfill-browser-report.html",
+    "/scripts/reports/cart-fulfill-browser-summary.json",
+  );
 }

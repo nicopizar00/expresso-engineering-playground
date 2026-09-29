@@ -19,7 +19,7 @@ import http from "k6/http";
 import { check, group, sleep } from "k6";
 import { url } from "../../config/env";
 import { smokeThresholds } from "../../config/thresholds";
-import { buildHtml, buildSummaryJson } from "../../support/report";
+import { buildSummaryOutputs } from "../../support/report";
 
 export const options = {
   scenarios: {
@@ -125,8 +125,10 @@ export default function () {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function handleSummary(data: any) {
   const meta = { title: "Mini-Commerce Smoke", testType: "smoke", targetUrl: url("") };
-  return {
-    "/scripts/reports/smoke-report.html": buildHtml(data, meta),
-    "/scripts/reports/smoke-summary.json": JSON.stringify(buildSummaryJson(data, meta), null, 2),
-  };
+  return buildSummaryOutputs(
+    data,
+    meta,
+    "/scripts/reports/smoke-report.html",
+    "/scripts/reports/smoke-summary.json",
+  );
 }
