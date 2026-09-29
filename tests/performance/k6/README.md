@@ -262,12 +262,13 @@ intentional.
 
 Add the scenario source, add one TypeScript build entry, then add exactly one
 matching `workflows/<name>.yaml`. The workflow supplies the Compose file,
-service, container script, permitted environment, and optional `outputs.csv`;
-do not put an additional script-path branch in `scripts/pg/perf.py`. A
-workflow-specific *input* preflight or postflight step (e.g. `place-order`'s
-missing-data check and delete prompt) does belong in its `perf.py` function,
-though — Punch's workflow schema has no concept of input data, only declared
-output.
+service, container script, permitted environment, and optional
+`outputs.csv`/`inputs.csv`; do not put an additional script-path branch in
+`scripts/pg/perf.py`. Declaring `inputs.csv.path` only tells `punch menu`'s
+picker to annotate the entry `[requires <file>.csv]` — it is read-only
+metadata, not an executed contract. A workflow-specific *input* preflight or
+postflight step (e.g. `place-order`'s missing-data check and delete prompt)
+still belongs in its `perf.py` function.
 
 Update the relevant command/docs and run `pnpm pg:test`. Build explicitly and
 execute the workflow locally before relying on CI. Keep thresholds named in

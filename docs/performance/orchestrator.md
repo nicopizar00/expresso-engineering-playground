@@ -24,10 +24,14 @@ purchase-flow-browser/cart-fulfill-browser, web-app-targeting), their build
 entries, and the six workflow YAML files. Punch owns YAML loading and validation,
 data-output confirmation, Compose command construction, stream handling, and
 CSV publication. The adapter in `scripts/pg/k6runner.py` only selects a named
-repository workflow and presents its result. Punch's workflow schema has no
-concept of *input* data, though — the cart-fulfill/place-order handoff (see
-"Cart data handoff" below) is bespoke logic in `scripts/pg/perf.py`, not a
-Punch contract.
+repository workflow and presents its result. Punch's workflow schema can
+declare `spec.inputs.csv.path` alongside `spec.outputs.csv.path` — purely
+declarative metadata (`punch menu`'s picker reads it to annotate an entry as
+`[requires <file>.csv]`, same as `[produces <file>.csv]`). Punch does not
+preflight, copy, or read that file itself: the cart-fulfill/place-order
+handoff (see "Cart data handoff" below), including the existence check and
+the `reports/` → `data/` duplication, remains bespoke logic in
+`scripts/pg/perf.py`, not a Punch contract.
 
 ## Execution path
 
@@ -109,13 +113,24 @@ contract.
   replace the destination only after a successful process exit. An existing
   destination remains unchanged on every failure path.
 
+`spec.inputs.csv.path` is the read-only counterpart: a workflow declares it to
+say which `.csv` file it expects to already exist (`place-order.yaml` is the
+only example today). Punch validates the `.csv` suffix and surfaces the path
+in `punch menu`'s picker (`workflow-id  [requires <file>.csv]`, alongside
+`[produces <file>.csv]` for `outputs.csv`); it does not check the file exists,
+read it, or gate execution on it — that stays repository-owned (see below).
+
 ## Cart data handoff (cart-fulfill -> place-order)
 
 `cart-fulfill` (or `cart-fulfill-browser`) and `place-order` are a pair: the
 first reserves carts and stops before checkout, the second checks them out.
-Handing the cart ids from one to the other is repository-owned logic in
-`scripts/pg/perf.py`, not a Punch contract — Punch's workflow schema only
-knows about declared *output* (`outputs.csv`/`outputs.summary`), not input.
+`place-order.yaml` declares `spec.inputs.csv.path:
+tests/performance/k6/data/cart-fulfill-carts.csv` so `punch menu` can
+annotate it — but that declaration is read-only metadata for the picker.
+Handing the cart ids from one workflow to the other — the existence
+preflight, and copying `reports/cart-fulfill-carts.csv` to
+`data/cart-fulfill-carts.csv` — remains repository-owned logic in
+`scripts/pg/perf.py`, not a Punch contract.
 
 - `cart_fulfill()` and `cart_fulfill_browser()` run their workflow as usual,
   then — only on a successful run — both call the same

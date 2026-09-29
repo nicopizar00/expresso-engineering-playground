@@ -44,8 +44,8 @@ def purchase_flow_browser(args: Sequence[str]) -> int:
 
 def cart_fulfill(args: Sequence[str]) -> int:
     header("cart-fulfill produces data")
-    info("Reserves carts, stops before checkout; each cart emitted as a [CSV] record.")
-    info("Target workflows (consume these cart ids):")
+    info(f"Reserves carts, stops before checkout; writes {CART_FULFILL_CSV_NAME} (CSV format).")
+    info("Target workflows (consume this data):")
     info("  place-order — ./dev perf:place-order")
     result = run_k6(
         "cart-fulfill",
@@ -58,8 +58,11 @@ def cart_fulfill(args: Sequence[str]) -> int:
 
 def cart_fulfill_browser(args: Sequence[str]) -> int:
     header("cart-fulfill-browser produces data")
-    info("Reserves a cart via the web UI, stops before Place Order; each cart emitted as a [CSV] record.")
-    info("Target workflows (consume these cart ids):")
+    info(
+        f"Reserves a cart via the web UI, stops before Place Order; "
+        f"writes {CART_FULFILL_CSV_NAME} (CSV format)."
+    )
+    info("Target workflows (consume this data):")
     info("  place-order — ./dev perf:place-order")
     result = run_k6(
         "cart-fulfill-browser",
@@ -86,6 +89,11 @@ def _duplicate_cart_fulfill_csv() -> None:
 
 def place_order(args: Sequence[str]) -> int:
     data_path = PERF_DATA_DIR / CART_FULFILL_CSV_NAME
+    header("place-order requires data")
+    info(f"Reads reserved carts from {data_path.name} (CSV format).")
+    info("Source workflows (produce this data):")
+    info("  cart-fulfill — ./dev perf:cart-fulfill --confirm-output-data")
+    info("  cart-fulfill-browser — ./dev perf:cart-fulfill-browser --confirm-output-data")
     if not _has_csv_data(data_path):
         fail(
             f"No cart data at {data_path}. "
