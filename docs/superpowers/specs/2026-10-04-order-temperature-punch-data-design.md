@@ -294,7 +294,7 @@ The parsed value is provided once through a Nest provider in `OrdersModule`.
 | `cart-fulfill-browser` | — | `carts` → `place-order` | `[DATA carts] <cartId>,,<sid>` |
 | `place-order` | `carts` | `orders` → `order-status` | `[DATA orders] <orderId>` after order verified |
 | `purchase-flow` | — | `orders` → `order-status` | same |
-| `purchase-flow-browser` | — | `orders` → `order-status` | same; `orderId` read from the landed URL |
+| `purchase-flow-browser` | — | `orders` → `order-status` | same; `orderId` read from the rendered `[data-testid="home-orders"] p.font-mono` text |
 
 `place-order.ts` reads `__ENV.DATA_CARTS_CSV` and skips the header row.
 
