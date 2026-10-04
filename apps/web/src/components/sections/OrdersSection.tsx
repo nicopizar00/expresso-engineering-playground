@@ -10,7 +10,7 @@
  * switches sections and back.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
   Search,
@@ -25,11 +25,15 @@ import {
   ChefHat,
   RefreshCw,
   Loader2,
+  Flame,
+  Snowflake,
 } from "lucide-react";
 import {
   expressoApi,
   Order,
   OrderStatus,
+  OrderStatusResponse,
+  OrderTemperature,
   OrdersResponse,
   ManageOrderInput,
   ExpressoApiError,
@@ -84,6 +88,46 @@ function OrderStatusBadge({ status }: { status: OrderStatus }) {
   );
 }
 
+// Hot for the cool-down window after the order is served (placed), then
+// cold — derived by the BFF from placedAt.
+const temperatureConfig: Record<
+  OrderTemperature,
+  { label: string; color: string; bgColor: string; icon: typeof Package }
+> = {
+  hot: {
+    label: "Hot",
+    color: "var(--warning)",
+    bgColor: "rgba(245, 158, 11, 0.1)",
+    icon: Flame,
+  },
+  cold: {
+    label: "Cold",
+    color: "var(--info)",
+    bgColor: "rgba(59, 130, 246, 0.1)",
+    icon: Snowflake,
+  },
+};
+
+function OrderTemperatureBadge({
+  temperature,
+}: {
+  temperature: OrderTemperature;
+}) {
+  const cfg = temperatureConfig[temperature] ?? temperatureConfig.cold;
+  const Icon = cfg.icon;
+  return (
+    <span
+      data-testid="order-temperature"
+      data-temperature={temperature}
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium"
+      style={{ backgroundColor: cfg.bgColor, color: cfg.color }}
+    >
+      <Icon className="h-3 w-3" />
+      {cfg.label}
+    </span>
+  );
+}
+
 interface OrdersListProps {
   onSelect: (orderId: string) => void;
 }
@@ -111,6 +155,7 @@ function OrderRow({
             {order.orderId}
           </p>
           <OrderStatusBadge status={order.status} />
+          <OrderTemperatureBadge temperature={order.temperature} />
         </div>
         <p
           className="text-xs truncate"
@@ -377,6 +422,21 @@ function OrderDetailView({
   } = useSWR<Order, Error>(`order-${orderId}`, () => fetchOrder(orderId), {
     revalidateOnFocus: false,
   });
+  const { data: orderStatus, mutate: refreshStatus } = useSWR<
+    OrderStatusResponse,
+    Error
+  >(`order-status-${orderId}`, () => expressoApi.getOrderStatus(orderId), {
+    revalidateOnFocus: false,
+  });
+
+  // One timer at coolsAt flips the badge live; no polling.
+  useEffect(() => {
+    if (!orderStatus || orderStatus.temperature === "cold") return;
+    const delay =
+      Math.max(0, Date.parse(orderStatus.coolsAt) - Date.now()) + 250;
+    const timer = setTimeout(() => void refreshStatus(), delay);
+    return () => clearTimeout(timer);
+  }, [orderStatus, refreshStatus]);
 
   if (isLoading) {
     return (
@@ -456,14 +516,22 @@ function OrderDetailView({
             {order.orderId}
           </p>
         </div>
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-          style={{ backgroundColor: status.bgColor }}
-        >
-          <StatusIcon className="h-4 w-4" style={{ color: status.color }} />
-          <span className="text-sm font-medium" style={{ color: status.color }}>
-            {status.label}
-          </span>
+        <div className="flex items-center gap-2">
+          <OrderTemperatureBadge
+            temperature={orderStatus?.temperature ?? order.temperature}
+          />
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+            style={{ backgroundColor: status.bgColor }}
+          >
+            <StatusIcon className="h-4 w-4" style={{ color: status.color }} />
+            <span
+              className="text-sm font-medium"
+              style={{ color: status.color }}
+            >
+              {status.label}
+            </span>
+          </div>
         </div>
       </div>
 

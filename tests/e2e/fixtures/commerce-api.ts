@@ -50,12 +50,38 @@ export type Order = {
   updatedAt: string;
 };
 
+export type OrderTemperature = "hot" | "cold";
+
 export type CommerceApiMockOptions = {
   products: readonly Product[];
   failCatalog?: boolean;
   failAddToCart?: boolean;
   checkoutFailure?: "network-drop";
+  // Orders present before the test starts (temperature is derived on read).
+  seedOrders?: readonly Order[];
+  // Mirrors the BFF's ORDER_COOL_DOWN_SECONDS, in ms. Default 5 minutes.
+  coolDownMs?: number;
 };
+
+export function makeOrder(orderId: string, placedAt: string): Order {
+  return {
+    orderId,
+    customerName: null,
+    status: "pending",
+    lines: [
+      {
+        productId: "prod_espresso_001",
+        name: "Classic Espresso",
+        quantity: 1,
+        unitPrice: { amountMinor: 350, currency: "USD" },
+        lineTotal: { amountMinor: 350, currency: "USD" },
+      },
+    ],
+    total: { amountMinor: 350, currency: "USD" },
+    placedAt,
+    updatedAt: placedAt,
+  };
+}
 
 const NOW = "2026-05-29T12:00:00.000Z";
 
@@ -66,7 +92,21 @@ export async function installCommerceApiMock(
   const currency = options.products[0]?.price.currency ?? "USD";
   let itemSequence = 1;
   let cartItems: CartItem[] = [];
-  const orders = new Map<string, Order>();
+  const orders = new Map<string, Order>(
+    (options.seedOrders ?? []).map((order) => [order.orderId, order]),
+  );
+  const coolDownMs = options.coolDownMs ?? 5 * 60 * 1000;
+  // Same rule as the BFF: hot until placedAt + cool-down, then cold.
+  const withTemperature = (order: Order) => {
+    const placed = Date.parse(order.placedAt);
+    return {
+      ...order,
+      temperature: (Date.now() - placed < coolDownMs
+        ? "hot"
+        : "cold") as OrderTemperature,
+      coolsAt: new Date(placed + coolDownMs).toISOString(),
+    };
+  };
 
   const money = (amountMinor: number): Money => ({ amountMinor, currency });
   const currentCart = (): Cart => ({
@@ -207,14 +247,33 @@ export async function installCommerceApiMock(
     }
 
     if (method === "GET" && path === "/orders") {
-      return fulfillJson(route, 200, { items: Array.from(orders.values()) });
+      return fulfillJson(route, 200, {
+        items: Array.from(orders.values()).map(withTemperature),
+      });
+    }
+
+    const statusMatch = path.match(/^\/orders\/([^/]+)\/status$/);
+    if (statusMatch?.[1] && method === "GET") {
+      const order = orders.get(decodeURIComponent(statusMatch[1]));
+      if (!order) {
+        return fulfillJson(route, 404, { message: "Order not found" });
+      }
+      const { temperature, coolsAt } = withTemperature(order);
+      return fulfillJson(route, 200, {
+        orderId: order.orderId,
+        status: order.status,
+        temperature,
+        placedAt: order.placedAt,
+        coolsAt,
+        checkedAt: new Date().toISOString(),
+      });
     }
 
     const orderMatch = path.match(/^\/orders\/([^/]+)$/);
     if (orderMatch?.[1] && method === "GET") {
       const order = orders.get(decodeURIComponent(orderMatch[1]));
       return order
-        ? fulfillJson(route, 200, order)
+        ? fulfillJson(route, 200, withTemperature(order))
         : fulfillJson(route, 404, { message: "Order not found" });
     }
 

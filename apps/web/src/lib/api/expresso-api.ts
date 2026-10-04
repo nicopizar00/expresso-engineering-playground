@@ -73,8 +73,10 @@ import type {
   CheckoutRequest,
   CheckoutResponse,
   OrderStatus,
+  OrderTemperature,
   Order,
   OrdersResponse,
+  OrderStatusResponse,
   ManageOrderRequest,
   ManageOrderResponse,
   HealthReport,
@@ -89,8 +91,10 @@ export type {
   Cart,
   CheckoutResponse,
   OrderStatus,
+  OrderTemperature,
   Order,
   OrdersResponse,
+  OrderStatusResponse,
   ManageOrderResponse,
   HealthReport,
 };
@@ -309,6 +313,24 @@ const mockApi = {
     return order;
   },
 
+  async getOrderStatus(orderId: string): Promise<OrderStatusResponse> {
+    await simulateLatency();
+    const order = getMockOrder(orderId);
+    if (!order) {
+      throw new ExpressoApiError("GET", `/orders/${orderId}/status`, 404, {
+        message: "Order not found",
+      });
+    }
+    return {
+      orderId: order.orderId,
+      status: order.status,
+      temperature: order.temperature,
+      placedAt: order.placedAt,
+      coolsAt: order.coolsAt,
+      checkedAt: new Date().toISOString(),
+    };
+  },
+
   async manageOrder(
     orderId: string,
     input: ManageOrderInput,
@@ -403,6 +425,14 @@ const realApi = {
     return request<Order>("GET", `/orders/${encodeURIComponent(orderId)}`);
   },
 
+  // Reads Postgres directly in the BFF (bypasses its order cache).
+  getOrderStatus(orderId: string): Promise<OrderStatusResponse> {
+    return request<OrderStatusResponse>(
+      "GET",
+      `/orders/${encodeURIComponent(orderId)}/status`,
+    );
+  },
+
   manageOrder(
     orderId: string,
     input: ManageOrderInput,
@@ -471,6 +501,12 @@ export const expressoApi = {
     return isDemoMode()
       ? mockApi.getOrderById(orderId)
       : realApi.getOrderById(orderId);
+  },
+
+  getOrderStatus(orderId: string): Promise<OrderStatusResponse> {
+    return isDemoMode()
+      ? mockApi.getOrderStatus(orderId)
+      : realApi.getOrderStatus(orderId);
   },
 
   manageOrder(

@@ -285,10 +285,24 @@ function clearMockCart(): void {
 // Mock Orders (aligned with BFF orders.types.ts)
 // ---------------------------------------------------------------------------
 
-const mockOrders: Map<string, Order> = new Map();
+// Stored without the read-time temperature fields; withTemperature() adds
+// them on the way out, mirroring the BFF.
+type StoredMockOrder = Omit<Order, "temperature" | "coolsAt">;
+const MOCK_COOL_DOWN_MS = 5 * 60 * 1000;
+
+function withTemperature(order: StoredMockOrder): Order {
+  const placed = Date.parse(order.placedAt);
+  return {
+    ...order,
+    temperature: Date.now() - placed < MOCK_COOL_DOWN_MS ? "hot" : "cold",
+    coolsAt: new Date(placed + MOCK_COOL_DOWN_MS).toISOString(),
+  };
+}
+
+const mockOrders: Map<string, StoredMockOrder> = new Map();
 
 // Pre-populate a sample order for order lookup testing (uses 7-product catalog)
-const sampleOrder: Order = {
+const sampleOrder: StoredMockOrder = {
   orderId: "ord_sample_001",
   customerName: "Demo Customer",
   status: "preparing",
@@ -323,7 +337,7 @@ export function createMockOrder(): CheckoutResponse {
   const cart = buildMockCart();
   const placedAt = new Date().toISOString();
 
-  const order: Order = {
+  const order: StoredMockOrder = {
     orderId,
     customerName: null,
     status: "pending",
@@ -358,14 +372,15 @@ export function getMockOrder(orderId: string): Order | null {
   if (shouldSimulateEmpty()) {
     return null;
   }
-  return mockOrders.get(orderId) ?? null;
+  const order = mockOrders.get(orderId);
+  return order ? withTemperature(order) : null;
 }
 
 export function getAllMockOrders(): { items: Order[] } {
   if (shouldSimulateEmpty()) {
     return { items: [] };
   }
-  return { items: Array.from(mockOrders.values()) };
+  return { items: Array.from(mockOrders.values()).map(withTemperature) };
 }
 
 export function updateMockOrderStatus(
@@ -375,13 +390,13 @@ export function updateMockOrderStatus(
   const order = mockOrders.get(orderId);
   if (!order) return null;
 
-  const updated: Order = {
+  const updated: StoredMockOrder = {
     ...order,
     status: newStatus,
     updatedAt: new Date().toISOString(),
   };
   mockOrders.set(orderId, updated);
-  return updated;
+  return withTemperature(updated);
 }
 
 /**

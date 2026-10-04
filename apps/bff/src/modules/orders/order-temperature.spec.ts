@@ -34,7 +34,9 @@ describe("temperatureOf", () => {
 
 describe("coolsAt", () => {
   it("adds the cool-down to placedAt", () => {
-    expect(coolsAt(PLACED, FIVE_MIN).toISOString()).toBe("2026-10-04T12:05:00.000Z");
+    expect(coolsAt(PLACED, FIVE_MIN).toISOString()).toBe(
+      "2026-10-04T12:05:00.000Z",
+    );
   });
 });
 
