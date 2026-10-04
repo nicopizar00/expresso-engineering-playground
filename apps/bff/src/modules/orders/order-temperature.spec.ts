@@ -50,6 +50,19 @@ describe("parseCoolDownSeconds", () => {
     expect(parseCoolDownSeconds("20")).toBe(20);
   });
 
+  it("accepts the one-year ceiling", () => {
+    expect(parseCoolDownSeconds("31536000")).toBe(31_536_000);
+  });
+
+  it("rejects values above one year, which would overflow Date math", () => {
+    expect(() => parseCoolDownSeconds("31536001")).toThrow(
+      /ORDER_COOL_DOWN_SECONDS must be at most 31536000/,
+    );
+    expect(() => parseCoolDownSeconds("9000000000000000")).toThrow(
+      /ORDER_COOL_DOWN_SECONDS must be at most 31536000/,
+    );
+  });
+
   it.each(["0", "-5", "1.5", "abc", "10s", " 7 "])("rejects %j", (raw) => {
     expect(() => parseCoolDownSeconds(raw)).toThrow(
       /ORDER_COOL_DOWN_SECONDS must be a positive integer/,

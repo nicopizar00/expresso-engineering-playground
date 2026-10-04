@@ -61,6 +61,8 @@ export type CommerceApiMockOptions = {
   seedOrders?: readonly Order[];
   // Mirrors the BFF's ORDER_COOL_DOWN_SECONDS, in ms. Default 5 minutes.
   coolDownMs?: number;
+  // 1-based GET /orders/:id/status calls that answer 503 instead.
+  failStatusCalls?: readonly number[];
 };
 
 export function makeOrder(orderId: string, placedAt: string): Order {
@@ -96,6 +98,7 @@ export async function installCommerceApiMock(
     (options.seedOrders ?? []).map((order) => [order.orderId, order]),
   );
   const coolDownMs = options.coolDownMs ?? 5 * 60 * 1000;
+  let statusCalls = 0;
   // Same rule as the BFF: hot until placedAt + cool-down, then cold.
   const withTemperature = (order: Order) => {
     const placed = Date.parse(order.placedAt);
@@ -254,6 +257,10 @@ export async function installCommerceApiMock(
 
     const statusMatch = path.match(/^\/orders\/([^/]+)\/status$/);
     if (statusMatch?.[1] && method === "GET") {
+      statusCalls += 1;
+      if (options.failStatusCalls?.includes(statusCalls)) {
+        return fulfillJson(route, 503, { message: "Status unavailable" });
+      }
       const order = orders.get(decodeURIComponent(statusMatch[1]));
       if (!order) {
         return fulfillJson(route, 404, { message: "Order not found" });

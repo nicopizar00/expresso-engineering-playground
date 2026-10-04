@@ -427,14 +427,22 @@ function OrderDetailView({
     Error
   >(`order-status-${orderId}`, () => expressoApi.getOrderStatus(orderId), {
     revalidateOnFocus: false,
+    // A failed refetch at coolsAt must not leave the badge stuck on "Hot".
+    errorRetryInterval: 1000,
+    errorRetryCount: 5,
   });
 
-  // One timer at coolsAt flips the badge live; no polling.
+  // One timer at coolsAt flips the badge live; no polling. The delay is
+  // measured on the server's clock (coolsAt - checkedAt), so a skewed
+  // browser clock neither delays the flip nor causes refetch loops.
   useEffect(() => {
     if (!orderStatus || orderStatus.temperature === "cold") return;
-    const delay =
-      Math.max(0, Date.parse(orderStatus.coolsAt) - Date.now()) + 250;
-    const timer = setTimeout(() => void refreshStatus(), delay);
+    const remaining =
+      Date.parse(orderStatus.coolsAt) - Date.parse(orderStatus.checkedAt);
+    const timer = setTimeout(
+      () => void refreshStatus(),
+      Math.max(0, remaining) + 250,
+    );
     return () => clearTimeout(timer);
   }, [orderStatus, refreshStatus]);
 

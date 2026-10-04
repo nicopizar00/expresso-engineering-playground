@@ -5,6 +5,9 @@
 import type { OrderTemperature } from "@mini-commerce/shared-types";
 
 export const DEFAULT_COOL_DOWN_SECONDS = 300;
+// One year. Larger values overflow Date arithmetic (coolsAt.toISOString()
+// throws), which would turn every order read into a 500.
+export const MAX_COOL_DOWN_SECONDS = 365 * 24 * 60 * 60;
 export const ORDER_COOL_DOWN_MS = Symbol("ORDER_COOL_DOWN_MS");
 
 export function parseCoolDownSeconds(raw: string | undefined): number {
@@ -14,7 +17,13 @@ export function parseCoolDownSeconds(raw: string | undefined): number {
       `ORDER_COOL_DOWN_SECONDS must be a positive integer, got ${JSON.stringify(raw)}`,
     );
   }
-  return Number(raw);
+  const seconds = Number(raw);
+  if (seconds > MAX_COOL_DOWN_SECONDS) {
+    throw new Error(
+      `ORDER_COOL_DOWN_SECONDS must be at most ${MAX_COOL_DOWN_SECONDS}, got ${raw}`,
+    );
+  }
+  return seconds;
 }
 
 // TODO(next-steps/order-temperature): visualizer hot/cold cup state.

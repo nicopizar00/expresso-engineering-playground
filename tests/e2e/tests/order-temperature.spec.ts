@@ -78,4 +78,21 @@ test.describe("order temperature badge", () => {
     await expect(badge).toHaveText("Hot");
     await expect(badge).toHaveText("Cold", { timeout: 8_000 });
   });
+
+  test("the detail still flips to Cold when the refetch at coolsAt fails once", async ({
+    page,
+  }) => {
+    await installCommerceApiMock(page, {
+      products,
+      coolDownMs: 3_000,
+      failStatusCalls: [2],
+      seedOrders: [makeOrder("ord_retry_001", new Date().toISOString())],
+    });
+    await openOrders(page);
+    await orderRow(page, "ord_retry_001").click();
+
+    const badge = page.getByTestId("order-temperature");
+    await expect(badge).toHaveText("Hot");
+    await expect(badge).toHaveText("Cold", { timeout: 6_000 });
+  });
 });
