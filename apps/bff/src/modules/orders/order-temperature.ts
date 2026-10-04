@@ -17,6 +17,7 @@ export function parseCoolDownSeconds(raw: string | undefined): number {
   return Number(raw);
 }
 
+// TODO(next-steps/order-temperature): visualizer hot/cold cup state.
 export function temperatureOf(
   placedAt: Date,
   now: Date,

@@ -130,12 +130,12 @@ tasks:
       - pnpm pg:perf:purchase-flow-browser
 
   perf:cart-fulfill:
-    desc: k6 cart-fulfill profile in Docker (search, add to cart, stop before checkout, emit [CSV] cart ids)
+    desc: k6 cart-fulfill profile in Docker (search, add to cart, stop before checkout, emit [DATA carts] rows)
     cmds:
       - pnpm pg:perf:cart-fulfill
 
   perf:cart-fulfill-browser:
-    desc: k6 cart-fulfill profile driven by a real browser (Chromium), stop before Place Order, emit [CSV] cart ids
+    desc: k6 cart-fulfill profile driven by a real browser (Chromium), stop before Place Order, emit [DATA carts] rows
     cmds:
       - pnpm pg:perf:cart-fulfill-browser
 

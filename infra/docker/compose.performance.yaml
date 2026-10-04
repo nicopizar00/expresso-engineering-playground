@@ -55,13 +55,13 @@ services:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
       K6_ENV: ${K6_ENV:-local}
       # k6 defaults --log-output to stderr, so console.log() (cart-fulfill's
-      # [CSV] records) never reaches the stdout stream Punch harvests unless
+      # [DATA] records) never reaches the stdout stream Punch harvests unless
       # this is redirected. Confirmed live: without it, execution.py reports
-      # "no [CSV] stdout records were produced" despite the lines firing.
+      # "no [DATA <dataset>] records were produced" despite the lines firing.
       # Redirecting the stream alone isn't enough either: the default
       # logfmt format wraps every console.log line as
-      # `time="..." level=info msg="[CSV] ..." source=console`, which no
-      # longer starts with the literal "[CSV]" tag execution.py matches on —
+      # `time="..." level=info msg="[DATA carts] ..." source=console`, which no
+      # longer starts with the literal "[DATA" tag execution.py matches on —
       # "raw" format strips that wrapping back to the bare message.
       K6_LOG_OUTPUT: stdout
       K6_LOG_FORMAT: raw

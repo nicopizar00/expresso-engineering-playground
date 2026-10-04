@@ -111,7 +111,9 @@ workflow's `spec.data` (full contract: [`docs/performance/orchestrator.md`](../.
 
 ```text
 cart-fulfill ─────────┐
-cart-fulfill-browser ─┴─carts──▶ place-order
+cart-fulfill-browser ─┴─carts──▶ place-order ──┐
+purchase-flow ─────────────────────────────────┼─orders──▶ order-status
+purchase-flow-browser ─────────────────────────┘
 ```
 
 - A producer prints `[DATA <dataset>] <csv payload>` on stdout. Punch writes
@@ -129,6 +131,7 @@ cart-fulfill-browser ─┴─carts──▶ place-order
 | Dataset | Columns | Producers | Consumers |
 | --- | --- | --- | --- |
 | `carts` | `cartId,productId,sid` | `cart-fulfill`, `cart-fulfill-browser` | `place-order` |
+| `orders` | `orderId` | `place-order`, `purchase-flow`, `purchase-flow-browser` | `order-status` |
 
 ### cart-fulfill / cart-fulfill-browser → place-order
 
@@ -164,6 +167,39 @@ docker compose -f infra/docker/compose.performance.yaml build k6-browser
 ./dev perf:place-order
 ```
 
+### place-order / purchase-flow(-browser) → order-status
+
+An order is "served" at checkout and reports `hot` until
+`ORDER_COOL_DOWN_SECONDS` (BFF default 300) have passed, then `cold`. Each
+complete purchase workflow emits `[DATA orders] <orderId>` once it verified
+the order (`purchase-flow-browser` reads the id from the rendered orders
+section). `order-status` reads `GET /orders/:id/status` — a direct Postgres
+read in the BFF — per row and checks the temperature:
+
+- `EXPECT_TEMPERATURE=auto` (default): `hot` while k6's clock is before
+  `coolsAt`, `cold` after; rows within ±2 s of `coolsAt` accept either.
+- `EXPECT_TEMPERATURE=hot` / `cold`: a fixed expectation.
+
+`ORDER_COOL_DOWN_SECONDS` is forwarded so the scenario can also check
+`coolsAt - placedAt`; it must match the BFF's value. To exercise the hot →
+cold flip without waiting five minutes, start the BFF with a short window
+(60 s leaves room for Docker start-up; 20 s is too tight):
+
+```bash
+ORDER_COOL_DOWN_SECONDS=60 ./dev up
+export ORDER_COOL_DOWN_SECONDS=60
+
+./dev perf:cart-fulfill --produce carts
+./dev perf:place-order --produce orders                 # or perf:purchase-flow(-browser) --produce orders
+EXPECT_TEMPERATURE=hot ./dev perf:order-status
+# ...wait past the 60 s window...
+EXPECT_TEMPERATURE=cold ./dev perf:order-status
+```
+
+It forwards `VUS`/`ITERATIONS` (default 5 iterations; rows are reused
+round-robin when `ITERATIONS` exceeds the dataset size — the reads are
+idempotent).
+
 ## Reports and current-run evidence
 
 The report volume has this stable layout:
@@ -197,6 +233,7 @@ The current mappings are:
 | `scenarios/cart-fulfill/cart-fulfill.ts` | `workflows/cart-fulfill.yaml` |
 | `scenarios/cart-fulfill-browser/cart-fulfill-browser.ts` | `workflows/cart-fulfill-browser.yaml` |
 | `scenarios/place-order/place-order.ts` | `workflows/place-order.yaml` |
+| `scenarios/order-status/order-status.ts` | `workflows/order-status.yaml` |
 
 `purchase-flow` is the one full load/perf workflow: it mimics the web app
 exactly (catalog list → add to cart → cart view → checkout → verify order →

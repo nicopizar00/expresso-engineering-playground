@@ -55,16 +55,17 @@ that result and record before treating generated artifacts as evidence.
 
 ## Repository workflow mapping
 
-There are six YAML files, exactly one for every TypeScript k6 build entry.
-All six select `infra/docker/compose.performance.yaml` and forward
+There are seven YAML files, exactly one for every TypeScript k6 build entry.
+All seven select `infra/docker/compose.performance.yaml` and forward
 `BASE_URL`; `purchase-flow` and `cart-fulfill` additionally forward `VUS`,
 `DURATION`, and `ITERATIONS`; `purchase-flow-browser`, `cart-fulfill-browser`,
-and `place-order` forward `VUS` and `ITERATIONS` (no `DURATION` — each is a
+`place-order`, and `order-status` forward `VUS` and `ITERATIONS` (no `DURATION` — each is a
 fixed-size run, either one Chromium instance per VU or one reserved cart per
 iteration, not a time-based soak), so their load shape is configurable
-without editing YAML.
+without editing YAML. `order-status` also forwards `EXPECT_TEMPERATURE`
+(`auto`|`hot`|`cold`) and `ORDER_COOL_DOWN_SECONDS` (must match the BFF's).
 
-`purchase-flow`, `cart-fulfill`, `place-order`, and `smoke` select service
+`purchase-flow`, `cart-fulfill`, `place-order`, `order-status`, and `smoke` select service
 `k6` (bare `grafana/k6` image, the BFF as target). `purchase-flow-browser`
 and `cart-fulfill-browser` select service `k6-browser` instead — a separate
 image
@@ -132,14 +133,20 @@ Current datasets:
 | Dataset | Columns | Producers | Consumers |
 | --- | --- | --- | --- |
 | `carts` | `cartId,productId,sid` | `cart-fulfill`, `cart-fulfill-browser` | `place-order` |
+| `orders` | `orderId` | `place-order`, `purchase-flow`, `purchase-flow-browser` | `order-status` |
 
 `carts` carries the BFF session cookie `sid` because the cart is
 session-scoped; `place-order` replays it via `http.cookieJar().set(...)`
-before checkout. `cart-fulfill-browser` leaves `productId` blank.
+before checkout. `cart-fulfill-browser` leaves `productId` blank. `orders`
+rows are emitted only after the producer verified the order; the browser
+producer reads the id from the rendered orders section, since k6's browser
+module cannot read the checkout response. `order-status` reads
+`GET /orders/:id/status` (a direct Postgres read in the BFF) per row and checks
+the hot/cold temperature.
 
 ## Summary output and Docker Compose confirmation
 
-All six bundled workflows declare `spec.outputs.summary.path`, pointing at the
+All seven bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
 `tests/performance/k6/reports/smoke-summary.json`). Unlike a dataset,
 this is read-only and needs no opt-in flag — after a passing run,
