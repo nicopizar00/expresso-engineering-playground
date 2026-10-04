@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   OnModuleInit,
+  Optional,
 } from "@nestjs/common";
 // TODO(vercel-build): @prisma/client types require `prisma generate` — ensured by package.json#build
 import type {
@@ -17,16 +19,24 @@ import { PrismaService } from "../../prisma.service";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
 import type { ManageOrderDto } from "./orders.dto";
+import {
+  DEFAULT_COOL_DOWN_SECONDS,
+  ORDER_COOL_DOWN_MS,
+  coolsAt,
+  temperatureOf,
+} from "./order-temperature";
 import type {
   CreateOrderInput,
   ManageOrderResponse,
   Order,
   OrderLine,
+  OrderStatusResponse,
+  StoredOrder,
 } from "./orders.types";
 
 const tracer = trace.getTracer("orders.service");
 
-function toOrder(row: DbOrder & { lines: DbOrderLine[] }): Order {
+function toOrder(row: DbOrder & { lines: DbOrderLine[] }): StoredOrder {
   return {
     orderId: row.orderId,
     customerName: row.customerName,
@@ -58,7 +68,7 @@ function isUniqueViolation(err: unknown, target: string): boolean {
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
-  private cache: Order[] = [];
+  private cache: StoredOrder[] = [];
   // Idempotency index: clientRequestId → orderId. Lets a retried checkout
   // short-circuit before the seq/tx/decrement work even runs.
   private idempotencyIndex = new Map<string, string>();
@@ -68,6 +78,9 @@ export class OrdersService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly domainEvents: DomainEventsService,
     private readonly catalog: CatalogService,
+    @Optional()
+    @Inject(ORDER_COOL_DOWN_MS)
+    private readonly coolDownMs: number = DEFAULT_COOL_DOWN_SECONDS * 1000,
   ) {}
 
   async onModuleInit() {
@@ -95,11 +108,22 @@ export class OrdersService implements OnModuleInit {
   findByClientRequestId(clientRequestId: string): Order | undefined {
     const orderId = this.idempotencyIndex.get(clientRequestId);
     if (!orderId) return undefined;
-    return this.cache.find((o) => o.orderId === orderId);
+    const order = this.cache.find((o) => o.orderId === orderId);
+    return order && this.withTemperature(order);
+  }
+
+  private withTemperature(order: StoredOrder, now = new Date()): Order {
+    const placedAt = new Date(order.placedAt);
+    return {
+      ...order,
+      temperature: temperatureOf(placedAt, now, this.coolDownMs),
+      coolsAt: coolsAt(placedAt, this.coolDownMs).toISOString(),
+    };
   }
 
   listAll(): ReadonlyArray<Order> {
-    return this.cache;
+    const now = new Date();
+    return this.cache.map((o) => this.withTemperature(o, now));
   }
 
   get(orderId: string): Order {
@@ -107,7 +131,40 @@ export class OrdersService implements OnModuleInit {
     if (!order) {
       throw new NotFoundException(`order ${orderId} not found`);
     }
-    return order;
+    return this.withTemperature(order);
+  }
+
+  // Always reads Postgres (bypassing the in-memory cache) so the status
+  // path exercises a real database request end to end.
+  async getStatus(orderId: string): Promise<OrderStatusResponse> {
+    return tracer.startActiveSpan("orders.status", async (span) => {
+      try {
+        span.setAttribute("order.id", orderId);
+        const row = await this.prisma.order.findUnique({
+          where: { orderId },
+          select: { orderId: true, status: true, placedAt: true },
+        });
+        if (!row) {
+          throw new NotFoundException(`order ${orderId} not found`);
+        }
+        const now = new Date();
+        const temperature = temperatureOf(row.placedAt, now, this.coolDownMs);
+        span.setAttribute("order.temperature", temperature);
+        return {
+          orderId: row.orderId,
+          status: row.status as OrderStatus,
+          temperature,
+          placedAt: row.placedAt.toISOString(),
+          coolsAt: coolsAt(row.placedAt, this.coolDownMs).toISOString(),
+          checkedAt: now.toISOString(),
+        };
+      } catch (err) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
   }
 
   async create(input: CreateOrderInput): Promise<Order> {
@@ -200,7 +257,7 @@ export class OrdersService implements OnModuleInit {
               this.logger.log(
                 `idempotent replay (race) key=${input.clientRequestId} order=${replay.orderId}`,
               );
-              return replay;
+              return this.withTemperature(replay);
             }
           }
           throw err;
@@ -218,7 +275,7 @@ export class OrdersService implements OnModuleInit {
           `order created id=${orderId} total=${input.total.amountMinor}`,
         );
         this.domainEvents.emit();
-        return order;
+        return this.withTemperature(order);
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
         throw err;
@@ -237,7 +294,11 @@ export class OrdersService implements OnModuleInit {
         span.setAttribute("order.id", orderId);
         span.setAttribute("order.action", payload.action);
 
-        const current = this.get(orderId);
+        const idx = this.cache.findIndex((o) => o.orderId === orderId);
+        if (idx === -1) {
+          throw new NotFoundException(`order ${orderId} not found`);
+        }
+        const current = this.cache[idx]!;
         const previousStatus = current.status;
 
         const nextStatus: OrderStatus = (() => {
@@ -262,7 +323,6 @@ export class OrdersService implements OnModuleInit {
         });
 
         const acceptedAt = new Date().toISOString();
-        const idx = this.cache.findIndex((o) => o.orderId === orderId);
         this.cache[idx] = {
           ...current,
           status: nextStatus,

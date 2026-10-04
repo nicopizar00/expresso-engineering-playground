@@ -12,9 +12,10 @@ import type {
   Money,
   OrderStatus,
   OrderManageAction,
+  OrderTemperature,
 } from "@mini-commerce/shared-types";
 
-export type { Money, OrderStatus, OrderManageAction };
+export type { Money, OrderStatus, OrderManageAction, OrderTemperature };
 
 // ---------------------------------------------------------------------------
 // Catalog
@@ -99,6 +100,9 @@ export interface Order {
   readonly total: Money;
   readonly placedAt: string;
   readonly updatedAt: string;
+  // Derived on read: hot until coolsAt, cold afterwards.
+  readonly temperature: OrderTemperature;
+  readonly coolsAt: string;
 }
 
 export interface OrdersResponse {
@@ -117,6 +121,17 @@ export interface ManageOrderResponse {
   readonly previousStatus: OrderStatus;
   readonly status: OrderStatus;
   readonly acceptedAt: string;
+}
+
+// GET /orders/:id/status — read straight from Postgres.
+export interface OrderStatusResponse {
+  readonly orderId: string;
+  readonly status: OrderStatus;
+  readonly temperature: OrderTemperature;
+  readonly placedAt: string;
+  readonly coolsAt: string;
+  // Server clock used to derive `temperature`.
+  readonly checkedAt: string;
 }
 
 // ---------------------------------------------------------------------------

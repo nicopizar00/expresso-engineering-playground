@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Order as DbOrder,
   OrderLine as DbOrderLine,
@@ -12,6 +12,7 @@ import type {
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { PrismaService } from "../../prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
+import { ORDER_COOL_DOWN_MS } from "./order-temperature";
 import { OrdersService } from "./orders.service";
 import type { CreateOrderInput } from "./orders.types";
 
@@ -524,6 +525,81 @@ describe("OrdersService", () => {
       expect(response.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
       expect(response.previousStatus).toBe("pending");
       expect(response.orderId).toBe("ord_demo");
+    });
+  });
+
+  describe("temperature", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("get() is hot within the default 5 minutes of placedAt", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-14T12:04:59.000Z"));
+      const order = service.get("ord_demo");
+      expect(order.temperature).toBe("hot");
+      expect(order.coolsAt).toBe("2026-05-14T12:05:00.000Z");
+    });
+
+    it("listAll() is cold once the cool-down has passed", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-14T12:05:00.000Z"));
+      expect(service.listAll()[0].temperature).toBe("cold");
+    });
+  });
+
+  describe("getStatus()", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("reads Postgres directly, not the cache", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-14T12:01:00.000Z"));
+      prisma.order.findUnique.mockResolvedValue({
+        orderId: "ord_demo",
+        status: "prepared",
+        placedAt: new Date("2026-05-14T12:00:00.000Z"),
+      });
+      const res = await service.getStatus("ord_demo");
+      expect(prisma.order.findUnique).toHaveBeenCalledWith({
+        where: { orderId: "ord_demo" },
+        select: { orderId: true, status: true, placedAt: true },
+      });
+      expect(res).toEqual({
+        orderId: "ord_demo",
+        status: "prepared", // DB value; the cache still says "pending"
+        temperature: "hot",
+        placedAt: "2026-05-14T12:00:00.000Z",
+        coolsAt: "2026-05-14T12:05:00.000Z",
+        checkedAt: "2026-05-14T12:01:00.000Z",
+      });
+    });
+
+    it("throws NotFoundException when the row is missing", async () => {
+      prisma.order.findUnique.mockResolvedValue(null);
+      await expect(service.getStatus("ord_missing")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it("honours an injected cool-down", async () => {
+      const module = await Test.createTestingModule({
+        providers: [
+          OrdersService,
+          { provide: PrismaService, useValue: prisma },
+          { provide: DomainEventsService, useValue: makeDomainEvents() },
+          { provide: CatalogService, useValue: makeCatalog() },
+          { provide: ORDER_COOL_DOWN_MS, useValue: 20_000 },
+        ],
+      }).compile();
+      const fast = module.get(OrdersService);
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-14T12:00:20.000Z"));
+      prisma.order.findUnique.mockResolvedValue({
+        orderId: "ord_demo",
+        status: "pending",
+        placedAt: new Date("2026-05-14T12:00:00.000Z"),
+      });
+      const res = await fast.getStatus("ord_demo");
+      expect(res.temperature).toBe("cold");
+      expect(res.coolsAt).toBe("2026-05-14T12:00:20.000Z");
     });
   });
 });

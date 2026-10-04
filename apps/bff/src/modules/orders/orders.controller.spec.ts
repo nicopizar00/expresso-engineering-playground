@@ -20,6 +20,8 @@ const DEMO_ORDER: Order = {
   total: { amountMinor: 360, currency: "EUR" },
   placedAt: "2026-05-14T12:00:00.000Z",
   updatedAt: "2026-05-14T12:00:00.000Z",
+  temperature: "hot",
+  coolsAt: "2026-05-14T12:05:00.000Z",
 };
 
 function makeController(
@@ -79,6 +81,24 @@ describe("OrdersController", () => {
     it("throws NotFoundException for unknown id", () => {
       const { controller } = makeController();
       expect(() => controller.get("ord_nope")).toThrow(NotFoundException);
+    });
+  });
+
+  describe("GET /orders/:id/status", () => {
+    it("delegates to OrdersService.getStatus()", async () => {
+      const status = {
+        orderId: "ord_demo",
+        status: "pending",
+        temperature: "hot",
+        placedAt: "2026-05-14T12:00:00.000Z",
+        coolsAt: "2026-05-14T12:05:00.000Z",
+        checkedAt: "2026-05-14T12:01:00.000Z",
+      };
+      const { controller, svc } = makeController({
+        getStatus: vi.fn().mockResolvedValue(status),
+      });
+      await expect(controller.status("ord_demo")).resolves.toEqual(status);
+      expect(svc.getStatus).toHaveBeenCalledWith("ord_demo");
     });
   });
 });

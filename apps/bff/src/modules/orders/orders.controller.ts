@@ -4,6 +4,7 @@ import { OrdersService } from "./orders.service";
 import type {
   ManageOrderResponse,
   Order,
+  OrderStatusResponse,
   OrdersResponse,
 } from "./orders.types";
 
@@ -19,6 +20,12 @@ export class OrdersController {
   @Get(":id")
   get(@Param("id") id: string): Order {
     return this.orders.get(id);
+  }
+
+  // Reads Postgres directly; temperature is derived from placedAt.
+  @Get(":id/status")
+  status(@Param("id") id: string): Promise<OrderStatusResponse> {
+    return this.orders.getStatus(id);
   }
 
   @Post(":id/manage")
