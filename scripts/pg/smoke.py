@@ -121,6 +121,17 @@ def run() -> int:
     ))
     results.append(_check("GET  /orders/ord_demo",
                           _expect("GET", "/orders/ord_demo", 200, cookie_jar=jar)))
+
+    def order_status() -> None:
+        _, payload = request_json(f"{API_BASE}/orders/ord_demo/status", expect_status=200, cookie_jar=jar)
+        if not isinstance(payload, dict):
+            raise HttpError("Expected an object payload")
+        for key in ("orderId", "status", "temperature", "placedAt", "coolsAt", "checkedAt"):
+            if key not in payload:
+                raise HttpError(f"order status missing key: {key}")
+        if payload["temperature"] not in ("hot", "cold"):
+            raise HttpError(f"unexpected temperature: {payload['temperature']!r}")
+    results.append(_check("GET  /orders/ord_demo/status (typed temperature)", order_status))
     results.append(_check(
         "POST /orders/ord_demo/manage (mark_prepared)",
         _expect("POST", "/orders/ord_demo/manage", 202, body={"action": "mark_prepared"}, cookie_jar=jar),

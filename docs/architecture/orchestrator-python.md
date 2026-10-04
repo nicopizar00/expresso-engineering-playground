@@ -84,7 +84,7 @@ exist, and receives each path as `DATA_<DATASET>_CSV`. See
 | `restart [target]`       | Stop then up                                   |
 | `dev`                    | `docker compose watch` (HMR for bff + web)     |
 | `dev:host`               | `turbo run dev` on host (escape hatch)         |
-| `smoke`                  | 13 endpoint checks incl. SSE frame assertion   |
+| `smoke`                  | 16 endpoint checks incl. SSE frame assertion   |
 | `seed`                   | `prisma db seed`                               |
 | `status` / `logs` / `open` | Inspection                                   |
 | `perf:smoke` / `perf:purchase-flow` / `perf:purchase-flow-browser` / `perf:cart-fulfill` / `perf:place-order` | named k6 YAML workflows in Docker (`purchase-flow` configurable via `VUS`/`DURATION`/`BASE_URL`; `purchase-flow-browser` mirrors it via a real Chromium browser against the web app, `VUS`/`ITERATIONS`/`BASE_URL`; `cart-fulfill` stops before checkout and produces the `carts` dataset with `--produce carts`; `place-order` requires `carts` — Punch fails it fast when the dataset is missing/empty and offers to delete it once done, `VUS`/`ITERATIONS`/`BASE_URL`) |
