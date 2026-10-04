@@ -1,12 +1,12 @@
 // Cart-fulfill-browser scenario — the browser-driven mirror of
 // cart-fulfill.ts. Same pre-checkout steps as purchase-flow-browser.ts
 // (browse -> add to cart -> checkout panel renders), but stops before
-// "Place Order" and emits the reserved cart as a [CSV] record instead,
-// exactly like cart-fulfill.ts does over HTTP.
+// "Place Order" and emits the reserved cart as a `[DATA carts]` record
+// instead, exactly like cart-fulfill.ts does over HTTP.
 //
 // Downstream: place-order (scenarios/place-order/place-order.ts) consumes
-// reports/cart-fulfill-carts.csv over plain HTTP, indifferent to whether
-// cart-fulfill or cart-fulfill-browser produced it.
+// the "carts" dataset (data/carts.csv) over plain HTTP, indifferent to
+// whether cart-fulfill or cart-fulfill-browser produced it.
 //
 // Reading the cart id:
 //   cartId is server-generated and required verbatim at checkout
@@ -28,7 +28,7 @@ import { purchaseFlowBrowserThresholds } from "../../config/thresholds";
 import { buildSummaryOutputs } from "../../support/report";
 
 // @types/k6 doesn't declare k6's global `console` (see k6/console docs);
-// mirrors cart-fulfill.ts's declaration for the [CSV] harvest protocol.
+// mirrors cart-fulfill.ts's declaration for the [DATA] harvest protocol.
 declare const console: { log: (message: string) => void };
 
 const VUS = Number(__ENV.VUS) || 1;
@@ -82,7 +82,7 @@ export default async function () {
       const cookies = await page.context().cookies();
       const sid = cookies.find((cookie) => cookie.name === "sid")?.value;
       if (sid) {
-        console.log(`[CSV] ${cartId},,${sid}`);
+        console.log(`[DATA carts] ${cartId},,${sid}`);
       }
     }
   } finally {

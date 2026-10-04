@@ -116,6 +116,7 @@ services:
     shm_size: "512mb"
     volumes:
       - ../../tests/performance/k6/reports:/scripts/reports
+      - ../../tests/performance/k6/data:/scripts/data
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3000}
       K6_ENV: ${K6_ENV:-local}

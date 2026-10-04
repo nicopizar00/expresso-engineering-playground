@@ -152,7 +152,7 @@ def _usage() -> None:
     print("Requires: Docker Desktop  |  Python ≥ 3.9 on PATH.")
     print("Performance commands additionally require Punch's pinned dependency:")
     print("  python3 -m pip install -r vendor/punch/requirements.txt")
-    print("CSV-declared workflows (e.g. perf:cart-fulfill) require --confirm-output-data in non-interactive runs.")
+    print("Data-producing workflows write their dataset only with --produce <dataset> (e.g. perf:cart-fulfill --produce carts).")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()

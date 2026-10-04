@@ -139,9 +139,10 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ```
 
 Each performance command selects one repository-owned YAML workflow; Punch
-loads, validates, and runs it once through Docker Compose. `cart-fulfill` and
-`cart-fulfill-browser` declare `outputs.csv`; a non-interactive invocation of
-either must explicitly include `--confirm-output-data`.
+loads, validates, and runs it once through Docker Compose. Workflows declare
+datasets in `spec.data`; a producer writes its dataset only with
+`--produce <dataset>` (e.g. `./dev perf:cart-fulfill --produce carts`), and a
+consumer such as `place-order` fails before Docker until its dataset exists.
 
 ## Out of scope for this phase
 

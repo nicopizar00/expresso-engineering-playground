@@ -54,9 +54,10 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "cart-fulfill-browser": ["BASE_URL", "VUS", "ITERATIONS"],
             "place-order": ["BASE_URL", "VUS", "ITERATIONS"],
         }
-        expected_csv_output_path = {
-            "cart-fulfill": "tests/performance/k6/reports/cart-fulfill-carts.csv",
-            "cart-fulfill-browser": "tests/performance/k6/reports/cart-fulfill-carts.csv",
+        expected_data = {
+            "cart-fulfill": {"produces": {"carts": ("place-order",)}, "requires": ()},
+            "cart-fulfill-browser": {"produces": {"carts": ("place-order",)}, "requires": ()},
+            "place-order": {"produces": {}, "requires": ("carts",)},
         }
         self.assertEqual(len(workflow_paths), 6)
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
@@ -79,18 +80,17 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                     REPO_ROOT / "infra" / "docker" / "compose.performance.yaml",
                 )
                 self.assertEqual(workflow.compose_service, expected_compose_service[path.stem])
-                if path.stem in expected_csv_output_path:
+                if path.stem in expected_data:
+                    expected = expected_data[path.stem]
+                    self.assertEqual(workflow.data.directory, REPO_ROOT / "tests/performance/k6/data")
+                    self.assertEqual(workflow.data.mounted_at, "/scripts/data")
                     self.assertEqual(
-                        document["spec"]["outputs"]["csv"]["path"],
-                        expected_csv_output_path[path.stem],
+                        {product.dataset: product.targets for product in workflow.data.produces},
+                        expected["produces"],
                     )
-                    self.assertEqual(
-                        workflow.csv_output.path,
-                        REPO_ROOT / expected_csv_output_path[path.stem],
-                    )
+                    self.assertEqual(workflow.data.requires, expected["requires"])
                 else:
-                    self.assertNotIn("csv", document["spec"].get("outputs", {}))
-                    self.assertIsNone(workflow.csv_output)
+                    self.assertIsNone(workflow.data)
                 self.assertEqual(
                     document["spec"]["outputs"]["summary"]["path"],
                     f"tests/performance/k6/reports/{path.stem}-summary.json",
@@ -103,3 +103,12 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                     document["spec"]["environment"],
                     {"forward": expected_environment_forward[path.stem]},
                 )
+
+
+class K6WorkflowCatalogTests(unittest.TestCase):
+    def test_workflow_catalog_links_are_valid(self) -> None:
+        from punch.catalog import load_catalog
+
+        catalog = load_catalog(PERF_WORKFLOWS_DIR)
+        self.assertEqual(catalog.producers_of("carts"), ("cart-fulfill", "cart-fulfill-browser"))
+        self.assertEqual(catalog.consumers_of("carts"), ("place-order",))

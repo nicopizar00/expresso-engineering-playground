@@ -11,9 +11,10 @@ spec:
     script: /scripts/scenarios/place-order/place-order.js
   environment:
     forward: [BASE_URL, VUS, ITERATIONS]
-  inputs:
-    csv:
-      path: tests/performance/k6/data/cart-fulfill-carts.csv
   outputs:
     summary:
       path: tests/performance/k6/reports/place-order-summary.json
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    requires: [carts]

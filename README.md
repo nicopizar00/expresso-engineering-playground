@@ -233,9 +233,10 @@ set via environment variables. See
 [`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
 for how to run it and what its thresholds mean.
 
-Current workflows do not produce CSV data. A future workflow that declares
-`outputs.csv` needs `--confirm-output-data` only when it runs
-non-interactively.
+Workflows can hand data to each other through `spec.data` datasets: a
+producer writes its dataset only with `--produce <dataset>` (e.g.
+`./dev perf:cart-fulfill --produce carts`), and a consumer such as
+`place-order` fails before Docker until that dataset exists.
 
 ```bash
 ./dev perf:clean           # remove generated reports when done

@@ -104,96 +104,65 @@ like 100% failure) — a pre-existing quirk in the shared report helper
 scenario. Read `passed`/`checkPassRate`, not `errorRate`, from the JSON
 summary for this workflow.
 
-## Run cart-fulfill
+## Data pipeline (produce / require)
 
-`cart-fulfill` mirrors `purchase-flow`'s pre-checkout steps (browse → add to
-cart → view cart) but stops before `POST /checkout` — it never places an
-order. Each iteration that successfully creates a cart emits one stdout
-record instead:
+Workflows hand data to each other through named datasets declared in each
+workflow's `spec.data` (full contract: [`docs/performance/orchestrator.md`](../../../docs/performance/orchestrator.md#data-pipeline-specdata)):
 
 ```text
-[CSV] <cartId>,<productId>,<sid>
+cart-fulfill ─────────┐
+cart-fulfill-browser ─┴─carts──▶ place-order
 ```
 
-`sid` is the session cookie the BFF minted for that cart — required because
-the BFF's cart is looked up by session, not by `cartId` alone (see
-`cart.service.ts`'s `Map<sessionId, SessionCart>`); `place-order` replays it
-via `http.cookieJar().set(...)` so its checkout lands in the session that
-actually owns the cart, instead of its own run's fresh one.
+- A producer prints `[DATA <dataset>] <csv payload>` on stdout. Punch writes
+  `data/<dataset>.csv` (gitignored, header row from the declared columns)
+  **only** when the run opts in with `--produce <dataset>` (or
+  `--produce all`), and publishes it atomically after a successful run. A
+  zero-row run, a malformed row, or a failed process fails the workflow and
+  keeps the previous file.
+- A consumer fails before Docker when a required dataset is missing or has no
+  rows, naming the workflows that produce it. Punch injects the container path
+  as `DATA_<DATASET>_CSV`; `--data <dataset>=<path>` reads an alternate file
+  under `data/`. After the run, an interactive terminal is asked whether to
+  delete each consumed file; non-interactive runs keep it.
 
-It is the first workflow to declare `spec.outputs.csv.path`
-(`reports/cart-fulfill-carts.csv`), so it needs confirmation before writing
-that file. Interactively you're prompted; non-interactively pass
-`--confirm-output-data`:
+| Dataset | Columns | Producers | Consumers |
+| --- | --- | --- | --- |
+| `carts` | `cartId,productId,sid` | `cart-fulfill`, `cart-fulfill-browser` | `place-order` |
+
+### cart-fulfill / cart-fulfill-browser → place-order
+
+`cart-fulfill` mirrors `purchase-flow`'s pre-checkout steps (browse → add to
+cart → view cart) but stops before `POST /checkout` and emits each reserved
+cart as `[DATA carts] <cartId>,<productId>,<sid>`. `sid` is the session cookie
+the BFF minted for that cart — the cart is looked up by session, not by
+`cartId` alone (see `cart.service.ts`), so `place-order` replays it via
+`http.cookieJar().set(...)` before checkout. `place-order` then completes
+`POST /checkout` per row and verifies the order and the visualizer feed.
 
 ```bash
-./dev perf:cart-fulfill --confirm-output-data
+./dev perf:cart-fulfill --produce carts      # writes data/carts.csv
+./dev perf:place-order                       # consumes it
 ```
 
-It forwards `VUS`/`DURATION`/`ITERATIONS` exactly like `purchase-flow` — use
-`ITERATIONS` to generate a fixed batch of carts (e.g. `ITERATIONS=20`) rather
-than a time-based soak. A zero-record run, malformed `[CSV]` payload, or a
-failed process fails the workflow and leaves any previous
-`cart-fulfill-carts.csv` untouched (see "Optional CSV output" below).
+`cart-fulfill` forwards `VUS`/`DURATION`/`ITERATIONS` like `purchase-flow`
+(use `ITERATIONS=20` for a fixed batch). `place-order` forwards
+`VUS`/`ITERATIONS` only — a fixed cart pool doesn't fit a time-based soak;
+`ITERATIONS` defaults to `5`, and a count above the pool size wraps around and
+re-attempts already-placed carts (those checks fail, they don't crash).
 
-On a successful run, `./dev perf:cart-fulfill` also duplicates
-`reports/cart-fulfill-carts.csv` to `data/cart-fulfill-carts.csv` — a
-separate, gitignored folder for data a *later* workflow consumes (`reports/`
-stays evidence-only and untouched). `place-order` below reads that duplicate.
-
-## Run cart-fulfill-browser
-
-`cart-fulfill-browser` is `cart-fulfill`'s browser-driven twin: same
-outcome (a reserved cart, emitted as `[CSV] <cartId>,,<sid>`), but reached by
-driving the web app's real UI with Chromium instead of calling the BFF over
-HTTP — add to cart, wait for the checkout panel, stop before clicking
-"Place Order". It writes to the exact same
-`reports/cart-fulfill-carts.csv`, so `place-order` consumes either
-producer's output unchanged:
+`cart-fulfill-browser` is the browser-driven twin: it drives the web app with
+Chromium, stops before "Place Order", and emits `[DATA carts] <cartId>,,<sid>`
+into the same dataset. `cartId` is read from `CartCheckoutPanel.tsx`'s
+`data-cart-id` attribute (k6's browser module cannot intercept responses);
+`productId` is left blank because `place-order` never reads it.
 
 ```bash
 ./dev up web
 docker compose -f infra/docker/compose.performance.yaml build k6-browser
-./dev perf:cart-fulfill-browser --confirm-output-data
+./dev perf:cart-fulfill-browser --produce carts
 ./dev perf:place-order
 ```
-
-`cartId` is required verbatim at checkout but was never rendered anywhere in
-the DOM, so `CartCheckoutPanel.tsx` carries a `data-cart-id` attribute
-specifically for this scenario to read via `page.getAttribute()` — k6's
-browser module has no request/response interception to read it off the
-`POST /cart/items` response body instead. The emitted row's `productId`
-field is intentionally blank: `place-order.ts` never reads that column, and
-there's no DOM-exposed productId to report honestly in its place. It
-forwards `VUS`/`ITERATIONS` only, same as `purchase-flow-browser` — one
-Chromium instance per VU, default 5 iterations.
-
-## Run place-order
-
-`place-order` is `cart-fulfill`'s pair: it checks out the carts `cart-fulfill`
-(or its browser-driven twin, `cart-fulfill-browser`) reserved instead of
-creating its own. Its scenario loads
-`data/cart-fulfill-carts.csv` into a k6 `SharedArray` at init time (one row
-per cart, read-only, shared across VUs) and, for each iteration, completes
-`POST /checkout` for one row, then verifies the order and the visualizer feed
-— purchase-flow's post-checkout steps, unchanged.
-
-```bash
-./dev perf:cart-fulfill --confirm-output-data   # produces data/cart-fulfill-carts.csv
-./dev perf:place-order                          # consumes it
-```
-
-It forwards `VUS`/`ITERATIONS` only, no `DURATION` — a fixed cart pool
-doesn't fit a time-based soak. `ITERATIONS` defaults to `5`, matching
-`cart-fulfill`'s own default batch size rather than tracking however many
-rows happen to be in the pool; set it explicitly to consume a different
-subset, or higher than the pool size to wrap around and re-attempt
-already-placed orders (those checks fail, they don't crash the run).
-
-It fails fast, before Docker starts, if `data/cart-fulfill-carts.csv` is
-missing or empty — run `perf:cart-fulfill` first. After the run finishes
-(pass or fail), it asks — on a real interactive terminal only — whether to
-delete that data file; a non-interactive run leaves it in place.
 
 ## Reports and current-run evidence
 
@@ -212,11 +181,11 @@ Inspect or remove those generated files with:
 ./dev perf:clean
 ```
 
-Existing CSV, HTML, or JSON files are **not current-run evidence**: a file
+Existing dataset, HTML, or JSON files are **not current-run evidence**: a file
 may predate the selected workflow. Use the Punch execution result and its
 matching stdout/stderr log as the current-run evidence record; the result
-identifies the selected workflow and reports its exit/pass state and any CSV
-record count.
+identifies the selected workflow and reports its exit/pass state and the row
+count of any dataset it wrote.
 
 The current mappings are:
 
@@ -234,41 +203,20 @@ exactly (catalog list → add to cart → cart view → checkout → verify orde
 verify visualizer feed), with no `GET /catalog/products/:id` hop since the
 web catalog grid never calls it. `cart-fulfill` and `place-order` split that
 same journey into a pair — reserve, then checkout — passing reserved cart ids
-between them as CSV; see "Run cart-fulfill" and "Run place-order" above.
+between them as the `carts` dataset; see "Data pipeline" above.
 
 `load` and `stress` are old, unwired placeholders; they are neither build
 entries nor workflows.
-
-## Optional CSV output
-
-`cart-fulfill` and `cart-fulfill-browser` are the only workflows that declare
-`outputs.csv` today — both to the same `cart-fulfill-carts.csv` path, since
-they're interchangeable producers for `place-order`. Any other future
-workflow can declare `spec.outputs.csv.path` only when its data output is
-intentional.
-
-- A candidate record is exactly one stdout line beginning `[CSV]`; Punch strips
-  that prefix and parses its payload as strict CSV. Stderr is log-only and is
-  never harvested.
-- Interactive runs request confirmation before Compose starts. For a
-  non-interactive CSV-declared run, pass `--confirm-output-data`. The flag is
-  not needed by `smoke`, `purchase-flow`, or `purchase-flow-browser`.
-- Zero valid records, malformed tagged data, process failure, or preflight
-  failure fails the workflow. Punch stages valid records beside the target and
-  publishes them atomically only after a successful run, preserving any
-  previously published file on failure.
 
 ## Add a scenario
 
 Add the scenario source, add one TypeScript build entry, then add exactly one
 matching `workflows/<name>.yaml`. The workflow supplies the Compose file,
-service, container script, permitted environment, and optional
-`outputs.csv`/`inputs.csv`; do not put an additional script-path branch in
-`scripts/pg/perf.py`. Declaring `inputs.csv.path` only tells `punch menu`'s
-picker to annotate the entry `[requires <file>.csv]` — it is read-only
-metadata, not an executed contract. A workflow-specific *input* preflight or
-postflight step (e.g. `place-order`'s missing-data check and delete prompt)
-still belongs in its `perf.py` function.
+service, container script, permitted environment, and optional `spec.data`
+(`produces` with columns and targets, and/or `requires`); do not put an
+additional script-path branch in `scripts/pg/perf.py`. Punch owns the whole
+data lifecycle — opt-in, preflight, path injection, delete prompt — so a new
+`perf.py` function stays a one-line pass-through to `run_k6`.
 
 Update the relevant command/docs and run `pnpm pg:test`. Build explicitly and
 execute the workflow locally before relying on CI. Keep thresholds named in

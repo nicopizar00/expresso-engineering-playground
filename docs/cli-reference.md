@@ -63,9 +63,9 @@ for the dispatch diagram.
 | k6 smoke (Docker k6)          | `./dev perf:smoke`    | `pnpm pg:perf:smoke`    | `task perf:smoke`   |
 | k6 purchase-flow (search → cart → checkout, `VUS`/`DURATION` env) | `./dev perf:purchase-flow` | `pnpm pg:perf:purchase-flow` | `task perf:purchase-flow` |
 | k6 purchase-flow driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly), `VUS`/`ITERATIONS` env | `./dev perf:purchase-flow-browser` | `pnpm pg:perf:purchase-flow-browser` | `task perf:purchase-flow-browser` |
-| k6 cart-fulfill (search → add to cart, stops before checkout, emits `[CSV]` cart ids), `VUS`/`DURATION`/`ITERATIONS` env, needs `--confirm-output-data` non-interactively | `./dev perf:cart-fulfill` | `pnpm pg:perf:cart-fulfill` | `task perf:cart-fulfill` |
-| k6 cart-fulfill driven by a real browser (Chromium via k6/browser, web app UI), stops before Place Order, emits `[CSV]` cart ids to the same file as cart-fulfill, `VUS`/`ITERATIONS` env, needs `--confirm-output-data` non-interactively | `./dev perf:cart-fulfill-browser` | `pnpm pg:perf:cart-fulfill-browser` | `task perf:cart-fulfill-browser` |
-| k6 place-order (checks out carts reserved by cart-fulfill or cart-fulfill-browser via `data/cart-fulfill-carts.csv`, verifies order + visualizer), `VUS`/`ITERATIONS` env, fails fast if no cart data | `./dev perf:place-order` | `pnpm pg:perf:place-order` | `task perf:place-order` |
+| k6 cart-fulfill (search → add to cart, stops before checkout, emits `[DATA carts]` rows), `VUS`/`DURATION`/`ITERATIONS` env, writes `data/carts.csv` only with `--produce carts` | `./dev perf:cart-fulfill` | `pnpm pg:perf:cart-fulfill` | `task perf:cart-fulfill` |
+| k6 cart-fulfill driven by a real browser (Chromium via k6/browser, web app UI), stops before Place Order, emits `[DATA carts]` rows into the same `carts` dataset, `VUS`/`ITERATIONS` env, writes it only with `--produce carts` | `./dev perf:cart-fulfill-browser` | `pnpm pg:perf:cart-fulfill-browser` | `task perf:cart-fulfill-browser` |
+| k6 place-order (checks out carts reserved by cart-fulfill or cart-fulfill-browser via the `carts` dataset, verifies order + visualizer), `VUS`/`ITERATIONS` env, fails before Docker if `carts` is missing; `--data carts=<path>` reads another file | `./dev perf:place-order` | `pnpm pg:perf:place-order` | `task perf:place-order` |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
 | Interactive k6 workflow picker | `./bin/punch` | — | — |
@@ -83,16 +83,19 @@ profiles up. See [`architecture/orchestrator-python.md`](architecture/orchestrat
 | Trace a BFF request via Tempo | `./dev hack trace GET /catalog/products` (needs `up obs`) |
 
 Each `perf:*` command selects one repository-owned YAML workflow. Punch
-loads, validates, confirms any declared data output, confirms the Docker
+loads, validates, preflights any required dataset, confirms the Docker
 Compose run itself (interactive terminals only — CI proceeds automatically),
 then performs exactly one Docker Compose run, printing the k6 metrics from
 `outputs.summary` on success. Do not replace that path with an ad-hoc Compose
 command except while debugging the container itself; that is an escape hatch,
 not the supported workflow path.
 
-`cart-fulfill` and `cart-fulfill-browser` declare `outputs.csv`. Add
-`--confirm-output-data` for a non-interactive invocation; interactive runs ask
-for confirmation before Compose starts.
+Workflows that produce a dataset (`spec.data.produces`) write it only when
+the run passes `--produce <dataset>` (or `--produce all`), e.g.
+`./dev perf:cart-fulfill --produce carts`; an explicit `--produce` also skips
+the Docker prompt. Consumers fail before Docker until their datasets exist and
+accept `--data <dataset>=<path>` for an alternate file under
+`tests/performance/k6/data/`.
 
 `./bin/punch` first offers to run `docker compose build k6 k6-browser` (both
 images, since the menu can select either service and hasn't picked a

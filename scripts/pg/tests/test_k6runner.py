@@ -71,12 +71,33 @@ class RunK6Tests(unittest.TestCase):
         self.assertEqual(run_k6("missing"), 1)
         self.assertFalse(self.fake_args_path.exists())
 
-    @patch("pg.k6runner.confirm_output_data", return_value=True)
-    def test_confirmation_flag_is_forwarded_to_punch(self, confirm_output_data_mock) -> None:
-        self.assertEqual(run_k6("smoke", confirm_output_data_flag=True), 0)
-        workflow = confirm_output_data_mock.call_args.args[0][0]
-        self.assertEqual(workflow.name, "smoke")
-        self.assertTrue(confirm_output_data_mock.call_args.kwargs["assume_yes"])
+    @patch("pg.k6runner.execute_workflow")
+    def test_run_k6_forwards_produce_and_data(self, execute_mock) -> None:
+        execute_mock.return_value = ExecutionResult("cart-fulfill", (), 0, True, None)
+        with patch("pg.k6runner.confirm_docker_run", return_value=True):
+            self.assertEqual(run_k6("cart-fulfill", ["--produce", "carts"]), 0)
+        kwargs = execute_mock.call_args.kwargs
+        self.assertEqual(kwargs["produce"], ("carts",))
+        self.assertEqual(kwargs["data_overrides"], {})
+        self.assertEqual(kwargs["producers_of"]("carts"), ("cart-fulfill", "cart-fulfill-browser"))
+
+    def test_run_k6_rejects_undeclared_produce_before_docker(self) -> None:
+        with patch("pg.k6runner.execute_workflow") as execute_mock:
+            self.assertEqual(run_k6("smoke", ["--produce", "carts"]), 1)
+        execute_mock.assert_not_called()
+        self.assertFalse(self.fake_args_path.exists())
+
+    @patch("pg.k6runner.confirm_docker_run", return_value=True)
+    def test_place_order_missing_carts_fails_before_docker_and_names_producers(self, _confirm) -> None:
+        out, err = StringIO(), StringIO()
+        with patch("sys.stdin", StringIO()), patch("sys.stdout", out), patch("sys.stderr", err), \
+             patch("punch.execution._has_data_rows", return_value=False):
+            rc = run_k6("place-order", [])
+        self.assertEqual(rc, 1)
+        self.assertFalse(self.fake_args_path.exists())
+        self.assertIn(
+            "cart-fulfill, cart-fulfill-browser (--produce carts)", out.getvalue() + err.getvalue()
+        )
 
     def test_malformed_workflow_fails_before_docker(self) -> None:
         (self.root / "malformed.yaml").write_text("not: a-workflow\n", encoding="utf-8")
@@ -94,8 +115,6 @@ class RunK6Tests(unittest.TestCase):
                     child_exit_code=child_exit_code,
                     passed=False,
                     failure="workflow output validation failed",
-                    csv_path=None,
-                    csv_record_count=0,
                 )
                 self.assertEqual(run_k6("smoke"), 1)
 
@@ -104,212 +123,44 @@ class RunK6Tests(unittest.TestCase):
             self.assertEqual(run_k6("smoke"), 23)
 
 
+
 class PerfAndCliCompatibilityTests(unittest.TestCase):
-    @patch("pg.perf._confirm_delete_data", return_value=False)
     @patch("pg.perf.run_k6", return_value=0)
-    def test_perf_commands_parse_confirmation_and_select_workflows(
-        self, run_k6_mock, _confirm_delete_data_mock
-    ) -> None:
+    def test_perf_commands_pass_args_through(self, run_k6_mock) -> None:
         from pg.paths import WEB_PORT
 
-        with TemporaryDirectory() as tmp:
-            data_dir = Path(tmp)
-            (data_dir / perf.CART_FULFILL_CSV_NAME).write_text(
-                "11111111-1111-1111-1111-111111111111,prod-1\n", encoding="utf-8"
-            )
-            with patch("pg.perf.PERF_DATA_DIR", data_dir):
-                for command, workflow_name, extra_kwargs in (
-                    (perf.smoke, "smoke", {}),
-                    (perf.purchase_flow, "purchase-flow", {}),
-                    (
-                        perf.purchase_flow_browser,
-                        "purchase-flow-browser",
-                        {"default_port": WEB_PORT},
-                    ),
-                    (perf.cart_fulfill, "cart-fulfill", {}),
-                    (
-                        perf.cart_fulfill_browser,
-                        "cart-fulfill-browser",
-                        {"default_port": WEB_PORT},
-                    ),
-                    (perf.place_order, "place-order", {}),
-                ):
-                    with self.subTest(workflow_name=workflow_name):
-                        self.assertEqual(command(["--confirm-output-data"]), 0)
-                        run_k6_mock.assert_called_once_with(
-                            workflow_name, confirm_output_data_flag=True, **extra_kwargs
-                        )
-                        run_k6_mock.reset_mock()
+        cases = [
+            (perf.smoke, "smoke", {}),
+            (perf.purchase_flow, "purchase-flow", {}),
+            (perf.purchase_flow_browser, "purchase-flow-browser", {"default_port": WEB_PORT}),
+            (perf.cart_fulfill, "cart-fulfill", {}),
+            (perf.cart_fulfill_browser, "cart-fulfill-browser", {"default_port": WEB_PORT}),
+            (perf.place_order, "place-order", {}),
+        ]
+        for command, name, kwargs in cases:
+            with self.subTest(name=name):
+                run_k6_mock.reset_mock()
+                self.assertEqual(command(["--produce", "carts"]), 0)
+                run_k6_mock.assert_called_once_with(name, ["--produce", "carts"], **kwargs)
 
     def test_cli_forwards_static_perf_arguments(self) -> None:
-        with (
-            patch.object(perf, "smoke", return_value=0) as smoke_mock,
-            patch.object(perf, "purchase_flow", return_value=0) as purchase_flow_mock,
-            patch.object(
-                perf, "purchase_flow_browser", return_value=0
-            ) as purchase_flow_browser_mock,
-            patch.object(perf, "cart_fulfill", return_value=0) as cart_fulfill_mock,
-            patch.object(
-                perf, "cart_fulfill_browser", return_value=0
-            ) as cart_fulfill_browser_mock,
-            patch.object(perf, "place_order", return_value=0) as place_order_mock,
-        ):
-            self.assertEqual(cli._perf_smoke(["--confirm-output-data"]), 0)
-            self.assertEqual(cli._perf_purchase_flow(["--confirm-output-data"]), 0)
-            self.assertEqual(
-                cli._perf_purchase_flow_browser(["--confirm-output-data"]), 0
-            )
-            self.assertEqual(cli._perf_cart_fulfill(["--confirm-output-data"]), 0)
-            self.assertEqual(
-                cli._perf_cart_fulfill_browser(["--confirm-output-data"]), 0
-            )
-            self.assertEqual(cli._perf_place_order(["--confirm-output-data"]), 0)
-
-        smoke_mock.assert_called_once_with(["--confirm-output-data"])
-        purchase_flow_mock.assert_called_once_with(["--confirm-output-data"])
-        purchase_flow_browser_mock.assert_called_once_with(["--confirm-output-data"])
-        cart_fulfill_mock.assert_called_once_with(["--confirm-output-data"])
-        cart_fulfill_browser_mock.assert_called_once_with(["--confirm-output-data"])
-        place_order_mock.assert_called_once_with(["--confirm-output-data"])
+        names = [
+            "smoke", "purchase_flow", "purchase_flow_browser",
+            "cart_fulfill", "cart_fulfill_browser", "place_order",
+        ]
+        mocks = {}
+        patches = [patch.object(perf, name, return_value=0) for name in names]
+        for name, patcher in zip(names, patches):
+            mocks[name] = patcher.start()
+        try:
+            for name in names:
+                self.assertEqual(getattr(cli, f"_perf_{name}")(["--produce", "carts"]), 0)
+        finally:
+            for patcher in patches:
+                patcher.stop()
+        for name in names:
+            mocks[name].assert_called_once_with(["--produce", "carts"])
 
 
-class _FakeStdin:
-    def __init__(self, response: str = "", *, interactive: bool) -> None:
-        self._response = response
-        self._interactive = interactive
-
-    def isatty(self) -> bool:
-        return self._interactive
-
-    def readline(self) -> str:
-        return self._response
-
-
-class CartFulfillDuplicatesCsvForPlaceOrderTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.temporary_directory = TemporaryDirectory()
-        self.reports_dir = Path(self.temporary_directory.name) / "reports"
-        self.data_dir = Path(self.temporary_directory.name) / "data"
-        self.reports_dir.mkdir()
-        self.reports_patch = patch("pg.perf.PERF_REPORTS_DIR", self.reports_dir)
-        self.data_patch = patch("pg.perf.PERF_DATA_DIR", self.data_dir)
-        self.reports_patch.start()
-        self.data_patch.start()
-
-    def tearDown(self) -> None:
-        self.data_patch.stop()
-        self.reports_patch.stop()
-        self.temporary_directory.cleanup()
-
-    @patch("pg.perf.run_k6", return_value=0)
-    def test_successful_run_duplicates_reports_csv_into_data_dir(self, _run_k6_mock) -> None:
-        source = self.reports_dir / perf.CART_FULFILL_CSV_NAME
-        source.write_text("cart-1,prod-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.cart_fulfill([]), 0)
-
-        duplicate = self.data_dir / perf.CART_FULFILL_CSV_NAME
-        self.assertTrue(duplicate.exists())
-        self.assertEqual(duplicate.read_text(encoding="utf-8"), "cart-1,prod-1\n")
-        # reports/ stays Punch's untouched evidence record.
-        self.assertTrue(source.exists())
-
-    @patch("pg.perf.run_k6", return_value=1)
-    def test_failed_run_does_not_duplicate_stale_csv(self, _run_k6_mock) -> None:
-        source = self.reports_dir / perf.CART_FULFILL_CSV_NAME
-        source.write_text("stale-cart,prod-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.cart_fulfill([]), 1)
-
-        self.assertFalse((self.data_dir / perf.CART_FULFILL_CSV_NAME).exists())
-
-    @patch("pg.perf.run_k6", return_value=0)
-    def test_browser_successful_run_duplicates_reports_csv_into_data_dir(
-        self, _run_k6_mock
-    ) -> None:
-        source = self.reports_dir / perf.CART_FULFILL_CSV_NAME
-        source.write_text("cart-1,,sid-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.cart_fulfill_browser([]), 0)
-
-        duplicate = self.data_dir / perf.CART_FULFILL_CSV_NAME
-        self.assertEqual(duplicate.read_text(encoding="utf-8"), "cart-1,,sid-1\n")
-        self.assertTrue(source.exists())
-
-    @patch("pg.perf.run_k6", return_value=1)
-    def test_browser_failed_run_does_not_duplicate_stale_csv(
-        self, _run_k6_mock
-    ) -> None:
-        source = self.reports_dir / perf.CART_FULFILL_CSV_NAME
-        source.write_text("stale-cart,,sid-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.cart_fulfill_browser([]), 1)
-
-        self.assertFalse((self.data_dir / perf.CART_FULFILL_CSV_NAME).exists())
-
-
-class PlaceOrderDataPreflightAndDeletePromptTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.temporary_directory = TemporaryDirectory()
-        self.data_dir = Path(self.temporary_directory.name)
-        self.data_patch = patch("pg.perf.PERF_DATA_DIR", self.data_dir)
-        self.data_patch.start()
-        self.data_path = self.data_dir / perf.CART_FULFILL_CSV_NAME
-
-    def tearDown(self) -> None:
-        self.data_patch.stop()
-        self.temporary_directory.cleanup()
-
-    @patch("pg.perf.run_k6")
-    def test_missing_data_file_fails_before_docker(self, run_k6_mock) -> None:
-        self.assertEqual(perf.place_order([]), 1)
-        run_k6_mock.assert_not_called()
-
-    @patch("pg.perf.run_k6")
-    def test_blank_data_file_fails_before_docker(self, run_k6_mock) -> None:
-        self.data_path.write_text("\n\n", encoding="utf-8")
-        self.assertEqual(perf.place_order([]), 1)
-        run_k6_mock.assert_not_called()
-
-    @patch("sys.stdout", new_callable=StringIO)
-    @patch("sys.stdin", new_callable=lambda: _FakeStdin("y", interactive=True))
-    @patch("pg.perf.run_k6", return_value=0)
-    def test_interactive_yes_deletes_consumed_data(self, _run_k6_mock, _stdin, _stdout) -> None:
-        self.data_path.write_text("cart-1,prod-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.place_order([]), 0)
-
-        self.assertFalse(self.data_path.exists())
-
-    @patch("sys.stdout", new_callable=StringIO)
-    @patch("sys.stdin", new_callable=lambda: _FakeStdin("n", interactive=True))
-    @patch("pg.perf.run_k6", return_value=0)
-    def test_interactive_no_keeps_consumed_data(self, _run_k6_mock, _stdin, _stdout) -> None:
-        self.data_path.write_text("cart-1,prod-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.place_order([]), 0)
-
-        self.assertTrue(self.data_path.exists())
-
-    @patch("sys.stdout", new_callable=StringIO)
-    @patch("sys.stdin", new_callable=lambda: _FakeStdin(interactive=False))
-    @patch("pg.perf.run_k6", return_value=0)
-    def test_non_interactive_never_deletes(self, _run_k6_mock, _stdin, _stdout) -> None:
-        self.data_path.write_text("cart-1,prod-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.place_order([]), 0)
-
-        self.assertTrue(self.data_path.exists())
-
-    @patch("sys.stdout", new_callable=StringIO)
-    @patch("sys.stdin", new_callable=lambda: _FakeStdin(interactive=False))
-    @patch("pg.perf.run_k6", return_value=1)
-    def test_failed_run_still_offers_delete_prompt(self, _run_k6_mock, _stdin, _stdout) -> None:
-        self.data_path.write_text("cart-1,prod-1\n", encoding="utf-8")
-
-        self.assertEqual(perf.place_order([]), 1)
-
-        # Non-interactive, so kept either way — but run_k6 must have been
-        # reached (preflight passed) and the prompt attempted regardless of
-        # pass/fail.
-        self.assertTrue(self.data_path.exists())
+if __name__ == "__main__":
+    unittest.main()

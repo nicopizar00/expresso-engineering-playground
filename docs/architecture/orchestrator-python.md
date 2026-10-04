@@ -52,7 +52,7 @@ fits your muscle memory; the behaviour is identical.
 
 ```text
 ./dev perf:* -> repository YAML -> Punch load/validate/confirm ->
-one docker compose run -> stdout/stderr log + existing HTML/JSON + optional CSV
+one docker compose run -> stdout/stderr log + existing HTML/JSON + opted-in datasets
 ```
 
 The repository owns two workflow files under
@@ -66,10 +66,13 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ./dev perf:smoke
 ```
 
-No current workflow has `outputs.csv`. A future declared CSV output accepts
-only exact stdout `[CSV]` records, needs `--confirm-output-data` when run
-non-interactively, fails if it yields zero valid records, and is atomically
-published only after a successful run. Stderr remains log-only.
+Workflows exchange data through `spec.data` datasets. A producer's stdout
+`[DATA <dataset>]` records are written to `tests/performance/k6/data/<dataset>.csv`
+only with `--produce <dataset>`, must match the declared columns, fail the run
+if none arrive, and are atomically published only after a successful run;
+stderr remains log-only. A consumer fails before Docker until its datasets
+exist, and receives each path as `DATA_<DATASET>_CSV`. See
+[`docs/performance/orchestrator.md`](../performance/orchestrator.md#data-pipeline-specdata).
 
 ## Command map
 
@@ -84,7 +87,7 @@ published only after a successful run. Stderr remains log-only.
 | `smoke`                  | 13 endpoint checks incl. SSE frame assertion   |
 | `seed`                   | `prisma db seed`                               |
 | `status` / `logs` / `open` | Inspection                                   |
-| `perf:smoke` / `perf:purchase-flow` / `perf:purchase-flow-browser` / `perf:cart-fulfill` / `perf:place-order` | named k6 YAML workflows in Docker (`purchase-flow` configurable via `VUS`/`DURATION`/`BASE_URL`; `purchase-flow-browser` mirrors it via a real Chromium browser against the web app, `VUS`/`ITERATIONS`/`BASE_URL`; `cart-fulfill` stops before checkout and declares `outputs.csv`, so a non-interactive run needs `--confirm-output-data`; `place-order` checks out the carts `cart-fulfill` reserved — reads their duplicated CSV from `data/`, fails fast if it's missing/empty, and offers to delete it once done, `VUS`/`ITERATIONS`/`BASE_URL`) |
+| `perf:smoke` / `perf:purchase-flow` / `perf:purchase-flow-browser` / `perf:cart-fulfill` / `perf:place-order` | named k6 YAML workflows in Docker (`purchase-flow` configurable via `VUS`/`DURATION`/`BASE_URL`; `purchase-flow-browser` mirrors it via a real Chromium browser against the web app, `VUS`/`ITERATIONS`/`BASE_URL`; `cart-fulfill` stops before checkout and produces the `carts` dataset with `--produce carts`; `place-order` requires `carts` — Punch fails it fast when the dataset is missing/empty and offers to delete it once done, `VUS`/`ITERATIONS`/`BASE_URL`) |
 | `perf:open-report` / `perf:clean` | Manage k6 report artefacts             |
 | `hack {exec,env,sql,trace}` | Debugging affordances (see below)            |
 

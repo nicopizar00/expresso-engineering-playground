@@ -21,23 +21,19 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 
 Expresso owns its TypeScript scenarios (BFF-targeting and, for
 purchase-flow-browser/cart-fulfill-browser, web-app-targeting), their build
-entries, and the six workflow YAML files. Punch owns YAML loading and validation,
-data-output confirmation, Compose command construction, stream handling, and
-CSV publication. The adapter in `scripts/pg/k6runner.py` only selects a named
-repository workflow and presents its result. Punch's workflow schema can
-declare `spec.inputs.csv.path` alongside `spec.outputs.csv.path` — purely
-declarative metadata (`punch menu`'s picker reads it to annotate an entry as
-`[requires <file>.csv]`, same as `[produces <file>.csv]`). Punch does not
-preflight, copy, or read that file itself: the cart-fulfill/place-order
-handoff (see "Cart data handoff" below), including the existence check and
-the `reports/` → `data/` duplication, remains bespoke logic in
-`scripts/pg/perf.py`, not a Punch contract.
+entries, and the workflow YAML files. Punch owns YAML loading and validation,
+the `spec.data` dataset contract (produce opt-in, harvesting, atomic
+publication, consumer preflight, container path injection), Compose command
+construction, and stream handling. The adapter in `scripts/pg/k6runner.py`
+only selects a named repository workflow, passes `--produce`/`--data`
+through, and presents its result; `scripts/pg/perf.py` holds no
+dataset-specific code.
 
 ## Execution path
 
 ```text
 ./dev perf:* -> repository YAML -> Punch load/validate/confirm ->
-one docker compose run -> stdout/stderr log + existing HTML/JSON + optional CSV
+one docker compose run -> stdout/stderr log + existing HTML/JSON + opted-in datasets
 ```
 
 For a selected workflow, Punch constructs exactly one explicit `docker compose
@@ -53,7 +49,7 @@ and stderr log in `reports/logs/`.
 
 Existing CSV, HTML, or JSON files are **not current-run evidence**: they can
 belong to an earlier run. The Punch execution result (selected workflow, child
-exit status, pass/failure state, and CSV count when applicable) together with
+exit status, pass/failure state, and dataset row counts when applicable) together with
 the matching stdout/stderr log is the current-run evidence record. Inspect
 that result and record before treating generated artifacts as evidence.
 
@@ -90,73 +86,63 @@ The unwired `load` and `stress` placeholders are not build entries and have no
 workflow. Do not add a second workflow for a build entry or add an ad-hoc
 script path to `perf.py`.
 
-## Optional CSV output protocol
+## Data pipeline (`spec.data`)
 
-`cart-fulfill` was the first workflow to declare `outputs.csv`: it stops
-before checkout and emits each reserved cart as a `[CSV]` stdout record
-instead. `cart-fulfill-browser` declares the exact same `outputs.csv.path` —
-an interchangeable, browser-driven producer for the same downstream
-`place-order` consumer. Any other future workflow may declare
-`spec.outputs.csv.path` the same way; that is an explicit data-output
-contract.
+Workflows hand data to each other through named datasets. A workflow
+declares what it produces (with columns and the target workflows that consume
+it) and what it requires:
 
-- Only stdout lines beginning exactly with `[CSV]` are candidates. The prefix
-  is removed before a strict CSV row is parsed; ordinary stdout and every
-  stderr line remain log output, never harvested data.
-- Punch asks interactively after validation and before Compose starts. A
-  non-interactive run of a CSV-declared workflow must pass
-  `--confirm-output-data`; the flag is unnecessary for workflows without
-  `outputs.csv`.
-- A zero-record run, invalid tagged CSV, a failed child process, or a failed
-  preflight is a failed workflow. It must not publish partial data.
-- Valid rows are written to a same-directory temporary file and atomically
-  replace the destination only after a successful process exit. An existing
-  destination remains unchanged on every failure path.
+```yaml
+spec:
+  data:
+    directory: tests/performance/k6/data   # host dir (gitignored)
+    mountedAt: /scripts/data               # same dir inside k6 / k6-browser
+    produces:
+      - dataset: carts
+        columns: [cartId, productId, sid]
+        targets: [place-order]
+    requires: [carts]                      # consumer side
+```
 
-`spec.inputs.csv.path` is the read-only counterpart: a workflow declares it to
-say which `.csv` file it expects to already exist (`place-order.yaml` is the
-only example today). Punch validates the `.csv` suffix and surfaces the path
-in `punch menu`'s picker (`workflow-id  [requires <file>.csv]`, alongside
-`[produces <file>.csv]` for `outputs.csv`); it does not check the file exists,
-read it, or gate execution on it — that stays repository-owned (see below).
+- **Producing.** A scenario prints `[DATA <dataset>] <csv payload>` on stdout.
+  Punch writes those rows to `<directory>/<dataset>.csv` (header from
+  `columns`) **only when the run opts in** with `--produce <dataset>` (or
+  `--produce all`); without it the lines stay in the log and no file is
+  written. Each row must match the declared column count; stderr is never
+  harvested.
+- **Atomic publication.** Rows go to a same-directory temporary file that
+  atomically replaces the destination only after a successful process exit
+  with at least one valid row. A zero-row run, a malformed or undeclared
+  record, or a failed process fails the workflow and leaves the previous file
+  untouched.
+- **Consuming.** Before Docker starts, every required dataset file must exist
+  with at least one row, or the run fails naming its producers (e.g.
+  `place-order requires "carts"; produce it with: cart-fulfill,
+  cart-fulfill-browser (--produce carts)`). Punch injects
+  `DATA_<DATASET>_CSV=<container path>`; `--data <dataset>=<path>` reads an
+  alternate file beneath `directory`. After the run, an interactive terminal is
+  asked whether to delete each consumed file; non-interactive runs keep it.
+- **Links are checked.** All workflow YAMLs in `workflows/` form one catalog:
+  every target must exist and require the dataset, every required dataset
+  must have a producer, and producers of one dataset must declare identical
+  columns. A broken link fails before Docker.
 
-## Cart data handoff (cart-fulfill -> place-order)
+Current datasets:
 
-`cart-fulfill` (or `cart-fulfill-browser`) and `place-order` are a pair: the
-first reserves carts and stops before checkout, the second checks them out.
-`place-order.yaml` declares `spec.inputs.csv.path:
-tests/performance/k6/data/cart-fulfill-carts.csv` so `punch menu` can
-annotate it — but that declaration is read-only metadata for the picker.
-Handing the cart ids from one workflow to the other — the existence
-preflight, and copying `reports/cart-fulfill-carts.csv` to
-`data/cart-fulfill-carts.csv` — remains repository-owned logic in
-`scripts/pg/perf.py`, not a Punch contract.
+| Dataset | Columns | Producers | Consumers |
+| --- | --- | --- | --- |
+| `carts` | `cartId,productId,sid` | `cart-fulfill`, `cart-fulfill-browser` | `place-order` |
 
-- `cart_fulfill()` and `cart_fulfill_browser()` run their workflow as usual,
-  then — only on a successful run — both call the same
-  `_duplicate_cart_fulfill_csv()`, copying the declared
-  `reports/cart-fulfill-carts.csv` (Punch's evidence record, left untouched)
-  to a new `data/cart-fulfill-carts.csv`. `data/` is gitignored, mirroring
-  `reports/`.
-- `place-order`'s scenario loads that duplicate into a `SharedArray` via k6's
-  `open()` at init time. Since scenarios are baked into the image at build
-  time but the duplicate is written per-run on the host, `data/` — like
-  `reports/` — is a live bind mount (`infra/docker/compose.performance.yaml`,
-  services `k6`/`k6-otel`), not a build-time `COPY`.
-- `place_order()` preflights: if `data/cart-fulfill-carts.csv` is missing or
-  has zero non-blank lines, it fails before Docker even starts, pointing at
-  `./dev perf:cart-fulfill --confirm-output-data`.
-- After the run (pass or fail — the data was attempted either way),
-  `place_order()` asks, on a real interactive terminal only, whether to
-  delete the `data/` duplicate; a non-interactive run never deletes it on its
-  own, matching Punch's own confirmation prompts.
+`carts` carries the BFF session cookie `sid` because the cart is
+session-scoped; `place-order` replays it via `http.cookieJar().set(...)`
+before checkout. `cart-fulfill-browser` leaves `productId` blank.
 
 ## Summary output and Docker Compose confirmation
 
 All six bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
-`tests/performance/k6/reports/smoke-summary.json`). Unlike `outputs.csv`,
-this is read-only and needs no confirmation flag — after a passing run,
+`tests/performance/k6/reports/smoke-summary.json`). Unlike a dataset,
+this is read-only and needs no opt-in flag — after a passing run,
 `./dev perf:smoke` / `perf:purchase-flow` and `./bin/punch`'s interactive
 menu print its `totalRequests`, `errorRate`, `p90Ms`, `checkPassRate`, and
 `durationMs` fields.
@@ -203,8 +189,8 @@ consumer execution path.
 2. One selected YAML workflow results in one Compose run.
 3. `BASE_URL` is the target knob and only declared environment names are
    forwarded.
-4. HTML/JSON reports remain stable and optional CSV is confirmed, stdout-only,
-   and atomic.
+4. HTML/JSON reports remain stable; datasets are opt-in (`--produce`),
+   stdout-only, column-checked, and atomic.
 5. No real URLs, secrets, or user data belong in scenarios, fixtures, or logs.
 
 ## Related

@@ -73,7 +73,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
                 for step in steps
             )
         )
-        self.assertFalse(any("--confirm-output-data" in step.get("run", "") for step in steps))
+        self.assertFalse(any("--produce" in step.get("run", "") for step in steps))
 
     def test_dev_help_explains_the_performance_only_python_dependency(self) -> None:
         """A fresh user needs the Punch installation command before a perf command."""
@@ -86,7 +86,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         )
 
         self.assertIn("vendor/punch/requirements.txt", result.stdout)
-        self.assertIn("--confirm-output-data", result.stdout)
+        self.assertIn("--produce", result.stdout)
 
     def test_current_guidance_describes_yaml_owned_execution_and_csv_safety(self) -> None:
         """Current guides must not revive private runner or no-pip guidance."""
@@ -115,8 +115,8 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
             "tests/performance/k6/README.md",
         ):
             with self.subTest(path=path):
-                self.assertIn("[CSV]", documents[path])
-                self.assertIn("outputs.csv", documents[path])
+                self.assertIn("[DATA", documents[path])
+                self.assertIn("spec.data", documents[path])
                 self.assertIn("atomic", documents[path])
 
         self.assertNotIn(

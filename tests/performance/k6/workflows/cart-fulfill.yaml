@@ -14,5 +14,10 @@ spec:
   outputs:
     summary:
       path: tests/performance/k6/reports/cart-fulfill-summary.json
-    csv:
-      path: tests/performance/k6/reports/cart-fulfill-carts.csv
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    produces:
+      - dataset: carts
+        columns: [cartId, productId, sid]
+        targets: [place-order]

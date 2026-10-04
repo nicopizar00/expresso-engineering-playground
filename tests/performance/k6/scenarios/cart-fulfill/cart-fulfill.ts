@@ -1,9 +1,10 @@
 // Cart-fulfill scenario — generates reserved carts without completing checkout.
 //
 // Mirrors purchase-flow's pre-checkout steps exactly, then emits the cart id
-// as a [CSV] stdout record instead of placing an order. Downstream consumers
-// harvest the declared CSV output (see workflows/cart-fulfill.yaml) to get a
-// batch of live cart ids without exercising the checkout path.
+// as a `[DATA carts]` stdout record instead of placing an order. Punch writes
+// those rows to data/carts.csv when the run opts in with `--produce carts`
+// (see spec.data in workflows/cart-fulfill.yaml), giving place-order a batch
+// of live cart ids without exercising the checkout path.
 //
 // Session handoff:
 //   The BFF's cart is looked up by session (apps/bff/src/modules/cart/
@@ -38,7 +39,7 @@ import { purchaseFlowThresholds } from "../../config/thresholds";
 import { buildSummaryOutputs } from "../../support/report";
 
 // @types/k6 doesn't declare k6's global `console` (see k6/console docs);
-// this is the first TS scenario to need it for the [CSV] harvest protocol.
+// this is the first TS scenario to need it for the [DATA] harvest protocol.
 declare const console: { log: (message: string) => void };
 
 const VUS = Number(__ENV.VUS) || 1;
@@ -125,7 +126,7 @@ export default function () {
     if (cartId && productId) {
       const sid = http.cookieJar().cookiesForURL(url("/")).sid?.[0];
       if (sid) {
-        console.log(`[CSV] ${cartId},${productId},${sid}`);
+        console.log(`[DATA carts] ${cartId},${productId},${sid}`);
       }
     }
   });
