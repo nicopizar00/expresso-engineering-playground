@@ -136,6 +136,7 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
             (perf.cart_fulfill, "cart-fulfill", {}),
             (perf.cart_fulfill_browser, "cart-fulfill-browser", {"default_port": WEB_PORT}),
             (perf.place_order, "place-order", {}),
+            (perf.order_status, "order-status", {}),
         ]
         for command, name, kwargs in cases:
             with self.subTest(name=name):
@@ -146,7 +147,7 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
     def test_cli_forwards_static_perf_arguments(self) -> None:
         names = [
             "smoke", "purchase_flow", "purchase_flow_browser",
-            "cart_fulfill", "cart_fulfill_browser", "place_order",
+            "cart_fulfill", "cart_fulfill_browser", "place_order", "order_status",
         ]
         mocks = {}
         patches = [patch.object(perf, name, return_value=0) for name in names]

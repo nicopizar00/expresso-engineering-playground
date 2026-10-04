@@ -27,6 +27,14 @@ export const purchaseFlowThresholds = {
   checks: ["rate>0.99"],
 };
 
+// order-status reads one DB-backed status per iteration; checks carry the
+// temperature assertions.
+export const orderStatusThresholds = {
+  http_req_failed: ["rate<0.01"],
+  http_req_duration: ["p(95)<500"],
+  checks: ["rate>0.99"],
+};
+
 // Browser scenarios drive the UI via k6/browser — there is no k6/http
 // traffic, so http_req_* metrics never populate. checks is the only
 // meaningful signal.

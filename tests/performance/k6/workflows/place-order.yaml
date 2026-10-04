@@ -17,4 +17,8 @@ spec:
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
+    produces:
+      - dataset: orders
+        columns: [orderId]
+        targets: [order-status]
     requires: [carts]

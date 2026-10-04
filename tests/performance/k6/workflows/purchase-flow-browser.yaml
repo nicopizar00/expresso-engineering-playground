@@ -14,3 +14,10 @@ spec:
   outputs:
     summary:
       path: tests/performance/k6/reports/purchase-flow-browser-summary.json
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    produces:
+      - dataset: orders
+        columns: [orderId]
+        targets: [order-status]

@@ -38,6 +38,7 @@
 // Coverage:
 //   POST /checkout            — place order for a cart-fulfill-reserved cart
 //   GET  /orders/:id          — verify order persisted
+//                               (emits `[DATA orders] <orderId>`)
 //   GET  /visualization-data  — verify order sphere reaches the visualizer
 
 import http from "k6/http";
@@ -53,6 +54,10 @@ interface ReservedCart {
   productId: string;
   sid: string;
 }
+
+// @types/k6 doesn't declare k6's global `console`; needed for the [DATA]
+// harvest protocol.
+declare const console: { log: (message: string) => void };
 
 const reservedCarts = new SharedArray<ReservedCart>("reserved-carts", () => {
   const raw = open(__ENV.DATA_CARTS_CSV);
@@ -114,7 +119,7 @@ export default function () {
   group("orders: verify persisted order", () => {
     if (!orderId) return;
     const res = http.get(url(`/orders/${orderId}`));
-    check(res, {
+    const persisted = check(res, {
       "order 200": (r) => r.status === 200,
       "order id matches": (r) => {
         try {
@@ -124,6 +129,9 @@ export default function () {
         }
       },
     });
+    // Punch writes this to the "orders" dataset only when the run opts in
+    // with --produce orders (spec.data in the workflow YAML).
+    if (persisted) console.log(`[DATA orders] ${orderId}`);
   });
 
   group("visualization: order sphere present", () => {

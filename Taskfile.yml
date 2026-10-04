@@ -144,6 +144,11 @@ tasks:
     cmds:
       - pnpm pg:perf:place-order
 
+  perf:order-status:
+    desc: k6 order-status profile in Docker (hot/cold temperature of orders produced by place-order or purchase-flow)
+    cmds:
+      - pnpm pg:perf:order-status
+
   perf:report:
     desc: Open k6 HTML report
     cmds:

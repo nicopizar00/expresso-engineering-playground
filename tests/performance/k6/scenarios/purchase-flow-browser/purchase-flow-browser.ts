@@ -36,6 +36,10 @@ import { BASE_URL } from "../../config/env";
 import { purchaseFlowBrowserThresholds } from "../../config/thresholds";
 import { buildSummaryOutputs } from "../../support/report";
 
+// @types/k6 doesn't declare k6's global `console`; needed for the [DATA]
+// harvest protocol.
+declare const console: { log: (message: string) => void };
+
 const VUS = Number(__ENV.VUS) || 1;
 // Each VU drives a full Chromium instance, so this stays iteration-count
 // based instead of purchase-flow.ts's time-based soak — a DURATION-based
@@ -90,6 +94,11 @@ export default async function () {
       "order id rendered on the orders section": (t) =>
         typeof t === "string" && t.trim().length > 0,
     });
+    // k6's browser module can't read the checkout response, so the "orders"
+    // dataset row comes from the rendered order id (written by Punch only
+    // with --produce orders).
+    const renderedOrderId = orderIdText?.trim();
+    if (renderedOrderId) console.log(`[DATA orders] ${renderedOrderId}`);
 
     const vizStatus = await page.textContent(
       '[data-testid="visualizer-status"]',

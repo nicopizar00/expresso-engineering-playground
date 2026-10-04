@@ -37,6 +37,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "cart-fulfill",
             "cart-fulfill-browser",
             "place-order",
+            "order-status",
         }
         expected_compose_service = {
             "smoke": "k6",
@@ -45,6 +46,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "cart-fulfill": "k6",
             "cart-fulfill-browser": "k6-browser",
             "place-order": "k6",
+            "order-status": "k6",
         }
         expected_environment_forward = {
             "smoke": ["BASE_URL"],
@@ -53,13 +55,23 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "cart-fulfill": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
             "cart-fulfill-browser": ["BASE_URL", "VUS", "ITERATIONS"],
             "place-order": ["BASE_URL", "VUS", "ITERATIONS"],
+            "order-status": [
+                "BASE_URL",
+                "VUS",
+                "ITERATIONS",
+                "EXPECT_TEMPERATURE",
+                "ORDER_COOL_DOWN_SECONDS",
+            ],
         }
         expected_data = {
             "cart-fulfill": {"produces": {"carts": ("place-order",)}, "requires": ()},
             "cart-fulfill-browser": {"produces": {"carts": ("place-order",)}, "requires": ()},
-            "place-order": {"produces": {}, "requires": ("carts",)},
+            "place-order": {"produces": {"orders": ("order-status",)}, "requires": ("carts",)},
+            "purchase-flow": {"produces": {"orders": ("order-status",)}, "requires": ()},
+            "purchase-flow-browser": {"produces": {"orders": ("order-status",)}, "requires": ()},
+            "order-status": {"produces": {}, "requires": ("orders",)},
         }
-        self.assertEqual(len(workflow_paths), 6)
+        self.assertEqual(len(workflow_paths), 7)
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
         self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
         self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
@@ -112,3 +124,8 @@ class K6WorkflowCatalogTests(unittest.TestCase):
         catalog = load_catalog(PERF_WORKFLOWS_DIR)
         self.assertEqual(catalog.producers_of("carts"), ("cart-fulfill", "cart-fulfill-browser"))
         self.assertEqual(catalog.consumers_of("carts"), ("place-order",))
+        self.assertEqual(
+            catalog.producers_of("orders"),
+            ("place-order", "purchase-flow", "purchase-flow-browser"),
+        )
+        self.assertEqual(catalog.consumers_of("orders"), ("order-status",))
