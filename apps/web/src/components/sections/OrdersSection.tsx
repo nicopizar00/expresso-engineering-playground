@@ -147,9 +147,10 @@ const scopeConfig: Record<
   },
 };
 
-// Never refetch sooner than this: if the browser clock runs ahead of the
-// server, the server may still say "hot" at our coolsAt — a floor keeps
-// that from turning into a tight refetch loop.
+// Floor on the delay: if the browser clock runs ahead of the server, the
+// server may still say "hot" at our coolsAt. Each revalidation attempt
+// re-arms the timer, so we retry at most once per second while the server
+// still says hot — never a tight loop, never stuck.
 const MIN_COOL_REFRESH_MS = 1000;
 
 // One timer at the soonest hot order's coolsAt flips list badges to Cold
@@ -157,6 +158,7 @@ const MIN_COOL_REFRESH_MS = 1000;
 function useRevalidateAtCoolDown(
   orders: ReadonlyArray<Order> | undefined,
   revalidate: () => void,
+  attempt: number,
 ) {
   useEffect(() => {
     const hotCoolsAt = (orders ?? [])
@@ -169,7 +171,7 @@ function useRevalidateAtCoolDown(
     );
     const timer = setTimeout(revalidate, delay);
     return () => clearTimeout(timer);
-  }, [orders, revalidate]);
+  }, [orders, revalidate, attempt]);
 }
 
 function OrdersList({
@@ -185,8 +187,13 @@ function OrdersList({
     cfg.fetch,
     { revalidateOnFocus: false, shouldRetryOnError: false },
   );
-  const revalidate = useCallback(() => void mutate(), [mutate]);
-  useRevalidateAtCoolDown(data?.items, revalidate);
+  // Counts revalidation attempts so the cool-down timer re-arms even when
+  // the refetch returns an unchanged (still hot) response.
+  const [attempt, setAttempt] = useState(0);
+  const revalidate = useCallback(() => {
+    void mutate().finally(() => setAttempt((n) => n + 1));
+  }, [mutate]);
+  useRevalidateAtCoolDown(data?.items, revalidate, attempt);
 
   if (isLoading) return <PageLoadingState message="Loading orders..." />;
 
@@ -319,6 +326,7 @@ function OrdersListView({ onSelect }: { onSelect: (orderId: string) => void }) {
     </div>
   );
 }
+
 async function fetchOrder(orderId: string): Promise<Order> {
   return expressoApi.getOrderById(orderId);
 }
