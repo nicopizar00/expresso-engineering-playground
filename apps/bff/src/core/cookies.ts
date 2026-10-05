@@ -13,7 +13,15 @@ export function readCookie(
     const trimmed = part.trim();
     if (trimmed.startsWith(prefix)) {
       const value = trimmed.slice(prefix.length);
-      return value.length > 0 ? decodeURIComponent(value) : undefined;
+      if (value.length === 0) {
+        return undefined;
+      }
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        // Forged or corrupt value: treat as absent, never a 500.
+        return undefined;
+      }
     }
   }
   return undefined;

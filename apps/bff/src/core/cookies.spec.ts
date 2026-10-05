@@ -14,4 +14,8 @@ describe("readCookie", () => {
   it("treats an empty value as absent", () => {
     expect(readCookie("auth=", "auth")).toBeUndefined();
   });
+
+  it("treats a malformed percent-encoding as absent", () => {
+    expect(readCookie("auth=%E0%A4%A", "auth")).toBeUndefined();
+  });
 });
