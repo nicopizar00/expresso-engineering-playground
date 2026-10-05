@@ -11,12 +11,6 @@ export type Money = {
   readonly currency: string;
 };
 
-// Lifecycle of a mini-commerce order. Kept intentionally small.
-export type OrderStatus = "pending" | "preparing" | "prepared" | "cancelled";
-
 // Derived at read time from placedAt: an order is "hot" for the cool-down
 // window after it is served (placed), then "cold". Never stored.
 export type OrderTemperature = "hot" | "cold";
-
-// Management actions exposed via POST /orders/:id/manage.
-export type OrderManageAction = "cancel" | "update_status" | "mark_prepared";

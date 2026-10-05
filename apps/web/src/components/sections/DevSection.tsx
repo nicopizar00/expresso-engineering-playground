@@ -590,11 +590,7 @@ function ReadinessPanel() {
     { label: "Add to cart", status: "wired", note: "POST /cart/items" },
     { label: "Checkout", status: "wired", note: "POST /checkout" },
     { label: "Order lookup", status: "wired", note: "GET /orders/:id" },
-    {
-      label: "Order management",
-      status: "wired",
-      note: "POST /orders/:id/manage",
-    },
+    { label: "My orders", status: "wired", note: "GET /orders/mine" },
     { label: "Health check", status: "wired", note: "GET /health" },
     { label: "Order list", status: "wired", note: "GET /orders" },
     {
@@ -971,99 +967,15 @@ function OrderLookupCard() {
   );
 }
 
-function OrderManageCard() {
+function MyOrdersCard() {
   const { result, loading, call } = useApiCall();
-  const [orderId, setOrderId] = useState(getSampleOrderId());
-  const [action, setAction] = useState<
-    "cancel" | "update_status" | "mark_prepared"
-  >("mark_prepared");
-  const [nextStatus, setNextStatus] = useState<
-    "pending" | "preparing" | "prepared" | "cancelled"
-  >("preparing");
-
   return (
-    <Card title="Order - Manage">
-      <div className="space-y-2">
-        <div>
-          <label
-            className="block text-xs mb-1"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Order ID
-          </label>
-          <input
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-            className="w-full px-2 py-1.5 rounded text-xs border"
-            style={{
-              backgroundColor: "var(--background)",
-              borderColor: "var(--border)",
-              color: "var(--foreground)",
-            }}
-          />
-        </div>
-        <div>
-          <label
-            className="block text-xs mb-1"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Action
-          </label>
-          <select
-            value={action}
-            onChange={(e) => setAction(e.target.value as typeof action)}
-            className="w-full px-2 py-1.5 rounded text-xs border"
-            style={{
-              backgroundColor: "var(--background)",
-              borderColor: "var(--border)",
-              color: "var(--foreground)",
-            }}
-          >
-            <option value="mark_prepared">mark_prepared</option>
-            <option value="cancel">cancel</option>
-            <option value="update_status">update_status</option>
-          </select>
-        </div>
-        {action === "update_status" && (
-          <div>
-            <label
-              className="block text-xs mb-1"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Next status
-            </label>
-            <select
-              value={nextStatus}
-              onChange={(e) =>
-                setNextStatus(e.target.value as typeof nextStatus)
-              }
-              className="w-full px-2 py-1.5 rounded text-xs border"
-              style={{
-                backgroundColor: "var(--background)",
-                borderColor: "var(--border)",
-                color: "var(--foreground)",
-              }}
-            >
-              <option value="pending">pending</option>
-              <option value="preparing">preparing</option>
-              <option value="prepared">prepared</option>
-              <option value="cancelled">cancelled</option>
-            </select>
-          </div>
-        )}
-      </div>
+    <Card title="Orders - Mine">
       <ActionButton
-        onClick={() =>
-          call(() =>
-            expressoApi.manageOrder(orderId, {
-              action,
-              ...(action === "update_status" ? { nextStatus } : {}),
-            }),
-          )
-        }
+        onClick={() => call(() => expressoApi.getMyOrders())}
         loading={loading}
       >
-        POST /orders/:id/manage
+        GET /orders/mine
       </ActionButton>
       <ResponseBox result={result} />
     </Card>
@@ -1161,7 +1073,7 @@ export function DevSection({
         <CartMutateCard />
         <CheckoutCard />
         <OrderLookupCard />
-        <OrderManageCard />
+        <MyOrdersCard />
       </div>
     </div>
   );

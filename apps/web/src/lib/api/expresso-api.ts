@@ -29,7 +29,7 @@
  * | DELETE /cart/items/:itemId   | cart.controller      | VERIFIED  |
  * | POST   /checkout             | checkout.controller  | VERIFIED  |
  * | GET    /orders/:id           | orders.controller    | VERIFIED  |
- * | POST   /orders/:id/manage    | orders.controller    | VERIFIED  |
+ * | GET    /orders/mine          | orders.controller    | VERIFIED  |
  * | GET    /orders               | orders.controller    | VERIFIED  |
  *
  * All endpoints are reached through the same-origin /api/bff proxy in the
@@ -45,7 +45,7 @@ import {
   createMockOrder,
   getMockOrder,
   getAllMockOrders,
-  updateMockOrderStatus,
+  getMyMockOrders,
   getMockHealth,
   shouldSimulateError,
   getExtraLatency,
@@ -72,13 +72,10 @@ import type {
   UpdateCartItemRequest,
   CheckoutRequest,
   CheckoutResponse,
-  OrderStatus,
   OrderTemperature,
   Order,
   OrdersResponse,
   OrderStatusResponse,
-  ManageOrderRequest,
-  ManageOrderResponse,
   HealthReport,
 } from "@mini-commerce/contracts";
 
@@ -90,12 +87,10 @@ export type {
   CartItem,
   Cart,
   CheckoutResponse,
-  OrderStatus,
   OrderTemperature,
   Order,
   OrdersResponse,
   OrderStatusResponse,
-  ManageOrderResponse,
   HealthReport,
 };
 
@@ -103,7 +98,6 @@ export type {
 export type AddCartItemInput = AddCartItemRequest;
 export type UpdateCartItemInput = UpdateCartItemRequest;
 export type CheckoutInput = CheckoutRequest;
-export type ManageOrderInput = ManageOrderRequest;
 
 // ---------------------------------------------------------------------------
 // Demo Mode Detection
@@ -302,6 +296,11 @@ const mockApi = {
     return getAllMockOrders();
   },
 
+  async getMyOrders(): Promise<OrdersResponse> {
+    await simulateLatency();
+    return getMyMockOrders();
+  },
+
   async getOrderById(orderId: string): Promise<Order> {
     await simulateLatency();
     const order = getMockOrder(orderId);
@@ -323,45 +322,10 @@ const mockApi = {
     }
     return {
       orderId: order.orderId,
-      status: order.status,
       temperature: order.temperature,
       placedAt: order.placedAt,
       coolsAt: order.coolsAt,
       checkedAt: new Date().toISOString(),
-    };
-  },
-
-  async manageOrder(
-    orderId: string,
-    input: ManageOrderInput,
-  ): Promise<ManageOrderResponse> {
-    await simulateLatency();
-    const order = getMockOrder(orderId);
-    if (!order) {
-      throw new ExpressoApiError("POST", `/orders/${orderId}/manage`, 404, {
-        message: "Order not found",
-      });
-    }
-
-    const previousStatus = order.status;
-    let newStatus: OrderStatus = order.status;
-
-    if (input.action === "cancel") {
-      newStatus = "cancelled";
-    } else if (input.action === "mark_prepared") {
-      newStatus = "prepared";
-    } else if (input.action === "update_status" && input.nextStatus) {
-      newStatus = input.nextStatus;
-    }
-
-    updateMockOrderStatus(orderId, newStatus);
-
-    return {
-      orderId,
-      action: input.action,
-      previousStatus,
-      status: newStatus,
-      acceptedAt: new Date().toISOString(),
     };
   },
 };
@@ -421,6 +385,12 @@ const realApi = {
     return request<OrdersResponse>("GET", "/orders");
   },
 
+  // Session-scoped: the BFF resolves the caller from the `sid` cookie,
+  // which same-origin fetch through the /api/bff proxy sends by default.
+  getMyOrders(): Promise<OrdersResponse> {
+    return request<OrdersResponse>("GET", "/orders/mine");
+  },
+
   getOrderById(orderId: string): Promise<Order> {
     return request<Order>("GET", `/orders/${encodeURIComponent(orderId)}`);
   },
@@ -430,17 +400,6 @@ const realApi = {
     return request<OrderStatusResponse>(
       "GET",
       `/orders/${encodeURIComponent(orderId)}/status`,
-    );
-  },
-
-  manageOrder(
-    orderId: string,
-    input: ManageOrderInput,
-  ): Promise<ManageOrderResponse> {
-    return request<ManageOrderResponse>(
-      "POST",
-      `/orders/${encodeURIComponent(orderId)}/manage`,
-      input,
     );
   },
 };
@@ -497,6 +456,10 @@ export const expressoApi = {
     return isDemoMode() ? mockApi.getOrders() : realApi.getOrders();
   },
 
+  getMyOrders(): Promise<OrdersResponse> {
+    return isDemoMode() ? mockApi.getMyOrders() : realApi.getMyOrders();
+  },
+
   getOrderById(orderId: string): Promise<Order> {
     return isDemoMode()
       ? mockApi.getOrderById(orderId)
@@ -507,15 +470,6 @@ export const expressoApi = {
     return isDemoMode()
       ? mockApi.getOrderStatus(orderId)
       : realApi.getOrderStatus(orderId);
-  },
-
-  manageOrder(
-    orderId: string,
-    input: ManageOrderInput,
-  ): Promise<ManageOrderResponse> {
-    return isDemoMode()
-      ? mockApi.manageOrder(orderId, input)
-      : realApi.manageOrder(orderId, input);
   },
 };
 

@@ -5,17 +5,12 @@
 // client both import from here so the two sides cannot drift silently
 // — a divergence shows up as a TypeScript error at compile time.
 //
-// Cross-cutting domain primitives (Money, OrderStatus, branded IDs)
+// Cross-cutting domain primitives (Money, OrderTemperature, branded IDs)
 // stay in `@mini-commerce/shared-types`.
 
-import type {
-  Money,
-  OrderStatus,
-  OrderManageAction,
-  OrderTemperature,
-} from "@mini-commerce/shared-types";
+import type { Money, OrderTemperature } from "@mini-commerce/shared-types";
 
-export type { Money, OrderStatus, OrderManageAction, OrderTemperature };
+export type { Money, OrderTemperature };
 
 // ---------------------------------------------------------------------------
 // Catalog
@@ -95,7 +90,6 @@ export interface OrderLine {
 export interface Order {
   readonly orderId: string;
   readonly customerName: string | null;
-  readonly status: OrderStatus;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
   readonly placedAt: string;
@@ -109,24 +103,9 @@ export interface OrdersResponse {
   readonly items: ReadonlyArray<Order>;
 }
 
-export interface ManageOrderRequest {
-  readonly action: OrderManageAction;
-  readonly nextStatus?: OrderStatus;
-  readonly reason?: string;
-}
-
-export interface ManageOrderResponse {
-  readonly orderId: string;
-  readonly action: OrderManageAction;
-  readonly previousStatus: OrderStatus;
-  readonly status: OrderStatus;
-  readonly acceptedAt: string;
-}
-
 // GET /orders/:id/status — read straight from Postgres.
 export interface OrderStatusResponse {
   readonly orderId: string;
-  readonly status: OrderStatus;
   readonly temperature: OrderTemperature;
   readonly placedAt: string;
   readonly coolsAt: string;
@@ -149,7 +128,6 @@ export interface CheckoutResponse {
   readonly orderId: string;
   readonly cartId: string;
   readonly customerName: string | null;
-  readonly status: Extract<OrderStatus, "pending">;
   readonly total: Money;
   readonly placedAt: string;
 }

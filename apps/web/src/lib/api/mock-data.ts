@@ -301,11 +301,14 @@ function withTemperature(order: StoredMockOrder): Order {
 
 const mockOrders: Map<string, StoredMockOrder> = new Map();
 
+// Orders placed through createMockOrder() in this page session — the demo
+// stand-in for the BFF's per-`sid` ownership. The sample order is nobody's.
+const myMockOrderIds = new Set<string>();
+
 // Pre-populate a sample order for order lookup testing (uses 7-product catalog)
 const sampleOrder: StoredMockOrder = {
   orderId: "ord_sample_001",
   customerName: "Demo Customer",
-  status: "preparing",
   lines: [
     {
       productId: "prod_espresso_001",
@@ -340,7 +343,6 @@ export function createMockOrder(): CheckoutResponse {
   const order: StoredMockOrder = {
     orderId,
     customerName: null,
-    status: "pending",
     lines: cart.items.map((item) => ({
       productId: item.productId,
       name: item.name,
@@ -354,6 +356,7 @@ export function createMockOrder(): CheckoutResponse {
   };
 
   mockOrders.set(orderId, order);
+  myMockOrderIds.add(orderId);
   clearMockCart();
 
   return {
@@ -362,7 +365,6 @@ export function createMockOrder(): CheckoutResponse {
     // non-empty, so cartId is guaranteed non-null at this point.
     cartId: cart.cartId!,
     customerName: null,
-    status: "pending",
     total: cart.total,
     placedAt,
   };
@@ -376,27 +378,31 @@ export function getMockOrder(orderId: string): Order | null {
   return order ? withTemperature(order) : null;
 }
 
+function newestFirst(a: StoredMockOrder, b: StoredMockOrder): number {
+  return Date.parse(b.placedAt) - Date.parse(a.placedAt);
+}
+
 export function getAllMockOrders(): { items: Order[] } {
   if (shouldSimulateEmpty()) {
     return { items: [] };
   }
-  return { items: Array.from(mockOrders.values()).map(withTemperature) };
+  return {
+    items: Array.from(mockOrders.values())
+      .sort(newestFirst)
+      .map(withTemperature),
+  };
 }
 
-export function updateMockOrderStatus(
-  orderId: string,
-  newStatus: Order["status"],
-): Order | null {
-  const order = mockOrders.get(orderId);
-  if (!order) return null;
-
-  const updated: StoredMockOrder = {
-    ...order,
-    status: newStatus,
-    updatedAt: new Date().toISOString(),
+export function getMyMockOrders(): { items: Order[] } {
+  if (shouldSimulateEmpty()) {
+    return { items: [] };
+  }
+  return {
+    items: Array.from(mockOrders.values())
+      .filter((o) => myMockOrderIds.has(o.orderId))
+      .sort(newestFirst)
+      .map(withTemperature),
   };
-  mockOrders.set(orderId, updated);
-  return withTemperature(updated);
 }
 
 /**

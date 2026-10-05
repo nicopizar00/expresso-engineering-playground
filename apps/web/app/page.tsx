@@ -22,6 +22,9 @@ async function fetchProducts(): Promise<ProductsResponse> {
 export default function HomeWorkspace() {
   const { section, setSection } = useSection();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  // Kept (unlike justPlacedOrderId) so the detail can show the success
+  // banner for the order this browser just placed.
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [justPlacedOrderId, setJustPlacedOrderId] = useState<string | null>(
     null,
   );
@@ -37,6 +40,7 @@ export default function HomeWorkspace() {
   const handleOrderPlaced = useCallback(
     (orderId: string) => {
       setSelectedOrderId(orderId);
+      setPlacedOrderId(orderId);
       // Held briefly so VisualizerEmbed can tell "cart just emptied because
       // Place Order succeeded" from "cart emptied because the reservation
       // expired" and only animate the hero cup for the former.
@@ -119,6 +123,7 @@ export default function HomeWorkspace() {
           <div className="home-stage-section" data-testid="home-orders">
             <OrdersSection
               selectedOrderId={selectedOrderId}
+              placedOrderId={placedOrderId}
               onSelect={setSelectedOrderId}
               onBack={() => setSelectedOrderId(null)}
             />

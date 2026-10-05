@@ -1,92 +1,36 @@
 "use client";
 
 /**
- * OrdersSection - list all persisted orders, look up by ID, view/manage one
+ * OrdersSection - My orders / All orders lists and a read-only order detail
  *
- * Merges the former /orders (list + lookup) and /orders/[orderId] (detail +
- * management) routes into one component. There is no longer a route to
- * carry the selected order id, so the parent (page.tsx) owns it and passes
- * it down — that way it survives this component remounting when the user
- * switches sections and back.
+ * Placing an order is the final step; there are no order actions. Hot/Cold
+ * is the only state an order shows, and both the lists and the detail flip
+ * it at coolsAt without polling. The parent (page.tsx) owns the selected
+ * order id so it survives this component remounting on section switches.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import {
-  Search,
   Package,
   ArrowLeft,
   ArrowRight,
   AlertTriangle,
-  Clock,
   CheckCircle,
-  XCircle,
   Database,
-  ChefHat,
-  RefreshCw,
-  Loader2,
   Flame,
   Snowflake,
 } from "lucide-react";
 import {
   expressoApi,
   Order,
-  OrderStatus,
   OrderStatusResponse,
   OrderTemperature,
   OrdersResponse,
-  ManageOrderInput,
-  ExpressoApiError,
   formatMoney,
 } from "@/lib/api/expresso-api";
 import { PageLoadingState } from "@/components/system/LoadingSkeleton";
 import { PageErrorState } from "@/components/system/ErrorBanner";
-
-// Status badge config — combines the list page's and detail page's
-// near-identical copies of this into one.
-const statusConfig: Record<
-  OrderStatus,
-  { label: string; color: string; bgColor: string; icon: typeof Package }
-> = {
-  pending: {
-    label: "Pending",
-    color: "var(--warning)",
-    bgColor: "rgba(245, 158, 11, 0.1)",
-    icon: Clock,
-  },
-  preparing: {
-    label: "Preparing",
-    color: "var(--info)",
-    bgColor: "rgba(59, 130, 246, 0.1)",
-    icon: ChefHat,
-  },
-  prepared: {
-    label: "Prepared",
-    color: "var(--success)",
-    bgColor: "rgba(34, 197, 94, 0.1)",
-    icon: CheckCircle,
-  },
-  cancelled: {
-    label: "Cancelled",
-    color: "var(--destructive)",
-    bgColor: "rgba(239, 68, 68, 0.1)",
-    icon: XCircle,
-  },
-};
-
-function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const cfg = statusConfig[status] ?? statusConfig.pending;
-  const Icon = cfg.icon;
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium"
-      style={{ backgroundColor: cfg.bgColor, color: cfg.color }}
-    >
-      <Icon className="h-3 w-3" />
-      {cfg.label}
-    </span>
-  );
-}
 
 // Hot for the cool-down window after the order is served (placed), then
 // cold — derived by the BFF from placedAt.
@@ -128,10 +72,6 @@ function OrderTemperatureBadge({
   );
 }
 
-interface OrdersListProps {
-  onSelect: (orderId: string) => void;
-}
-
 function OrderRow({
   order,
   onSelect,
@@ -154,7 +94,6 @@ function OrderRow({
           >
             {order.orderId}
           </p>
-          <OrderStatusBadge status={order.status} />
           <OrderTemperatureBadge temperature={order.temperature} />
         </div>
         <p
@@ -180,12 +119,74 @@ function OrderRow({
   );
 }
 
-function OrdersList({ onSelect }: OrdersListProps) {
-  const { data, error, isLoading } = useSWR<OrdersResponse, Error>(
-    "orders",
-    () => expressoApi.getOrders(),
+type OrdersScope = "mine" | "all";
+
+const scopeConfig: Record<
+  OrdersScope,
+  {
+    label: string;
+    swrKey: string;
+    fetch: () => Promise<OrdersResponse>;
+    emptyTitle: string;
+    emptyHint: string;
+  }
+> = {
+  mine: {
+    label: "My orders",
+    swrKey: "orders-mine",
+    fetch: () => expressoApi.getMyOrders(),
+    emptyTitle: "You have not placed any orders yet",
+    emptyHint: "Place an order from the catalog to see it here",
+  },
+  all: {
+    label: "All orders",
+    swrKey: "orders",
+    fetch: () => expressoApi.getOrders(),
+    emptyTitle: "No orders yet",
+    emptyHint: "Orders will appear here after checkout",
+  },
+};
+
+// Never refetch sooner than this: if the browser clock runs ahead of the
+// server, the server may still say "hot" at our coolsAt — a floor keeps
+// that from turning into a tight refetch loop.
+const MIN_COOL_REFRESH_MS = 1000;
+
+// One timer at the soonest hot order's coolsAt flips list badges to Cold
+// without polling (same pattern as the detail view).
+function useRevalidateAtCoolDown(
+  orders: ReadonlyArray<Order> | undefined,
+  revalidate: () => void,
+) {
+  useEffect(() => {
+    const hotCoolsAt = (orders ?? [])
+      .filter((o) => o.temperature === "hot")
+      .map((o) => Date.parse(o.coolsAt));
+    if (hotCoolsAt.length === 0) return;
+    const delay = Math.max(
+      MIN_COOL_REFRESH_MS,
+      Math.min(...hotCoolsAt) - Date.now() + 250,
+    );
+    const timer = setTimeout(revalidate, delay);
+    return () => clearTimeout(timer);
+  }, [orders, revalidate]);
+}
+
+function OrdersList({
+  scope,
+  onSelect,
+}: {
+  scope: OrdersScope;
+  onSelect: (orderId: string) => void;
+}) {
+  const cfg = scopeConfig[scope];
+  const { data, error, isLoading, mutate } = useSWR<OrdersResponse, Error>(
+    cfg.swrKey,
+    cfg.fetch,
     { revalidateOnFocus: false, shouldRetryOnError: false },
   );
+  const revalidate = useCallback(() => void mutate(), [mutate]);
+  useRevalidateAtCoolDown(data?.items, revalidate);
 
   if (isLoading) return <PageLoadingState message="Loading orders..." />;
 
@@ -236,10 +237,10 @@ function OrdersList({ onSelect }: OrdersListProps) {
           className="text-sm font-medium mb-1"
           style={{ color: "var(--foreground)" }}
         >
-          No orders yet
+          {cfg.emptyTitle}
         </p>
         <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-          Orders will appear here after checkout
+          {cfg.emptyHint}
         </p>
       </div>
     );
@@ -255,18 +256,8 @@ function OrdersList({ onSelect }: OrdersListProps) {
 }
 
 function OrdersListView({ onSelect }: { onSelect: (orderId: string) => void }) {
-  const [orderId, setOrderId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!orderId.trim()) {
-      setError("Please enter an order ID");
-      return;
-    }
-    setError(null);
-    onSelect(orderId.trim());
-  }
+  // Remounts (section switch, Back) reset to "My orders" — the default view.
+  const [scope, setScope] = useState<OrdersScope>("mine");
 
   return (
     <div className="home-stage-section-inner max-w-3xl">
@@ -296,122 +287,49 @@ function OrdersListView({ onSelect }: { onSelect: (orderId: string) => void }) {
         </div>
       </div>
 
-      <div className="grid gap-6">
+      <div
+        className="rounded-xl border overflow-hidden"
+        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+      >
         <div
-          className="rounded-xl border overflow-hidden"
-          style={{
-            backgroundColor: "var(--card)",
-            borderColor: "var(--border)",
-          }}
+          role="tablist"
+          aria-label="Order scope"
+          className="px-2 py-2 border-b flex items-center gap-1"
+          style={{ borderColor: "var(--border)" }}
         >
-          <div
-            className="px-4 py-3 border-b flex items-center justify-between"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <span
-              className="text-sm font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
-              All Orders
-            </span>
-          </div>
-          <OrdersList onSelect={onSelect} />
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border overflow-hidden"
-          style={{
-            backgroundColor: "var(--card)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <div
-            className="px-4 py-3 border-b flex items-center gap-2"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <Search className="h-4 w-4" style={{ color: "var(--primary)" }} />
-            <span
-              className="text-sm font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
-              Look Up Order
-            </span>
-          </div>
-          <div className="p-4 space-y-4">
-            {error && (
-              <div
-                className="flex items-start gap-2 p-3 rounded-lg"
-                style={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}
-                role="alert"
-              >
-                <AlertTriangle
-                  className="h-4 w-4 mt-0.5 shrink-0"
-                  style={{ color: "var(--destructive)" }}
-                />
-                <p className="text-sm" style={{ color: "var(--destructive)" }}>
-                  {error}
-                </p>
-              </div>
-            )}
-            <div>
-              <label
-                htmlFor="orderId"
-                className="block text-sm font-medium mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                Order ID
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="orderId"
-                  value={orderId}
-                  onChange={(e) => {
-                    setOrderId(e.target.value);
-                    setError(null);
-                  }}
-                  placeholder="e.g., ord_001"
-                  className="w-full px-4 py-3 pl-10 rounded-lg border text-sm font-mono transition-colors"
-                  style={{
-                    backgroundColor: "var(--background)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                />
-                <Search
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4"
-                  style={{ color: "var(--muted-foreground)" }}
-                />
-              </div>
-            </div>
+          {(Object.keys(scopeConfig) as OrdersScope[]).map((key) => (
             <button
-              type="submit"
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: "var(--primary)",
-                color: "var(--primary-foreground)",
-              }}
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={scope === key}
+              onClick={() => setScope(key)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                scope === key ? "tone-primary" : "tone-muted"
+              }`}
             >
-              <span>Go to Order</span>
-              <ArrowRight className="h-4 w-4" />
+              {scopeConfig[key].label}
             </button>
-          </div>
-        </form>
+          ))}
+        </div>
+        <div data-testid="orders-list" data-scope={scope} role="tabpanel">
+          <OrdersList key={scope} scope={scope} onSelect={onSelect} />
+        </div>
       </div>
     </div>
   );
 }
-
 async function fetchOrder(orderId: string): Promise<Order> {
   return expressoApi.getOrderById(orderId);
 }
 
 function OrderDetailView({
   orderId,
+  justPlaced,
   onBack,
 }: {
   orderId: string;
+  justPlaced: boolean;
   onBack: () => void;
 }) {
   const {
@@ -470,9 +388,6 @@ function OrderDetailView({
     );
   }
 
-  const status = statusConfig[order.status]!;
-  const StatusIcon = status.icon;
-
   return (
     <div className="home-stage-section-inner max-w-2xl">
       <button
@@ -485,7 +400,7 @@ function OrderDetailView({
         Back to orders
       </button>
 
-      {order.status === "pending" && (
+      {justPlaced && (
         <div
           className="flex items-center gap-3 p-4 rounded-lg mb-6"
           style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
@@ -503,7 +418,7 @@ function OrderDetailView({
               Order placed successfully!
             </p>
             <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-              Your order has been received and is being processed.
+              Your coffee is on its way — enjoy it while it is hot.
             </p>
           </div>
         </div>
@@ -528,18 +443,6 @@ function OrderDetailView({
           <OrderTemperatureBadge
             temperature={orderStatus?.temperature ?? order.temperature}
           />
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{ backgroundColor: status.bgColor }}
-          >
-            <StatusIcon className="h-4 w-4" style={{ color: status.color }} />
-            <span
-              className="text-sm font-medium"
-              style={{ color: status.color }}
-            >
-              {status.label}
-            </span>
-          </div>
         </div>
       </div>
 
@@ -636,10 +539,6 @@ function OrderDetailView({
           </ul>
         </div>
 
-        {order.status !== "cancelled" && (
-          <OrderManagePanel order={order} onUpdate={() => mutate()} />
-        )}
-
         <p
           className="text-xs text-center"
           style={{ color: "var(--muted-foreground)" }}
@@ -651,143 +550,26 @@ function OrderDetailView({
   );
 }
 
-function OrderManagePanel({
-  order,
-  onUpdate,
-}: {
-  order: Order;
-  onUpdate: () => void;
-}) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleAction(input: ManageOrderInput) {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await expressoApi.manageOrder(order.orderId, input);
-      onUpdate();
-    } catch (err) {
-      if (err instanceof ExpressoApiError) {
-        setError(`Action failed: ${err.message}`);
-      } else {
-        setError("An unexpected error occurred.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  const actions: {
-    label: string;
-    input: ManageOrderInput;
-    variant: "primary" | "secondary" | "danger";
-  }[] = [];
-
-  if (order.status === "pending") {
-    actions.push({
-      label: "Start Preparing",
-      input: { action: "update_status", nextStatus: "preparing" },
-      variant: "primary",
-    });
-    actions.push({
-      label: "Cancel Order",
-      input: { action: "cancel", reason: "User requested" },
-      variant: "danger",
-    });
-  } else if (order.status === "preparing") {
-    actions.push({
-      label: "Mark as Prepared",
-      input: { action: "mark_prepared" },
-      variant: "primary",
-    });
-    actions.push({
-      label: "Cancel Order",
-      input: { action: "cancel", reason: "User requested" },
-      variant: "danger",
-    });
-  }
-
-  if (actions.length === 0) return null;
-
-  const variantStyles = {
-    primary: {
-      backgroundColor: "var(--primary)",
-      color: "var(--primary-foreground)",
-    },
-    secondary: {
-      backgroundColor: "var(--secondary)",
-      color: "var(--foreground)",
-    },
-    danger: {
-      backgroundColor: "rgba(239, 68, 68, 0.1)",
-      color: "var(--destructive)",
-    },
-  };
-
-  return (
-    <div
-      className="rounded-lg border p-6"
-      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
-    >
-      <h2
-        className="font-semibold text-lg mb-4"
-        style={{ color: "var(--foreground)" }}
-      >
-        Order Actions
-      </h2>
-      {error && (
-        <div
-          className="flex items-start gap-2 p-3 rounded-md mb-4"
-          style={{
-            backgroundColor: "rgba(239, 68, 68, 0.1)",
-            color: "var(--destructive)",
-          }}
-          role="alert"
-        >
-          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
-      <div className="flex flex-wrap gap-3">
-        {actions.map(({ label, input, variant }) => (
-          <button
-            key={label}
-            onClick={() => handleAction(input)}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
-            style={variantStyles[variant]}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : variant === "danger" ? (
-              <XCircle className="h-4 w-4" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            {label}
-          </button>
-        ))}
-      </div>
-      <p className="text-xs mt-4" style={{ color: "var(--muted-foreground)" }}>
-        These actions simulate order management operations. In a real system,
-        these would be restricted to authorized staff.
-      </p>
-    </div>
-  );
-}
-
 export function OrdersSection({
   selectedOrderId,
+  placedOrderId,
   onSelect,
   onBack,
 }: {
   selectedOrderId: string | null;
+  // The order this browser just placed; its detail shows the success banner.
+  placedOrderId: string | null;
   onSelect: (orderId: string) => void;
   onBack: () => void;
 }) {
   if (selectedOrderId) {
-    return <OrderDetailView orderId={selectedOrderId} onBack={onBack} />;
+    return (
+      <OrderDetailView
+        orderId={selectedOrderId}
+        justPlaced={selectedOrderId === placedOrderId}
+        onBack={onBack}
+      />
+    );
   }
   return <OrdersListView onSelect={onSelect} />;
 }
