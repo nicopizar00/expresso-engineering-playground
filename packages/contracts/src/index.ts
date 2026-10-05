@@ -87,9 +87,16 @@ export interface OrderLine {
   readonly lineTotal: Money;
 }
 
+// Who the order is for. null = guest.
+export type OrderOwner =
+  | { readonly username: string }
+  | { readonly email: string }
+  | null;
+
 export interface Order {
   readonly orderId: string;
   readonly customerName: string | null;
+  readonly owner: OrderOwner;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
   readonly placedAt: string;
@@ -113,15 +120,28 @@ export interface OrderStatusResponse {
   readonly checkedAt: string;
 }
 
+// GET /account/orders — the signed-in user's orders, newest first.
+export interface AccountOrdersResponse {
+  readonly items: ReadonlyArray<Order>;
+  readonly latest: Order | null;
+}
+
 // ---------------------------------------------------------------------------
 // Checkout
 // ---------------------------------------------------------------------------
+
+// Omitted → self when signed in, guest when signed out.
+export type OrderFor =
+  | { readonly type: "self" }
+  | { readonly type: "guest" }
+  | { readonly type: "user"; readonly recipient: string };
 
 export interface CheckoutRequest {
   // The reservation cartId returned by the cart, proving the client is
   // checking out the cart it actually holds (see Cart.cartId).
   readonly cartId: string;
   readonly idempotencyKey?: string;
+  readonly orderFor?: OrderFor;
 }
 
 export interface CheckoutResponse {
@@ -130,6 +150,31 @@ export interface CheckoutResponse {
   readonly customerName: string | null;
   readonly total: Money;
   readonly placedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export interface AuthUser {
+  readonly username: string;
+  readonly email: string;
+}
+
+export interface RegisterRequest {
+  readonly username: string;
+  readonly email: string;
+  readonly password: string;
+}
+
+// identifier: username or email.
+export interface LoginRequest {
+  readonly identifier: string;
+  readonly password: string;
+}
+
+export interface MeResponse {
+  readonly user: AuthUser | null;
 }
 
 // ---------------------------------------------------------------------------

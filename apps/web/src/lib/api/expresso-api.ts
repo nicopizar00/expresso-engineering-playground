@@ -31,6 +31,11 @@
  * | GET    /orders/:id           | orders.controller    | VERIFIED  |
  * | GET    /orders/mine          | orders.controller    | VERIFIED  |
  * | GET    /orders               | orders.controller    | VERIFIED  |
+ * | POST   /auth/register        | auth.controller      | VERIFIED  |
+ * | POST   /auth/login           | auth.controller      | VERIFIED  |
+ * | POST   /auth/logout          | auth.controller      | VERIFIED  |
+ * | GET    /auth/me              | auth.controller      | VERIFIED  |
+ * | GET    /account/orders       | account.controller   | VERIFIED  |
  *
  * All endpoints are reached through the same-origin /api/bff proxy in the
  * browser (next.config.mjs rewrites it to the internal BFF container).
@@ -77,6 +82,13 @@ import type {
   OrdersResponse,
   OrderStatusResponse,
   HealthReport,
+  AuthUser,
+  RegisterRequest,
+  LoginRequest,
+  MeResponse,
+  AccountOrdersResponse,
+  OrderOwner,
+  OrderFor,
 } from "@mini-commerce/contracts";
 
 export type {
@@ -92,6 +104,13 @@ export type {
   OrdersResponse,
   OrderStatusResponse,
   HealthReport,
+  AuthUser,
+  RegisterRequest,
+  LoginRequest,
+  MeResponse,
+  AccountOrdersResponse,
+  OrderOwner,
+  OrderFor,
 };
 
 // Legacy aliases retained for callers in apps/web.
@@ -328,6 +347,36 @@ const mockApi = {
       checkedAt: new Date().toISOString(),
     };
   },
+
+  async register(_input: RegisterRequest): Promise<AuthUser> {
+    await simulateLatency();
+    throw new ExpressoApiError("POST", "/auth/register", 503, {
+      error: { message: "Accounts are not available in demo mode" },
+    });
+  },
+
+  async login(_input: LoginRequest): Promise<AuthUser> {
+    await simulateLatency();
+    throw new ExpressoApiError("POST", "/auth/login", 503, {
+      error: { message: "Accounts are not available in demo mode" },
+    });
+  },
+
+  async logout(): Promise<void> {
+    await simulateLatency();
+  },
+
+  async getMe(): Promise<MeResponse> {
+    await simulateLatency();
+    return { user: null };
+  },
+
+  async getAccountOrders(): Promise<AccountOrdersResponse> {
+    await simulateLatency();
+    throw new ExpressoApiError("GET", "/account/orders", 401, {
+      error: { message: "sign in to see your orders" },
+    });
+  },
 };
 
 function simulateLatency(ms = 150): Promise<void> {
@@ -402,6 +451,28 @@ const realApi = {
       `/orders/${encodeURIComponent(orderId)}/status`,
     );
   },
+
+  register(input: RegisterRequest): Promise<AuthUser> {
+    return request<AuthUser>("POST", "/auth/register", input);
+  },
+
+  login(input: LoginRequest): Promise<AuthUser> {
+    return request<AuthUser>("POST", "/auth/login", input);
+  },
+
+  async logout(): Promise<void> {
+    await request<null>("POST", "/auth/logout");
+  },
+
+  getMe(): Promise<MeResponse> {
+    return request<MeResponse>("GET", "/auth/me");
+  },
+
+  // Signed-in only (401 otherwise); the `auth` cookie rides the same-origin
+  // /api/bff proxy like `sid`.
+  getAccountOrders(): Promise<AccountOrdersResponse> {
+    return request<AccountOrdersResponse>("GET", "/account/orders");
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -442,6 +513,28 @@ export const expressoApi = {
     return isDemoMode()
       ? mockApi.removeCartItem(itemId)
       : realApi.removeCartItem(itemId);
+  },
+
+  register(input: RegisterRequest): Promise<AuthUser> {
+    return isDemoMode() ? mockApi.register(input) : realApi.register(input);
+  },
+
+  login(input: LoginRequest): Promise<AuthUser> {
+    return isDemoMode() ? mockApi.login(input) : realApi.login(input);
+  },
+
+  logout(): Promise<void> {
+    return isDemoMode() ? mockApi.logout() : realApi.logout();
+  },
+
+  getMe(): Promise<MeResponse> {
+    return isDemoMode() ? mockApi.getMe() : realApi.getMe();
+  },
+
+  getAccountOrders(): Promise<AccountOrdersResponse> {
+    return isDemoMode()
+      ? mockApi.getAccountOrders()
+      : realApi.getAccountOrders();
   },
 
   getCart(): Promise<Cart> {

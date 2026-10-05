@@ -309,6 +309,7 @@ const myMockOrderIds = new Set<string>();
 const sampleOrder: StoredMockOrder = {
   orderId: "ord_sample_001",
   customerName: "Demo Customer",
+  owner: null,
   lines: [
     {
       productId: "prod_espresso_001",
@@ -343,6 +344,7 @@ export function createMockOrder(): CheckoutResponse {
   const order: StoredMockOrder = {
     orderId,
     customerName: null,
+    owner: null,
     lines: cart.items.map((item) => ({
       productId: item.productId,
       name: item.name,
