@@ -311,6 +311,33 @@ export async function installCommerceApiMock(
       return fulfillJson(route, 200, { items: mine, latest: mine[0] ?? null });
     }
 
+    if (method === "GET" && path === "/account/hot-status") {
+      if (!currentUser) {
+        return fulfillJson(route, 401, {
+          statusCode: 401,
+          error: { message: "sign in to see your hot coffees" },
+        });
+      }
+      const user = currentUser;
+      const now = Date.now();
+      const hot = [...orders.values()].filter(
+        (o) =>
+          o.owner &&
+          ("username" in o.owner
+            ? o.owner.username === user.username
+            : o.owner.email === user.email) &&
+          now - Date.parse(o.placedAt) < coolDownMs,
+      );
+      const earliest = Math.min(...hot.map((o) => Date.parse(o.placedAt)));
+      return fulfillJson(route, 200, {
+        hotCount: hot.length,
+        nextCoolsAt: hot.length
+          ? new Date(earliest + coolDownMs).toISOString()
+          : null,
+        serverTime: new Date(now).toISOString(),
+      });
+    }
+
     if (method === "GET" && path === "/orders/mine") {
       return fulfillJson(route, 200, {
         items: Array.from(orders.values())

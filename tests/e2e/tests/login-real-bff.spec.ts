@@ -44,6 +44,9 @@ test.describe("Login and account orders (real BFF)", () => {
       "data-temperature",
       "hot",
     );
+    await expect(page.getByTestId("hot-coffee-count")).toHaveText(
+      "☕ 1 hot coffee",
+    );
   });
 
   test("an order for an unregistered email appears after that email registers elsewhere", async ({
