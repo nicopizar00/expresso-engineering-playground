@@ -96,11 +96,28 @@ async function main() {
   };
   const ownedOrders = [
     // Re-stamped on every seed so ana always has one hot order to show.
-    { orderId: "ord_seed_ana_1", ownerUsername: "ana", placedAt: new Date(), refresh: true },
-    { orderId: "ord_seed_ana_2", ownerEmail: "ana@example.test", placedAt: new Date(Date.now() - 24 * HOUR) },
-    { orderId: "ord_seed_ben_1", ownerUsername: "ben", placedAt: new Date(Date.now() - 2 * HOUR) },
+    {
+      orderId: "ord_seed_ana_1",
+      ownerUsername: "ana",
+      placedAt: new Date(),
+      refresh: true,
+    },
+    {
+      orderId: "ord_seed_ana_2",
+      ownerEmail: "ana@example.test",
+      placedAt: new Date(Date.now() - 24 * HOUR),
+    },
+    {
+      orderId: "ord_seed_ben_1",
+      ownerUsername: "ben",
+      placedAt: new Date(Date.now() - 2 * HOUR),
+    },
     // For an unregistered recipient: register cara@example.test to see it.
-    { orderId: "ord_seed_cara_1", ownerEmail: "cara@example.test", placedAt: new Date(Date.now() - 3 * HOUR) },
+    {
+      orderId: "ord_seed_cara_1",
+      ownerEmail: "cara@example.test",
+      placedAt: new Date(Date.now() - 3 * HOUR),
+    },
   ];
   for (const { refresh, ...o } of ownedOrders) {
     await prisma.order.upsert({
