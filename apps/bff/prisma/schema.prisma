@@ -31,12 +31,16 @@ model Order {
   // Anonymous checkout (CUP-002): no name is collected or required. Nullable
   // rather than removed so historical orders keep their stored value.
   customerName     String?
-  status           String
+  // Anonymous owner: the `sid` cookie of the browser that placed the order.
+  // NULL for seed and pre-session orders, which only appear in GET /orders.
+  sessionId        String?
   totalAmountMinor Int
   totalCurrency    String
   placedAt         DateTime
   updatedAt        DateTime    @updatedAt
   lines            OrderLine[]
+
+  @@index([sessionId])
 }
 
 model OrderLine {

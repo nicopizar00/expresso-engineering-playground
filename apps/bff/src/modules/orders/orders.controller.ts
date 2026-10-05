@@ -1,8 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
-import { ManageOrderDto } from "./orders.dto";
+import { Controller, Get, Param } from "@nestjs/common";
 import { OrdersService } from "./orders.service";
 import type {
-  ManageOrderResponse,
   Order,
   OrderStatusResponse,
   OrdersResponse,
@@ -26,14 +24,5 @@ export class OrdersController {
   @Get(":id/status")
   status(@Param("id") id: string): Promise<OrderStatusResponse> {
     return this.orders.getStatus(id);
-  }
-
-  @Post(":id/manage")
-  @HttpCode(202)
-  manage(
-    @Param("id") id: string,
-    @Body() body: ManageOrderDto,
-  ): Promise<ManageOrderResponse> {
-    return this.orders.manage(id, body);
   }
 }

@@ -1,22 +1,18 @@
 // Orders domain module — fictional mini-commerce store.
 //
-// Responsibility: order record after checkout, status lifecycle, simple
-// mocked management actions.
-// Public surface (current iteration — mocked, in-memory):
-//   - GET  /orders/:id           — fetch a single order (404 for unknown)
-//   - GET  /orders/:id/status    — status + hot/cold temperature read from
-//                                  Postgres (cold after ORDER_COOL_DOWN_SECONDS)
-//   - POST /orders/:id/manage    — apply cancel / update_status / mark_prepared
+// Responsibility: the order record after checkout. Placing an order is the
+// final step — there is no preparation lifecycle or cancel. Hot/cold
+// temperature is derived on read from placedAt.
+// Public surface:
+//   - GET /orders               — every order (oldest first)
+//   - GET /orders/mine          — the caller's orders (session cookie), newest first
+//   - GET /orders/:id           — a single order (404 for unknown)
+//   - GET /orders/:id/status    — temperature read from Postgres
+//                                 (cold after ORDER_COOL_DOWN_SECONDS)
 //
-// Pre-seeded with `ord_demo` so the playground UI can exercise both
-// endpoints without first running a checkout.
+// Pre-seeded with `ord_demo` (no session) so the playground has history.
 //
 // Strong candidate for Phase 3 extraction (owns post-purchase state).
-//
-// TODO (next iterations):
-//   - Real state machine (pending → preparing → prepared, plus cancelled)
-//   - Idempotency keys backed by Postgres
-//   - Publish order lifecycle events through a notification outbox
 
 import { Module } from "@nestjs/common";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";

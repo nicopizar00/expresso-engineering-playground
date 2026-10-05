@@ -7,7 +7,6 @@ import type { Order } from "./orders.types";
 const DEMO_ORDER: Order = {
   orderId: "ord_demo",
   customerName: "Demo Customer",
-  status: "pending",
   lines: [
     {
       productId: "prod_espresso",
@@ -88,7 +87,6 @@ describe("OrdersController", () => {
     it("delegates to OrdersService.getStatus()", async () => {
       const status = {
         orderId: "ord_demo",
-        status: "pending",
         temperature: "hot",
         placedAt: "2026-05-14T12:00:00.000Z",
         coolsAt: "2026-05-14T12:05:00.000Z",

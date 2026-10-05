@@ -1,8 +1,4 @@
-import {
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from "@nestjs/common";
+import { NotFoundException, ConflictException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -21,7 +17,7 @@ const DB_ORDER: DbOrder & { lines: DbOrderLine[] } = {
   orderId: "ord_demo",
   clientRequestId: null,
   customerName: "Demo Customer",
-  status: "pending",
+  sessionId: null,
   totalAmountMinor: 560,
   totalCurrency: "EUR",
   placedAt: new Date("2026-05-14T12:00:00.000Z"),
@@ -162,7 +158,8 @@ describe("OrdersService", () => {
     it("maps DB columns to the Order DTO shape", () => {
       const [order] = service.listAll();
       expect(order.customerName).toBe("Demo Customer");
-      expect(order.status).toBe("pending");
+      expect(order).not.toHaveProperty("status");
+      expect(order).not.toHaveProperty("sessionId");
       expect(order.total).toEqual({ amountMinor: 560, currency: "EUR" });
       expect(order.lines).toHaveLength(2);
     });
@@ -204,6 +201,87 @@ describe("OrdersService", () => {
     });
   });
 
+  describe("listForSession()", () => {
+    const LATTE_INPUT: CreateOrderInput = {
+      lines: [],
+      total: { amountMinor: 320, currency: "EUR" },
+    };
+
+    function row(orderId: string, sessionId: string | null, placedAt: string) {
+      return {
+        ...DB_ORDER,
+        orderId,
+        sessionId,
+        placedAt: new Date(placedAt),
+        updatedAt: new Date(placedAt),
+      };
+    }
+
+    it("excludes orders without a session (seed ord_demo)", () => {
+      expect(service.listForSession("sid_a")).toEqual([]);
+    });
+
+    it("returns only the caller's orders, newest first", async () => {
+      prisma.order.create
+        .mockResolvedValueOnce(row("ord_001", "sid_a", "2026-05-14T12:01:00Z"))
+        .mockResolvedValueOnce(row("ord_002", "sid_b", "2026-05-14T12:02:00Z"))
+        .mockResolvedValueOnce(row("ord_003", "sid_a", "2026-05-14T12:03:00Z"));
+      await service.create({ ...LATTE_INPUT, sessionId: "sid_a" });
+      await service.create({ ...LATTE_INPUT, sessionId: "sid_b" });
+      await service.create({ ...LATTE_INPUT, sessionId: "sid_a" });
+
+      const mine = service.listForSession("sid_a");
+      expect(mine.map((o) => o.orderId)).toEqual(["ord_003", "ord_001"]);
+      expect(mine[0]).not.toHaveProperty("sessionId");
+      expect(mine[0].temperature).toMatch(/^(hot|cold)$/);
+    });
+
+    it("persists sessionId on create", async () => {
+      prisma.order.create.mockResolvedValueOnce(
+        row("ord_001", "sid_a", "2026-05-14T12:01:00Z"),
+      );
+      await service.create({ ...LATTE_INPUT, sessionId: "sid_a" });
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sessionId: "sid_a" }),
+        }),
+      );
+    });
+
+    it("warms the session index from the DB on boot", async () => {
+      prisma.order.findMany.mockResolvedValue([
+        DB_ORDER,
+        row("ord_009", "sid_boot", "2026-05-14T12:09:00Z"),
+      ]);
+      const booted = await makeService(prisma);
+      expect(booted.listForSession("sid_boot").map((o) => o.orderId)).toEqual([
+        "ord_009",
+      ]);
+    });
+
+    it("an idempotent replay from another session does not re-own the order", async () => {
+      prisma.order.create.mockResolvedValueOnce({
+        ...row("ord_001", "sid_a", "2026-05-14T12:01:00Z"),
+        clientRequestId: "key-1",
+      });
+      await service.create({
+        ...LATTE_INPUT,
+        sessionId: "sid_a",
+        clientRequestId: "key-1",
+      });
+      const replay = await service.create({
+        ...LATTE_INPUT,
+        sessionId: "sid_b",
+        clientRequestId: "key-1",
+      });
+      expect(replay.orderId).toBe("ord_001");
+      expect(service.listForSession("sid_b")).toEqual([]);
+      expect(service.listForSession("sid_a").map((o) => o.orderId)).toEqual([
+        "ord_001",
+      ]);
+    });
+  });
+
   describe("create()", () => {
     const INPUT: CreateOrderInput = {
       customerName: "Test Customer",
@@ -237,7 +315,7 @@ describe("OrdersService", () => {
           data: expect.objectContaining({
             orderId: "ord_001",
             customerName: "Test Customer",
-            status: "pending",
+            sessionId: null,
             totalAmountMinor: 320,
             totalCurrency: "EUR",
             lines: {
@@ -453,81 +531,6 @@ describe("OrdersService", () => {
     });
   });
 
-  describe("manage()", () => {
-    it("cancels an order and updates cache", async () => {
-      prisma.order.update.mockResolvedValue(DB_ORDER);
-
-      const response = await service.manage("ord_demo", { action: "cancel" });
-
-      expect(response).toEqual({
-        orderId: "ord_demo",
-        action: "cancel",
-        previousStatus: "pending",
-        status: "cancelled",
-        acceptedAt: expect.any(String),
-      });
-      expect(prisma.order.update).toHaveBeenCalledWith({
-        where: { orderId: "ord_demo" },
-        data: { status: "cancelled" },
-      });
-      expect(service.get("ord_demo").status).toBe("cancelled");
-      // Managing an order pushes a visualization snapshot for SSE subscribers.
-      expect(domainEvents.emit).toHaveBeenCalledOnce();
-    });
-
-    it("marks an order as prepared and updates cache", async () => {
-      prisma.order.update.mockResolvedValue(DB_ORDER);
-
-      const response = await service.manage("ord_demo", {
-        action: "mark_prepared",
-      });
-
-      expect(response.status).toBe("prepared");
-      expect(service.get("ord_demo").status).toBe("prepared");
-    });
-
-    it("updates status via update_status action", async () => {
-      prisma.order.update.mockResolvedValue(DB_ORDER);
-
-      const response = await service.manage("ord_demo", {
-        action: "update_status",
-        nextStatus: "preparing",
-      });
-
-      expect(response.status).toBe("preparing");
-      expect(service.get("ord_demo").status).toBe("preparing");
-    });
-
-    it("throws BadRequestException if update_status has no nextStatus", async () => {
-      await expect(
-        service.manage("ord_demo", { action: "update_status" }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it("throws NotFoundException for unknown orderId", async () => {
-      await expect(
-        service.manage("ord_unknown", { action: "cancel" }),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it("does not call DB if order not found", async () => {
-      await expect(
-        service.manage("ord_unknown", { action: "cancel" }),
-      ).rejects.toThrow();
-      expect(prisma.order.update).not.toHaveBeenCalled();
-    });
-
-    it("returns ManageOrderResponse with acceptedAt timestamp", async () => {
-      prisma.order.update.mockResolvedValue(DB_ORDER);
-
-      const response = await service.manage("ord_demo", { action: "cancel" });
-
-      expect(response.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-      expect(response.previousStatus).toBe("pending");
-      expect(response.orderId).toBe("ord_demo");
-    });
-  });
-
   describe("temperature", () => {
     afterEach(() => vi.useRealTimers());
 
@@ -554,17 +557,15 @@ describe("OrdersService", () => {
       vi.setSystemTime(new Date("2026-05-14T12:01:00.000Z"));
       prisma.order.findUnique.mockResolvedValue({
         orderId: "ord_demo",
-        status: "prepared",
         placedAt: new Date("2026-05-14T12:00:00.000Z"),
       });
       const res = await service.getStatus("ord_demo");
       expect(prisma.order.findUnique).toHaveBeenCalledWith({
         where: { orderId: "ord_demo" },
-        select: { orderId: true, status: true, placedAt: true },
+        select: { orderId: true, placedAt: true },
       });
       expect(res).toEqual({
         orderId: "ord_demo",
-        status: "prepared", // DB value; the cache still says "pending"
         temperature: "hot",
         placedAt: "2026-05-14T12:00:00.000Z",
         coolsAt: "2026-05-14T12:05:00.000Z",
@@ -594,7 +595,6 @@ describe("OrdersService", () => {
       vi.setSystemTime(new Date("2026-05-14T12:00:20.000Z"));
       prisma.order.findUnique.mockResolvedValue({
         orderId: "ord_demo",
-        status: "pending",
         placedAt: new Date("2026-05-14T12:00:00.000Z"),
       });
       const res = await fast.getStatus("ord_demo");

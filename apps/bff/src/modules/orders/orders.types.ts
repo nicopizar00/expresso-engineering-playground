@@ -1,8 +1,4 @@
-import type {
-  Money,
-  OrderStatus,
-  OrderTemperature,
-} from "@mini-commerce/shared-types";
+import type { Money, OrderTemperature } from "@mini-commerce/shared-types";
 
 export interface OrderLine {
   readonly productId: string;
@@ -15,7 +11,6 @@ export interface OrderLine {
 export interface Order {
   readonly orderId: string;
   readonly customerName: string | null;
-  readonly status: OrderStatus;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
   readonly placedAt: string;
@@ -39,21 +34,14 @@ export interface CreateOrderInput {
   // Optional caller-supplied idempotency key. When set, a retry with the same
   // key returns the original order without re-decrementing inventory.
   readonly clientRequestId?: string;
+  // Anonymous owner (the caller's `sid`). Stored, never serialized.
+  readonly sessionId?: string;
 }
 
 export interface OrderStatusResponse {
   readonly orderId: string;
-  readonly status: OrderStatus;
   readonly temperature: OrderTemperature;
   readonly placedAt: string;
   readonly coolsAt: string;
   readonly checkedAt: string;
-}
-
-export interface ManageOrderResponse {
-  readonly orderId: string;
-  readonly action: "cancel" | "update_status" | "mark_prepared";
-  readonly previousStatus: OrderStatus;
-  readonly status: OrderStatus;
-  readonly acceptedAt: string;
 }

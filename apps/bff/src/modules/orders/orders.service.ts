@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -13,12 +12,10 @@ import type {
   Order as DbOrder,
   OrderLine as DbOrderLine,
 } from "@prisma/client";
-import type { OrderStatus } from "@mini-commerce/shared-types";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { PrismaService } from "../../prisma.service";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CatalogService } from "../catalog/catalog.service";
-import type { ManageOrderDto } from "./orders.dto";
 import {
   DEFAULT_COOL_DOWN_SECONDS,
   ORDER_COOL_DOWN_MS,
@@ -27,7 +24,6 @@ import {
 } from "./order-temperature";
 import type {
   CreateOrderInput,
-  ManageOrderResponse,
   Order,
   OrderLine,
   OrderStatusResponse,
@@ -40,7 +36,6 @@ function toOrder(row: DbOrder & { lines: DbOrderLine[] }): StoredOrder {
   return {
     orderId: row.orderId,
     customerName: row.customerName,
-    status: row.status as OrderStatus,
     lines: row.lines.map(
       (l): OrderLine => ({
         productId: l.productId,
@@ -72,6 +67,9 @@ export class OrdersService implements OnModuleInit {
   // Idempotency index: clientRequestId → orderId. Lets a retried checkout
   // short-circuit before the seq/tx/decrement work even runs.
   private idempotencyIndex = new Map<string, string>();
+  // Session index: orderId → owning session id. Kept beside the cache (not
+  // on StoredOrder) so the owner can never leak into a serialized Order.
+  private sessionIndex = new Map<string, string>();
   private nextOrderSeq = 1;
 
   constructor(
@@ -92,6 +90,9 @@ export class OrdersService implements OnModuleInit {
     for (const row of rows) {
       if (row.clientRequestId) {
         this.idempotencyIndex.set(row.clientRequestId, row.orderId);
+      }
+      if (row.sessionId) {
+        this.sessionIndex.set(row.orderId, row.sessionId);
       }
     }
     const maxSeq = this.cache
@@ -126,6 +127,16 @@ export class OrdersService implements OnModuleInit {
     return this.cache.map((o) => this.withTemperature(o, now));
   }
 
+  // Newest first. Orders without a session (seed, pre-session history) are
+  // never anyone's — they only appear in listAll().
+  listForSession(sessionId: string): ReadonlyArray<Order> {
+    const now = new Date();
+    return this.cache
+      .filter((o) => this.sessionIndex.get(o.orderId) === sessionId)
+      .sort((a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt))
+      .map((o) => this.withTemperature(o, now));
+  }
+
   get(orderId: string): Order {
     const order = this.cache.find((o) => o.orderId === orderId);
     if (!order) {
@@ -142,7 +153,7 @@ export class OrdersService implements OnModuleInit {
         span.setAttribute("order.id", orderId);
         const row = await this.prisma.order.findUnique({
           where: { orderId },
-          select: { orderId: true, status: true, placedAt: true },
+          select: { orderId: true, placedAt: true },
         });
         if (!row) {
           throw new NotFoundException(`order ${orderId} not found`);
@@ -152,7 +163,6 @@ export class OrdersService implements OnModuleInit {
         span.setAttribute("order.temperature", temperature);
         return {
           orderId: row.orderId,
-          status: row.status as OrderStatus,
           temperature,
           placedAt: row.placedAt.toISOString(),
           coolsAt: coolsAt(row.placedAt, this.coolDownMs).toISOString(),
@@ -215,7 +225,7 @@ export class OrdersService implements OnModuleInit {
                 orderId,
                 clientRequestId: input.clientRequestId ?? null,
                 customerName: input.customerName ?? null,
-                status: "pending",
+                sessionId: input.sessionId ?? null,
                 totalAmountMinor: input.total.amountMinor,
                 totalCurrency: input.total.currency,
                 placedAt: new Date(),
@@ -252,6 +262,9 @@ export class OrdersService implements OnModuleInit {
                 this.cache.push(replay);
               }
               this.idempotencyIndex.set(input.clientRequestId, replay.orderId);
+              if (winner.sessionId) {
+                this.sessionIndex.set(winner.orderId, winner.sessionId);
+              }
               span.setAttribute("order.id", replay.orderId);
               span.setAttribute("order.idempotent_replay", true);
               this.logger.log(
@@ -268,6 +281,9 @@ export class OrdersService implements OnModuleInit {
         }
         const order = toOrder(row);
         this.cache.push(order);
+        if (row.sessionId) {
+          this.sessionIndex.set(order.orderId, row.sessionId);
+        }
         if (input.clientRequestId) {
           this.idempotencyIndex.set(input.clientRequestId, order.orderId);
         }
@@ -276,71 +292,6 @@ export class OrdersService implements OnModuleInit {
         );
         this.domainEvents.emit();
         return this.withTemperature(order);
-      } catch (err) {
-        span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
-        throw err;
-      } finally {
-        span.end();
-      }
-    });
-  }
-
-  async manage(
-    orderId: string,
-    payload: ManageOrderDto,
-  ): Promise<ManageOrderResponse> {
-    return tracer.startActiveSpan("orders.manage", async (span) => {
-      try {
-        span.setAttribute("order.id", orderId);
-        span.setAttribute("order.action", payload.action);
-
-        const idx = this.cache.findIndex((o) => o.orderId === orderId);
-        if (idx === -1) {
-          throw new NotFoundException(`order ${orderId} not found`);
-        }
-        const current = this.cache[idx]!;
-        const previousStatus = current.status;
-
-        const nextStatus: OrderStatus = (() => {
-          switch (payload.action) {
-            case "cancel":
-              return "cancelled";
-            case "mark_prepared":
-              return "prepared";
-            case "update_status":
-              if (!payload.nextStatus) {
-                throw new BadRequestException(
-                  "nextStatus is required when action is update_status",
-                );
-              }
-              return payload.nextStatus;
-          }
-        })();
-
-        await this.prisma.order.update({
-          where: { orderId },
-          data: { status: nextStatus },
-        });
-
-        const acceptedAt = new Date().toISOString();
-        this.cache[idx] = {
-          ...current,
-          status: nextStatus,
-          updatedAt: acceptedAt,
-        };
-
-        this.logger.log(
-          `manage order=${orderId} action=${payload.action} ${previousStatus} -> ${nextStatus}`,
-        );
-        this.domainEvents.emit();
-
-        return {
-          orderId,
-          action: payload.action,
-          previousStatus,
-          status: nextStatus,
-          acceptedAt,
-        };
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
         throw err;

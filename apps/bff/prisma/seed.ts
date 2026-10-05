@@ -39,7 +39,6 @@ async function main() {
     create: {
       orderId: "ord_demo",
       customerName: "Demo Customer",
-      status: "pending",
       totalAmountMinor: 560,
       totalCurrency: "EUR",
       placedAt: new Date("2026-05-14T12:00:00.000Z"),
