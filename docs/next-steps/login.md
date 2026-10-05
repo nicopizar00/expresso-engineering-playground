@@ -31,6 +31,10 @@ Spec: [`docs/superpowers/specs/2026-10-05-login-design.md`](../superpowers/specs
 | `ana` | `ana@example.test` | `espresso-demo` |
 | `ben` | `ben@example.test` | `espresso-demo` |
 
+Ten more accounts with no orders follow the same pattern
+(`<username>@example.test`, password `espresso-demo`): `dario`, `elena`,
+`felix`, `gia`, `hugo`, `iris`, `jonas`, `kira`, `leo`, `mila`.
+
 `ord_seed_cara_1` is owned by `cara@example.test`, which is not registered.
 Register that email to see it appear.
 

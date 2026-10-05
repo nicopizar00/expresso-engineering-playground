@@ -72,17 +72,30 @@ async function main() {
   // Login feature demo data (fictional). Password is documented in
   // docs/next-steps/login.md. Upsert keeps existing hashes stable.
   const DEMO_PASSWORD = "espresso-demo";
-  for (const u of [
-    { username: "ana", email: "ana@example.test" },
-    { username: "ben", email: "ben@example.test" },
-  ]) {
+  // ana and ben own seeded orders; the rest are extra accounts with no
+  // orders. cara@example.test stays unregistered on purpose (see below).
+  const demoUsers = [
+    "ana",
+    "ben",
+    "dario",
+    "elena",
+    "felix",
+    "gia",
+    "hugo",
+    "iris",
+    "jonas",
+    "kira",
+    "leo",
+    "mila",
+  ].map((username) => ({ username, email: `${username}@example.test` }));
+  for (const u of demoUsers) {
     await prisma.user.upsert({
       where: { username: u.username },
       update: {},
       create: { ...u, passwordHash: await hashPassword(DEMO_PASSWORD) },
     });
   }
-  console.log("Seeded demo users ana, ben.");
+  console.log(`Seeded ${demoUsers.length} demo users.`);
 
   const HOUR = 60 * 60 * 1000;
   const seedLine = {
