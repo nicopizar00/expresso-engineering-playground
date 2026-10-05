@@ -34,6 +34,11 @@ model Order {
   // Anonymous owner: the `sid` cookie of the browser that placed the order.
   // NULL for seed and pre-session orders, which only appear in GET /orders.
   sessionId        String?
+  // Who the order is for (login feature). Plain normalized strings, no FK:
+  // an order may target a username/email that registers later. At most one
+  // is set; both null = guest.
+  ownerUsername    String?
+  ownerEmail       String?
   totalAmountMinor Int
   totalCurrency    String
   placedAt         DateTime
@@ -41,6 +46,8 @@ model Order {
   lines            OrderLine[]
 
   @@index([sessionId])
+  @@index([ownerUsername])
+  @@index([ownerEmail])
 }
 
 model OrderLine {
@@ -83,4 +90,29 @@ model AssetModel {
 
   @@unique([category, variant])
   @@index([category, isPrimary])
+}
+
+// Registered user. username and email are stored normalized (trim +
+// lowercase) — see apps/bff/src/core/auth/identity.ts.
+model User {
+  id           Int           @id @default(autoincrement())
+  username     String        @unique
+  email        String        @unique
+  // "scrypt$N$r$p$<salt b64>$<hash b64>" — see core/auth/password.ts.
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  sessions     AuthSession[]
+}
+
+// Signed-in browser. Only sha256(token) is stored; the raw token lives in
+// the `auth` cookie.
+model AuthSession {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
 }

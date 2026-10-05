@@ -18,6 +18,8 @@ const DB_ORDER: DbOrder & { lines: DbOrderLine[] } = {
   clientRequestId: null,
   customerName: "Demo Customer",
   sessionId: null,
+  ownerUsername: null,
+  ownerEmail: null,
   totalAmountMinor: 560,
   totalCurrency: "EUR",
   placedAt: new Date("2026-05-14T12:00:00.000Z"),
