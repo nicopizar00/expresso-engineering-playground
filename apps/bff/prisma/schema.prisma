@@ -46,8 +46,10 @@ model Order {
   lines            OrderLine[]
 
   @@index([sessionId])
-  @@index([ownerUsername])
-  @@index([ownerEmail])
+  // Composite so GET /account/hot-status (owner + placedAt range) and
+  // GET /account/orders (owner, newest first) are index scans.
+  @@index([ownerUsername, placedAt])
+  @@index([ownerEmail, placedAt])
 }
 
 model OrderLine {
