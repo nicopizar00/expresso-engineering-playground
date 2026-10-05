@@ -169,6 +169,10 @@ Target: http://localhost:3001
   ✓ GET  /orders/ord_demo
   ✓ GET  /orders/ord_demo/status (typed temperature)
   ✓ GET  /orders/mine (session-owned)
+  ✓ POST /auth/register
+  ✓ GET  /auth/me
+  ✓ POST /checkout (orderFor self)
+  ✓ GET  /account/orders (latest hot)
   ✓ GET  /visualization-data
   ✓ GET  /visualization-data (scene shape)
   ✓ GET  /visualization-updates (SSE)
