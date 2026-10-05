@@ -9,7 +9,7 @@
  * switches the Orders section to show it.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ShoppingBag,
   Loader2,
@@ -17,6 +17,12 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useCart } from "./CartProvider";
+import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  buildOrderFor,
+  defaultOrderForChoice,
+  type OrderForChoice,
+} from "@/lib/auth/order-for";
 import {
   expressoApi,
   ExpressoApiError,
@@ -24,13 +30,27 @@ import {
 } from "@/lib/api/expresso-api";
 
 interface CartCheckoutPanelProps {
-  onOrderPlaced: (orderId: string) => void;
+  onOrderPlaced: (orderId: string, forSelf: boolean) => void;
 }
 
 export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
   const { cart, isLoading, isEmpty, formattedTotal, refreshCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const signedIn = user !== null;
+  const [choice, setChoice] = useState<OrderForChoice>(
+    defaultOrderForChoice(signedIn),
+  );
+  const [touched, setTouched] = useState(false);
+  const [recipient, setRecipient] = useState("");
+  // Follow sign-in/out until the user picks explicitly; never leave "self"
+  // selected while signed out.
+  useEffect(() => {
+    if (!touched || (!signedIn && choice === "self")) {
+      setChoice(defaultOrderForChoice(signedIn));
+    }
+  }, [signedIn, touched, choice]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,16 +61,29 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
       return;
     }
 
+    const orderFor = buildOrderFor(choice, recipient, signedIn);
+    if (!orderFor.ok) {
+      setError(orderFor.error);
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const result = await expressoApi.checkout({ cartId: cart.cartId });
+      const result = await expressoApi.checkout({
+        cartId: cart.cartId,
+        orderFor: orderFor.value,
+      });
       refreshCart();
-      onOrderPlaced(result.orderId);
+      setRecipient("");
+      setTouched(false);
+      onOrderPlaced(result.orderId, orderFor.value.type === "self");
     } catch (err) {
       if (err instanceof ExpressoApiError) {
-        if (err.status === 400) {
+        if (err.status === 401) {
+          setError("Your session ended. Sign in again or order as guest.");
+        } else if (err.status === 400) {
           setError(
             "Invalid checkout request. Please check your cart and try again.",
           );
@@ -193,6 +226,68 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
         style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
       >
         <div className={`${cardPadding} space-y-3`}>
+          <fieldset className="space-y-2">
+            <legend
+              className="text-xs font-medium mb-1"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Order for
+            </legend>
+            <div
+              role="radiogroup"
+              aria-label="Order for"
+              className="flex flex-wrap gap-3 text-sm"
+            >
+              {(
+                [
+                  ["self", "Me"],
+                  ["guest", "Guest"],
+                  ["user", "Someone else"],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className="flex items-center gap-1.5"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <input
+                    type="radio"
+                    name="order-for"
+                    value={value}
+                    checked={choice === value}
+                    disabled={value === "self" && !signedIn}
+                    onChange={() => {
+                      setChoice(value);
+                      setTouched(true);
+                      setError(null);
+                    }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {!signedIn && (
+              <p
+                className="text-xs"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Sign in to order for yourself.
+              </p>
+            )}
+            {choice === "user" && (
+              <input
+                type="text"
+                data-testid="order-for-recipient"
+                aria-label="Username or email of the recipient"
+                placeholder="username or email"
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
+                style={{ borderColor: "var(--border)" }}
+              />
+            )}
+          </fieldset>
+
           {error && (
             <div
               className="flex items-start gap-3 p-4 rounded-lg"

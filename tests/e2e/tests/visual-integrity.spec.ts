@@ -193,7 +193,7 @@ test.describe("visual UI integrity - desktop", () => {
 
     const mine = page
       .getByRole("tablist", { name: "Order scope" })
-      .getByRole("tab", { name: "My orders" });
+      .getByRole("tab", { name: "This browser" });
     await expectVisualActionable(mine, { minHeight: 28, minWidth: 70 });
     await expect(page.getByTestId("orders-list")).toHaveAttribute(
       "data-scope",

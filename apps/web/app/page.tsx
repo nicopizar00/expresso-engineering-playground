@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { expressoApi, ProductsResponse } from "@/lib/api/expresso-api";
 import { ProductCatalogGrid } from "@/components/catalog/ProductCatalogGrid";
@@ -15,6 +15,7 @@ import {
 } from "@/components/sections/OrdersSection";
 import { PerformanceSection } from "@/components/sections/PerformanceSection";
 import { DevSection } from "@/components/sections/DevSection";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useSection } from "@/components/system/SectionProvider";
 import { Sparkles } from "lucide-react";
 
@@ -39,12 +40,34 @@ export default function HomeWorkspace() {
     { revalidateOnFocus: false },
   );
 
+  const { user, isLoading: authLoading } = useAuth();
+  // undefined until /auth/me first resolves, so a signed-in page load
+  // defaults to the Account tab without jumping sections.
+  const prevUser = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (authLoading) return;
+    const current = user?.username ?? null;
+    const prev = prevUser.current;
+    prevUser.current = current;
+    if (prev === undefined) {
+      if (current) setOrdersScope("account");
+      return;
+    }
+    if (!prev && current) {
+      setSelectedOrderId(null);
+      setOrdersScope("account");
+      setSection("orders");
+    } else if (prev && !current) {
+      setOrdersScope((s) => (s === "account" ? "mine" : s));
+    }
+  }, [user, authLoading, setSection]);
+
   const productCount = data?.items.length ?? 0;
 
   const handleOrderPlaced = useCallback(
-    (orderId: string) => {
+    (orderId: string, forSelf: boolean) => {
       setSelectedOrderId(orderId);
-      setOrdersScope("mine");
+      setOrdersScope(forSelf ? "account" : "mine");
       setPlacedOrderId(orderId);
       // Held briefly so VisualizerEmbed can tell "cart just emptied because
       // Place Order succeeded" from "cart emptied because the reservation

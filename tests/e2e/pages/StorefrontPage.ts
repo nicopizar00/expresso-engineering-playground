@@ -97,7 +97,7 @@ export class StorefrontPage {
     return this.page.getByTestId("order-temperature");
   }
 
-  ordersScopeTab(name: "My orders" | "All orders"): Locator {
+  ordersScopeTab(name: "This browser" | "All orders" | "My account"): Locator {
     return this.page
       .getByRole("tablist", { name: "Order scope" })
       .getByRole("tab", { name });

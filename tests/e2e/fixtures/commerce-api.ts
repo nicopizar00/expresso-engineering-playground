@@ -232,7 +232,27 @@ export async function installCommerceApiMock(
       if (cart.items.length === 0) {
         return fulfillJson(route, 400, { message: "Cart is empty" });
       }
-      const body = request.postDataJSON() as { customerName?: string } | null;
+      const body = request.postDataJSON() as {
+        customerName?: string;
+        orderFor?: { type: string; recipient?: string };
+      } | null;
+      const orderFor = body?.orderFor;
+      const type = orderFor?.type ?? (currentUser ? "self" : "guest");
+      if (type === "self" && !currentUser) {
+        return fulfillJson(route, 401, {
+          statusCode: 401,
+          error: { message: "sign in to order for yourself" },
+        });
+      }
+      const recipient = orderFor?.recipient?.trim().toLowerCase();
+      const owner: Order["owner"] =
+        type === "self"
+          ? { username: currentUser!.username }
+          : type === "user" && recipient
+            ? recipient.includes("@")
+              ? { email: recipient }
+              : { username: recipient }
+            : null;
       const placedNow = new Date().toISOString();
       const order: Order = {
         orderId: `ord_e2e_${String(orders.size + 1).padStart(3, "0")}`,
@@ -248,6 +268,7 @@ export async function installCommerceApiMock(
         // Real clock so the order is hot at placement, like the BFF.
         placedAt: placedNow,
         updatedAt: placedNow,
+        owner,
       };
       orders.set(order.orderId, order);
       myOrderIds.add(order.orderId);
@@ -267,6 +288,27 @@ export async function installCommerceApiMock(
           .sort(newestFirst)
           .map(withTemperature),
       });
+    }
+
+    if (method === "GET" && path === "/account/orders") {
+      if (!currentUser) {
+        return fulfillJson(route, 401, {
+          statusCode: 401,
+          error: { message: "sign in to see your orders" },
+        });
+      }
+      const user = currentUser;
+      const mine = [...orders.values()]
+        .filter(
+          (o) =>
+            o.owner &&
+            ("username" in o.owner
+              ? o.owner.username === user.username
+              : o.owner.email === user.email),
+        )
+        .sort(newestFirst)
+        .map(withTemperature);
+      return fulfillJson(route, 200, { items: mine, latest: mine[0] ?? null });
     }
 
     if (method === "GET" && path === "/orders/mine") {

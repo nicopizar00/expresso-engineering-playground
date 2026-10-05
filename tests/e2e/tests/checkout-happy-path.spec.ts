@@ -86,7 +86,7 @@ for (const profile of viewportProfiles) {
       ).toBeVisible();
 
       await storefront.backToOrdersButton().click();
-      await expect(storefront.ordersScopeTab("My orders")).toHaveAttribute(
+      await expect(storefront.ordersScopeTab("This browser")).toHaveAttribute(
         "aria-selected",
         "true",
       );

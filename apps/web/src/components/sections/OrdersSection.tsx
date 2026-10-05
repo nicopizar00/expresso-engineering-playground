@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * OrdersSection - My orders / All orders lists and a read-only order detail
+ * OrdersSection - Account / This browser / All orders lists and a read-only order detail
  *
  * Placing an order is the final step; there are no order actions. Hot/Cold
  * is the only state an order shows, and both the lists and the detail flip
@@ -31,6 +31,9 @@ import {
 } from "@/lib/api/expresso-api";
 import { PageLoadingState } from "@/components/system/LoadingSkeleton";
 import { PageErrorState } from "@/components/system/ErrorBanner";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { ownerLabel } from "@/lib/auth/owner-label";
+import { LatestOrderCard } from "./LatestOrderCard";
 
 // Hot for the cool-down window after the order is served (placed), then
 // cold — derived by the BFF from placedAt.
@@ -102,6 +105,13 @@ function OrderRow({
         >
           {new Date(order.placedAt).toLocaleString()}
         </p>
+        <p
+          data-testid="order-owner"
+          className="text-xs truncate"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          {ownerLabel(order.owner)}
+        </p>
       </div>
       <div className="flex items-center gap-4 ml-4 shrink-0">
         <span
@@ -119,23 +129,30 @@ function OrderRow({
   );
 }
 
-export type OrdersScope = "mine" | "all";
+export type OrdersScope = "account" | "mine" | "all";
 
 const scopeConfig: Record<
   OrdersScope,
   {
     label: string;
     swrKey: string;
-    fetch: () => Promise<OrdersResponse>;
+    fetch: () => Promise<OrdersResponse & { latest?: Order | null }>;
     emptyTitle: string;
     emptyHint: string;
   }
 > = {
+  account: {
+    label: "My account",
+    swrKey: "orders-account",
+    fetch: () => expressoApi.getAccountOrders(),
+    emptyTitle: "No orders yet for you",
+    emptyHint: "Orders placed for your username or email show up here",
+  },
   mine: {
-    label: "My orders",
+    label: "This browser",
     swrKey: "orders-mine",
     fetch: () => expressoApi.getMyOrders(),
-    emptyTitle: "You have not placed any orders yet",
+    emptyTitle: "This browser has not placed any orders yet",
     emptyHint: "Place an order from the catalog to see it here",
   },
   all: {
@@ -182,11 +199,13 @@ function OrdersList({
   onSelect: (orderId: string) => void;
 }) {
   const cfg = scopeConfig[scope];
-  const { data, error, isLoading, mutate } = useSWR<OrdersResponse, Error>(
-    cfg.swrKey,
-    cfg.fetch,
-    { revalidateOnFocus: false, shouldRetryOnError: false },
-  );
+  const { data, error, isLoading, mutate } = useSWR<
+    OrdersResponse & { latest?: Order | null },
+    Error
+  >(cfg.swrKey, cfg.fetch, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
   // Counts revalidation attempts so the cool-down timer re-arms even when
   // the refetch returns an unchanged (still hot) response.
   const [attempt, setAttempt] = useState(0);
@@ -255,6 +274,9 @@ function OrdersList({
 
   return (
     <div>
+      {data?.latest && (
+        <LatestOrderCard order={data.latest} onSelect={onSelect} />
+      )}
       {orders.map((order) => (
         <OrderRow key={order.orderId} order={order} onSelect={onSelect} />
       ))}
@@ -272,7 +294,8 @@ function OrdersListView({
   onSelect: (orderId: string) => void;
 }) {
   // The scope is owned by the parent so Back returns to the tab the user
-  // came from instead of resetting to "My orders" on remount.
+  // came from instead of resetting to "This browser" on remount.
+  const { user } = useAuth();
 
   return (
     <div className="home-stage-section-inner max-w-3xl">
@@ -312,20 +335,22 @@ function OrdersListView({
           className="px-2 py-2 border-b flex items-center gap-1"
           style={{ borderColor: "var(--border)" }}
         >
-          {(Object.keys(scopeConfig) as OrdersScope[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={scope === key}
-              onClick={() => onScopeChange(key)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                scope === key ? "tone-primary" : "tone-muted"
-              }`}
-            >
-              {scopeConfig[key].label}
-            </button>
-          ))}
+          {(Object.keys(scopeConfig) as OrdersScope[])
+            .filter((k) => k !== "account" || user)
+            .map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={scope === key}
+                onClick={() => onScopeChange(key)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  scope === key ? "tone-primary" : "tone-muted"
+                }`}
+              >
+                {scopeConfig[key].label}
+              </button>
+            ))}
         </div>
         <div data-testid="orders-list" data-scope={scope} role="tabpanel">
           <OrdersList key={scope} scope={scope} onSelect={onSelect} />

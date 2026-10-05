@@ -136,7 +136,7 @@ test.describe("order temperature badge", () => {
     );
   });
 
-  test("My orders defaults on and excludes orders this browser did not place", async ({
+  test("This browser defaults on and excludes orders this browser did not place", async ({
     page,
   }) => {
     await installCommerceApiMock(page, {
@@ -150,7 +150,9 @@ test.describe("order temperature badge", () => {
       .click();
     const list = page.getByTestId("orders-list");
     await expect(list).toHaveAttribute("data-scope", "mine");
-    await expect(list).toContainText("You have not placed any orders yet");
+    await expect(list).toContainText(
+      "This browser has not placed any orders yet",
+    );
     await expect(list).not.toContainText("ord_someone_else");
   });
 });
