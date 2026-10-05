@@ -87,6 +87,7 @@ import type {
   LoginRequest,
   MeResponse,
   AccountOrdersResponse,
+  HotStatusResponse,
   OrderOwner,
   OrderFor,
 } from "@mini-commerce/contracts";
@@ -109,6 +110,7 @@ export type {
   LoginRequest,
   MeResponse,
   AccountOrdersResponse,
+  HotStatusResponse,
   OrderOwner,
   OrderFor,
 };
@@ -377,6 +379,13 @@ const mockApi = {
       error: { message: "sign in to see your orders" },
     });
   },
+
+  async getHotStatus(): Promise<HotStatusResponse> {
+    await simulateLatency();
+    throw new ExpressoApiError("GET", "/account/hot-status", 401, {
+      error: { message: "sign in to see your hot coffees" },
+    });
+  },
 };
 
 function simulateLatency(ms = 150): Promise<void> {
@@ -473,6 +482,10 @@ const realApi = {
   getAccountOrders(): Promise<AccountOrdersResponse> {
     return request<AccountOrdersResponse>("GET", "/account/orders");
   },
+
+  getHotStatus(): Promise<HotStatusResponse> {
+    return request<HotStatusResponse>("GET", "/account/hot-status");
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -535,6 +548,10 @@ export const expressoApi = {
     return isDemoMode()
       ? mockApi.getAccountOrders()
       : realApi.getAccountOrders();
+  },
+
+  getHotStatus(): Promise<HotStatusResponse> {
+    return isDemoMode() ? mockApi.getHotStatus() : realApi.getHotStatus();
   },
 
   getCart(): Promise<Cart> {
