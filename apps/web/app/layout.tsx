@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import "./globals.css";
 import { AppShell } from "@/components/system/AppShell";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { SectionProvider } from "@/components/system/SectionProvider";
 
@@ -26,13 +27,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-[var(--background)]">
       <body>
-        <CartProvider>
-          <Suspense fallback={null}>
-            <SectionProvider>
-              <AppShell>{children}</AppShell>
-            </SectionProvider>
-          </Suspense>
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Suspense fallback={null}>
+              <SectionProvider>
+                <AppShell>{children}</AppShell>
+              </SectionProvider>
+            </Suspense>
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
+import { AccountControl } from "@/components/auth/AccountControl";
 import { HealthBadge } from "./HealthBadge";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { getDemoModeStatus, setDemoMode } from "@/lib/api/expresso-api";
@@ -187,6 +188,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </button>
               )}
 
+              <AccountControl />
               <HealthBadge />
 
               {/* Cart button */}

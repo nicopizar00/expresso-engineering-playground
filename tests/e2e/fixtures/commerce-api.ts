@@ -45,6 +45,7 @@ export type Order = {
   total: Money;
   placedAt: string;
   updatedAt: string;
+  owner?: { username: string } | { email: string } | null;
 };
 
 export type OrderTemperature = "hot" | "cold";
@@ -60,12 +61,19 @@ export type CommerceApiMockOptions = {
   coolDownMs?: number;
   // 1-based GET /orders/:id/status calls that answer 503 instead.
   failStatusCalls?: readonly number[];
+  // Registered accounts the mocked /auth/* routes accept.
+  accounts?: Array<{ username: string; email: string; password: string }>;
 };
 
-export function makeOrder(orderId: string, placedAt: string): Order {
+export function makeOrder(
+  orderId: string,
+  placedAt: string,
+  owner: Order["owner"] = null,
+): Order {
   return {
     orderId,
     customerName: null,
+    owner,
     lines: [
       {
         productId: "prod_espresso_001",
@@ -100,6 +108,8 @@ export async function installCommerceApiMock(
     Date.parse(b.placedAt) - Date.parse(a.placedAt);
   const coolDownMs = options.coolDownMs ?? 5 * 60 * 1000;
   let statusCalls = 0;
+  let currentUser: { username: string; email: string } | null = null;
+  const accounts = [...(options.accounts ?? [])];
   // Same rule as the BFF: hot until placedAt + cool-down, then cold.
   const withTemperature = (order: Order) => {
     const placed = Date.parse(order.placedAt);
@@ -294,6 +304,57 @@ export async function installCommerceApiMock(
       return order
         ? fulfillJson(route, 200, withTemperature(order))
         : fulfillJson(route, 404, { message: "Order not found" });
+    }
+
+    if (method === "GET" && path === "/auth/me") {
+      return fulfillJson(route, 200, { user: currentUser });
+    }
+    if (method === "POST" && path === "/auth/login") {
+      const body = request.postDataJSON() as {
+        identifier?: string;
+        password?: string;
+      } | null;
+      const key = body?.identifier?.trim().toLowerCase();
+      const hit = accounts.find(
+        (a) =>
+          (a.username === key || a.email === key) &&
+          a.password === body?.password,
+      );
+      if (!hit) {
+        return fulfillJson(route, 401, {
+          statusCode: 401,
+          error: { message: "invalid credentials" },
+        });
+      }
+      currentUser = { username: hit.username, email: hit.email };
+      return fulfillJson(route, 200, currentUser);
+    }
+    if (method === "POST" && path === "/auth/register") {
+      const body = request.postDataJSON() as {
+        username: string;
+        email: string;
+        password: string;
+      };
+      const username = body.username.trim().toLowerCase();
+      const email = body.email.trim().toLowerCase();
+      const clash = accounts.find((a) => a.username === username)
+        ? "username"
+        : accounts.find((a) => a.email === email)
+          ? "email"
+          : null;
+      if (clash) {
+        return fulfillJson(route, 409, {
+          statusCode: 409,
+          error: { message: `${clash} taken`, field: clash },
+        });
+      }
+      accounts.push({ username, email, password: body.password });
+      currentUser = { username, email };
+      return fulfillJson(route, 201, currentUser);
+    }
+    if (method === "POST" && path === "/auth/logout") {
+      currentUser = null;
+      return route.fulfill({ status: 204, body: "" });
     }
 
     return fulfillJson(route, 404, {
