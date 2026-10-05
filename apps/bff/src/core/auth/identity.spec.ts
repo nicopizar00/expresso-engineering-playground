@@ -24,10 +24,14 @@ describe("normalizeEmail", () => {
   it("trims and lowercases", () => {
     expect(normalizeEmail(" Ana@Example.TEST ")).toBe("ana@example.test");
   });
-  it.each(["ana", "ana@", "@example.test", "ana@example", "a b@example.test", ""])(
-    "rejects %j",
-    (raw) => expect(normalizeEmail(raw)).toBeNull(),
-  );
+  it.each([
+    "ana",
+    "ana@",
+    "@example.test",
+    "ana@example",
+    "a b@example.test",
+    "",
+  ])("rejects %j", (raw) => expect(normalizeEmail(raw)).toBeNull());
   it("rejects more than 254 chars", () => {
     const local = "a".repeat(64);
     const domain = `${"d".repeat(185)}.test`; // 64 + 1 + 190 = 255

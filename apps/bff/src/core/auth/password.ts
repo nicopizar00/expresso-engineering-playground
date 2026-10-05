@@ -47,7 +47,12 @@ export async function verifyPassword(
   const parts = stored.split("$");
   if (parts.length !== 6 || parts[0] !== "scrypt") return false;
   const [, n, r, p, saltB64, hashB64] = parts as [
-    string, string, string, string, string, string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
   ];
   const expected = Buffer.from(hashB64, "base64");
   if (expected.length === 0) return false;
