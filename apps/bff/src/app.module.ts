@@ -11,6 +11,7 @@ import { CartModule } from "./modules/cart/cart.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { CheckoutModule } from "./modules/checkout/checkout.module";
 import { HealthModule } from "./modules/health/health.module";
+import { AuthModule } from "./modules/auth/auth.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { VisualizationModule } from "./modules/visualization/visualization.module";
 import { PrismaModule } from "./prisma.module";
@@ -19,6 +20,7 @@ import { PrismaModule } from "./prisma.module";
   imports: [
     PrismaModule,
     HealthModule,
+    AuthModule,
     CatalogModule,
     CartModule,
     CheckoutModule,
