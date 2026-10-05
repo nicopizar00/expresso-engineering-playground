@@ -7,24 +7,10 @@
  * countdown here is cosmetic.
  */
 
-import { useEffect, useState } from "react";
 import { Flame, Snowflake } from "lucide-react";
 import { formatMoney, type Order } from "@/lib/api/expresso-api";
-
-function useSecondTick(enabled: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!enabled) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [enabled]);
-  return now;
-}
-
-function formatRemaining(ms: number): string {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
+import { useSecondTick } from "@/lib/hooks/use-second-tick";
+import { formatRemaining } from "@/lib/hot-status/countdown";
 
 export function LatestOrderCard({
   order,
