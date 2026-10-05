@@ -1,3 +1,4 @@
+import { hashPassword } from "../src/core/auth/password";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -67,6 +68,53 @@ async function main() {
     },
   });
   console.log("Seeded ord_demo order.");
+
+  // Login feature demo data (fictional). Password is documented in
+  // docs/next-steps/login.md. Upsert keeps existing hashes stable.
+  const DEMO_PASSWORD = "espresso-demo";
+  for (const u of [
+    { username: "ana", email: "ana@example.test" },
+    { username: "ben", email: "ben@example.test" },
+  ]) {
+    await prisma.user.upsert({
+      where: { username: u.username },
+      update: {},
+      create: { ...u, passwordHash: await hashPassword(DEMO_PASSWORD) },
+    });
+  }
+  console.log("Seeded demo users ana, ben.");
+
+  const HOUR = 60 * 60 * 1000;
+  const seedLine = {
+    productId: "prod_espresso",
+    name: "Cup of Coffee",
+    quantity: 1,
+    unitAmountMinor: 180,
+    unitCurrency: "EUR",
+    lineAmountMinor: 180,
+    lineCurrency: "EUR",
+  };
+  const ownedOrders = [
+    // Re-stamped on every seed so ana always has one hot order to show.
+    { orderId: "ord_seed_ana_1", ownerUsername: "ana", placedAt: new Date(), refresh: true },
+    { orderId: "ord_seed_ana_2", ownerEmail: "ana@example.test", placedAt: new Date(Date.now() - 24 * HOUR) },
+    { orderId: "ord_seed_ben_1", ownerUsername: "ben", placedAt: new Date(Date.now() - 2 * HOUR) },
+    // For an unregistered recipient: register cara@example.test to see it.
+    { orderId: "ord_seed_cara_1", ownerEmail: "cara@example.test", placedAt: new Date(Date.now() - 3 * HOUR) },
+  ];
+  for (const { refresh, ...o } of ownedOrders) {
+    await prisma.order.upsert({
+      where: { orderId: o.orderId },
+      update: refresh ? { placedAt: o.placedAt } : {},
+      create: {
+        ...o,
+        totalAmountMinor: 180,
+        totalCurrency: "EUR",
+        lines: { create: [seedLine] },
+      },
+    });
+  }
+  console.log(`Seeded ${ownedOrders.length} owned orders.`);
 
   const drinkParams = {
     bodyTopW: 0.25,
