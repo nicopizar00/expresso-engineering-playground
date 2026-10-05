@@ -205,6 +205,21 @@ def run() -> int:
             raise HttpError(f"unexpected owner: {latest.get('owner')!r}")
     results.append(_check("GET  /account/orders (latest hot)", account_orders))
 
+    def hot_status() -> None:
+        _, payload = request_json(f"{API_BASE}/account/hot-status", expect_status=200, cookie_jar=acct_jar)
+        if not isinstance(payload, dict):
+            raise HttpError(f"unexpected hot-status payload: {payload!r}")
+        if not isinstance(payload.get("hotCount"), int) or payload["hotCount"] < 1:
+            raise HttpError(f"hotCount should be >= 1, got {payload.get('hotCount')!r}")
+        next_cools = payload.get("nextCoolsAt")
+        server_time = payload.get("serverTime")
+        if not isinstance(next_cools, str) or not isinstance(server_time, str):
+            raise HttpError(f"nextCoolsAt/serverTime must be strings: {payload!r}")
+        # ISO-8601 strings in the same UTC format compare chronologically.
+        if not next_cools > server_time:
+            raise HttpError(f"nextCoolsAt {next_cools!r} is not after serverTime {server_time!r}")
+    results.append(_check("GET  /account/hot-status (hot count)", hot_status))
+
     def viz_data() -> None:
         _, payload = request_json(f"{API_BASE}/visualization-data", expect_status=200, cookie_jar=jar)
         if not isinstance(payload, dict) or not isinstance(payload.get("items"), list) or not payload["items"]:

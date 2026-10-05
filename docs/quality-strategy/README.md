@@ -80,7 +80,7 @@ flowchart LR
 ## 4. Local developer validation
 
 Before any of the layers above, `pnpm pg:smoke` (alias `./dev smoke`)
-provides a fast developer-loop validation: 20 checks across the active BFF
+provides a fast developer-loop validation: 21 checks across the active BFF
 endpoints (`/health`, `/catalog/*`, cart CRUD, `/checkout`, `/orders/*`,
 `/visualization-data`) **plus a Server-Sent Events frame assertion** against
 `/visualization-updates`. Asserts `200/201/202` and a non-empty `data:` frame

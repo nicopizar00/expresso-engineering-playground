@@ -173,11 +173,12 @@ Target: http://localhost:3001
   ✓ GET  /auth/me
   ✓ POST /checkout (orderFor self)
   ✓ GET  /account/orders (latest hot)
+  ✓ GET  /account/hot-status (hot count)
   ✓ GET  /visualization-data
   ✓ GET  /visualization-data (scene shape)
   ✓ GET  /visualization-updates (SSE)
 
-All 20 smoke checks passed.
+All 21 smoke checks passed.
 ```
 
 The smoke test requires the BFF to be running (`pnpm pg:dev` or
