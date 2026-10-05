@@ -61,3 +61,12 @@ export interface AccountOrdersResponse {
   // items[0] — the card the web app highlights; null with no orders.
   readonly latest: Order | null;
 }
+
+// GET /account/hot-status — banner snapshot for the signed-in user.
+export interface HotStatusResponse {
+  readonly hotCount: number;
+  // Earliest coolsAt among hot orders; null when hotCount is 0.
+  readonly nextCoolsAt: string | null;
+  // The instant the count was taken; lets clients correct clock skew.
+  readonly serverTime: string;
+}

@@ -126,6 +126,15 @@ export interface AccountOrdersResponse {
   readonly latest: Order | null;
 }
 
+// GET /account/hot-status — the signed-in user's hot-order summary.
+export interface HotStatusResponse {
+  readonly hotCount: number;
+  // Earliest coolsAt among hot orders; null when hotCount is 0.
+  readonly nextCoolsAt: string | null;
+  // The instant the count was taken; lets clients correct clock skew.
+  readonly serverTime: string;
+}
+
 // ---------------------------------------------------------------------------
 // Checkout
 // ---------------------------------------------------------------------------

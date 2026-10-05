@@ -7,6 +7,7 @@
 //   - GET /orders               — every order (newest first)
 //   - GET /orders/mine          — the caller's orders (session cookie), newest first
 //   - GET /account/orders       — signed-in user's orders (owner username OR email), newest first + latest
+//   - GET /account/hot-status   — signed-in user's hot count + next coolsAt (banner)
 //   - GET /orders/:id           — a single order (404 for unknown)
 //   - GET /orders/:id/status    — temperature read from Postgres
 //                                 (cold after ORDER_COOL_DOWN_SECONDS)
@@ -24,12 +25,14 @@ import { ORDER_COOL_DOWN_MS, parseCoolDownSeconds } from "./order-temperature";
 import { AccountController } from "./account.controller";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
+import { HotStatusService } from "./hot-status.service";
 
 @Module({
   imports: [DomainEventsModule, CatalogModule, SessionModule, AuthCoreModule],
   controllers: [OrdersController, AccountController],
   providers: [
     OrdersService,
+    HotStatusService,
     {
       provide: ORDER_COOL_DOWN_MS,
       // Throws at bootstrap on an invalid value, so a misconfigured BFF
