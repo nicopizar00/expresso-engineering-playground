@@ -38,13 +38,13 @@ placed for them from another browser or when the last hot coffee cools.
 
 ## Decisions
 
-| Topic | Decision |
-|---|---|
-| Transport | Polling a snapshot endpoint (option B). Chosen over SSE so Punch can load-test the exact traffic the banner produces. |
+| Topic              | Decision                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Transport          | Polling a snapshot endpoint (option B). Chosen over SSE so Punch can load-test the exact traffic the banner produces.                   |
 | Which orders count | The same set as `GET /account/orders`: `ownerUsername = me.username OR ownerEmail = me.email`. Guest and `sid`-only orders never count. |
-| Hot rule | The existing one: hot while `now − placedAt < ORDER_COOL_DOWN_MS` (`temperatureOf`). |
-| Banner content | Count plus countdown to the earliest `coolsAt` among hot orders. |
-| Poll interval | `HOT_STATUS_POLL_MS = 15_000`, a constant. |
+| Hot rule           | The existing one: hot while `now − placedAt < ORDER_COOL_DOWN_MS` (`temperatureOf`).                                                    |
+| Banner content     | Count plus countdown to the earliest `coolsAt` among hot orders.                                                                        |
+| Poll interval      | `HOT_STATUS_POLL_MS = 15_000`, a constant.                                                                                              |
 
 ## BFF
 
@@ -138,8 +138,10 @@ body, so no redaction is needed.
 - `apps/web/src/components/sections/HotCoffeeBanner.tsx`.
 - Full width, directly under the header, above the page sections.
 - Renders `null` unless `hotCount >= 1`.
-- Re-renders once per second through the existing `useSecondTick` hook, only
-  while visible.
+- Re-renders once per second through `useSecondTick`, only while visible.
+  The hook is private to `LatestOrderCard.tsx` today; move it to
+  `apps/web/src/lib/hooks/use-second-tick.ts` and import it from both
+  components.
 - `role="status"` and `aria-live="polite"`. The live text is the count only;
   the ticking countdown sits outside the live region so screen readers are not
   flooded.
@@ -189,8 +191,8 @@ body, so no redaction is needed.
      only.
   3. `hot-status` — requires `auth-tokens`; `GET /account/hot-status` with
      `Cookie: auth=<token>`.
-  Open question: how the k6 users are registered (a register step or a larger
-  seed).
+     Open question: how the k6 users are registered (a register step or a larger
+     seed).
 - **SSE push** (`GET /account/hot-status/stream`) with typed owner-carrying
   domain events, once Punch can drive SSE (`xk6-sse`).
 
