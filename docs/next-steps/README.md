@@ -41,7 +41,10 @@ When the count drops to zero, the topic is done.
      web sign-in dialog, Orders "My account" tab, latest-order card.
    - Remaining: rate limiting, CSRF token, profile edit / password reset,
      session sweep, authenticated k6 scenarios.
-6. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
+6. **[Hot Coffee Banner](hot-status.md)** — _core shipped 2026-10-05_
+   - Polled `GET /account/hot-status` banner; Punch load chain and SSE push
+     are follow-ups.
+7. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
    asset certification_
    - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
    - Pending artistic approval for ceramic color, saucer depth, coffee

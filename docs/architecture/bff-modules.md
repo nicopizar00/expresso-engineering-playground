@@ -82,6 +82,9 @@ Tests sit beside source as `*.spec.ts`.
   imported by `auth`, `checkout`, and `orders`.
 - **`orders`** also serves `GET /account/orders` (`AccountController`):
   `{items, latest}` for the signed-in user, newest first.
+- **`orders`** also serves `GET /account/hot-status` (`AccountController` →
+  `HotStatusService`): hot count and next `coolsAt` for the signed-in user,
+  one aggregate query, never order rows.
 
 **Dependency rule:** modules read the signed-in user only through
 `AuthSessionService`, never through `AuthService`.
