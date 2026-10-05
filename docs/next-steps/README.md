@@ -35,7 +35,13 @@ When the count drops to zero, the topic is done.
 4. **[Simplify Orders](simplify-orders.md)** — _shipped 2026-10-05_
    - Place-and-done orders (no status lifecycle), session-owned
      `GET /orders/mine`, My/All orders tabs, `temperatureCounts` aggregates.
-5. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
+5. **[Login and Order Ownership](login.md)** — _core shipped 2026-10-05_ (1 anchor)
+   - Register/login/logout/me, scrypt + DB-backed `auth` cookie sessions,
+     checkout `orderFor` (self / guest / another user), `GET /account/orders`,
+     web sign-in dialog, Orders "My account" tab, latest-order card.
+   - Remaining: rate limiting, CSRF token, profile edit / password reset,
+     session sweep, authenticated k6 scenarios.
+6. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
    asset certification_
    - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
    - Pending artistic approval for ceramic color, saucer depth, coffee

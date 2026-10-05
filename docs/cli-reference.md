@@ -54,7 +54,7 @@ for the dispatch diagram.
 | Hot-reload dev on host        | — (host only)         | `pnpm pg:dev:host`      | `task dev:host`     |
 | Service status                | `./dev status`        | `pnpm pg:status`        | `task status`       |
 | Follow logs                   | `./dev logs`          | `pnpm pg:logs`          | `task logs`         |
-| Endpoint smoke test (13 checks + SSE) | `./dev smoke`  | `pnpm pg:smoke`         | `task smoke`        |
+| Endpoint smoke test (20 checks + SSE) | `./dev smoke`  | `pnpm pg:smoke`         | `task smoke`        |
 | Seed database                 | `./dev seed`          | `pnpm pg:seed`          | `task seed`         |
 | Stop services                 | `./dev down`          | `pnpm pg:down`          | `task down`         |
 | Restart                       | `./dev restart`       | `pnpm pg:restart`       | `task restart`      |

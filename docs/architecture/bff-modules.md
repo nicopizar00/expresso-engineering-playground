@@ -13,14 +13,20 @@ flowchart TD
 
   Prisma["PrismaModule<br/>(core/)"]:::infra
   Events["DomainEventsModule<br/>(core/)"]:::infra
+  AuthCore["AuthCoreModule<br/>(core/auth)"]:::infra
 
   Health["HealthModule"]:::domain
   Catalog["CatalogModule"]:::domain
   Cart["CartModule"]:::domain
   Checkout["CheckoutModule"]:::domain
   Orders["OrdersModule"]:::domain
+  Auth["AuthModule"]:::domain
   Viz["VisualizationModule"]:::domain
 
+  AuthCore --> Prisma
+  Auth --> AuthCore
+  Checkout --> AuthCore
+  Orders --> AuthCore
   Catalog --> Prisma
   Orders  --> Prisma
   Orders  --> Events
@@ -64,6 +70,23 @@ Tests sit beside source as `*.spec.ts`.
 3. **Future domains start with an ADR, not an empty module.** Customer and
    notification capabilities remain planned namespaces. Add their source
    modules only when the matching domain ships with behavior and tests.
+
+## Auth and account orders
+
+- **`auth`** (`modules/auth/`) — public surface: `POST /auth/register`
+  (creates the user and signs in; 409 `{field}` on conflict),
+  `POST /auth/login` (username or email; generic 401), `POST /auth/logout`
+  (idempotent, 204), `GET /auth/me` (`{user}` or `{user: null}`).
+- **`core/auth`** — `AuthCoreModule` exports `AuthSessionService`, which
+  resolves the signed-in user from the httpOnly `auth` cookie. It is
+  imported by `auth`, `checkout`, and `orders`.
+- **`orders`** also serves `GET /account/orders` (`AccountController`):
+  `{items, latest}` for the signed-in user, newest first.
+
+**Dependency rule:** modules read the signed-in user only through
+`AuthSessionService`, never through `AuthService`.
+
+Feature record: [`../next-steps/login.md`](../next-steps/login.md).
 
 ## Cross-cutting concerns
 
