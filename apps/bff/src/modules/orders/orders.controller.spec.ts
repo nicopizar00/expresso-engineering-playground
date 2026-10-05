@@ -1,5 +1,9 @@
-import { NotFoundException } from "@nestjs/common";
+import "reflect-metadata";
+import { NotFoundException, RequestMethod } from "@nestjs/common";
+import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
+import { SessionService } from "../../core/session/session.service";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 import type { Order } from "./orders.types";
@@ -25,22 +29,59 @@ const DEMO_ORDER: Order = {
 
 function makeController(
   overrides: Partial<typeof OrdersService.prototype> = {},
+  sessionId = "sid_test",
 ) {
   const svc = {
     listAll: vi.fn().mockReturnValue([DEMO_ORDER]),
+    listForSession: vi.fn().mockReturnValue([]),
     get: vi.fn().mockImplementation((id: string) => {
       if (id === "ord_demo") return DEMO_ORDER;
       throw new NotFoundException(`order ${id} not found`);
     }),
     ...overrides,
   };
+  const session = { resolveSessionId: vi.fn().mockReturnValue(sessionId) };
   return {
-    controller: new OrdersController(svc as unknown as OrdersService),
+    controller: new OrdersController(
+      svc as unknown as OrdersService,
+      session as unknown as SessionService,
+    ),
     svc,
+    session,
   };
 }
 
 describe("OrdersController", () => {
+  describe("GET /orders/mine", () => {
+    const req = {} as Request;
+    const res = {} as Response;
+
+    it("resolves the session and lists only its orders", () => {
+      const { controller, svc, session } = makeController({
+        listForSession: vi.fn().mockReturnValue([DEMO_ORDER]),
+      });
+      const result = controller.mine(req, res);
+      expect(session.resolveSessionId).toHaveBeenCalledWith(req, res);
+      expect(svc.listForSession).toHaveBeenCalledWith("sid_test");
+      expect(result.items.map((o) => o.orderId)).toEqual(["ord_demo"]);
+    });
+
+    it("returns an empty envelope for a fresh session", () => {
+      const { controller } = makeController({}, "sid_brand_new");
+      expect(controller.mine(req, res)).toEqual({ items: [] });
+    });
+
+    it("is routed as GET mine and declared before GET :id", () => {
+      const proto = OrdersController.prototype;
+      const names = Object.getOwnPropertyNames(proto);
+      expect(Reflect.getMetadata(PATH_METADATA, proto.mine)).toBe("mine");
+      expect(Reflect.getMetadata(METHOD_METADATA, proto.mine)).toBe(
+        RequestMethod.GET,
+      );
+      expect(names.indexOf("mine")).toBeLessThan(names.indexOf("get"));
+    });
+  });
+
   describe("GET /orders", () => {
     it("returns items from OrdersService.listAll()", () => {
       const { controller } = makeController();

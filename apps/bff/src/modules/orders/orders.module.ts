@@ -15,6 +15,7 @@
 // Strong candidate for Phase 3 extraction (owns post-purchase state).
 
 import { Module } from "@nestjs/common";
+import { SessionModule } from "../../core/session/session.module";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { ORDER_COOL_DOWN_MS, parseCoolDownSeconds } from "./order-temperature";
@@ -22,7 +23,7 @@ import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 
 @Module({
-  imports: [DomainEventsModule, CatalogModule],
+  imports: [DomainEventsModule, CatalogModule, SessionModule],
   controllers: [OrdersController],
   providers: [
     OrdersService,
