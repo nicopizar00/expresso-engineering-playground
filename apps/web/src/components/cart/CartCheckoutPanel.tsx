@@ -37,7 +37,7 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
   const { cart, isLoading, isEmpty, formattedTotal, refreshCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, refresh: refreshAuth } = useAuth();
   const signedIn = user !== null;
   const [choice, setChoice] = useState<OrderForChoice>(
     defaultOrderForChoice(signedIn),
@@ -83,6 +83,8 @@ export function CartCheckoutPanel({ onOrderPlaced }: CartCheckoutPanelProps) {
       if (err instanceof ExpressoApiError) {
         if (err.status === 401) {
           setError("Your session ended. Sign in again or order as guest.");
+          // The BFF already cleared the cookie; drop the stale user.
+          void refreshAuth().catch(() => undefined);
         } else if (err.status === 400) {
           setError(
             "Invalid checkout request. Please check your cart and try again.",

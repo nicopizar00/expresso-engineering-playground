@@ -8,6 +8,7 @@ import { SignInDialog } from "./SignInDialog";
 export function AccountControl() {
   const { user, isLoading, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [logoutFailed, setLogoutFailed] = useState(false);
 
   if (isLoading) return null;
 
@@ -43,12 +44,21 @@ export function AccountControl() {
       <button
         type="button"
         data-testid="account-signout"
-        onClick={() => void logout()}
+        onClick={() => {
+          setLogoutFailed(false);
+          logout().catch(() => setLogoutFailed(true));
+        }}
         aria-label="Sign out"
+        title={logoutFailed ? "Sign out failed. Try again." : undefined}
         className="flex items-center justify-center w-8 h-8 rounded-md tone-muted"
       >
         <LogOut className="h-3.5 w-3.5" />
       </button>
+      {logoutFailed && (
+        <span role="alert" className="text-xs tone-muted">
+          Sign out failed
+        </span>
+      )}
     </div>
   );
 }

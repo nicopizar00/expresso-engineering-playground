@@ -30,6 +30,8 @@ interface AuthContextValue {
   login(input: LoginRequest): Promise<AuthUser>;
   register(input: RegisterRequest): Promise<AuthUser>;
   logout(): Promise<void>;
+  /** Revalidate GET /auth/me (e.g. after a 401 from another endpoint). */
+  refresh(): Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -68,6 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading: data === undefined && !error,
       login: async (input) => signedIn(await expressoApi.login(input)),
       register: async (input) => signedIn(await expressoApi.register(input)),
+      refresh: async () => {
+        await mutate();
+      },
       logout: async () => {
         await expressoApi.logout();
         await mutate({ user: null }, { revalidate: false });
