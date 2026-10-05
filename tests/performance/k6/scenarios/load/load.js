@@ -5,7 +5,7 @@
 //   coverage but with a ramping-vus profile so the BFF sees sustained
 //   concurrency rather than a single-VU walk.
 //
-// Coverage (same eight endpoints as smoke.js):
+// Coverage (same seven endpoints as smoke.ts, minus /visualization-data):
 //   GET  /health
 //   GET  /catalog/products
 //   GET  /catalog/products/:id

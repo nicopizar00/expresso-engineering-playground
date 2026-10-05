@@ -103,7 +103,7 @@ service extraction.
 
 - BFF owns meaning: `scene.products`, `scene.recentOrders` (capped at the
   most recent 10), `scene.orderAggregates` (`totalCount`, `olderCount`,
-  `statusCounts`), `scene.cart` (null when empty), `scene.latestActivityAt`.
+  `temperatureCounts { hot, cold }`), `scene.cart` (null when empty), `scene.latestActivityAt`.
 - Visualizer owns representation: mesh choice, color, position, animation.
   The PS1 builders compose from `buildSquareFrustum`, `makePsxTexture`,
   and `clearGroup` primitives only.

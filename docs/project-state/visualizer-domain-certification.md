@@ -88,7 +88,7 @@ Implemented:
 - `GET /visualization-updates` streams the same snapshot shape through SSE.
 - `scene.js` contains a WIP Classic Espresso cup builder for drink-category
   items and an offline fallback showcase item.
-- Cart add/update/remove, checkout, order management, and catalog product
+- Cart add/update/remove, checkout, order placement, and catalog product
   creation all emit domain-change signals on `DomainEventsService.changed$`.
 - Orders are persisted in PostgreSQL and loaded into an in-memory cache on BFF
   startup.

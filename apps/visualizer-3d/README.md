@@ -62,7 +62,7 @@ The BFF projects its current domain state through a `VisualizationScene`:
 interface VisualizationScene {
   products: SceneProduct[];
   recentOrders: SceneOrder[];
-  orderAggregates: OrderAggregates;   // counts, statusCounts, olderCount
+  orderAggregates: OrderAggregates;   // counts, temperatureCounts {hot, cold}, olderCount
   cart: SceneCart | null;
   latestActivityAt: number;
 }

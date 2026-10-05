@@ -5,7 +5,7 @@ End-to-end tests for the mini-commerce playground, powered by
 
 ## Scope
 
-- **Golden paths only.** Load catalog → add to cart → checkout → manage order.
+- **Golden paths only.** Load catalog → add to cart → checkout → view order (My/All orders, Hot/Cold).
 - **No regression coverage here.** Unit and integration tests own that.
 - Runs against an ephemeral stack started from `infra/docker/compose.yaml`.
 
@@ -17,7 +17,7 @@ tests/e2e/
 ├── tests/
 │   ├── catalog-browse.spec.ts
 │   ├── checkout-happy-path.spec.ts
-│   └── order-management.spec.ts
+│   └── order-temperature.spec.ts
 └── fixtures/
 ```
 

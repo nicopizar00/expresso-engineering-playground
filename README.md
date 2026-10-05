@@ -138,9 +138,10 @@ echo "Created order: $ORDER_ID"
 # Orders
 curl -s http://localhost:3001/orders | jq
 curl -s "http://localhost:3001/orders/$ORDER_ID" | jq
-curl -s -X POST "http://localhost:3001/orders/$ORDER_ID/manage" \
-  -H 'Content-Type: application/json' \
-  -d '{"action":"mark_prepared"}' | jq
+# Orders are final once placed; hot until ORDER_COOL_DOWN_SECONDS after placedAt, then cold
+curl -s "http://localhost:3001/orders/$ORDER_ID/status" | jq
+# The caller's own orders need the anonymous sid cookie (use a cookie jar)
+curl -s -c /tmp/jar -b /tmp/jar http://localhost:3001/orders/mine | jq
 
 # Visualization feed (read-only aggregator used by the 3D scene)
 curl -s http://localhost:3001/visualization-data | jq '.items | length'
@@ -163,8 +164,8 @@ Then open <http://localhost:3000> and walk this path:
 | 2 | `/` → product card  | Click **Add to cart**               | Cart counter increments                          |
 | 3 | `/cart`             | Review items + totals               | Line items, EUR subtotal, **Proceed to checkout** CTA |
 | 4 | `/checkout`         | Click **Place Order** (no name required) | Redirect to `/orders/<orderId>`             |
-| 5 | `/orders/<orderId>` | Trigger `mark_prepared` / `cancel`  | Status badge updates live                        |
-| 6 | `/orders`           | View orders list                    | The new order plus the seeded `ord_demo`         |
+| 5 | `/orders/<orderId>` | Review the placed order (read-only) | Hot badge, flips to Cold after the cool-down     |
+| 6 | `/orders`           | My orders / All orders tabs         | My orders: the new order; All orders: plus seeded `ord_demo` |
 | 7 | `/visualizer`       | Embedded 3D scene                   | Iframe loads the standalone visualizer          |
 | 8 | `/performance`      | Explore simulated load scenarios    | Mock-data KPIs and request-flow visualization    |
 | 9 | `/dev`              | Dev-only diagnostics                | API client wiring, demo-mode toggle, and Performance link |

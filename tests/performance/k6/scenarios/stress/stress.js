@@ -4,7 +4,7 @@
 //   Find the failure mode. The expectation is degraded p95 latency, not a
 //   green run — thresholds in stressThresholds are deliberately loose.
 //
-// Coverage (same eight endpoints as smoke.js):
+// Coverage (same seven endpoints as smoke.ts, minus /visualization-data):
 //   GET  /health
 //   GET  /catalog/products
 //   GET  /catalog/products/:id

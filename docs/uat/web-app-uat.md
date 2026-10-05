@@ -292,7 +292,7 @@ Pass criterion:
 
 ## Journey 5 - Orders
 
-### WEB-UAT-08 - New Order Appears, Detail Opens, Status Persists
+### WEB-UAT-08 - New Order Appears, Detail Opens, Temperature Shown
 
 Preconditions:
 
@@ -303,26 +303,21 @@ Manual steps:
 1. Open the Orders section from the header nav. If it still shows the
    just-placed order's detail view, click `Back to orders` to reach the
    list first.
-2. Find the order for `Web UAT Customer`.
-3. Click the order row.
-4. [MANUAL] Confirm the detail view shows customer, placed time, total, line
-   items, status badge, and actions.
-5. Click `Start Preparing`.
-6. Refresh the browser page.
-7. Confirm the status remains `Preparing`.
-8. If status is `Preparing`, click `Mark as Prepared`.
-9. Refresh again.
-10. Click `Back to orders`, switch to Catalog, then switch back to Orders.
-11. Confirm step 10 lands on the orders LIST, not the order detail view
-    from step 3 — the selected order must not resurrect after an explicit
-    "Back to orders" and a section round-trip.
+2. On My orders (default), confirm the new order is listed and shows `Hot`.
+3. Switch to All orders; confirm `ord_demo` is listed and the new order too.
+4. Click the new order's row.
+5. [MANUAL] Confirm the detail view shows placed time, total, line items,
+   and a Hot/Cold badge, with no action buttons.
+6. Click `Back to orders`, switch to Catalog, then switch back to Orders.
+7. Confirm step 6 lands on the orders LIST, not the order detail view
+   from step 4 — the selected order must not resurrect after an explicit
+   "Back to orders" and a section round-trip.
 
 Expected user-visible result:
 
-- Orders list includes the new persisted order.
-- Detail view opens from the list.
-- Status actions update the visible status.
-- Updated status survives browser reload.
+- My orders lists the new persisted order; All orders also lists `ord_demo`.
+- Detail view opens from the list and is read-only.
+- The badge flips from Hot to Cold after the cool-down without a reload.
 - Leaving the detail view via `Back to orders` and returning through another
   section always lands on the list.
 

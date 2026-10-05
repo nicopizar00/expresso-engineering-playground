@@ -6,14 +6,14 @@
 - Authentication: no login required for storefront flows.
 - Stack observed in repo: Next.js 14, React 18, Node/BFF APIs through `/api/bff`.
 - Test language: TypeScript with Playwright.
-- First automation slice: MVC-01, Catalog to cart to checkout to order management.
+- First automation slice: MVC-01, Catalog to cart to checkout to order detail.
 
 ## Most Valuable Cases
 
 | Rank   | Flow                                                                      | Business value                                 | Primary success signal                                                   |
 | ------ | ------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| MVC-01 | Catalog browse -> add to cart -> checkout -> order detail -> order action | Direct revenue path and core product proof     | Shopper can place an order and see/manage its persisted status           |
-| MVC-02 | Order lookup/list -> order detail -> status transition/cancel             | Retention and operational trust after purchase | User can find an order and valid actions update visible status           |
+| MVC-01 | Catalog browse -> add to cart -> checkout -> order detail | Direct revenue path and core product proof     | Shopper can place an order and see its Hot/Cold temperature             |
+| MVC-02 | My orders / All orders -> order detail (read-only)                        | Retention and operational trust after purchase | User can find their order and see its Hot/Cold temperature               |
 | MVC-03 | Performance playground -> scenario selection -> service health inspection | Developer confidence and system observability  | Reviewer can run scenarios and inspect metrics without backend ambiguity |
 
 ## MVC-01 Flow Map
@@ -25,8 +25,8 @@
 5. Continue to checkout from the cart drawer.
 6. Verify checkout summary and disabled submit state before required input.
 7. Enter customer name and place order.
-8. Land on order detail with success banner, customer, total, line items, and `Pending` status.
-9. Trigger `Start Preparing` and verify the status changes to `Preparing`.
+8. Land on order detail with success banner, customer, total, line items, and a `Hot` temperature badge.
+9. Open My orders and confirm the new order is listed; switch to All orders and confirm `ord_demo` and the new order are listed.
 
 ## MVC-01 Edge Cases
 
@@ -48,8 +48,8 @@
 | Catalog                | MVC-01         | Planned API empty/error          | Desktop, mobile | `GET /catalog/products`                      |
 | Cart drawer            | MVC-01         | Planned mutation failure         | Desktop, mobile | `GET /cart`, `POST /cart/items`              |
 | Checkout               | MVC-01         | Blank name, network drop         | Desktop, mobile | `POST /checkout`                             |
-| Order detail           | MVC-01         | Planned not found/manage failure | Desktop, mobile | `GET /orders/:id`, `POST /orders/:id/manage` |
-| Orders list/lookup     | MVC-02 planned | Empty list, invalid ID           | Desktop, mobile | `GET /orders`                                |
+| Order detail           | MVC-01         | Planned not found failure        | Desktop, mobile | `GET /orders/:id`, `GET /orders/:id/status`  |
+| Orders my/all lists   | MVC-02 planned | Empty list                       | Desktop, mobile | `GET /orders/mine`, `GET /orders`            |
 | Performance playground | MVC-03 planned | Scenario stop/error states       | Desktop, mobile | Frontend fixtures only                       |
 
 ## Risk Analysis

@@ -37,7 +37,7 @@ src/
     ├── catalog/       # GET /catalog/products, GET /catalog/products/:id
     ├── cart/          # GET /cart, POST /cart/items
     ├── checkout/      # POST /checkout
-    ├── orders/        # GET /orders, GET /orders/:id, POST /orders/:id/manage
+    ├── orders/        # GET /orders, GET /orders/mine, GET /orders/:id, GET /orders/:id/status
     ├── customers/     # placeholder (not wired into AppModule)
     └── notifications/ # placeholder (not wired into AppModule)
 ```
@@ -54,9 +54,10 @@ src/
 | PATCH  | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — quantity can never change.                                                  |
 | DELETE | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — only Place Order clears the cart.                                           |
 | POST   | `/checkout`             | Anonymous, terminal Place Order; converts the cart to an order and resets it. Rejects a `customerName` field (400). |
-| GET    | `/orders`               | Lists persisted orders, including seeded `ord_demo`.                                                                |
+| GET    | `/orders`               | Lists all persisted orders, including seeded `ord_demo`.                                                            |
+| GET    | `/orders/mine`          | The caller's orders (session cookie), newest first; a fresh session gets `{ items: [] }`.                           |
 | GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.                                                                    |
-| POST   | `/orders/:id/manage`    | Persists `cancel`, `update_status`, `mark_prepared`.                                                                |
+| GET    | `/orders/:id/status`    | `{ orderId, temperature, placedAt, coolsAt, checkedAt }`; Hot until `ORDER_COOL_DOWN_SECONDS` after `placedAt`, then Cold. |
 | GET    | `/visualization-data`   | Aggregates catalog, orders, and cart for the 3D client.                                                             |
 
 ## Local run

@@ -30,7 +30,7 @@ flowchart LR
 
 | Piece | Where | Notes |
 |---|---|---|
-| OTel SDK | `apps/bff/src/common/telemetry.ts` | NodeSDK + OTLP HTTP exporter, auto-instrumentation (HTTP, Express, pg). Manual spans on `orders.create`, `orders.manage`. |
+| OTel SDK | `apps/bff/src/common/telemetry.ts` | NodeSDK + OTLP HTTP exporter, auto-instrumentation (HTTP, Express, pg). Manual spans on `orders.create`. |
 | Collector | `infra/observability/otel-collector-config.yaml` | `otel-contrib:0.110.0` so the prometheus exporter is available. |
 | Tempo config | `infra/observability/tempo.yaml` | Single-binary, OTLP gRPC/HTTP ingest, HTTP query API on `:3200`. |
 | Prometheus config | `infra/observability/prometheus.yaml` | Scrapes the collector's prom exporter on `:8889`. |

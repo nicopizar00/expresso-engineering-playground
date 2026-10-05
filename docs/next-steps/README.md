@@ -32,7 +32,10 @@ When the count drops to zero, the topic is done.
    - Hot/cold order temperature shipped across BFF (Postgres-backed status
      endpoint), web badge, smoke, and the `order-status` k6 workflow.
    - Remaining: represent hot vs cold cups in the visualizer scene.
-4. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
+4. **[Simplify Orders](simplify-orders.md)** — _shipped 2026-10-05_
+   - Place-and-done orders (no status lifecycle), session-owned
+     `GET /orders/mine`, My/All orders tabs, `temperatureCounts` aggregates.
+5. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
    asset certification_
    - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
    - Pending artistic approval for ceramic color, saucer depth, coffee

@@ -7,7 +7,7 @@ Examples of what lives here:
 
 - View-model output types (paired with `lib/view-models/*`).
 - Component prop types that are reused across components.
-- Form-state types for checkout / order-manage flows.
+- Form-state types for checkout / order-list flows.
 
 Avoid:
 

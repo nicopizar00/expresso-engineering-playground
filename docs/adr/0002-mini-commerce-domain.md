@@ -91,3 +91,13 @@ remains the intentional single-user, in-process store.
 - **Banking / ledger domain** — rejected: invites disproportionate
   conversations about correctness and money handling that distract from
   the engineering-practice focus of the playground.
+
+## Addendum (2026-10-05): order lifecycle removed
+
+Placing an order is now the final step. The `pending → preparing →
+prepared / cancelled` lifecycle, `POST /orders/:id/manage`, and the
+`status` column are removed. Orders carry a nullable `sessionId` (the
+anonymous `sid` cookie) so `GET /orders/mine` lists the caller's orders;
+`GET /orders` lists everyone's. Hot/cold temperature, derived from
+`placedAt`, is the only order state shown. See
+`docs/next-steps/simplify-orders.md`.

@@ -26,7 +26,7 @@ shortcut — that pushes cost up.
   shared boundary (web ↔ bff).
 - **Quality engineering** owns the E2E suite — what counts as a "golden
   path" is a quality call, not a feature call. The mini-commerce golden
-  path is `load catalog → add to cart → checkout → manage order`.
+  path is `load catalog → add to cart → checkout → view order`.
 - **Performance engineering** owns the k6 solution and SLO thresholds.
 
 ## 3. Quality gates

@@ -117,7 +117,7 @@ four sections reached via header nav buttons — there are no other routes:
 | Section (header nav button) | Purpose |
 |---|---|
 | Catalog | Browse the seeded catalog, add items to the cart, and check out inline (checkout is a panel next to the catalog grid, not a separate page). |
-| Orders | List persisted orders, look up one by ID, and view/manage its status. |
+| Orders | My orders (default) and All orders tabs with Hot/Cold badges; order detail is read-only. |
 | Performance | Mock-only Performance Playground (no live telemetry). |
 | API | Inspect API wiring and demo-mode behavior (formerly `/dev`). |
 
@@ -131,7 +131,7 @@ proxy (start with `pnpm pg:up viz` or `full`).
 2. Review totals in the cart drawer, click "Proceed to Checkout", and place
    an order from the inline checkout panel.
 3. Confirm the app switches to the Orders section and shows the new order's
-   detail view; update its status.
+   detail view with a Hot badge (read-only).
 4. Click "Orders" in the header nav to return to the orders list and confirm
    the order appears there.
 5. The visualizer stage above the sections is visible throughout — no
@@ -167,7 +167,7 @@ Target: http://localhost:3001
   ✓ POST /checkout (rejected — customerName not accepted)
   ✓ POST /checkout
   ✓ GET  /orders/ord_demo
-  ✓ POST /orders/ord_demo/manage (mark_prepared)
+  ✓ GET  /orders/mine (session-owned)
   ✓ GET  /visualization-data
   ✓ GET  /visualization-data (scene shape)
   ✓ GET  /visualization-updates (SSE)

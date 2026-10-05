@@ -65,9 +65,10 @@ depend on that host exposure.
 
 ### Orders (persisted)
 
-- Order list on `/orders` (`GET /orders`).
-- Order detail and status management on `/orders/:orderId`
-  (`GET /orders/:id`, `POST /orders/:id/manage`).
+- My orders / All orders lists (`GET /orders/mine`, `GET /orders`).
+- Read-only order detail (`GET /orders/:id`, `GET /orders/:id/status`).
+- Placing an order is final; an order is Hot until `ORDER_COOL_DOWN_SECONDS`
+  after `placedAt`, then Cold.
 - Orders survive BFF restarts.
 
 ### 3D visualizer (standalone, proxied embed)
@@ -89,7 +90,7 @@ depend on that host exposure.
 
 ### Developer diagnostics
 
-- `/dev` provides an API debug console (including a Cart Update/Remove card),
+- `/dev` provides an API debug console (including Cart Update/Remove and `GET /orders/mine` cards),
   demo-mode and mock-scenario controls, and a frontend-readiness panel.
 
 ## 3. UX state per route
@@ -99,8 +100,8 @@ depend on that host exposure.
 | `/`                | Catalog grid, category filter, add to cart               | BFF (proxy) or mock |
 | `/cart`            | Line list, read-only quantity, order summary              | BFF (proxy) or mock |
 | `/checkout`        | Anonymous Place Order, places a persisted order           | BFF (proxy) or mock |
-| `/orders`          | Persisted order list                                     | BFF (proxy) or mock |
-| `/orders/:orderId` | Order detail + status management                         | BFF (proxy) or mock |
+| `/orders`          | My orders / All orders lists, Hot/Cold badges            | BFF (proxy) or mock |
+| `/orders/:orderId` | Read-only order detail with Hot/Cold badge              | BFF (proxy) or mock |
 | `/visualizer`      | Iframe embed of the proxied visualizer + standalone link | `/viz` proxy        |
 | `/performance`     | Mock load scenarios and KPI strip (clearly labeled mock) | Mock only           |
 | `/dev`             | API debug console, demo controls, readiness              | BFF (proxy) or mock |
@@ -122,9 +123,9 @@ the web-frontend consumer state.
 | `PATCH /cart/items/:itemId`  | Rejected (409) — quantity can never change once selected                                                                                                                                       | Wired                   |
 | `DELETE /cart/items/:itemId` | Rejected (409) — only Place Order clears the cart                                                                                                                                              | Wired                   |
 | `POST /checkout`             | Anonymous; drains cart, persists order; rejects a supplied `customerName`                                                                                                                      | Wired                   |
-| `GET /orders`                | Lists persisted orders                                                                                                                                                                         | Wired                   |
+| `GET /orders`                | Lists all persisted orders                                                                                                                                                                     | Wired                   |
+| `GET /orders/mine`           | The caller's orders (session cookie), newest first                                                                                                                                             | Wired                   |
 | `GET /orders/:id`            | Reads persisted order                                                                                                                                                                          | Wired                   |
-| `POST /orders/:id/manage`    | Persists status change                                                                                                                                                                         | Wired                   |
 | `GET /visualization-data`    | Projects current domain state; carries the semantic `scene` payload (products, recentOrders capped at 10, orderAggregates, cart, latestActivityAt) plus a deprecated `items[]` for back-compat | Visualizer consumer     |
 
 ## 5. Demo mode

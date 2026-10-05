@@ -4,7 +4,8 @@
 //   Catch obvious regressions before scheduling longer load/stress runs.
 //   Runs in well under a minute so it is safe to wire into per-PR CI.
 //
-// Coverage (mirrors `pnpm pg:smoke` exactly):
+// Coverage (the happy-path endpoints of `pnpm pg:smoke`, which also checks
+//   GET /orders/mine and the rejected cart/checkout cases):
 //   GET  /health
 //   GET  /catalog/products
 //   GET  /catalog/products/:id
