@@ -32,12 +32,9 @@ export type Cart = {
   updatedAt: string;
 };
 
-export type OrderStatus = "pending" | "preparing" | "prepared" | "cancelled";
-
 export type Order = {
   orderId: string;
   customerName: string | null;
-  status: OrderStatus;
   lines: Array<{
     productId: string;
     name: string;
@@ -69,7 +66,6 @@ export function makeOrder(orderId: string, placedAt: string): Order {
   return {
     orderId,
     customerName: null,
-    status: "pending",
     lines: [
       {
         productId: "prod_espresso_001",
@@ -97,6 +93,11 @@ export async function installCommerceApiMock(
   const orders = new Map<string, Order>(
     (options.seedOrders ?? []).map((order) => [order.orderId, order]),
   );
+  // Orders placed through the mocked checkout belong to "this browser";
+  // seed orders belong to nobody, mirroring the BFF's null-session rows.
+  const myOrderIds = new Set<string>();
+  const newestFirst = (a: Order, b: Order) =>
+    Date.parse(b.placedAt) - Date.parse(a.placedAt);
   const coolDownMs = options.coolDownMs ?? 5 * 60 * 1000;
   let statusCalls = 0;
   // Same rule as the BFF: hot until placedAt + cool-down, then cold.
@@ -222,10 +223,10 @@ export async function installCommerceApiMock(
         return fulfillJson(route, 400, { message: "Cart is empty" });
       }
       const body = request.postDataJSON() as { customerName?: string } | null;
+      const placedNow = new Date().toISOString();
       const order: Order = {
         orderId: `ord_e2e_${String(orders.size + 1).padStart(3, "0")}`,
         customerName: body?.customerName ?? null,
-        status: "pending",
         lines: cart.items.map((item) => ({
           productId: item.productId,
           name: item.name,
@@ -234,16 +235,17 @@ export async function installCommerceApiMock(
           lineTotal: item.lineTotal,
         })),
         total: cart.total,
-        placedAt: NOW,
-        updatedAt: NOW,
+        // Real clock so the order is hot at placement, like the BFF.
+        placedAt: placedNow,
+        updatedAt: placedNow,
       };
       orders.set(order.orderId, order);
+      myOrderIds.add(order.orderId);
       cartItems = [];
       return fulfillJson(route, 201, {
         orderId: order.orderId,
         cartId: cart.cartId,
         customerName: order.customerName,
-        status: order.status,
         total: order.total,
         placedAt: order.placedAt,
       });
@@ -251,7 +253,18 @@ export async function installCommerceApiMock(
 
     if (method === "GET" && path === "/orders") {
       return fulfillJson(route, 200, {
-        items: Array.from(orders.values()).map(withTemperature),
+        items: Array.from(orders.values())
+          .sort(newestFirst)
+          .map(withTemperature),
+      });
+    }
+
+    if (method === "GET" && path === "/orders/mine") {
+      return fulfillJson(route, 200, {
+        items: Array.from(orders.values())
+          .filter((o) => myOrderIds.has(o.orderId))
+          .sort(newestFirst)
+          .map(withTemperature),
       });
     }
 
@@ -268,7 +281,6 @@ export async function installCommerceApiMock(
       const { temperature, coolsAt } = withTemperature(order);
       return fulfillJson(route, 200, {
         orderId: order.orderId,
-        status: order.status,
         temperature,
         placedAt: order.placedAt,
         coolsAt,
@@ -282,35 +294,6 @@ export async function installCommerceApiMock(
       return order
         ? fulfillJson(route, 200, withTemperature(order))
         : fulfillJson(route, 404, { message: "Order not found" });
-    }
-
-    const manageMatch = path.match(/^\/orders\/([^/]+)\/manage$/);
-    if (manageMatch?.[1] && method === "POST") {
-      const orderId = decodeURIComponent(manageMatch[1]);
-      const order = orders.get(orderId);
-      if (!order) {
-        return fulfillJson(route, 404, { message: "Order not found" });
-      }
-      const body = request.postDataJSON() as {
-        action?: "update_status" | "mark_prepared" | "cancel";
-        nextStatus?: OrderStatus;
-      } | null;
-      const previousStatus = order.status;
-      const status =
-        body?.action === "mark_prepared"
-          ? "prepared"
-          : body?.action === "cancel"
-            ? "cancelled"
-            : (body?.nextStatus ?? order.status);
-      const updated = { ...order, status, updatedAt: NOW };
-      orders.set(orderId, updated);
-      return fulfillJson(route, 202, {
-        orderId,
-        action: body?.action,
-        previousStatus,
-        status,
-        acceptedAt: updated.updatedAt,
-      });
     }
 
     return fulfillJson(route, 404, {

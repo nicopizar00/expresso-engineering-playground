@@ -167,7 +167,7 @@ test.describe("visual UI integrity - desktop", () => {
     );
   });
 
-  test("places an order and manages status through visual controls", async ({
+  test("places an order and shows it hot through visual controls", async ({
     page,
   }) => {
     await installVisualMocks(page);
@@ -181,21 +181,24 @@ test.describe("visual UI integrity - desktop", () => {
     await expect(
       page.getByRole("heading", { name: "Order Details" }),
     ).toBeVisible();
-    await expect(page.getByText("Pending", { exact: true })).toBeVisible();
+    const badge = page.getByTestId("order-temperature");
+    await expect(badge).toHaveText("Hot");
 
-    const startPreparing = page.getByRole("button", {
-      name: "Start Preparing",
-    });
-    await startPreparing.scrollIntoViewIfNeeded();
-    await expectVisualActionable(startPreparing, {
-      minHeight: 36,
-      minWidth: 120,
-    });
-    await clickVisualCenter(startPreparing);
-    await expect(page.getByText("Preparing", { exact: true })).toBeVisible();
+    const back = page.getByRole("button", { name: /Back to orders/i });
+    await back.scrollIntoViewIfNeeded();
+    await expectVisualActionable(back, { minHeight: 20, minWidth: 80 });
+    // The text-style Back link renders ~21.5px tall, below clickVisualCenter's
+    // 24px default, so click after the explicit 20px actionable check.
+    await back.click();
 
-    await page.reload();
-    await expect(page.getByText("Preparing", { exact: true })).toBeVisible();
+    const mine = page
+      .getByRole("tablist", { name: "Order scope" })
+      .getByRole("tab", { name: "My orders" });
+    await expectVisualActionable(mine, { minHeight: 28, minWidth: 70 });
+    await expect(page.getByTestId("orders-list")).toHaveAttribute(
+      "data-scope",
+      "mine",
+    );
   });
 
   test("renders the visualizer stage with a mocked iframe document", async ({

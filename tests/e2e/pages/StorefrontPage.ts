@@ -93,18 +93,22 @@ export class StorefrontPage {
     return this.page.getByText(productName, { exact: true });
   }
 
-  orderStatus(
-    status: "Pending" | "Preparing" | "Prepared" | "Cancelled",
-  ): Locator {
-    return this.page.getByText(status, { exact: true });
+  orderTemperature(): Locator {
+    return this.page.getByTestId("order-temperature");
   }
 
-  startPreparingButton(): Locator {
-    return this.page.getByRole("button", { name: "Start Preparing" });
+  ordersScopeTab(name: "My orders" | "All orders"): Locator {
+    return this.page
+      .getByRole("tablist", { name: "Order scope" })
+      .getByRole("tab", { name });
   }
 
-  markPreparedButton(): Locator {
-    return this.page.getByRole("button", { name: "Mark as Prepared" });
+  ordersList(): Locator {
+    return this.page.getByTestId("orders-list");
+  }
+
+  backToOrdersButton(): Locator {
+    return this.page.getByRole("button", { name: /Back to orders/i });
   }
 
   async filterProductsByCategory(label: string): Promise<void> {
@@ -125,10 +129,6 @@ export class StorefrontPage {
 
   async placeOrder(): Promise<void> {
     await this.placeOrderButton().click();
-  }
-
-  async startPreparingOrder(): Promise<void> {
-    await this.startPreparingButton().click();
   }
 
   // Order placement no longer navigates to /orders/:id — the Orders section

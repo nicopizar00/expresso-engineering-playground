@@ -95,7 +95,7 @@ async function installScene(
     orderAggregates: {
       totalCount: orders.length,
       olderCount: 20,
-      statusCounts: { pending: orders.length },
+      temperatureCounts: { hot: orders.length, cold: 0 },
     },
     cart: null,
     latestActivityAt: Date.parse(timestamp),
@@ -178,7 +178,8 @@ function makeOrder(orderId: string, selected: typeof product) {
   return {
     orderId,
     customerName: null,
-    status: "pending",
+    temperature: "hot",
+    coolsAt: timestamp,
     total: selected.price,
     placedAt: timestamp,
     updatedAt: timestamp,
@@ -465,7 +466,7 @@ window.__visualizerTest = {
     const finish = count * 200 + 8000;
     for (let now = 300; now <= finish; now += 100) rain.tick(now);
     const landedCount = group.children.length;
-    rain.handleScene({ recentOrders: orders.map(order => ({ ...order, status: 'prepared' })) });
+    rain.handleScene({ recentOrders: orders.map(order => ({ ...order, temperature: 'cold' })) });
     for (let now = finish + 100; now <= finish + 5000; now += 100) rain.tick(now);
     renderer.render(scene, camera);
     return { baseline, count: landedCount, deduped: group.children.length, disposed, rain: inspectRain(group) };

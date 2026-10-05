@@ -56,7 +56,7 @@ async function installVisualizerMock(page: Page): Promise<void> {
   );
 }
 
-test("certifies catalog, cart CRUD, checkout, and order management", async ({
+test("certifies catalog, cart CRUD, checkout, and my orders", async ({
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
@@ -97,10 +97,10 @@ test("certifies catalog, cart CRUD, checkout, and order management", async ({
 
   await expect(page.getByTestId("home-orders")).toBeVisible();
   await expect(page.getByText("Order placed successfully")).toBeVisible();
-  await page.getByRole("button", { name: "Start Preparing" }).click();
-  await expect(page.getByText("Preparing")).toBeVisible();
-  await page.getByRole("button", { name: "Mark as Prepared" }).click();
-  await expect(page.getByText("Prepared")).toBeVisible();
+  await expect(page.getByTestId("order-temperature")).toHaveText("Hot");
+  await expect(
+    page.getByRole("button", { name: "Start Preparing" }),
+  ).toHaveCount(0);
 
   // Explicitly leave the order detail view, switch to another section, then
   // come back via the nav button — this must land on the Orders LIST, not

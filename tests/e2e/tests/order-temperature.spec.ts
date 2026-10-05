@@ -24,6 +24,14 @@ async function openOrders(page: Page): Promise<void> {
     .getByRole("button", { name: "Orders" })
     .click();
   await expect(page.getByTestId("home-orders")).toBeVisible();
+  await page
+    .getByRole("tablist", { name: "Order scope" })
+    .getByRole("tab", { name: "All orders" })
+    .click();
+  await expect(page.getByTestId("orders-list")).toHaveAttribute(
+    "data-scope",
+    "all",
+  );
 }
 
 function orderRow(page: Page, orderId: string) {
@@ -94,5 +102,39 @@ test.describe("order temperature badge", () => {
     const badge = page.getByTestId("order-temperature");
     await expect(badge).toHaveText("Hot");
     await expect(badge).toHaveText("Cold", { timeout: 6_000 });
+  });
+
+  test("the list flips a row from Hot to Cold at coolsAt without a reload", async ({
+    page,
+  }) => {
+    await installCommerceApiMock(page, {
+      products,
+      coolDownMs: 3_000,
+      seedOrders: [makeOrder("ord_listflip_001", new Date().toISOString())],
+    });
+    await openOrders(page);
+    const badge = orderRow(page, "ord_listflip_001").getByTestId(
+      "order-temperature",
+    );
+    await expect(badge).toHaveText("Hot");
+    await expect(badge).toHaveText("Cold", { timeout: 8_000 });
+  });
+
+  test("My orders defaults on and excludes orders this browser did not place", async ({
+    page,
+  }) => {
+    await installCommerceApiMock(page, {
+      products,
+      seedOrders: [makeOrder("ord_someone_else", new Date().toISOString())],
+    });
+    await page.goto("/");
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("button", { name: "Orders" })
+      .click();
+    const list = page.getByTestId("orders-list");
+    await expect(list).toHaveAttribute("data-scope", "mine");
+    await expect(list).toContainText("You have not placed any orders yet");
+    await expect(list).not.toContainText("ord_someone_else");
   });
 });

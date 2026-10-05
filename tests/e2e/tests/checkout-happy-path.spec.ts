@@ -58,7 +58,7 @@ for (const profile of viewportProfiles) {
   test.describe(`MVC-01 Catalog checkout - ${profile.name}`, () => {
     test.use(profile.use);
 
-    test("completes catalog to cart to checkout to order management @smoke", async ({
+    test("completes catalog to cart to place order to my orders @smoke", async ({
       page,
     }) => {
       const storefront = await prepareCheckout(page);
@@ -74,7 +74,10 @@ for (const profile of viewportProfiles) {
       await expect(page.getByTestId("home-orders")).toBeVisible();
       await expect(storefront.orderDetailsHeading()).toBeVisible();
       await expect(storefront.orderSuccessAlert()).toBeVisible();
-      await expect(storefront.orderStatus("Pending")).toBeVisible();
+      await expect(storefront.orderTemperature()).toHaveAttribute(
+        "data-temperature",
+        "hot",
+      );
 
       const orderId = await storefront.currentOrderId();
       await expect(storefront.visibleOrderId(orderId)).toBeVisible();
@@ -82,10 +85,17 @@ for (const profile of viewportProfiles) {
         storefront.orderLineItem(productUnderTest.name),
       ).toBeVisible();
 
-      await expectActionable(storefront.startPreparingButton());
-      await storefront.startPreparingOrder();
-      await expect(storefront.orderStatus("Preparing")).toBeVisible();
-      await expect(storefront.markPreparedButton()).toBeVisible();
+      await storefront.backToOrdersButton().click();
+      await expect(storefront.ordersScopeTab("My orders")).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      await expect(storefront.ordersList()).toContainText(orderId);
+      await expect(
+        page
+          .getByRole("button", { name: new RegExp(orderId) })
+          .getByTestId("order-temperature"),
+      ).toHaveText("Hot");
     });
 
     test("surfaces a checkout network drop without losing cart context", async ({
