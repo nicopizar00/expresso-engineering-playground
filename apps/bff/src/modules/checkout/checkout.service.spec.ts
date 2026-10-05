@@ -89,14 +89,18 @@ describe("CheckoutService", () => {
     it("throws BadRequestException when cart is empty", async () => {
       cart = makeCart([]);
       service = await makeService(cart, orders, domainEvents);
-      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(
+      await expect(service.checkout(SESSION_ID, PAYLOAD, null)).rejects.toThrow(
         BadRequestException,
       );
     });
 
     it("throws ConflictException when the cartId does not match the current cart", async () => {
       await expect(
-        service.checkout(SESSION_ID, { ...PAYLOAD, cartId: "cart_other" }),
+        service.checkout(
+          SESSION_ID,
+          { ...PAYLOAD, cartId: "cart_other" },
+          null,
+        ),
       ).rejects.toThrow(ConflictException);
       expect(orders.create).not.toHaveBeenCalled();
     });
@@ -110,7 +114,7 @@ describe("CheckoutService", () => {
         expiresAt: null,
         updatedAt: "2026-05-29T12:00:00.000Z",
       });
-      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(
+      await expect(service.checkout(SESSION_ID, PAYLOAD, null)).rejects.toThrow(
         ConflictException,
       );
     });
@@ -118,14 +122,16 @@ describe("CheckoutService", () => {
     it("does not call orders.create or cart.clear on empty cart", async () => {
       cart = makeCart([]);
       service = await makeService(cart, orders, domainEvents);
-      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow();
+      await expect(
+        service.checkout(SESSION_ID, PAYLOAD, null),
+      ).rejects.toThrow();
       expect(orders.create).not.toHaveBeenCalled();
       expect(cart.clear).not.toHaveBeenCalled();
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
     it("calls orders.create with lines derived from cart items and no customer name", async () => {
-      await service.checkout(SESSION_ID, PAYLOAD);
+      await service.checkout(SESSION_ID, PAYLOAD, null);
       expect(orders.create).toHaveBeenCalledOnce();
       expect(orders.create).toHaveBeenCalledWith({
         lines: [
@@ -151,20 +157,24 @@ describe("CheckoutService", () => {
       cart.clear.mockImplementation(() => {
         callOrder.push("clear");
       });
-      await service.checkout(SESSION_ID, PAYLOAD);
+      await service.checkout(SESSION_ID, PAYLOAD, null);
       expect(callOrder).toEqual(["create", "clear"]);
     });
 
     it("emits a domain event after clearing the cart", async () => {
-      await service.checkout(SESSION_ID, PAYLOAD);
+      await service.checkout(SESSION_ID, PAYLOAD, null);
       expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
 
     it("passes idempotencyKey through to orders.create as clientRequestId", async () => {
-      await service.checkout(SESSION_ID, {
-        ...PAYLOAD,
-        idempotencyKey: "key-fresh",
-      });
+      await service.checkout(
+        SESSION_ID,
+        {
+          ...PAYLOAD,
+          idempotencyKey: "key-fresh",
+        },
+        null,
+      );
       expect(orders.create).toHaveBeenCalledWith(
         expect.objectContaining({ clientRequestId: "key-fresh" }),
       );
@@ -173,10 +183,14 @@ describe("CheckoutService", () => {
     it("replays an existing order on a known key without touching cart or emitting", async () => {
       orders.findByClientRequestId.mockReturnValue(ORDER);
 
-      const response = await service.checkout(SESSION_ID, {
-        ...PAYLOAD,
-        idempotencyKey: "key-replay",
-      });
+      const response = await service.checkout(
+        SESSION_ID,
+        {
+          ...PAYLOAD,
+          idempotencyKey: "key-replay",
+        },
+        null,
+      );
 
       expect(response.orderId).toBe(ORDER.orderId);
       expect(response).not.toHaveProperty("status");
@@ -191,10 +205,14 @@ describe("CheckoutService", () => {
       orders.findByClientRequestId.mockReturnValue(ORDER);
       service = await makeService(cart, orders, domainEvents);
 
-      const response = await service.checkout(SESSION_ID, {
-        ...PAYLOAD,
-        idempotencyKey: "key-replay",
-      });
+      const response = await service.checkout(
+        SESSION_ID,
+        {
+          ...PAYLOAD,
+          idempotencyKey: "key-replay",
+        },
+        null,
+      );
       expect(response.orderId).toBe(ORDER.orderId);
     });
 
@@ -204,7 +222,7 @@ describe("CheckoutService", () => {
           "insufficient inventory for product prod_espresso",
         ),
       );
-      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(
+      await expect(service.checkout(SESSION_ID, PAYLOAD, null)).rejects.toThrow(
         ConflictException,
       );
       expect(cart.clear).toHaveBeenCalledOnce();
@@ -213,7 +231,7 @@ describe("CheckoutService", () => {
 
     it("does not clear the cart when order creation fails with a non-conflict error", async () => {
       orders.create.mockRejectedValueOnce(new Error("db connection lost"));
-      await expect(service.checkout(SESSION_ID, PAYLOAD)).rejects.toThrow(
+      await expect(service.checkout(SESSION_ID, PAYLOAD, null)).rejects.toThrow(
         "db connection lost",
       );
       expect(cart.clear).not.toHaveBeenCalled();
@@ -221,12 +239,12 @@ describe("CheckoutService", () => {
     });
 
     it("response carries no status field", async () => {
-      const response = await service.checkout(SESSION_ID, PAYLOAD);
+      const response = await service.checkout(SESSION_ID, PAYLOAD, null);
       expect(response).not.toHaveProperty("status");
     });
 
     it("returns the expected CheckoutResponse shape", async () => {
-      const response = await service.checkout(SESSION_ID, PAYLOAD);
+      const response = await service.checkout(SESSION_ID, PAYLOAD, null);
       expect(response).toMatchObject({
         orderId: "ord_001",
         cartId: CART_ID,
@@ -235,6 +253,78 @@ describe("CheckoutService", () => {
       });
       expect(typeof response.placedAt).toBe("string");
       expect(response).not.toHaveProperty("status");
+    });
+  });
+
+  describe("orderFor", () => {
+    const ana = { id: 1, username: "ana", email: "ana@example.test" };
+
+    async function makeServiceWithCart() {
+      const cart = makeCart();
+      const orders = makeOrders();
+      const service = await makeService(cart, orders, makeDomainEvents());
+      return { service, orders, cart };
+    }
+
+    it("passes the resolved owner to OrdersService.create", async () => {
+      const { service, orders } = await makeServiceWithCart();
+      await service.checkout(
+        "sid",
+        {
+          cartId: CART_ID,
+          orderFor: { type: "user", recipient: "Cara@Example.test" },
+        },
+        ana,
+      );
+      expect(orders.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ownerEmail: "cara@example.test" }),
+      );
+    });
+
+    it("defaults to self when signed in and guest when not", async () => {
+      const a = await makeServiceWithCart();
+      await a.service.checkout("sid", { cartId: CART_ID }, ana);
+      expect(a.orders.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ownerUsername: "ana" }),
+      );
+
+      const b = await makeServiceWithCart();
+      await b.service.checkout("sid", { cartId: CART_ID }, null);
+      const input = b.orders.create.mock.calls[0]![0];
+      expect(input.ownerUsername).toBeUndefined();
+      expect(input.ownerEmail).toBeUndefined();
+    });
+
+    it("rejects self when signed out before touching the cart", async () => {
+      const { service, orders, cart } = await makeServiceWithCart();
+      await expect(
+        service.checkout(
+          "sid",
+          { cartId: CART_ID, orderFor: { type: "self" } },
+          null,
+        ),
+      ).rejects.toThrow(/sign in/);
+      expect(orders.create).not.toHaveBeenCalled();
+      expect(cart.clear).not.toHaveBeenCalled();
+    });
+
+    it("an idempotent replay with a different orderFor returns the original order", async () => {
+      const { service, orders } = await makeServiceWithCart();
+      orders.findByClientRequestId.mockReturnValue({
+        ...ORDER,
+        owner: { username: "ana" },
+      });
+      const out = await service.checkout(
+        "sid",
+        {
+          cartId: CART_ID,
+          idempotencyKey: "6f1c1c55-8f0c-4f57-9a43-3e0f3f0a8d11",
+          orderFor: { type: "guest" },
+        },
+        null,
+      );
+      expect(out.orderId).toBe("ord_001");
+      expect(orders.create).not.toHaveBeenCalled();
     });
   });
 });

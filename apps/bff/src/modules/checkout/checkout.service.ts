@@ -4,11 +4,13 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
+import type { AuthUser } from "../../core/auth/auth-session";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { CartService } from "../cart/cart.service";
 import { OrdersService } from "../orders/orders.service";
 import type { CheckoutDto } from "./checkout.dto";
 import type { CheckoutResponse } from "./checkout.types";
+import { resolveOrderOwner } from "./order-for";
 
 @Injectable()
 export class CheckoutService {
@@ -27,6 +29,7 @@ export class CheckoutService {
   async checkout(
     sessionId: string,
     payload: CheckoutDto,
+    user: AuthUser | null,
   ): Promise<CheckoutResponse> {
     // Idempotent replay short-circuit. Runs BEFORE the cart-empty check so
     // a retry after a successful first call (which already cleared the cart)
@@ -40,6 +43,9 @@ export class CheckoutService {
         return this.toResponse(replay, payload.cartId);
       }
     }
+
+    // Resolve before touching the cart so a 401/400 leaves it intact.
+    const owner = resolveOrderOwner(payload.orderFor, user);
 
     const currentCart = this.cart.get(sessionId);
     if (currentCart.items.length === 0) {
@@ -77,6 +83,7 @@ export class CheckoutService {
         lines,
         total,
         sessionId,
+        ...owner,
         clientRequestId: payload.idempotencyKey,
       });
     } catch (err) {

@@ -13,6 +13,7 @@
 //   - Publish order.placed through a notification outbox
 
 import { Module } from "@nestjs/common";
+import { AuthCoreModule } from "../../core/auth/auth-core.module";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
 import { SessionModule } from "../../core/session/session.module";
 import { CartModule } from "../cart/cart.module";
@@ -21,7 +22,13 @@ import { CheckoutController } from "./checkout.controller";
 import { CheckoutService } from "./checkout.service";
 
 @Module({
-  imports: [CartModule, OrdersModule, DomainEventsModule, SessionModule],
+  imports: [
+    CartModule,
+    OrdersModule,
+    DomainEventsModule,
+    SessionModule,
+    AuthCoreModule,
+  ],
   controllers: [CheckoutController],
   providers: [CheckoutService],
   exports: [CheckoutService],
