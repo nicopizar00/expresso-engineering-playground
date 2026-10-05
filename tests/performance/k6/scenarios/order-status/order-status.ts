@@ -66,7 +66,6 @@ export const options = {
 
 interface OrderStatusBody {
   orderId: string;
-  status: string;
   temperature: string;
   placedAt: string;
   coolsAt: string;

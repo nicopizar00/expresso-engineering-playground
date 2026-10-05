@@ -12,7 +12,6 @@
 //   GET  /cart
 //   POST /checkout
 //   GET  /orders/:id
-//   POST /orders/:id/manage
 //   GET  /visualization-data
 
 import http from "k6/http";
@@ -93,15 +92,6 @@ export default function () {
   group("orders: read seeded order", () => {
     const res = http.get(url("/orders/ord_demo"));
     check(res, { "order 200": (r) => r.status === 200 });
-  });
-
-  group("orders: manage", () => {
-    const res = http.post(
-      url("/orders/ord_demo/manage"),
-      JSON.stringify({ action: "mark_prepared" }),
-      { headers: JSON_HEADERS },
-    );
-    check(res, { "manage 202": (r) => r.status === 202 });
   });
 
   group("visualization data", () => {

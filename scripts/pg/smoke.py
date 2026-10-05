@@ -115,10 +115,17 @@ def run() -> int:
         _expect("POST", "/checkout", 400, body={"customerName": "Smoke Customer"}, cookie_jar=jar),
     ))
     cart_id = _resolve_cart_id(jar)
-    results.append(_check(
-        "POST /checkout",
-        _expect("POST", "/checkout", 201, body={"cartId": cart_id}, cookie_jar=jar),
-    ))
+    placed: dict = {}
+
+    def checkout() -> None:
+        _, payload = request_json(
+            f"{API_BASE}/checkout", method="POST", body={"cartId": cart_id},
+            expect_status=201, cookie_jar=jar,
+        )
+        if not isinstance(payload, dict) or "status" in payload:
+            raise HttpError("checkout receipt must be an object without status")
+        placed["orderId"] = payload.get("orderId")
+    results.append(_check("POST /checkout", checkout))
     results.append(_check("GET  /orders/ord_demo",
                           _expect("GET", "/orders/ord_demo", 200, cookie_jar=jar)))
 
@@ -126,16 +133,26 @@ def run() -> int:
         _, payload = request_json(f"{API_BASE}/orders/ord_demo/status", expect_status=200, cookie_jar=jar)
         if not isinstance(payload, dict):
             raise HttpError("Expected an object payload")
-        for key in ("orderId", "status", "temperature", "placedAt", "coolsAt", "checkedAt"):
+        for key in ("orderId", "temperature", "placedAt", "coolsAt", "checkedAt"):
             if key not in payload:
                 raise HttpError(f"order status missing key: {key}")
+        if "status" in payload:
+            raise HttpError("order status payload must not carry status")
         if payload["temperature"] not in ("hot", "cold"):
             raise HttpError(f"unexpected temperature: {payload['temperature']!r}")
     results.append(_check("GET  /orders/ord_demo/status (typed temperature)", order_status))
-    results.append(_check(
-        "POST /orders/ord_demo/manage (mark_prepared)",
-        _expect("POST", "/orders/ord_demo/manage", 202, body={"action": "mark_prepared"}, cookie_jar=jar),
-    ))
+
+    def my_orders() -> None:
+        _, payload = request_json(f"{API_BASE}/orders/mine", expect_status=200, cookie_jar=jar)
+        items = payload.get("items") if isinstance(payload, dict) else None
+        if not isinstance(items, list):
+            raise HttpError("Expected items array")
+        ids = [o.get("orderId") for o in items if isinstance(o, dict)]
+        if placed.get("orderId") not in ids:
+            raise HttpError(f"placed order {placed.get('orderId')!r} missing from /orders/mine")
+        if "ord_demo" in ids:
+            raise HttpError("seed order ord_demo must not belong to a session")
+    results.append(_check("GET  /orders/mine (session-owned)", my_orders))
 
     def viz_data() -> None:
         _, payload = request_json(f"{API_BASE}/visualization-data", expect_status=200, cookie_jar=jar)
@@ -158,7 +175,7 @@ def run() -> int:
         if not isinstance(scene["recentOrders"], list):
             raise HttpError("scene.recentOrders must be a list")
         aggregates = scene["orderAggregates"]
-        if not isinstance(aggregates, dict) or "totalCount" not in aggregates or "statusCounts" not in aggregates:
+        if not isinstance(aggregates, dict) or "totalCount" not in aggregates or "temperatureCounts" not in aggregates:
             raise HttpError("scene.orderAggregates malformed")
         # cart key is allowed to be null when itemCount=0
         if "cart" not in scene:
