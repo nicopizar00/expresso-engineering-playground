@@ -20,7 +20,6 @@ const CART_ITEMS = [
 const ORDER = {
   orderId: "ord_001",
   customerName: null,
-  status: "pending",
   total: { amountMinor: 360, currency: "EUR" },
   lines: [],
   placedAt: "2026-05-29T12:00:00.000Z",
@@ -139,6 +138,7 @@ describe("CheckoutService", () => {
           },
         ],
         total: { amountMinor: 360, currency: "EUR" },
+        sessionId: SESSION_ID,
       });
     });
 
@@ -179,6 +179,7 @@ describe("CheckoutService", () => {
       });
 
       expect(response.orderId).toBe(ORDER.orderId);
+      expect(response).not.toHaveProperty("status");
       expect(orders.create).not.toHaveBeenCalled();
       expect(cart.get).not.toHaveBeenCalled();
       expect(cart.clear).not.toHaveBeenCalled();
@@ -219,16 +220,21 @@ describe("CheckoutService", () => {
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
+    it("response carries no status field", async () => {
+      const response = await service.checkout(SESSION_ID, PAYLOAD);
+      expect(response).not.toHaveProperty("status");
+    });
+
     it("returns the expected CheckoutResponse shape", async () => {
       const response = await service.checkout(SESSION_ID, PAYLOAD);
       expect(response).toMatchObject({
         orderId: "ord_001",
         cartId: CART_ID,
         customerName: null,
-        status: "pending",
         total: { amountMinor: 360, currency: "EUR" },
       });
       expect(typeof response.placedAt).toBe("string");
+      expect(response).not.toHaveProperty("status");
     });
   });
 });

@@ -76,6 +76,7 @@ export class CheckoutService {
       order = await this.orders.create({
         lines,
         total,
+        sessionId,
         clientRequestId: payload.idempotencyKey,
       });
     } catch (err) {
@@ -107,11 +108,9 @@ export class CheckoutService {
     return this.toResponse(order, payload.cartId);
   }
 
-  // Replay returns the original creation receipt. The order's current status
-  // (may now be cancelled/prepared) is intentionally not reflected here —
-  // callers wanting live status should hit GET /orders/:id. `cartId` isn't
-  // persisted on the order (checkout is the only place it's meaningful), so
-  // it's just echoed back from whichever request produced this response.
+  // Replay returns the original creation receipt. `cartId` isn't persisted
+  // on the order (checkout is the only place it's meaningful), so it's just
+  // echoed back from whichever request produced this response.
   private toResponse(
     order: {
       orderId: string;
@@ -125,7 +124,6 @@ export class CheckoutService {
       orderId: order.orderId,
       cartId,
       customerName: order.customerName,
-      status: "pending",
       total: order.total,
       placedAt: order.placedAt,
     };
