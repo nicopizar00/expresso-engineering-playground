@@ -120,6 +120,22 @@ test.describe("order temperature badge", () => {
     await expect(badge).toHaveText("Cold", { timeout: 8_000 });
   });
 
+  test("Back returns to the All orders tab the user came from", async ({
+    page,
+  }) => {
+    await installCommerceApiMock(page, {
+      products,
+      seedOrders: [makeOrder("ord_back_001", new Date().toISOString())],
+    });
+    await openOrders(page);
+    await orderRow(page, "ord_back_001").click();
+    await page.getByRole("button", { name: "Back to orders" }).click();
+    await expect(page.getByTestId("orders-list")).toHaveAttribute(
+      "data-scope",
+      "all",
+    );
+  });
+
   test("My orders defaults on and excludes orders this browser did not place", async ({
     page,
   }) => {

@@ -155,6 +155,31 @@ describe("OrdersService", () => {
       expect(result[0].orderId).toBe("ord_demo");
     });
 
+    it("returns the newest placedAt first without reordering the cache", async () => {
+      const row = (orderId: string, placedAt: string) => ({
+        ...DB_ORDER,
+        orderId,
+        placedAt: new Date(placedAt),
+        updatedAt: new Date(placedAt),
+      });
+      prisma.order.create
+        .mockResolvedValueOnce(row("ord_001", "2026-05-14T12:01:00Z"))
+        .mockResolvedValueOnce(row("ord_002", "2026-05-14T12:02:00Z"));
+      const input: CreateOrderInput = {
+        lines: [],
+        total: { amountMinor: 320, currency: "EUR" },
+      };
+      await service.create(input);
+      await service.create(input);
+
+      expect(service.listAll().map((o) => o.orderId)).toEqual([
+        "ord_002",
+        "ord_001",
+        "ord_demo",
+      ]);
+      expect(service.get("ord_demo").orderId).toBe("ord_demo");
+    });
+
     it("maps DB columns to the Order DTO shape", () => {
       const [order] = service.listAll();
       expect(order.customerName).toBe("Demo Customer");

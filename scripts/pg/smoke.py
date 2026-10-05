@@ -152,6 +152,8 @@ def run() -> int:
             raise HttpError(f"placed order {placed.get('orderId')!r} missing from /orders/mine")
         if "ord_demo" in ids:
             raise HttpError("seed order ord_demo must not belong to a session")
+        if any(isinstance(o, dict) and "sessionId" in o for o in items):
+            raise HttpError("/orders/mine must not expose sessionId")
     results.append(_check("GET  /orders/mine (session-owned)", my_orders))
 
     def viz_data() -> None:

@@ -89,7 +89,7 @@ async function installScene(
     ],
     recentOrders: orders.map((order) => ({
       ...order,
-      vizStatus: "warn",
+      vizStatus: "ok",
       lineCount: 1,
     })),
     orderAggregates: {

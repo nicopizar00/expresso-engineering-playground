@@ -4,7 +4,7 @@
 // final step — there is no preparation lifecycle or cancel. Hot/cold
 // temperature is derived on read from placedAt.
 // Public surface:
-//   - GET /orders               — every order (oldest first)
+//   - GET /orders               — every order (newest first)
 //   - GET /orders/mine          — the caller's orders (session cookie), newest first
 //   - GET /orders/:id           — a single order (404 for unknown)
 //   - GET /orders/:id/status    — temperature read from Postgres

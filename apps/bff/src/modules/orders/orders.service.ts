@@ -122,9 +122,12 @@ export class OrdersService implements OnModuleInit {
     };
   }
 
+  // Newest first (copy before sorting; the cache keeps insertion order).
   listAll(): ReadonlyArray<Order> {
     const now = new Date();
-    return this.cache.map((o) => this.withTemperature(o, now));
+    return [...this.cache]
+      .sort((a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt))
+      .map((o) => this.withTemperature(o, now));
   }
 
   // Newest first. Orders without a session (seed, pre-session history) are

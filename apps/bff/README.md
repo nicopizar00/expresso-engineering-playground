@@ -44,21 +44,21 @@ src/
 
 ## HTTP surface
 
-| Method | Path                    | Notes                                                                                                               |
-| ------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/health`               | Liveness; `checks.db` is `"skipped"` for now.                                                                       |
-| GET    | `/catalog/products`     | Deterministic catalog of exactly one product (Cup of Coffee).                                                       |
-| GET    | `/catalog/products/:id` | `prod_unknown` returns 404 for error-path tests.                                                                    |
-| GET    | `/cart`                 | Current cart snapshot; empty or one Cup of Coffee at quantity 1.                                                    |
-| POST   | `/cart/items`           | Adds the one allowed line; rejects a second add (409), a bad quantity (400), or an unknown product (404).           |
-| PATCH  | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — quantity can never change.                                                  |
-| DELETE | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — only Place Order clears the cart.                                           |
-| POST   | `/checkout`             | Anonymous, terminal Place Order; converts the cart to an order and resets it. Rejects a `customerName` field (400). |
-| GET    | `/orders`               | Lists all persisted orders, including seeded `ord_demo`.                                                            |
-| GET    | `/orders/mine`          | The caller's orders (session cookie), newest first; a fresh session gets `{ items: [] }`.                           |
-| GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.                                                                    |
+| Method | Path                    | Notes                                                                                                                      |
+| ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`               | Liveness; `checks.db` is `"skipped"` for now.                                                                              |
+| GET    | `/catalog/products`     | Deterministic catalog of exactly one product (Cup of Coffee).                                                              |
+| GET    | `/catalog/products/:id` | `prod_unknown` returns 404 for error-path tests.                                                                           |
+| GET    | `/cart`                 | Current cart snapshot; empty or one Cup of Coffee at quantity 1.                                                           |
+| POST   | `/cart/items`           | Adds the one allowed line; rejects a second add (409), a bad quantity (400), or an unknown product (404).                  |
+| PATCH  | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — quantity can never change.                                                         |
+| DELETE | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — only Place Order clears the cart.                                                  |
+| POST   | `/checkout`             | Anonymous, terminal Place Order; converts the cart to an order and resets it. Rejects a `customerName` field (400).        |
+| GET    | `/orders`               | Lists all persisted orders, including seeded `ord_demo`.                                                                   |
+| GET    | `/orders/mine`          | The caller's orders (session cookie), newest first; a fresh session gets `{ items: [] }`.                                  |
+| GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.                                                                           |
 | GET    | `/orders/:id/status`    | `{ orderId, temperature, placedAt, coolsAt, checkedAt }`; Hot until `ORDER_COOL_DOWN_SECONDS` after `placedAt`, then Cold. |
-| GET    | `/visualization-data`   | Aggregates catalog, orders, and cart for the 3D client.                                                             |
+| GET    | `/visualization-data`   | Aggregates catalog, orders, and cart for the 3D client.                                                                    |
 
 ## Local run
 

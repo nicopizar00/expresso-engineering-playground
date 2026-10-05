@@ -9,7 +9,10 @@ import { PageErrorState } from "@/components/system/ErrorBanner";
 import { EmptyState } from "@/components/system/EmptyState";
 import { CartCheckoutPanel } from "@/components/cart/CartCheckoutPanel";
 import { VisualizerEmbed } from "@/components/visualizer/VisualizerEmbed";
-import { OrdersSection } from "@/components/sections/OrdersSection";
+import {
+  OrdersSection,
+  type OrdersScope,
+} from "@/components/sections/OrdersSection";
 import { PerformanceSection } from "@/components/sections/PerformanceSection";
 import { DevSection } from "@/components/sections/DevSection";
 import { useSection } from "@/components/system/SectionProvider";
@@ -22,6 +25,7 @@ async function fetchProducts(): Promise<ProductsResponse> {
 export default function HomeWorkspace() {
   const { section, setSection } = useSection();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [ordersScope, setOrdersScope] = useState<OrdersScope>("mine");
   // Kept (unlike justPlacedOrderId) so the detail can show the success
   // banner for the order this browser just placed.
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
@@ -40,6 +44,7 @@ export default function HomeWorkspace() {
   const handleOrderPlaced = useCallback(
     (orderId: string) => {
       setSelectedOrderId(orderId);
+      setOrdersScope("mine");
       setPlacedOrderId(orderId);
       // Held briefly so VisualizerEmbed can tell "cart just emptied because
       // Place Order succeeded" from "cart emptied because the reservation
@@ -124,8 +129,14 @@ export default function HomeWorkspace() {
             <OrdersSection
               selectedOrderId={selectedOrderId}
               placedOrderId={placedOrderId}
+              scope={ordersScope}
+              onScopeChange={setOrdersScope}
               onSelect={setSelectedOrderId}
-              onBack={() => setSelectedOrderId(null)}
+              onBack={() => {
+                setSelectedOrderId(null);
+                // The success banner is only for the just-placed visit.
+                setPlacedOrderId(null);
+              }}
             />
           </div>
         )}

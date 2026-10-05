@@ -6,7 +6,7 @@
  * Placing an order is the final step; there are no order actions. Hot/Cold
  * is the only state an order shows, and both the lists and the detail flip
  * it at coolsAt without polling. The parent (page.tsx) owns the selected
- * order id so it survives this component remounting on section switches.
+ * order id and list scope so they survive this component remounting on section switches.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -119,7 +119,7 @@ function OrderRow({
   );
 }
 
-type OrdersScope = "mine" | "all";
+export type OrdersScope = "mine" | "all";
 
 const scopeConfig: Record<
   OrdersScope,
@@ -262,9 +262,17 @@ function OrdersList({
   );
 }
 
-function OrdersListView({ onSelect }: { onSelect: (orderId: string) => void }) {
-  // Remounts (section switch, Back) reset to "My orders" — the default view.
-  const [scope, setScope] = useState<OrdersScope>("mine");
+function OrdersListView({
+  scope,
+  onScopeChange,
+  onSelect,
+}: {
+  scope: OrdersScope;
+  onScopeChange: (scope: OrdersScope) => void;
+  onSelect: (orderId: string) => void;
+}) {
+  // The scope is owned by the parent so Back returns to the tab the user
+  // came from instead of resetting to "My orders" on remount.
 
   return (
     <div className="home-stage-section-inner max-w-3xl">
@@ -310,7 +318,7 @@ function OrdersListView({ onSelect }: { onSelect: (orderId: string) => void }) {
               type="button"
               role="tab"
               aria-selected={scope === key}
-              onClick={() => setScope(key)}
+              onClick={() => onScopeChange(key)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 scope === key ? "tone-primary" : "tone-muted"
               }`}
@@ -561,12 +569,16 @@ function OrderDetailView({
 export function OrdersSection({
   selectedOrderId,
   placedOrderId,
+  scope,
+  onScopeChange,
   onSelect,
   onBack,
 }: {
   selectedOrderId: string | null;
   // The order this browser just placed; its detail shows the success banner.
   placedOrderId: string | null;
+  scope: OrdersScope;
+  onScopeChange: (scope: OrdersScope) => void;
   onSelect: (orderId: string) => void;
   onBack: () => void;
 }) {
@@ -579,5 +591,11 @@ export function OrdersSection({
       />
     );
   }
-  return <OrdersListView onSelect={onSelect} />;
+  return (
+    <OrdersListView
+      scope={scope}
+      onScopeChange={onScopeChange}
+      onSelect={onSelect}
+    />
+  );
 }
