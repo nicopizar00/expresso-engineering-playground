@@ -32,10 +32,17 @@ import type {
 
 const tracer = trace.getTracer("orders.service");
 
+function ownerOf(row: DbOrder): StoredOrder["owner"] {
+  if (row.ownerUsername) return { username: row.ownerUsername };
+  if (row.ownerEmail) return { email: row.ownerEmail };
+  return null;
+}
+
 function toOrder(row: DbOrder & { lines: DbOrderLine[] }): StoredOrder {
   return {
     orderId: row.orderId,
     customerName: row.customerName,
+    owner: ownerOf(row),
     lines: row.lines.map(
       (l): OrderLine => ({
         productId: l.productId,
@@ -128,6 +135,23 @@ export class OrdersService implements OnModuleInit {
     return [...this.cache]
       .sort((a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt))
       .map((o) => this.withTemperature(o, now));
+  }
+
+  // Reads Postgres (not the cache) so orders placed for this username/email
+  // before the account existed are always found. Newest first.
+  async listForAccount(user: {
+    username: string;
+    email: string;
+  }): Promise<ReadonlyArray<Order>> {
+    const rows = await this.prisma.order.findMany({
+      where: {
+        OR: [{ ownerUsername: user.username }, { ownerEmail: user.email }],
+      },
+      include: { lines: true },
+      orderBy: { placedAt: "desc" },
+    });
+    const now = new Date();
+    return rows.map((row) => this.withTemperature(toOrder(row), now));
   }
 
   // Newest first. Orders without a session (seed, pre-session history) are
@@ -229,6 +253,8 @@ export class OrdersService implements OnModuleInit {
                 clientRequestId: input.clientRequestId ?? null,
                 customerName: input.customerName ?? null,
                 sessionId: input.sessionId ?? null,
+                ownerUsername: input.ownerUsername ?? null,
+                ownerEmail: input.ownerEmail ?? null,
                 totalAmountMinor: input.total.amountMinor,
                 totalCurrency: input.total.currency,
                 placedAt: new Date(),

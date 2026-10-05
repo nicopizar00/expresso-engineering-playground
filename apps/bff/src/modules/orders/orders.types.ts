@@ -8,9 +8,16 @@ export interface OrderLine {
   readonly lineTotal: Money;
 }
 
+// Who the order is for (login feature). null = guest.
+export type OrderOwner =
+  | { readonly username: string }
+  | { readonly email: string }
+  | null;
+
 export interface Order {
   readonly orderId: string;
   readonly customerName: string | null;
+  readonly owner: OrderOwner;
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
   readonly placedAt: string;
@@ -36,6 +43,9 @@ export interface CreateOrderInput {
   readonly clientRequestId?: string;
   // Anonymous owner (the caller's `sid`). Stored, never serialized.
   readonly sessionId?: string;
+  // At most one is set (see checkout/order-for.ts); both absent = guest.
+  readonly ownerUsername?: string;
+  readonly ownerEmail?: string;
 }
 
 export interface OrderStatusResponse {
@@ -44,4 +54,10 @@ export interface OrderStatusResponse {
   readonly placedAt: string;
   readonly coolsAt: string;
   readonly checkedAt: string;
+}
+
+export interface AccountOrdersResponse {
+  readonly items: ReadonlyArray<Order>;
+  // items[0] — the card the web app highlights; null with no orders.
+  readonly latest: Order | null;
 }

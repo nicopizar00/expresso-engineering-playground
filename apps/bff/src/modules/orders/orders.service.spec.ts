@@ -630,3 +630,97 @@ describe("OrdersService", () => {
     });
   });
 });
+
+describe("order owner", () => {
+  const BASE_INPUT: CreateOrderInput = {
+    customerName: "Test Customer",
+    lines: [
+      {
+        productId: "prod_latte",
+        name: "Latte",
+        quantity: 1,
+        unitPrice: { amountMinor: 320, currency: "EUR" },
+        lineTotal: { amountMinor: 320, currency: "EUR" },
+      },
+    ],
+    total: { amountMinor: 320, currency: "EUR" },
+  };
+  const row = (over: Partial<DbOrder>): DbOrder & { lines: DbOrderLine[] } => ({
+    ...DB_ORDER,
+    ...over,
+  });
+
+  it("serializes owner from ownerUsername / ownerEmail / neither", async () => {
+    const prisma = makePrisma();
+    prisma.order.findMany.mockResolvedValue([
+      row({
+        orderId: "ord_001",
+        ownerUsername: "ana",
+        placedAt: new Date("2026-05-14T12:00:01Z"),
+      }),
+      row({
+        orderId: "ord_002",
+        ownerEmail: "cara@example.test",
+        placedAt: new Date("2026-05-14T12:00:02Z"),
+      }),
+      row({ orderId: "ord_003", placedAt: new Date("2026-05-14T12:00:03Z") }),
+    ]);
+    const svc = await makeService(prisma);
+    const owners = Object.fromEntries(
+      svc.listAll().map((o) => [o.orderId, o.owner]),
+    );
+    expect(owners).toMatchObject({
+      ord_001: { username: "ana" },
+      ord_002: { email: "cara@example.test" },
+      ord_003: null,
+    });
+  });
+
+  it("create persists the owner columns", async () => {
+    const prisma = makePrisma();
+    prisma.order.create.mockImplementation(async ({ data }: any) =>
+      row({
+        orderId: data.orderId,
+        ownerUsername: data.ownerUsername,
+        ownerEmail: data.ownerEmail,
+      }),
+    );
+    const svc = await makeService(prisma);
+    const order = await svc.create({
+      ...BASE_INPUT,
+      ownerEmail: "cara@example.test",
+    });
+    const data = prisma.order.create.mock.calls[0]![0].data;
+    expect(data.ownerUsername).toBeNull();
+    expect(data.ownerEmail).toBe("cara@example.test");
+    expect(order.owner).toEqual({ email: "cara@example.test" });
+  });
+
+  it("listForAccount queries Postgres by username OR email, newest first", async () => {
+    const prisma = makePrisma();
+    const svc = await makeService(prisma);
+    prisma.order.findMany.mockResolvedValue([
+      row({
+        orderId: "ord_009",
+        ownerEmail: "ana@example.test",
+        placedAt: new Date(),
+      }),
+    ]);
+    const items = await svc.listForAccount({
+      username: "ana",
+      email: "ana@example.test",
+    });
+    expect(prisma.order.findMany).toHaveBeenLastCalledWith({
+      where: {
+        OR: [{ ownerUsername: "ana" }, { ownerEmail: "ana@example.test" }],
+      },
+      include: { lines: true },
+      orderBy: { placedAt: "desc" },
+    });
+    expect(items[0]).toMatchObject({
+      orderId: "ord_009",
+      temperature: "hot",
+      owner: { email: "ana@example.test" },
+    });
+  });
+});

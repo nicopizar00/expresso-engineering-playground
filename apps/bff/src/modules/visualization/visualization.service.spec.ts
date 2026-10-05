@@ -32,6 +32,7 @@ const ORDERS: Order[] = [
   {
     orderId: "ord_demo",
     customerName: "Demo Customer",
+    owner: null,
     temperature: "hot",
     coolsAt: "2026-05-14T12:05:00.000Z",
     lines: [

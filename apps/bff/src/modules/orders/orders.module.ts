@@ -6,6 +6,7 @@
 // Public surface:
 //   - GET /orders               — every order (newest first)
 //   - GET /orders/mine          — the caller's orders (session cookie), newest first
+//   - GET /account/orders       — signed-in user's orders (owner username OR email), newest first + latest
 //   - GET /orders/:id           — a single order (404 for unknown)
 //   - GET /orders/:id/status    — temperature read from Postgres
 //                                 (cold after ORDER_COOL_DOWN_SECONDS)
@@ -15,16 +16,18 @@
 // Strong candidate for Phase 3 extraction (owns post-purchase state).
 
 import { Module } from "@nestjs/common";
+import { AuthCoreModule } from "../../core/auth/auth-core.module";
 import { SessionModule } from "../../core/session/session.module";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { ORDER_COOL_DOWN_MS, parseCoolDownSeconds } from "./order-temperature";
+import { AccountController } from "./account.controller";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 
 @Module({
-  imports: [DomainEventsModule, CatalogModule, SessionModule],
-  controllers: [OrdersController],
+  imports: [DomainEventsModule, CatalogModule, SessionModule, AuthCoreModule],
+  controllers: [OrdersController, AccountController],
   providers: [
     OrdersService,
     {

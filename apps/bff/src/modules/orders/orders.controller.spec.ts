@@ -11,6 +11,7 @@ import type { Order } from "./orders.types";
 const DEMO_ORDER: Order = {
   orderId: "ord_demo",
   customerName: "Demo Customer",
+  owner: null,
   lines: [
     {
       productId: "prod_espresso",
