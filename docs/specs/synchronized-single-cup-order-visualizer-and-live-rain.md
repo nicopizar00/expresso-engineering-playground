@@ -253,6 +253,19 @@ would preserve two conflicting meanings for a falling cup.
   order.
 - No **Prepare Order** action is needed for the flow to pass.
 
+### Amendment (2026-10-05, login)
+
+The [login spec](../superpowers/specs/2026-10-05-login-design.md) supersedes
+the no-name-field requirements above. Checkout now accepts `orderFor`:
+`self`, `guest`, or `user` + `recipient`, where `recipient` is a username or
+email identifier, not a human name. The Web App's "Order for -> Someone else"
+input collects that identifier. `customerName` and other human-name fields
+remain rejected.
+
+`scripts/pg/tests/test_k6_checkout_contract.py` keeps `allowed_fields` at
+`{cartId, idempotencyKey}` on purpose: k6 traffic never sends `orderFor`
+(guest path).
+
 ## CUP-003: Interactive selection contract
 
 ### Requirements

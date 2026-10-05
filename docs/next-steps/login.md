@@ -38,17 +38,26 @@ Register that email to see it appear.
 
 - Anyone can attribute an order to any username or email.
 - Registration 409s reveal whether a username or email is taken.
+- No rate limiting on register or login.
+- No CSRF token (today: `sameSite=lax` + JSON bodies).
 
 ## Open follow-ups
 
 - Rate limiting on register/login. Anchor: `TODO(next-steps/login)` in
   `apps/bff/src/modules/auth/auth.service.ts`.
-- CSRF token (today: `sameSite=lax` + JSON bodies).
+- CSRF token. Anchor: `TODO(next-steps/login)` in
+  `apps/bff/src/core/auth/auth-session.service.ts` (`start`).
 - Profile edit (username/email/password change) and password reset by mail.
 - k6: an authenticated purchase scenario (`orderFor: self`) and an
   `account-orders` read scenario.
 - Session sweep: old `AuthSession` rows are not removed on re-login, and
   expired rows are only deleted when presented. Add a periodic sweep.
+  Anchor: `TODO(next-steps/login)` in `resolveUser` of
+  `apps/bff/src/core/auth/auth-session.service.ts`.
+- Test the latest-order card's live hot to cold flip (no component or e2e
+  test covers it).
+- Paginate `/account/orders` (currently unbounded).
+- Clear the sign-in dialog's typed state (including the password) on close.
 - Tooling gap: `./dev up` does not rebuild the BFF image after code changes.
   Use `docker compose -f infra/docker/compose.yaml up -d --build bff`.
 - The `secure` cookie flag stays false behind a TLS-terminating proxy (no
