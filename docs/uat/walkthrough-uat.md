@@ -76,13 +76,13 @@ Human checklist:
 | --- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2.1 | `cp .env.example .env && ./dev up` | Exits 0; stdout contains `BFF is running on http://localhost:3001` AND `Postgres is healthy` AND `Schema is up to date`.                      |
 | 2.2 | `./dev status`                     | Exits 0; output lists `postgres`, `bff`, `otel-collector` with `State=running`. The `Health` column should be `healthy` for postgres and bff. |
-| 2.3 | `./dev smoke`                      | Exits 0; final line is `All 16 smoke checks passed.`                                                                                          |
+| 2.3 | `./dev smoke`                      | Exits 0; final line is `All 20 smoke checks passed.`                                                                                          |
 
 Human checklist:
 
 - [ ] `./dev up` completes without errors.
 - [ ] Three containers running and healthy.
-- [ ] All 16 smoke checks pass (includes the SSE frame against `/visualization-updates`).
+- [ ] All 20 smoke checks pass (includes the SSE frame against `/visualization-updates`).
 
 ---
 

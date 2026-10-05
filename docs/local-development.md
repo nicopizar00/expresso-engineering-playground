@@ -173,7 +173,7 @@ Target: http://localhost:3001
   ✓ GET  /visualization-data (scene shape)
   ✓ GET  /visualization-updates (SSE)
 
-All 16 smoke checks passed.
+All 20 smoke checks passed.
 ```
 
 The smoke test requires the BFF to be running (`pnpm pg:dev` or

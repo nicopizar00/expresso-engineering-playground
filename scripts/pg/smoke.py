@@ -6,6 +6,7 @@ statuses, and SSE frame assertion are byte-equivalent.
 from __future__ import annotations
 
 import http.cookiejar
+import secrets
 from typing import Callable, List, Optional
 
 from pg.ansi import dim, fail, green, header, pass_, red
@@ -155,6 +156,54 @@ def run() -> int:
         if any(isinstance(o, dict) and "sessionId" in o for o in items):
             raise HttpError("/orders/mine must not expose sessionId")
     results.append(_check("GET  /orders/mine (session-owned)", my_orders))
+
+    # Login feature: a fresh user (own cookie jar) registers, orders for
+    # themselves, and sees that order as the hot latest in /account/orders.
+    acct_jar = http.cookiejar.CookieJar()
+    suffix = secrets.token_hex(4)
+    acct = {"username": f"smoke_{suffix}", "email": f"smoke_{suffix}@example.test"}
+    acct_placed: dict = {}
+
+    def register() -> None:
+        _, payload = request_json(
+            f"{API_BASE}/auth/register", method="POST",
+            body={**acct, "password": "smoke-password"},
+            expect_status=201, cookie_jar=acct_jar,
+        )
+        if payload != acct:
+            raise HttpError(f"unexpected register payload: {payload!r}")
+    results.append(_check("POST /auth/register", register))
+
+    def me() -> None:
+        _, payload = request_json(f"{API_BASE}/auth/me", expect_status=200, cookie_jar=acct_jar)
+        if not isinstance(payload, dict) or payload.get("user") != acct:
+            raise HttpError(f"/auth/me did not return the new user: {payload!r}")
+    results.append(_check("GET  /auth/me", me))
+
+    def checkout_self() -> None:
+        request_json(
+            f"{API_BASE}/cart/items", method="POST",
+            body={"productId": "prod_espresso", "quantity": 1},
+            expect_status=201, cookie_jar=acct_jar,
+        )
+        _, payload = request_json(
+            f"{API_BASE}/checkout", method="POST",
+            body={"cartId": _resolve_cart_id(acct_jar), "orderFor": {"type": "self"}},
+            expect_status=201, cookie_jar=acct_jar,
+        )
+        acct_placed["orderId"] = payload.get("orderId") if isinstance(payload, dict) else None
+    results.append(_check("POST /checkout (orderFor self)", checkout_self))
+
+    def account_orders() -> None:
+        _, payload = request_json(f"{API_BASE}/account/orders", expect_status=200, cookie_jar=acct_jar)
+        latest = payload.get("latest") if isinstance(payload, dict) else None
+        if not isinstance(latest, dict) or latest.get("orderId") != acct_placed.get("orderId"):
+            raise HttpError(f"latest is not the order just placed: {latest!r}")
+        if latest.get("temperature") != "hot":
+            raise HttpError(f"latest order should be hot, got {latest.get('temperature')!r}")
+        if latest.get("owner") != {"username": acct["username"]}:
+            raise HttpError(f"unexpected owner: {latest.get('owner')!r}")
+    results.append(_check("GET  /account/orders (latest hot)", account_orders))
 
     def viz_data() -> None:
         _, payload = request_json(f"{API_BASE}/visualization-data", expect_status=200, cookie_jar=jar)

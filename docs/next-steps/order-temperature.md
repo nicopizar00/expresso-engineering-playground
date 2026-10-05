@@ -20,7 +20,7 @@ is derived on every read — never stored, no scheduler.
 - **Perf:** `order-status` consumes the `orders` dataset produced by
   `place-order`, `purchase-flow`, and `purchase-flow-browser`
   (`--produce orders`); `EXPECT_TEMPERATURE=auto|hot|cold` selects the check.
-- **Smoke:** `./dev smoke` checks the typed status shape (16 checks).
+- **Smoke:** `./dev smoke` checks the typed status shape (20 checks).
 
 ## Open follow-ups
 
