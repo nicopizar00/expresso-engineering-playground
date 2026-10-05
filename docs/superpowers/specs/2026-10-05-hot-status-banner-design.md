@@ -110,7 +110,8 @@ body, so no redaction is needed.
 
 ### `useHotStatus()`
 
-- SWR key `user ? "account/hot-status" : null`. A signed-out user sends no
+- SWR key `user ? "orders-hot-status" : null` (the `orders` prefix lets
+  `AuthProvider` revalidate it on sign-in). A signed-out user sends no
   request.
 - `refreshInterval: HOT_STATUS_POLL_MS` (15 000 ms),
   `refreshWhenHidden: false`, `revalidateOnFocus: true`.
