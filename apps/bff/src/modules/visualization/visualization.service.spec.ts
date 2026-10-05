@@ -5,12 +5,7 @@ import { VisualizationService } from "./visualization.service";
 
 const VALID_TYPES = new Set(["cube", "sphere", "marker"]);
 const VALID_STATUSES = new Set(["ok", "warn", "error", "idle"]);
-const VALID_ORDER_STATUSES = new Set([
-  "pending",
-  "preparing",
-  "prepared",
-  "cancelled",
-]);
+const VALID_TEMPERATURES = new Set(["hot", "cold"]);
 
 const PRODUCTS: Product[] = [
   {
@@ -37,7 +32,8 @@ const ORDERS: Order[] = [
   {
     orderId: "ord_demo",
     customerName: "Demo Customer",
-    status: "pending",
+    temperature: "hot",
+    coolsAt: "2026-05-14T12:05:00.000Z",
     lines: [
       {
         productId: "prod_espresso",
@@ -128,18 +124,19 @@ describe("VisualizationService", () => {
       expect(backpack?.status).toBe("warn"); // inventory 8 < 20
     });
 
-    it("order items are spheres with status mapped from order status", () => {
+    it("order items are spheres tinted ok while hot", () => {
       const { items } = makeSvc().list();
       const orderItem = items.find((i) => i.id === "viz_order_ord_demo");
       expect(orderItem?.type).toBe("sphere");
-      expect(orderItem?.status).toBe("warn"); // pending → warn
+      expect(orderItem?.status).toBe("ok"); // hot → ok
+      expect(orderItem?.metadata.temperature).toBe("hot");
     });
 
-    it("cancelled order maps to error status", () => {
-      const cancelled: Order = { ...ORDERS[0], status: "cancelled" };
-      const { items } = makeSvc({ orders: [cancelled] }).list();
+    it("cold order maps to idle status", () => {
+      const cold: Order = { ...ORDERS[0], temperature: "cold" };
+      const { items } = makeSvc({ orders: [cold] }).list();
       expect(items.find((i) => i.id === "viz_order_ord_demo")?.status).toBe(
-        "error",
+        "idle",
       );
     });
 
@@ -269,8 +266,9 @@ describe("VisualizationService", () => {
       expect(scene.recentOrders).toHaveLength(1);
       const ord = scene.recentOrders[0];
       expect(ord.orderId).toBe("ord_demo");
-      expect(VALID_ORDER_STATUSES.has(ord.status)).toBe(true);
-      expect(ord.vizStatus).toBe("warn"); // pending → warn
+      expect(VALID_TEMPERATURES.has(ord.temperature)).toBe(true);
+      expect(ord).not.toHaveProperty("status");
+      expect(ord.vizStatus).toBe("ok"); // hot → ok
       expect(ord.lineCount).toBe(1);
     });
 
@@ -287,22 +285,18 @@ describe("VisualizationService", () => {
       expect(scene.recentOrders[9].orderId).toBe("ord_04");
     });
 
-    it("scene.orderAggregates math: totalCount + olderCount + statusCounts", () => {
+    it("scene.orderAggregates math: totalCount + olderCount + temperatureCounts", () => {
       const orders: Order[] = [
-        { ...ORDERS[0], orderId: "ord_a", status: "pending" },
-        { ...ORDERS[0], orderId: "ord_b", status: "preparing" },
-        { ...ORDERS[0], orderId: "ord_c", status: "prepared" },
-        { ...ORDERS[0], orderId: "ord_d", status: "cancelled" },
-        { ...ORDERS[0], orderId: "ord_e", status: "pending" },
+        { ...ORDERS[0], orderId: "ord_a", temperature: "hot" },
+        { ...ORDERS[0], orderId: "ord_b", temperature: "cold" },
+        { ...ORDERS[0], orderId: "ord_c", temperature: "cold" },
       ];
       const { scene } = makeSvc({ orders }).list();
-      expect(scene.orderAggregates.totalCount).toBe(5);
-      expect(scene.orderAggregates.olderCount).toBe(0); // 5 ≤ window 10
-      expect(scene.orderAggregates.statusCounts).toEqual({
-        pending: 2,
-        preparing: 1,
-        prepared: 1,
-        cancelled: 1,
+      expect(scene.orderAggregates.totalCount).toBe(3);
+      expect(scene.orderAggregates.olderCount).toBe(0);
+      expect(scene.orderAggregates.temperatureCounts).toEqual({
+        hot: 1,
+        cold: 2,
       });
     });
 
@@ -349,7 +343,7 @@ describe("VisualizationService", () => {
       expect(scene.orderAggregates).toEqual({
         totalCount: 0,
         olderCount: 0,
-        statusCounts: { pending: 0, preparing: 0, prepared: 0, cancelled: 0 },
+        temperatureCounts: { hot: 0, cold: 0 },
       });
       expect(scene.products.length).toBeGreaterThan(0);
     });

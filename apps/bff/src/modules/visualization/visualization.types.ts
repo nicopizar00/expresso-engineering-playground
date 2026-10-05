@@ -1,7 +1,7 @@
 // Wire-format types for the visualization data API.
 // Kept here until they migrate to packages/contracts.
 
-import type { Money, OrderStatus } from "@mini-commerce/shared-types";
+import type { Money, OrderTemperature } from "@mini-commerce/shared-types";
 
 // ---------------------------------------------------------------------------
 // Semantic contract (EOC-2) — BFF owns meaning, visualizer owns representation.
@@ -30,7 +30,7 @@ export interface SceneProduct {
 export interface SceneOrder {
   readonly orderId: string;
   readonly customerName: string | null;
-  readonly status: OrderStatus;
+  readonly temperature: OrderTemperature;
   readonly vizStatus: VisualizationItemStatus;
   readonly total: Money;
   readonly lineCount: number;
@@ -41,7 +41,7 @@ export interface SceneOrder {
 export interface OrderAggregates {
   readonly totalCount: number;
   readonly olderCount: number;
-  readonly statusCounts: Readonly<Record<OrderStatus, number>>;
+  readonly temperatureCounts: Readonly<Record<OrderTemperature, number>>;
 }
 
 export interface SceneCart {

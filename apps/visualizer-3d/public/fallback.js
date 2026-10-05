@@ -10,7 +10,7 @@ export const FALLBACK_SCENE = {
   orderAggregates: {
     totalCount: 0,
     olderCount: 0,
-    statusCounts: { pending: 0, preparing: 0, prepared: 0, cancelled: 0 },
+    temperatureCounts: { hot: 0, cold: 0 },
   },
   cart: {
     itemCount: 1,

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { OrderStatus } from "@mini-commerce/shared-types";
+import type { OrderTemperature } from "@mini-commerce/shared-types";
 import { AssetsService } from "../assets/assets.service";
 import type { AssetModelRef, AssetParams } from "../assets/assets.types";
 import { CatalogService } from "../catalog/catalog.service";
@@ -23,8 +23,8 @@ import type {
 // visualizer's permanent geometry stays bounded as history grows.
 const RECENT_ORDER_WINDOW = 10;
 
-function emptyStatusCounts(): Record<OrderStatus, number> {
-  return { pending: 0, preparing: 0, prepared: 0, cancelled: 0 };
+function emptyTemperatureCounts(): Record<OrderTemperature, number> {
+  return { hot: 0, cold: 0 };
 }
 
 // `metadata` is Readonly<Record<string, string | number>>, so AssetConfig
@@ -70,18 +70,11 @@ function productStatus(inventory: number): VisualizationItemStatus {
   return "ok";
 }
 
-function orderStatus(status: Order["status"]): VisualizationItemStatus {
-  switch (status) {
-    case "pending":
-      return "warn";
-    case "preparing":
-    case "prepared":
-      return "ok";
-    case "cancelled":
-      return "error";
-    default:
-      return "idle";
-  }
+// A hot order is a fresh, live event; a cold one is settled history.
+function orderVizStatus(
+  temperature: OrderTemperature,
+): VisualizationItemStatus {
+  return temperature === "hot" ? "ok" : "idle";
 }
 
 // `updatedAt` is epoch ms. The visualizer compares these across items to pick
@@ -120,10 +113,10 @@ function fromOrder(order: Order, index: number): VisualizationItem {
     label: `${order.orderId} · ${customerDisplay}`,
     type: "sphere",
     value: order.total.amountMinor,
-    status: orderStatus(order.status),
+    status: orderVizStatus(order.temperature),
     positionHint: orderPosition(index),
     metadata: {
-      orderStatus: order.status,
+      temperature: order.temperature,
       customerName: customerDisplay,
       lineCount: order.lines.length,
       total: order.total.amountMinor,
@@ -163,8 +156,8 @@ function toSceneOrder(order: Order): SceneOrder {
   return {
     orderId: order.orderId,
     customerName: order.customerName,
-    status: order.status,
-    vizStatus: orderStatus(order.status),
+    temperature: order.temperature,
+    vizStatus: orderVizStatus(order.temperature),
     total: order.total,
     lineCount: order.lines.length,
     placedAt: order.placedAt,
@@ -173,15 +166,15 @@ function toSceneOrder(order: Order): SceneOrder {
 }
 
 function aggregateOrders(orders: ReadonlyArray<Order>): OrderAggregates {
-  const counts = emptyStatusCounts();
+  const counts = emptyTemperatureCounts();
   for (const o of orders) {
-    counts[o.status] = (counts[o.status] ?? 0) + 1;
+    counts[o.temperature] += 1;
   }
   const recentCount = Math.min(orders.length, RECENT_ORDER_WINDOW);
   return {
     totalCount: orders.length,
     olderCount: orders.length - recentCount,
-    statusCounts: counts,
+    temperatureCounts: counts,
   };
 }
 
