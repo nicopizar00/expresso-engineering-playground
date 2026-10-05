@@ -25,12 +25,12 @@ guide focuses on **host-mode operations** and troubleshooting.
 
 ## Prerequisites
 
-| Tool | Version | Required for | Install |
-|---|---|---|---|
-| Docker Desktop | ≥ 4.x | The stack (always) | https://docs.docker.com/desktop |
-| Python | ≥ 3.9 | The orchestrator (always) | System Python on macOS works |
-| Node.js | ≥ 20 | Host-mode dev + `pnpm pg:*` (optional) | https://nodejs.org or `nvm` |
-| pnpm | 9.x | Same as above | `npm install -g pnpm@9` |
+| Tool           | Version | Required for                           | Install                         |
+| -------------- | ------- | -------------------------------------- | ------------------------------- |
+| Docker Desktop | ≥ 4.x   | The stack (always)                     | https://docs.docker.com/desktop |
+| Python         | ≥ 3.9   | The orchestrator (always)              | System Python on macOS works    |
+| Node.js        | ≥ 20    | Host-mode dev + `pnpm pg:*` (optional) | https://nodejs.org or `nvm`     |
+| pnpm           | 9.x     | Same as above                          | `npm install -g pnpm@9`         |
 
 Verify everything at once:
 
@@ -114,12 +114,12 @@ This prints all local URLs. Open http://localhost:3000 in a browser.
 The web app is a single page (`/`) with a 3D visualizer stage pinned above
 four sections reached via header nav buttons — there are no other routes:
 
-| Section (header nav button) | Purpose |
-|---|---|
-| Catalog | Browse the seeded catalog, add items to the cart, and check out inline (checkout is a panel next to the catalog grid, not a separate page). |
-| Orders | My orders (default) and All orders tabs with Hot/Cold badges; order detail is read-only. |
-| Performance | Mock-only Performance Playground (no live telemetry). |
-| API | Inspect API wiring and demo-mode behavior (formerly `/dev`). |
+| Section (header nav button) | Purpose                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catalog                     | Browse the seeded catalog, add items to the cart, and check out inline (checkout is a panel next to the catalog grid, not a separate page). |
+| Orders                      | My orders (default) and All orders tabs with Hot/Cold badges; order detail is read-only.                                                    |
+| Performance                 | Mock-only Performance Playground (no live telemetry).                                                                                       |
+| API                         | Inspect API wiring and demo-mode behavior (formerly `/dev`).                                                                                |
 
 The visualizer is not a section — it is always mounted in the stage above
 whichever section is active, embedding the Three.js scene via the `/viz`
@@ -167,6 +167,7 @@ Target: http://localhost:3001
   ✓ POST /checkout (rejected — customerName not accepted)
   ✓ POST /checkout
   ✓ GET  /orders/ord_demo
+  ✓ GET  /orders/ord_demo/status (typed temperature)
   ✓ GET  /orders/mine (session-owned)
   ✓ GET  /visualization-data
   ✓ GET  /visualization-data (scene shape)
@@ -299,7 +300,7 @@ no browser CORS dependency for the main app.
 
 1. Confirm the BFF is running: `pnpm pg:smoke`.
 2. Confirm the proxy resolves: `curl -s -o /dev/null -w '%{http_code}'
-   http://localhost:3000/api/bff/health` should return `200`.
+http://localhost:3000/api/bff/health` should return `200`.
 3. In Docker, the proxy target is `BFF_INTERNAL_URL=http://bff:3001`; for host
    dev it falls back to `http://localhost:3001`. If you set
    `NEXT_PUBLIC_API_BASE_URL`, it overrides the proxy — unset it to use the

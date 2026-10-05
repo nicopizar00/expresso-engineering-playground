@@ -12,7 +12,7 @@
 
 | Rank   | Flow                                                                      | Business value                                 | Primary success signal                                                   |
 | ------ | ------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| MVC-01 | Catalog browse -> add to cart -> checkout -> order detail | Direct revenue path and core product proof     | Shopper can place an order and see its Hot/Cold temperature             |
+| MVC-01 | Catalog browse -> add to cart -> checkout -> order detail                 | Direct revenue path and core product proof     | Shopper can place an order and see its Hot/Cold temperature              |
 | MVC-02 | My orders / All orders -> order detail (read-only)                        | Retention and operational trust after purchase | User can find their order and see its Hot/Cold temperature               |
 | MVC-03 | Performance playground -> scenario selection -> service health inspection | Developer confidence and system observability  | Reviewer can run scenarios and inspect metrics without backend ambiguity |
 
@@ -39,25 +39,24 @@
 | Checkout API      | Network drop during `POST /checkout`           | User remains on checkout and sees retryable error                | Covered with `route.abort()`                 |
 | Checkout API      | 400 or 409 response                            | Domain-specific alert shown                                      | Planned API-status matrix                    |
 | Responsive layout | Mobile viewport cannot access cart/checkout    | Same journey works on mobile Chrome profile                      | Covered in MVC-01 spec                       |
-| Order action      | Manage-order request fails                     | Status remains unchanged and error is visible                    | Planned negative order-action spec           |
 
 ## Coverage Matrix
 
-| Area                   | Happy path     | Negative path                    | Responsive      | Network mocking                              |
-| ---------------------- | -------------- | -------------------------------- | --------------- | -------------------------------------------- |
-| Catalog                | MVC-01         | Planned API empty/error          | Desktop, mobile | `GET /catalog/products`                      |
-| Cart drawer            | MVC-01         | Planned mutation failure         | Desktop, mobile | `GET /cart`, `POST /cart/items`              |
-| Checkout               | MVC-01         | Blank name, network drop         | Desktop, mobile | `POST /checkout`                             |
-| Order detail           | MVC-01         | Planned not found failure        | Desktop, mobile | `GET /orders/:id`, `GET /orders/:id/status`  |
-| Orders my/all lists   | MVC-02 planned | Empty list                       | Desktop, mobile | `GET /orders/mine`, `GET /orders`            |
-| Performance playground | MVC-03 planned | Scenario stop/error states       | Desktop, mobile | Frontend fixtures only                       |
+| Area                   | Happy path     | Negative path              | Responsive      | Network mocking                             |
+| ---------------------- | -------------- | -------------------------- | --------------- | ------------------------------------------- |
+| Catalog                | MVC-01         | Planned API empty/error    | Desktop, mobile | `GET /catalog/products`                     |
+| Cart drawer            | MVC-01         | Planned mutation failure   | Desktop, mobile | `GET /cart`, `POST /cart/items`             |
+| Checkout               | MVC-01         | Blank name, network drop   | Desktop, mobile | `POST /checkout`                            |
+| Order detail           | MVC-01         | Planned not found failure  | Desktop, mobile | `GET /orders/:id`, `GET /orders/:id/status` |
+| Orders my/all lists    | MVC-02 planned | Empty list                 | Desktop, mobile | `GET /orders/mine`, `GET /orders`           |
+| Performance playground | MVC-03 planned | Scenario stop/error states | Desktop, mobile | Frontend fixtures only                      |
 
 ## Risk Analysis
 
 - The E2E package currently has a placeholder Playwright setup. The scripts below assume `@playwright/test` and a future `playwright.config.ts` are wired in `tests/e2e`.
 - Tests mock `/api/bff` at the browser boundary for deterministic CI. A smaller nightly suite should also run against the real Docker stack to catch contract and infrastructure drift.
 - The product cards have strong accessible names for add-to-cart buttons, but repeated item names across page regions can become ambiguous. Specs scope assertions to drawer, checkout, or order regions where possible.
-- Order management is available to all users in the playground. A production app should split shopper and staff authorization flows.
+- Orders are final once placed (hot, then cold after the cool-down); there are no order actions. "All orders" is visible to every visitor in the playground, while "My orders" is scoped to the anonymous session cookie. A production app would need real ownership and staff authorization.
 
 ## Execution Model
 

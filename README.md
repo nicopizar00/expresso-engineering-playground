@@ -97,11 +97,11 @@ requires Node, pnpm, or any host language runtime.
 
 This brings up three containers:
 
-| Service          | Port  | Role                                       |
-| ---------------- | ----- | ------------------------------------------ |
-| `postgres`       | 5432  | Catalog and orders persistence             |
-| `otel-collector` | 4317  | OTLP gRPC ingest (placeholder pipeline)    |
-| `bff`            | 3001  | NestJS API (`/health`, `/catalog/*`, …)    |
+| Service          | Port | Role                                    |
+| ---------------- | ---- | --------------------------------------- |
+| `postgres`       | 5432 | Catalog and orders persistence          |
+| `otel-collector` | 4317 | OTLP gRPC ingest (placeholder pipeline) |
+| `bff`            | 3001 | NestJS API (`/health`, `/catalog/*`, …) |
 
 On first run, `./dev up` also runs `prisma migrate deploy` and
 `prisma db seed` **inside the BFF container** — no host Prisma needed.
@@ -123,16 +123,20 @@ steps.
 curl -s http://localhost:3001/catalog/products | jq
 curl -s http://localhost:3001/catalog/products/prod_espresso | jq
 
-# Cart (single-user, in-process — resets on BFF restart)
-curl -s -X POST http://localhost:3001/cart/items \
+# Cart (per-session, in-process — resets on BFF restart). The BFF sets an
+# anonymous session cookie; reuse one cookie jar for cart, checkout and
+# /orders/mine so they all belong to the same session.
+curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/cart/items \
   -H 'Content-Type: application/json' \
   -d '{"productId":"prod_espresso","quantity":1}' | jq
-curl -s http://localhost:3001/cart | jq
+# Copy the cartId from this response; checkout requires it.
+CART_ID=$(curl -s -c cookies.txt -b cookies.txt http://localhost:3001/cart | jq -r '.cartId')
+echo "Cart: $CART_ID"
 
 # Checkout — returns the new orderId
-ORDER_ID=$(curl -s -X POST http://localhost:3001/checkout \
+ORDER_ID=$(curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/checkout \
   -H 'Content-Type: application/json' \
-  -d '{}' | jq -r '.orderId')
+  -d "{\"cartId\":\"$CART_ID\"}" | jq -r '.orderId')
 echo "Created order: $ORDER_ID"
 
 # Orders
@@ -140,8 +144,8 @@ curl -s http://localhost:3001/orders | jq
 curl -s "http://localhost:3001/orders/$ORDER_ID" | jq
 # Orders are final once placed; hot until ORDER_COOL_DOWN_SECONDS after placedAt, then cold
 curl -s "http://localhost:3001/orders/$ORDER_ID/status" | jq
-# The caller's own orders need the anonymous sid cookie (use a cookie jar)
-curl -s -c /tmp/jar -b /tmp/jar http://localhost:3001/orders/mine | jq
+# The caller's own orders need the same session cookie (the jar from above)
+curl -s -c cookies.txt -b cookies.txt http://localhost:3001/orders/mine | jq
 
 # Visualization feed (read-only aggregator used by the 3D scene)
 curl -s http://localhost:3001/visualization-data | jq '.items | length'
@@ -158,17 +162,17 @@ are persisted in Postgres and survive restarts.
 
 Then open <http://localhost:3000> and walk this path:
 
-| # | Route               | Action                              | Expected result                                  |
-| - | ------------------- | ----------------------------------- | ------------------------------------------------ |
-| 1 | `/`                 | Browse the seeded catalog           | 1 product: Cup of Coffee                         |
-| 2 | `/` → product card  | Click **Add to cart**               | Cart counter increments                          |
-| 3 | `/cart`             | Review items + totals               | Line items, EUR subtotal, **Proceed to checkout** CTA |
-| 4 | `/checkout`         | Click **Place Order** (no name required) | Redirect to `/orders/<orderId>`             |
-| 5 | `/orders/<orderId>` | Review the placed order (read-only) | Hot badge, flips to Cold after the cool-down     |
-| 6 | `/orders`           | My orders / All orders tabs         | My orders: the new order; All orders: plus seeded `ord_demo` |
-| 7 | `/visualizer`       | Embedded 3D scene                   | Iframe loads the standalone visualizer          |
-| 8 | `/performance`      | Explore simulated load scenarios    | Mock-data KPIs and request-flow visualization    |
-| 9 | `/dev`              | Dev-only diagnostics                | API client wiring, demo-mode toggle, and Performance link |
+| #   | Route               | Action                                   | Expected result                                              |
+| --- | ------------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| 1   | `/`                 | Browse the seeded catalog                | 1 product: Cup of Coffee                                     |
+| 2   | `/` → product card  | Click **Add to cart**                    | Cart counter increments                                      |
+| 3   | `/cart`             | Review items + totals                    | Line items, EUR subtotal, **Proceed to checkout** CTA        |
+| 4   | `/checkout`         | Click **Place Order** (no name required) | Redirect to `/orders/<orderId>`                              |
+| 5   | `/orders/<orderId>` | Review the placed order (read-only)      | Hot badge, flips to Cold after the cool-down                 |
+| 6   | `/orders`           | My orders / All orders tabs              | My orders: the new order; All orders: plus seeded `ord_demo` |
+| 7   | `/visualizer`       | Embedded 3D scene                        | Iframe loads the standalone visualizer                       |
+| 8   | `/performance`      | Explore simulated load scenarios         | Mock-data KPIs and request-flow visualization                |
+| 9   | `/dev`              | Dev-only diagnostics                     | API client wiring, demo-mode toggle, and Performance link    |
 
 ### Step 4 — Add the 3D visualizer
 
@@ -261,14 +265,14 @@ docker compose --profile web --profile viz \
 
 ## Troubleshooting
 
-| Symptom                                          | Fix                                                        |
-| ------------------------------------------------ | ---------------------------------------------------------- |
-| `Cannot connect to the Docker daemon`            | Start Docker Desktop (macOS) or `sudo systemctl start docker` (Linux). |
-| `Port 3001 still occupied`                       | `lsof -ti:3001 \| xargs kill` — or change `BFF_PORT` in `.env`. |
-| `./dev smoke` shows `fetch failed`               | Run `./dev status` — the bff service should be `running` + `healthy`. |
-| Web app shows `ECONNREFUSED` calling the BFF     | Set `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001` in `.env`. |
-| Stale containers after a crash                   | `./dev down` then `./dev up`. For a full reset, use the `down -v` command in Step 8. |
-| Need to read logs                                | `./dev logs` (Ctrl+C to stop following).                   |
+| Symptom                                      | Fix                                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `Cannot connect to the Docker daemon`        | Start Docker Desktop (macOS) or `sudo systemctl start docker` (Linux).               |
+| `Port 3001 still occupied`                   | `lsof -ti:3001 \| xargs kill` — or change `BFF_PORT` in `.env`.                      |
+| `./dev smoke` shows `fetch failed`           | Run `./dev status` — the bff service should be `running` + `healthy`.                |
+| Web app shows `ECONNREFUSED` calling the BFF | Set `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001` in `.env`.                      |
+| Stale containers after a crash               | `./dev down` then `./dev up`. For a full reset, use the `down -v` command in Step 8. |
+| Need to read logs                            | `./dev logs` (Ctrl+C to stop following).                                             |
 
 ---
 
