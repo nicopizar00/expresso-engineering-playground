@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  type OnModuleInit,
   UnauthorizedException,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
@@ -42,13 +43,18 @@ function toPublic(user: { username: string; email: string }): PublicUser {
 
 // TODO(next-steps/login): rate-limit register and login.
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly sessions: AuthSessionService,
   ) {}
+
+  // Warm the dummy hash so the first unknown-identifier login costs one scrypt.
+  async onModuleInit(): Promise<void> {
+    await dummyHash();
+  }
 
   async register(
     dto: RegisterDto,

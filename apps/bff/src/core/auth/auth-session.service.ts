@@ -37,6 +37,7 @@ export class AuthSessionService {
         expiresAt: new Date(Date.now() + this.ttlMs),
       },
     });
+    // TODO(next-steps/login): CSRF token (today: sameSite=lax + JSON bodies).
     res.cookie(AUTH_COOKIE, token, {
       httpOnly: true,
       sameSite: "lax",
@@ -54,6 +55,8 @@ export class AuthSessionService {
       where: { tokenHash: hashToken(token) },
       include: { user: true },
     });
+    // TODO(next-steps/login): periodic session sweep; expired rows are only
+    // deleted when presented, and re-login leaves old rows behind.
     if (!row || row.expiresAt.getTime() <= Date.now()) {
       if (row) {
         await this.prisma.authSession.deleteMany({ where: { id: row.id } });

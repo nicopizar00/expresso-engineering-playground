@@ -7,6 +7,7 @@ import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../../prisma.service";
 import type { AuthSessionService } from "../../core/auth/auth-session.service";
+import * as password from "../../core/auth/password";
 import { hashPassword } from "../../core/auth/password";
 import { AuthService } from "./auth.service";
 
@@ -171,6 +172,25 @@ describe("AuthService.login", () => {
     expect(err).toBeInstanceOf(UnauthorizedException);
     expect(err.message).toBe("invalid credentials");
     expect(sessions.start).not.toHaveBeenCalled();
+  });
+
+  it("compares against the dummy hash once for an unknown identifier", async () => {
+    const dummy = await password.dummyHash();
+    const spy = vi.spyOn(password, "verifyPassword");
+    try {
+      const { svc } = await make(ana);
+      await expect(
+        svc.login(
+          { identifier: "nobody", password: "espresso-demo" },
+          req,
+          res,
+        ),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith("espresso-demo", dummy);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
