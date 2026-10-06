@@ -40,16 +40,17 @@ dataset is missing, so one workflow cannot serve both.
 
 ## Decisions
 
-| Topic                       | Decision                                                                                                                            |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| User source                 | The 12 seeded demo users (`ana` … `mila`, `<username>@example.test`, password `espresso-demo`).                                     |
-| How purchase targets a user | Anonymous checkout with `orderFor: {type: "user", recipient: <username>}`. No login in purchase.                                    |
-| Purchase output             | Dataset `owned-orders`, columns `[orderId, username, email]`, one row per verified order.                                           |
-| Login input                 | `owned-orders` as an **optional** dataset; falls back to the built-in demo-user list.                                               |
-| Login output                | Dataset `auth-tokens`, columns `[username, authToken]`.                                                                             |
-| hot-status assertions       | Shape only.                                                                                                                         |
-| Password in datasets        | Never. Login reads `DEMO_PASSWORD` (default `espresso-demo`).                                                                       |
-| Process                     | One spec and plan for both repos; Punch change committed in `vendor/punch`, pushed to its remote before the submodule pointer bump. |
+| Topic                       | Decision                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User source                 | The 12 seeded demo users (`ana` … `mila`, `<username>@example.test`, password `espresso-demo`).                                                                     |
+| How purchase targets a user | Anonymous checkout with `orderFor: {type: "user", recipient: <username>}`. No login in purchase.                                                                    |
+| Purchase output             | Dataset `owned-orders`, columns `[orderId, username, email]`, one row per verified order.                                                                           |
+| Login input                 | `owned-orders` as an **optional** dataset; falls back to the built-in demo-user list.                                                                               |
+| Login output                | Dataset `auth-tokens`, columns `[username, authToken]`.                                                                                                             |
+| hot-status assertions       | Shape only.                                                                                                                                                         |
+| Thresholds                  | All three workflows: failed requests under 10% (`rate<0.10`), latency at the 90th percentile (`p(90)`), checks above 90%. Existing workflows keep their thresholds. |
+| Password in datasets        | Never. Login reads `DEMO_PASSWORD` (default `espresso-demo`).                                                                                                       |
+| Process                     | One spec and plan for both repos; Punch change committed in `vendor/punch`, pushed to its remote before the submodule pointer bump.                                 |
 
 ## Data flow
 
@@ -130,7 +131,8 @@ and `demoUserEmail(username)` (`<username>@example.test`). It mirrors
 - Only a verified order prints `[DATA owned-orders] <orderId>,<username>,<email>`.
 - `USERS=ana,ben` overrides the pool (comma-separated usernames).
 - Env forwarded: `BASE_URL, VUS, DURATION, ITERATIONS, USERS`. Default
-  5 iterations. Thresholds: `purchaseFlowThresholds`.
+  5 iterations. New `purchaseRegisteredThresholds`: `http_req_failed rate<0.10`,
+  `http_req_duration p(90)<1000`, `checks rate>0.90`.
 - `spec.data.produces: [{dataset: owned-orders, columns: [orderId, username, email], targets: [login]}]`.
 
 ### `login`
@@ -146,8 +148,8 @@ and `demoUserEmail(username)` (`<username>@example.test`). It mirrors
   and `body.username === username`, reads the `auth` cookie from
   `res.cookies`, and prints `[DATA auth-tokens] <username>,<token>`.
 - Env forwarded: `BASE_URL, VUS, ITERATIONS, DEMO_PASSWORD`. Default
-  5 iterations. New `loginThresholds`: `http_req_failed rate<0.01`,
-  `http_req_duration p(95)<1000` (scrypt per login), `checks rate>0.99`.
+  5 iterations. New `loginThresholds`: `http_req_failed rate<0.10`,
+  `http_req_duration p(90)<1000` (scrypt per login), `checks rate>0.90`.
 
 ### `hot-status`
 
@@ -159,8 +161,8 @@ and `demoUserEmail(username)` (`<username>@example.test`). It mirrors
   null exactly when `hotCount` is 0; `serverTime` ISO string.
 - Env forwarded: `BASE_URL, VUS, DURATION, ITERATIONS`. Default
   5 iterations; `DURATION` switches to a constant-VU soak.
-  New `hotStatusThresholds`: `http_req_failed rate<0.01`,
-  `http_req_duration p(95)<500`, `checks rate>0.99`.
+  New `hotStatusThresholds`: `http_req_failed rate<0.10`,
+  `http_req_duration p(90)<500`, `checks rate>0.90`.
 
 ### Wiring
 
