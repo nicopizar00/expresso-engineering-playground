@@ -139,6 +139,7 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
             (perf.order_status, "order-status", {}),
             (perf.purchase_registered, "purchase-registered", {}),
             (perf.login, "login", {}),
+            (perf.hot_status, "hot-status", {}),
         ]
         for command, name, kwargs in cases:
             with self.subTest(name=name):
@@ -150,7 +151,7 @@ class PerfAndCliCompatibilityTests(unittest.TestCase):
         names = [
             "smoke", "purchase_flow", "purchase_flow_browser",
             "cart_fulfill", "cart_fulfill_browser", "place_order", "order_status",
-            "purchase_registered", "login",
+            "purchase_registered", "login", "hot_status",
         ]
         mocks = {}
         patches = [patch.object(perf, name, return_value=0) for name in names]

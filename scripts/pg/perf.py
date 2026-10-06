@@ -51,6 +51,10 @@ def login(args: Sequence[str]) -> int:
     return run_k6("login", args)
 
 
+def hot_status(args: Sequence[str]) -> int:
+    return run_k6("hot-status", args)
+
+
 def open_report() -> int:
     header("Latest k6 report")
     if not PERF_REPORTS_DIR.exists():

@@ -40,6 +40,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "order-status",
             "purchase-registered",
             "login",
+            "hot-status",
         }
         expected_compose_service = {
             "smoke": "k6",
@@ -51,6 +52,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "order-status": "k6",
             "purchase-registered": "k6",
             "login": "k6",
+            "hot-status": "k6",
         }
         expected_environment_forward = {
             "smoke": ["BASE_URL"],
@@ -68,6 +70,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             ],
             "purchase-registered": ["BASE_URL", "VUS", "DURATION", "ITERATIONS", "USERS"],
             "login": ["BASE_URL", "VUS", "ITERATIONS", "DEMO_PASSWORD"],
+            "hot-status": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
         }
         expected_data = {
             "cart-fulfill": {"produces": {"carts": ("place-order",)}, "requires": ()},
@@ -85,6 +88,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 "requires": (),
                 "optional": ("owned-orders",),
             },
+            "hot-status": {"produces": {}, "requires": ("auth-tokens",)},
         }
         self.assertEqual(len(workflow_paths), len(expected_names))
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
@@ -147,3 +151,5 @@ class K6WorkflowCatalogTests(unittest.TestCase):
         self.assertEqual(catalog.consumers_of("orders"), ("order-status",))
         self.assertEqual(catalog.producers_of("owned-orders"), ("purchase-registered",))
         self.assertEqual(catalog.consumers_of("owned-orders"), ("login",))
+        self.assertEqual(catalog.producers_of("auth-tokens"), ("login",))
+        self.assertEqual(catalog.consumers_of("auth-tokens"), ("hot-status",))
