@@ -6,6 +6,12 @@ selection. It remains a picker over the same YAML validation and one-workflow
 Compose execution path; free-text URLs, CSV consent, and Docker confirmation
 retain their existing prompts.
 
+Before the workflow selector opens, Punch prints a [rich](https://github.com/Textualize/rich)
+table with one row per workflow: **ID** (file stem, also the selector entry),
+**Description** (optional `metadata.description`), **Required Input**
+(`spec.data.requires`/`optional` datasets and their producers), and
+**Generated Output** (`spec.data.produces` datasets and their targets).
+
 ## Observed improvement
 
 | Menu-specific implementation | Before (`vendor/punch` at `a568a59`) | After |

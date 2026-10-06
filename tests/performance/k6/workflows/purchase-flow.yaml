@@ -2,6 +2,7 @@ apiVersion: punch/v1
 kind: K6Workflow
 metadata:
   name: purchase-flow
+  description: Full purchase journey over HTTP, mirroring the web app.
 spec:
   workingDirectory: ../../../..
   compose:

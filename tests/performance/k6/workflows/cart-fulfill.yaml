@@ -2,6 +2,7 @@ apiVersion: punch/v1
 kind: K6Workflow
 metadata:
   name: cart-fulfill
+  description: Reserve carts over HTTP without completing checkout.
 spec:
   workingDirectory: ../../../..
   compose:

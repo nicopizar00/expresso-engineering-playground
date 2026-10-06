@@ -15,7 +15,7 @@ performance-testing tooling. After cloning, initialize it with `git submodule
 update --init --recursive` before running `./dev perf:*` commands. Core
 `scripts/pg/` remains standard-library-only; performance commands load
 Punch's pinned PyYAML dependency, while its interactive menu also needs
-`simple-term-menu`. Install both from Punch's requirements:
+`simple-term-menu` and `rich`. Install them from Punch's requirements:
 
 ```bash
 python3 -m venv .cache/punch-venv

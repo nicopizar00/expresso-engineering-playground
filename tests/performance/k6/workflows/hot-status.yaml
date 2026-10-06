@@ -2,6 +2,7 @@ apiVersion: punch/v1
 kind: K6Workflow
 metadata:
   name: hot-status
+  description: Poll account hot-status with logged-in auth tokens.
 spec:
   workingDirectory: ../../../..
   compose:

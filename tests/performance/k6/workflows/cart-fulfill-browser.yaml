@@ -2,6 +2,7 @@ apiVersion: punch/v1
 kind: K6Workflow
 metadata:
   name: cart-fulfill-browser
+  description: Browser-driven cart reservation that stops before checkout.
 spec:
   workingDirectory: ../../../..
   compose:

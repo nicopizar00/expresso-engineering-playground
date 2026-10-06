@@ -25,7 +25,7 @@ fi
 # always the one actually invoked, same as vendor/punch/bin/punch itself.
 export PATH="$VENV_DIR/bin:$PATH"
 
-if ! python3 -c 'import yaml, simple_term_menu' >/dev/null 2>&1; then
+if ! python3 -c 'import yaml, simple_term_menu, rich' >/dev/null 2>&1; then
     echo "Installing Punch menu Python dependencies..." >&2
     if ! python3 -m pip install -q -r "$REPO_ROOT/vendor/punch/requirements.txt" >/dev/null 2>&1; then
         echo "Automatic install failed. Install them manually:" >&2

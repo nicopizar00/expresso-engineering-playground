@@ -2,6 +2,7 @@ apiVersion: punch/v1
 kind: K6Workflow
 metadata:
   name: order-status
+  description: Read back status of previously placed orders.
 spec:
   workingDirectory: ../../../..
   compose:

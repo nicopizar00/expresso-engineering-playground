@@ -2,6 +2,7 @@ apiVersion: punch/v1
 kind: K6Workflow
 metadata:
   name: login
+  description: Log users in and capture their auth tokens.
 spec:
   workingDirectory: ../../../..
   compose:
