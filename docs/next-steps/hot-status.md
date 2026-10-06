@@ -30,15 +30,10 @@ traffic identical to what Punch drives.
 
 ## Open follow-ups
 
-- **Punch hot-status load chain**, chained through Punch datasets:
-  1. `purchase-registered` — places orders for registered users; produces
-     `buyers` `[username, email]` for successful orders only.
-  2. `login` — requires `buyers`; multiple iterations; produces
-     `auth-tokens` `[username, authToken]` from `res.cookies["auth"]` on 200.
-  3. `hot-status` — requires `auth-tokens`; `GET /account/hot-status` with
-     `Cookie: auth=<token>`.
-     Open question: how the k6 users get registered (register step or larger
-     seed).
+- **Load chain (shipped 2026-10-06):** `purchase-registered` →
+  `login` → `hot-status` k6 workflows, with Punch optional datasets for the
+  login fallback. See the "purchase-registered → login → hot-status" section
+  of [`tests/performance/k6/README.md`](../../tests/performance/k6/README.md).
 - **SSE push** (`GET /account/hot-status/stream`) with owner-carrying domain
   events, once Punch can drive SSE (`xk6-sse`).
 - An order placed for me from another browser shows up within one poll

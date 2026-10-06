@@ -55,8 +55,8 @@ that result and record before treating generated artifacts as evidence.
 
 ## Repository workflow mapping
 
-There are seven YAML files, exactly one for every TypeScript k6 build entry.
-All seven select `infra/docker/compose.performance.yaml` and forward
+There are ten YAML files, exactly one for every TypeScript k6 build entry.
+All ten select `infra/docker/compose.performance.yaml` and forward
 `BASE_URL`; `purchase-flow` and `cart-fulfill` additionally forward `VUS`,
 `DURATION`, and `ITERATIONS`; `purchase-flow-browser`, `cart-fulfill-browser`,
 `place-order`, and `order-status` forward `VUS` and `ITERATIONS` (no `DURATION` — each is a
@@ -64,6 +64,9 @@ fixed-size run, either one Chromium instance per VU or one reserved cart per
 iteration, not a time-based soak), so their load shape is configurable
 without editing YAML. `order-status` also forwards `EXPECT_TEMPERATURE`
 (`auto`|`hot`|`cold`) and `ORDER_COOL_DOWN_SECONDS` (must match the BFF's).
+The hot-status load chain adds `purchase-registered` (`VUS`, `DURATION`,
+`ITERATIONS`, `USERS`), `login` (`VUS`, `ITERATIONS`, `DEMO_PASSWORD`), and
+`hot-status` (`VUS`, `DURATION`, `ITERATIONS`), all on service `k6`.
 
 `purchase-flow`, `cart-fulfill`, `place-order`, `order-status`, and `smoke` select service
 `k6` (bare `grafana/k6` image, the BFF as target). `purchase-flow-browser`
@@ -134,6 +137,11 @@ Current datasets:
 | --- | --- | --- | --- |
 | `carts` | `cartId,productId,sid` | `cart-fulfill`, `cart-fulfill-browser` | `place-order` |
 | `orders` | `orderId` | `place-order`, `purchase-flow`, `purchase-flow-browser` | `order-status` |
+| `owned-orders` | `orderId,username,email` | `purchase-registered` | `login` (optional) |
+| `auth-tokens` | `username,authToken` | `login` | `hot-status` |
+
+An optional dataset (`spec.data.optional`) is used when its file has rows and
+skipped otherwise; `login` falls back to the seeded demo users.
 
 `carts` carries the BFF session cookie `sid` because the cart is
 session-scoped; `place-order` replays it via `http.cookieJar().set(...)`
@@ -146,7 +154,7 @@ the hot/cold temperature.
 
 ## Summary output and Docker Compose confirmation
 
-All seven bundled workflows declare `spec.outputs.summary.path`, pointing at the
+All ten bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
 `tests/performance/k6/reports/smoke-summary.json`). Unlike a dataset,
 this is read-only and needs no opt-in flag — after a passing run,

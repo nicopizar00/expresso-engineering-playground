@@ -200,6 +200,30 @@ It forwards `VUS`/`ITERATIONS` (default 5 iterations; rows are reused
 round-robin when `ITERATIONS` exceeds the dataset size — the reads are
 idempotent).
 
+### purchase-registered → login → hot-status
+
+Load-tests `GET /account/hot-status` with real login tokens.
+
+```bash
+./dev perf:purchase-registered --produce owned-orders   # orders for seeded demo users
+./dev perf:login --produce auth-tokens                  # log in their owners
+./dev perf:hot-status                                    # poll with those tokens
+```
+
+- `purchase-registered` checks out anonymously with
+  `orderFor: {type: "user", recipient}` for the seeded demo users
+  (round-robin; `USERS=ana,ben` narrows) and emits `owned-orders`
+  `[orderId, username, email]` for verified orders.
+- `login` declares `owned-orders` as **optional** (`spec.data.optional`). With
+  the file present it logs in those owners; without it Punch prints
+  `optional dataset "owned-orders" not present` and the scenario logs in the
+  12 demo users. Password: `DEMO_PASSWORD` (default `espresso-demo`); it never
+  enters a dataset. Emits `auth-tokens` `[username, authToken]`.
+- `hot-status` requires `auth-tokens` and checks response shape only
+  (`hotCount` may be 0 once orders cool). `ITERATIONS` or `DURATION`.
+- Thresholds for all three: `http_req_failed` < 10%, checks > 90%,
+  p(90) < 1000 ms (500 ms for hot-status).
+
 ## Reports and current-run evidence
 
 The report volume has this stable layout:
