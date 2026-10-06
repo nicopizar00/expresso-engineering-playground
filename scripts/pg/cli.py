@@ -105,6 +105,11 @@ def _perf_order_status(args: Sequence[str]) -> int:
     return perf.order_status(args)
 
 
+def _perf_login(args: Sequence[str]) -> int:
+    from pg import perf
+    return perf.login(args)
+
+
 def _perf_purchase_registered(args: Sequence[str]) -> int:
     from pg import perf
     return perf.purchase_registered(args)
@@ -151,6 +156,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "perf:place-order": _perf_place_order,
     "perf:order-status": _perf_order_status,
     "perf:purchase-registered": _perf_purchase_registered,
+    "perf:login": _perf_login,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,

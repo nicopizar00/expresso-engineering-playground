@@ -154,6 +154,11 @@ tasks:
     cmds:
       - pnpm pg:perf:purchase-registered
 
+  perf:login:
+    desc: k6 login profile in Docker (owners of owned-orders, else seeded demo users; produces auth-tokens)
+    cmds:
+      - pnpm pg:perf:login
+
   perf:report:
     desc: Open k6 HTML report
     cmds:
