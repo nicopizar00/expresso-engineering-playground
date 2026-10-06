@@ -38,6 +38,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "cart-fulfill-browser",
             "place-order",
             "order-status",
+            "purchase-registered",
         }
         expected_compose_service = {
             "smoke": "k6",
@@ -47,6 +48,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "cart-fulfill-browser": "k6-browser",
             "place-order": "k6",
             "order-status": "k6",
+            "purchase-registered": "k6",
         }
         expected_environment_forward = {
             "smoke": ["BASE_URL"],
@@ -62,6 +64,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 "EXPECT_TEMPERATURE",
                 "ORDER_COOL_DOWN_SECONDS",
             ],
+            "purchase-registered": ["BASE_URL", "VUS", "DURATION", "ITERATIONS", "USERS"],
         }
         expected_data = {
             "cart-fulfill": {"produces": {"carts": ("place-order",)}, "requires": ()},
@@ -70,8 +73,12 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "purchase-flow": {"produces": {"orders": ("order-status",)}, "requires": ()},
             "purchase-flow-browser": {"produces": {"orders": ("order-status",)}, "requires": ()},
             "order-status": {"produces": {}, "requires": ("orders",)},
+            "purchase-registered": {
+                "produces": {"owned-orders": ("login",)},
+                "requires": (),
+            },
         }
-        self.assertEqual(len(workflow_paths), 7)
+        self.assertEqual(len(workflow_paths), len(expected_names))
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
         self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
         self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
@@ -101,6 +108,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                         expected["produces"],
                     )
                     self.assertEqual(workflow.data.requires, expected["requires"])
+                    self.assertEqual(workflow.data.optional, expected.get("optional", ()))
                 else:
                     self.assertIsNone(workflow.data)
                 self.assertEqual(

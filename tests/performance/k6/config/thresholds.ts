@@ -41,3 +41,24 @@ export const orderStatusThresholds = {
 export const purchaseFlowBrowserThresholds = {
   checks: ["rate>0.95"],
 };
+
+// Hot-status load chain (purchase-registered → login → hot-status): looser
+// gates than the purchase flow — up to 10% failures, p90 latency.
+export const purchaseRegisteredThresholds = {
+  http_req_failed: ["rate<0.10"],
+  http_req_duration: ["p(90)<1000"],
+  checks: ["rate>0.90"],
+};
+
+// One scrypt verification per login.
+export const loginThresholds = {
+  http_req_failed: ["rate<0.10"],
+  http_req_duration: ["p(90)<1000"],
+  checks: ["rate>0.90"],
+};
+
+export const hotStatusThresholds = {
+  http_req_failed: ["rate<0.10"],
+  http_req_duration: ["p(90)<500"],
+  checks: ["rate>0.90"],
+};

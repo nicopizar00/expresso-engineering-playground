@@ -34,7 +34,10 @@ class K6CheckoutContractTests(unittest.TestCase):
         # cartId is a required cart-reservation identifier, not a human
         # identity field — CUP-002 only forbids the latter (customerName
         # and friends) from perf checkout calls.
-        allowed_fields = {"cartId", "idempotencyKey"}
+        # orderFor (with its nested type/recipient) carries a username or email
+        # identifier, never a human name — allowed since the login amendment;
+        # purchase-registered uses it to place orders for seeded demo users.
+        allowed_fields = {"cartId", "idempotencyKey", "orderFor", "type", "recipient"}
         field_pattern = re.compile(r"(\w+)\s*:")
         for scenario, payloads in checkout_scenarios:
             with self.subTest(scenario=scenario.relative_to(REPO_ROOT)):

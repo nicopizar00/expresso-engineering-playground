@@ -149,6 +149,11 @@ tasks:
     cmds:
       - pnpm pg:perf:order-status
 
+  perf:purchase-registered:
+    desc: k6 purchase-registered profile in Docker (orders for seeded demo users; produces owned-orders)
+    cmds:
+      - pnpm pg:perf:purchase-registered
+
   perf:report:
     desc: Open k6 HTML report
     cmds:

@@ -262,9 +262,11 @@ email identifier, not a human name. The Web App's "Order for -> Someone else"
 input collects that identifier. `customerName` and other human-name fields
 remain rejected.
 
-`scripts/pg/tests/test_k6_checkout_contract.py` keeps `allowed_fields` at
-`{cartId, idempotencyKey}` on purpose: k6 traffic never sends `orderFor`
-(guest path).
+`scripts/pg/tests/test_k6_checkout_contract.py` allows `{cartId,
+idempotencyKey, orderFor}` (plus `orderFor`'s nested `type`/`recipient`).
+Most k6 traffic stays on the guest path; `purchase-registered` (hot-status
+load chain, 2026-10-06) sends `orderFor: {type: "user", recipient}` for the
+seeded demo users.
 
 ## CUP-003: Interactive selection contract
 

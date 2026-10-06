@@ -1,0 +1,23 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: purchase-registered
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/purchase-registered/purchase-registered.js
+  environment:
+    forward: [BASE_URL, VUS, DURATION, ITERATIONS, USERS]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/purchase-registered-summary.json
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    produces:
+      - dataset: owned-orders
+        columns: [orderId, username, email]
+        targets: [login]

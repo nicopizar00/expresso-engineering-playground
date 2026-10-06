@@ -43,6 +43,10 @@ def order_status(args: Sequence[str]) -> int:
     return run_k6("order-status", args)
 
 
+def purchase_registered(args: Sequence[str]) -> int:
+    return run_k6("purchase-registered", args)
+
+
 def open_report() -> int:
     header("Latest k6 report")
     if not PERF_REPORTS_DIR.exists():
