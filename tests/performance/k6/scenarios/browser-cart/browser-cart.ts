@@ -63,13 +63,23 @@ export default async function () {
   try {
     // step: catalog: browse
     await page.goto(BASE_URL, { waitUntil: "networkidle" });
-    await page.waitForSelector('[data-testid="product-add-button"]', {
-      state: "visible",
-    });
-    const addButtons = await page.$$('[data-testid="product-add-button"]');
+    // Caught, so an empty or broken catalog records a failed check instead
+    // of throwing before the check runs.
+    const catalogReady = await page
+      .waitForSelector('[data-testid="product-add-button"]', {
+        state: "visible",
+      })
+      .then(
+        () => true,
+        () => false,
+      );
+    const addButtons = catalogReady
+      ? await page.$$('[data-testid="product-add-button"]')
+      : [];
     check(addButtons, {
       "catalog has items": (b) => b.length > 0,
     });
+    if (!catalogReady) return;
 
     // step: cart: add item
     const productId = await page.getAttribute(

@@ -74,13 +74,23 @@ export default async function () {
   try {
     // step: catalog: browse
     await page.goto(BASE_URL, { waitUntil: "networkidle" });
-    await page.waitForSelector('[data-testid="product-add-button"]', {
-      state: "visible",
-    });
-    const addButtons = await page.$$('[data-testid="product-add-button"]');
+    // Caught, so an empty or broken catalog records a failed check instead
+    // of throwing before the check runs.
+    const catalogReady = await page
+      .waitForSelector('[data-testid="product-add-button"]', {
+        state: "visible",
+      })
+      .then(
+        () => true,
+        () => false,
+      );
+    const addButtons = catalogReady
+      ? await page.$$('[data-testid="product-add-button"]')
+      : [];
     check(addButtons, {
       "catalog has items": (b) => b.length > 0,
     });
+    if (!catalogReady) return;
 
     // step: cart: add item
     const label = await page.getAttribute(
@@ -125,11 +135,15 @@ export default async function () {
     if (renderedOrderId) console.log(`[DATA orders] ${renderedOrderId}`);
 
     // step: visualization: order sphere present
-    const vizStatus = await page.textContent(
-      '[data-testid="visualizer-status"]',
-    );
+    // The badge reads Loading → Connected (or Error / Not Configured); only
+    // Connected means the visualizer is live after the order. Poll up to 10 s.
+    let vizStatus: string | null = null;
+    for (let i = 0; i < 40 && vizStatus !== "Connected"; i++) {
+      vizStatus = await page.textContent('[data-testid="visualizer-status"]');
+      if (vizStatus !== "Connected") await page.waitForTimeout(250);
+    }
     check(vizStatus, {
-      "visualizer ok after order": (t) => t !== "Error",
+      "visualizer ok after order": (t) => t === "Connected",
     });
   } finally {
     await page.close();
