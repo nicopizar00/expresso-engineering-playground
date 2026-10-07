@@ -161,7 +161,7 @@ The `params` JSON blob is ~200 bytes uncompressed — no compression needed for 
 5. Wire into `VisualizationService.fromProduct` and `cartItems`
 6. Update `buildItemMesh` and `buildEspressoGroup` signature in `scene.js`
 7. Update `FALLBACK_ITEMS` to use the local `ESPRESSO_CFG` (no change — it already does)
-8. Run `./dev up` → `./dev smoke` → verify `/visualization-data` includes `assetConfig`
+8. Run `./dev up` → `./dev smoke` → verify `/visualization` includes `assetConfig`
 
 ---
 

@@ -70,7 +70,7 @@ Ignored source-like duplicates:
 | ------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BFF ownership boundary          | Pass    | Visualizer consumes BFF endpoints and does not read PostgreSQL directly.                                                                                        |
 | Persisted orders path           | Pass    | `OrdersService` loads and mutates PostgreSQL rows through Prisma, then serves a warm cache.                                                                     |
-| Live update path                | Pass    | `GET /visualization-updates` uses SSE for cart, checkout, order, and catalog events. EOC-2 wired `CatalogService.create()` into `DomainEventsService.changed$`. |
+| Live update path                | Pass    | `GET /visualization/events` uses SSE for cart, checkout, order, and catalog events. EOC-2 wired `CatalogService.create()` into `DomainEventsService.changed$`. |
 | Current visual domain alignment | Partial | A WIP Classic Espresso cup builder exists, but the full scene is not yet an Expresso Order Counter.                                                             |
 | Data meaning                    | Partial | Metadata contains product, order, and cart facts, but the top-level DTO is still primitive-rendering shaped.                                                    |
 | Scene semantics                 | Fail    | Recent orders, historical orders, product composition, pickup/completed states, and coffee-shop areas are not visually distinguishable.                         |
@@ -83,9 +83,9 @@ Ignored source-like duplicates:
 
 Implemented:
 
-- `GET /visualization-data` returns products, orders, and cart as
+- `GET /visualization` returns products, orders, and cart as
   `VisualizationItem[]`.
-- `GET /visualization-updates` streams the same snapshot shape through SSE.
+- `GET /visualization/events` streams the same snapshot shape through SSE.
 - `scene.js` contains a WIP Classic Espresso cup builder for drink-category
   items and an offline fallback showcase item.
 - Cart add/update/remove, checkout, order placement, and catalog product
@@ -99,7 +99,7 @@ Implemented:
 
 Partially implemented:
 
-- `/visualization-data` carries useful metadata, but it still tells the
+- `/visualization` carries useful metadata, but it still tells the
   frontend to render `cube`, `sphere`, or `marker` at backend-provided position
   hints.
 - Status color semantics exist, but they are generic health colors rather than

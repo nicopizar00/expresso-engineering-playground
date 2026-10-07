@@ -4,13 +4,13 @@
 //   Find the failure mode. The expectation is degraded p95 latency, not a
 //   green run — thresholds in stressThresholds are deliberately loose.
 //
-// Coverage (same seven endpoints as smoke.ts, minus /visualization-data):
+// Coverage (same seven endpoints as smoke.ts, minus /visualization):
 //   GET  /health
-//   GET  /catalog/products
-//   GET  /catalog/products/:id
+//   GET  /products
+//   GET  /products/:id
 //   POST /cart/items
 //   GET  /cart
-//   POST /checkout
+//   POST /orders
 //   GET  /orders/:id
 
 import http from "k6/http";
@@ -45,7 +45,7 @@ export default function () {
   });
 
   group("catalog: list", () => {
-    const res = http.get(url("/catalog/products"));
+    const res = http.get(url("/products"));
     check(res, {
       "catalog 200": (r) => r.status === 200,
       "catalog has items": (r) => {
@@ -59,7 +59,7 @@ export default function () {
   });
 
   group("catalog: product by id", () => {
-    const res = http.get(url("/catalog/products/prod_espresso"));
+    const res = http.get(url("/products/prod_espresso"));
     check(res, {
       "product 200": (r) => r.status === 200,
       "product id matches": (r) => r.json("productId") === "prod_espresso",
@@ -81,7 +81,7 @@ export default function () {
   });
 
   group("checkout", () => {
-    const res = http.post(url("/checkout"), JSON.stringify({}), {
+    const res = http.post(url("/orders"), JSON.stringify({}), {
       headers: JSON_HEADERS,
     });
     check(res, { "checkout 201": (r) => r.status === 201 });
@@ -89,7 +89,7 @@ export default function () {
 
   group("orders: read seeded order", () => {
     // ord_demo is pre-seeded by the BFF; we use it instead of the order
-    // returned by /checkout because checkout responses are not yet
+    // returned by POST /orders because checkout responses are not yet
     // round-trippable through /orders/:id in the in-memory mock.
     const res = http.get(url("/orders/ord_demo"));
     check(res, { "order 200": (r) => r.status === 200 });

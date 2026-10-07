@@ -76,18 +76,33 @@ Tests sit beside source as `*.spec.ts`.
 - **`auth`** (`modules/auth/`) — public surface: `POST /auth/register`
   (creates the user and signs in; 409 `{field}` on conflict),
   `POST /auth/login` (username or email; generic 401), `POST /auth/logout`
-  (idempotent, 204), `GET /auth/me` (`{user}` or `{user: null}`).
+  (idempotent, 204), `GET /me` (`{user}` or `{user: null}`).
 - **`core/auth`** — `AuthCoreModule` exports `AuthSessionService`, which
   resolves the signed-in user from the httpOnly `auth` cookie. It is
   imported by `auth`, `checkout`, and `orders`.
-- **`orders`** also serves `GET /account/orders` (`AccountController`):
+- **`orders`** also serves `GET /me/orders` (`AccountController`):
   `{items, latest}` for the signed-in user, newest first.
-- **`orders`** also serves `GET /account/hot-status` (`AccountController` →
+- **`orders`** also serves `GET /me/hot-status` (`AccountController` →
   `HotStatusService`): hot count and next `coolsAt` for the signed-in user,
   one aggregate query, never order rows.
 
 **Dependency rule:** modules read the signed-in user only through
 `AuthSessionService`, never through `AuthService`.
+
+## Shared route prefixes
+
+Two path prefixes are served by controllers in different modules. Nest
+merges them by method and sub-path; nothing collides.
+
+- **`/orders`** — `POST /orders` is the `checkout` module's
+  `CheckoutController` (cart → order orchestration). `GET /orders`,
+  `GET /orders?owner=session`, `GET /orders/:id`, and
+  `GET /orders/:id/status` are the `orders` module's `OrdersController`.
+- **`/me`** — `GET /me` is the `auth` module's `MeController`.
+  `GET /me/orders` and `GET /me/hot-status` are the `orders` module's
+  `AccountController`.
+
+The full route table is pinned by `apps/bff/src/routes.spec.ts`.
 
 Feature record: [`../next-steps/login.md`](../next-steps/login.md).
 
@@ -117,7 +132,7 @@ of `initTelemetry`.
 
 ## Visualization endpoint as a Phase-3 boundary
 
-`GET /visualization-data` and `GET /visualization-updates` (SSE) are
+`GET /visualization` and `GET /visualization/events` (SSE) are
 read-only aggregators: `VisualizationService` pulls from `CatalogService`,
 `CartService`, and `OrdersService` and emits a **semantic** payload
 (`VisualizationScene`) describing meaning, not representation. The

@@ -82,7 +82,7 @@ Human checklist:
 
 - [ ] `./dev up` completes without errors.
 - [ ] Three containers running and healthy.
-- [ ] All 21 smoke checks pass (includes the SSE frame against `/visualization-updates`).
+- [ ] All 21 smoke checks pass (includes the SSE frame against `/visualization/events`).
 
 ---
 
@@ -93,16 +93,16 @@ All assertions use `jq -e` so a non-matching shape exits non-zero.
 | #    | Command                                                                                                                                                                                                       | Pass criterion                                                                                                                                                                                                                                         |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 3.1  | `curl -s http://localhost:3001/health \| jq -e '.status == "ok"'`                                                                                                                                             | exit 0                                                                                                                                                                                                                                                 |
-| 3.2  | `curl -s http://localhost:3001/catalog/products \| jq -e '.items \| length == 1'`                                                                                                                             | exit 0                                                                                                                                                                                                                                                 |
-| 3.3  | `curl -s http://localhost:3001/catalog/products/prod_espresso \| jq -e '.id == "prod_espresso"'`                                                                                                              | exit 0                                                                                                                                                                                                                                                 |
+| 3.2  | `curl -s http://localhost:3001/products \| jq -e '.items \| length == 1'`                                                                                                                             | exit 0                                                                                                                                                                                                                                                 |
+| 3.3  | `curl -s http://localhost:3001/products/prod_espresso \| jq -e '.id == "prod_espresso"'`                                                                                                              | exit 0                                                                                                                                                                                                                                                 |
 | 3.4  | `curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3001/cart/items -H 'Content-Type: application/json' -d '{"productId":"prod_espresso","quantity":1}'`                                         | output `201`                                                                                                                                                                                                                                           |
 | 3.5  | `curl -s http://localhost:3001/cart \| jq -e '.items \| length >= 1'`                                                                                                                                         | exit 0                                                                                                                                                                                                                                                 |
-| 3.6  | `ORDER_ID=$(curl -s -X POST http://localhost:3001/checkout -H 'Content-Type: application/json' -d '{}' \| jq -r '.orderId'); [ -n "$ORDER_ID" ]`                                          | non-empty `$ORDER_ID`                                                                                                                                                                                                                                  |
+| 3.6  | `ORDER_ID=$(curl -s -X POST http://localhost:3001/orders -H 'Content-Type: application/json' -d '{}' \| jq -r '.orderId'); [ -n "$ORDER_ID" ]`                                          | non-empty `$ORDER_ID`                                                                                                                                                                                                                                  |
 | 3.7  | `curl -s http://localhost:3001/orders \| jq -e '.items \| length >= 1'` (**must be `.items`, not `.orders`**)                                                                                                 | exit 0                                                                                                                                                                                                                                                 |
 | 3.8  | `curl -s "http://localhost:3001/orders/$ORDER_ID" \| jq -e '.id == env.ORDER_ID'`                                                                                                                             | exit 0                                                                                                                                                                                                                                                 |
 | 3.9  | `curl -s "http://localhost:3001/orders/$ORDER_ID/status" \| jq -e '.temperature == "hot"'`                                          | exit 0                                                                                                                                                                                                                                                 |
-| 3.10 | `curl -s http://localhost:3001/visualization-data \| jq -e '.items \| length >= 1'`                                                                                                                           | exit 0                                                                                                                                                                                                                                                 |
-| 3.11 | `curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3001/catalog/products -H 'Content-Type: application/json' -d '{"id":"prod_uat","name":"UAT","priceMinor":100,"currency":"EUR"}'` | output `404` — the product-creation route was removed from the controller so the catalog can never grow past one product (CUP-001). |
+| 3.10 | `curl -s http://localhost:3001/visualization \| jq -e '.items \| length >= 1'`                                                                                                                           | exit 0                                                                                                                                                                                                                                                 |
+| 3.11 | `curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3001/products -H 'Content-Type: application/json' -d '{"id":"prod_uat","name":"UAT","priceMinor":100,"currency":"EUR"}'` | output `404` — the product-creation route was removed from the controller so the catalog can never grow past one product (CUP-001). |
 
 Human checklist:
 
@@ -139,21 +139,21 @@ correct, emit `[DRIFT]` rather than `[FAIL]`.
 ## 5. 3D Visualizer (4 checks)
 
 Run `./dev up full` once. The visualizer is SSE-primary against
-`GET /visualization-updates` with a 2 s polling fallback on
-`GET /visualization-data`.
+`GET /visualization/events` with a 2 s polling fallback on
+`GET /visualization`.
 
 | #   | Command                                                                                          | Pass criterion                                                  |
 | --- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
 | 5.1 | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/`                                  | output `200`                                                    |
 | 5.2 | `curl -s http://localhost:3002/ \| grep -i -c 'three'`                                           | `>= 1` (Three.js script tag present)                            |
-| 5.3 | `curl -s http://localhost:3001/visualization-data \| jq -e '.scene.recentOrders \| length >= 0'` | exit 0 (polling-fallback feed used by the visualizer)           |
-| 5.4 | `curl -sN --max-time 3 http://localhost:3001/visualization-updates \| grep -m1 -c '^data: '`     | `>= 1` (SSE-primary stream emits at least one frame within 3 s) |
+| 5.3 | `curl -s http://localhost:3001/visualization \| jq -e '.scene.recentOrders \| length >= 0'` | exit 0 (polling-fallback feed used by the visualizer)           |
+| 5.4 | `curl -sN --max-time 3 http://localhost:3001/visualization/events \| grep -m1 -c '^data: '`     | `>= 1` (SSE-primary stream emits at least one frame within 3 s) |
 
 Human checklist:
 
 - [ ] Page at <http://localhost:3002> renders a 3D scene.
 - [ ] HUD status line reaches `live (sse) · N objects` (SSE-primary, no manual reload required). If SSE is blocked, the HUD shows `live · N objects` (polling-fallback).
-- [ ] Trigger a cart add or `POST /checkout` from another terminal and the scene repaints without a page reload.
+- [ ] Trigger a cart add or `POST /orders` from another terminal and the scene repaints without a page reload.
 - [ ] Status semantics in the scene reflect order state (not generic health colours).
 
 ---
@@ -217,7 +217,7 @@ iteration can then decide which to act on.
    `.json("items")` — the BFF response shape is `{ "items": [...] }`
    (`apps/bff/src/modules/orders/orders.controller.ts:10` →
    `OrdersResponse`).
-2. ~~**`POST /catalog/products` exists but is undocumented.**~~ Resolved —
+2. ~~**`POST /products` exists but is undocumented.**~~ Resolved —
    the route was removed from `catalog.controller.ts` (the catalog is now
    strictly one product; see CUP-001). Check 3.11 asserts the route now
    404s.

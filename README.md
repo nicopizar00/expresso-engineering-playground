@@ -72,7 +72,7 @@ git submodule update --init --recursive  # initialize shared performance-testing
 Expected final line:
 
 ```
-All 21 smoke checks passed.
+All 23 smoke checks passed.
 ```
 
 If you got that, the stack is live at <http://localhost:3001>. Open the
@@ -101,7 +101,7 @@ This brings up three containers:
 | ---------------- | ---- | --------------------------------------- |
 | `postgres`       | 5432 | Catalog and orders persistence          |
 | `otel-collector` | 4317 | OTLP gRPC ingest (placeholder pipeline) |
-| `bff`            | 3001 | NestJS API (`/health`, `/catalog/*`, …) |
+| `bff`            | 3001 | NestJS API (`/health`, `/products*`, …) |
 
 On first run, `./dev up` also runs `prisma migrate deploy` and
 `prisma db seed` **inside the BFF container** — no host Prisma needed.
@@ -120,12 +120,12 @@ steps.
 
 ```bash
 # Catalog
-curl -s http://localhost:3001/catalog/products | jq
-curl -s http://localhost:3001/catalog/products/prod_espresso | jq
+curl -s http://localhost:3001/products | jq
+curl -s http://localhost:3001/products/prod_espresso | jq
 
 # Cart (per-session, in-process — resets on BFF restart). The BFF sets an
 # anonymous session cookie; reuse one cookie jar for cart, checkout and
-# /orders/mine so they all belong to the same session.
+# /orders?owner=session so they all belong to the same session.
 curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/cart/items \
   -H 'Content-Type: application/json' \
   -d '{"productId":"prod_espresso","quantity":1}' | jq
@@ -134,7 +134,7 @@ CART_ID=$(curl -s -c cookies.txt -b cookies.txt http://localhost:3001/cart | jq 
 echo "Cart: $CART_ID"
 
 # Checkout — returns the new orderId
-ORDER_ID=$(curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/checkout \
+ORDER_ID=$(curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/orders \
   -H 'Content-Type: application/json' \
   -d "{\"cartId\":\"$CART_ID\"}" | jq -r '.orderId')
 echo "Created order: $ORDER_ID"
@@ -145,10 +145,10 @@ curl -s "http://localhost:3001/orders/$ORDER_ID" | jq
 # Orders are final once placed; hot until ORDER_COOL_DOWN_SECONDS after placedAt, then cold
 curl -s "http://localhost:3001/orders/$ORDER_ID/status" | jq
 # The caller's own orders need the same session cookie (the jar from above)
-curl -s -c cookies.txt -b cookies.txt http://localhost:3001/orders/mine | jq
+curl -s -c cookies.txt -b cookies.txt http://localhost:3001/orders?owner=session | jq
 
 # Visualization feed (read-only aggregator used by the 3D scene)
-curl -s http://localhost:3001/visualization-data | jq '.items | length'
+curl -s http://localhost:3001/visualization | jq '.items | length'
 ```
 
 The cart is intentionally in-process and clears on BFF restart. Orders
@@ -185,7 +185,7 @@ Open <http://localhost:3002>. The visualizer connects to SSE for live
 domain-state updates; the HUD reports `live (sse) · N items` or falls
 back to polling if the SSE stream is unavailable.
 
-The visualizer reads only `GET /visualization-data` and `GET /visualization-updates`;
+The visualizer reads only `GET /visualization` and `GET /visualization/events`;
 it never connects to Postgres directly. This boundary is load-bearing for the
 Phase 3 service extraction — see
 [`docs/architecture/bff-modules.md`](./docs/architecture/bff-modules.md).
@@ -194,7 +194,7 @@ Phase 3 service extraction — see
 
 ```bash
 ./dev up obs
-./dev hack trace GET /catalog/products    # span tree from Tempo
+./dev hack trace GET /products    # span tree from Tempo
 ```
 
 Open <http://localhost:3030> (admin/admin) for Grafana with the `BFF

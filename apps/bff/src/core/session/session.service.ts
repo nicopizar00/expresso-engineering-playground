@@ -19,7 +19,7 @@ export class SessionService {
     }
     const sessionId = randomUUID();
     // path: '/' (not a narrower prefix like '/api/bff') — the BFF only
-    // ever sees its own bare route paths ('/cart/items', '/checkout'),
+    // ever sees its own bare route paths ('/cart/items', '/orders'),
     // never the '/api/bff' prefix the browser uses through the Next.js
     // proxy (the rewrite strips it before the request arrives here). Both
     // the proxied browser and direct callers (scripts/pg/smoke.py, k6)

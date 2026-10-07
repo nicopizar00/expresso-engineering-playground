@@ -39,7 +39,7 @@ export function initTransport({
   }
 
   async function fetchPayload() {
-    const res  = await fetch(`${API_BASE}/visualization-data`, { headers: { accept: "application/json" } });
+    const res  = await fetch(`${API_BASE}/visualization`, { headers: { accept: "application/json" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = await res.json();
     if (!body || typeof body !== "object" || typeof body.scene !== "object" || body.scene === null) {
@@ -92,7 +92,7 @@ export function initTransport({
     clearTimeout(sseRetryHandle);
     sseRetryHandle = null;
 
-    sseSource = new EventSource(`${API_BASE}/visualization-updates`);
+    sseSource = new EventSource(`${API_BASE}/visualization/events`);
 
     sseSource.addEventListener("open", () => {
       stopPolling();

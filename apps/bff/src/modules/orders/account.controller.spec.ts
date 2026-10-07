@@ -31,10 +31,8 @@ function make(
 }
 
 describe("AccountController", () => {
-  it("is mounted at /account with GET orders", () => {
-    expect(Reflect.getMetadata(PATH_METADATA, AccountController)).toBe(
-      "account",
-    );
+  it("is mounted at /me with GET orders", () => {
+    expect(Reflect.getMetadata(PATH_METADATA, AccountController)).toBe("me");
     expect(
       Reflect.getMetadata(PATH_METADATA, AccountController.prototype.orders),
     ).toBe("orders");

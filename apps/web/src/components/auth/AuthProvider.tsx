@@ -3,7 +3,7 @@
 /**
  * AuthProvider - signed-in user state for the whole app.
  *
- * SWR on GET /auth/me. Any failure (including a 404 from an API mock that
+ * SWR on GET /me. Any failure (including a 404 from an API mock that
  * predates auth) reads as signed out. Each action revalidates every
  * orders-* SWR key so the order lists follow the identity change.
  */
@@ -30,7 +30,7 @@ interface AuthContextValue {
   login(input: LoginRequest): Promise<AuthUser>;
   register(input: RegisterRequest): Promise<AuthUser>;
   logout(): Promise<void>;
-  /** Revalidate GET /auth/me (e.g. after a 401 from another endpoint). */
+  /** Revalidate GET /me (e.g. after a 401 from another endpoint). */
   refresh(): Promise<void>;
 }
 

@@ -37,7 +37,7 @@ test.describe("hot coffee banner", () => {
   test("signed out: no banner and no hot-status request", async ({ page }) => {
     const calls: string[] = [];
     page.on("request", (r) => {
-      if (r.url().includes("/account/hot-status")) calls.push(r.url());
+      if (r.url().includes("/me/hot-status")) calls.push(r.url());
     });
     await installCommerceApiMock(page, {
       products,

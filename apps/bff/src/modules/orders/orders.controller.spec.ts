@@ -1,6 +1,5 @@
 import "reflect-metadata";
-import { NotFoundException, RequestMethod } from "@nestjs/common";
-import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 import { SessionService } from "../../core/session/session.service";
@@ -53,63 +52,58 @@ function makeController(
 }
 
 describe("OrdersController", () => {
-  describe("GET /orders/mine", () => {
+  describe("GET /orders", () => {
     const req = {} as Request;
     const res = {} as Response;
 
-    it("resolves the session and lists only its orders", () => {
-      const { controller, svc, session } = makeController({
-        listForSession: vi.fn().mockReturnValue([DEMO_ORDER]),
-      });
-      const result = controller.mine(req, res);
-      expect(session.resolveSessionId).toHaveBeenCalledWith(req, res);
-      expect(svc.listForSession).toHaveBeenCalledWith("sid_test");
-      expect(result.items.map((o) => o.orderId)).toEqual(["ord_demo"]);
-    });
-
-    it("returns an empty envelope for a fresh session", () => {
-      const { controller } = makeController({}, "sid_brand_new");
-      expect(controller.mine(req, res)).toEqual({ items: [] });
-    });
-
-    it("is routed as GET mine and declared before GET :id", () => {
-      const proto = OrdersController.prototype;
-      const names = Object.getOwnPropertyNames(proto);
-      expect(Reflect.getMetadata(PATH_METADATA, proto.mine)).toBe("mine");
-      expect(Reflect.getMetadata(METHOD_METADATA, proto.mine)).toBe(
-        RequestMethod.GET,
-      );
-      expect(names.indexOf("mine")).toBeLessThan(names.indexOf("get"));
-    });
-  });
-
-  describe("GET /orders", () => {
-    it("returns items from OrdersService.listAll()", () => {
-      const { controller } = makeController();
-      const result = controller.list();
-      expect(result.items).toHaveLength(1);
-      expect(result.items[0].orderId).toBe("ord_demo");
-    });
-
-    it("wraps the array in an OrdersResponse envelope", () => {
-      const { controller } = makeController();
-      const result = controller.list();
-      expect(result).toHaveProperty("items");
-      expect(Array.isArray(result.items)).toBe(true);
+    it("without owner returns all orders and never touches the session", () => {
+      const { controller, svc, session } = makeController();
+      const result = controller.list(undefined, req, res);
+      expect(result).toEqual({ items: [DEMO_ORDER] });
+      expect(svc.listAll).toHaveBeenCalledOnce();
+      expect(session.resolveSessionId).not.toHaveBeenCalled();
     });
 
     it("returns empty items when no orders exist", () => {
       const { controller } = makeController({
         listAll: vi.fn().mockReturnValue([]),
       });
-      const result = controller.list();
-      expect(result.items).toHaveLength(0);
+      expect(controller.list(undefined, req, res)).toEqual({ items: [] });
     });
 
-    it("is synchronous — delegates to synchronous listAll()", () => {
-      const { controller, svc } = makeController();
-      controller.list();
-      expect(svc.listAll).toHaveBeenCalledOnce();
+    it("owner=session resolves the session and lists only its orders", () => {
+      const { controller, svc, session } = makeController({
+        listForSession: vi.fn().mockReturnValue([DEMO_ORDER]),
+      });
+      const result = controller.list("session", req, res);
+      expect(session.resolveSessionId).toHaveBeenCalledWith(req, res);
+      expect(svc.listForSession).toHaveBeenCalledWith("sid_test");
+      expect(svc.listAll).not.toHaveBeenCalled();
+      expect(result.items.map((o) => o.orderId)).toEqual(["ord_demo"]);
+    });
+
+    it("owner=session returns an empty envelope for a fresh session", () => {
+      const { controller } = makeController({}, "sid_brand_new");
+      expect(controller.list("session", req, res)).toEqual({ items: [] });
+    });
+
+    it.each([
+      ["unknown value", "bogus"],
+      ["empty value", ""],
+      ["repeated param", ["session", "session"]],
+    ] as const)("owner %s → 400", (_label, owner) => {
+      const { controller, svc, session } = makeController();
+      expect(() =>
+        controller.list(owner as string | string[], req, res),
+      ).toThrow(BadRequestException);
+      expect(svc.listAll).not.toHaveBeenCalled();
+      expect(session.resolveSessionId).not.toHaveBeenCalled();
+    });
+
+    it("has no mine handler", () => {
+      expect(
+        Object.getOwnPropertyNames(OrdersController.prototype),
+      ).not.toContain("mine");
     });
   });
 

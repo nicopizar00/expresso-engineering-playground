@@ -60,7 +60,7 @@ class K6CheckoutContractTests(unittest.TestCase):
         self.assertNotIn("customerName", dto)
 
         checkout_request = re.compile(
-            r'http\.post\(\s*url\(["\']/checkout["\']\),\s*JSON\.stringify\((\{[^)]*\})\)',
+            r'http\.post\(\s*url\(["\']/orders["\']\),\s*JSON\.stringify\((\{[^)]*\})\)',
             re.DOTALL,
         )
         checkout_scenarios = []

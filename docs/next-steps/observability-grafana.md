@@ -16,8 +16,8 @@
    from k6 runs).
 3. **Alerting.** No Prometheus alert rules yet. Reasonable first cuts:
    - 5xx rate on any route (window: 5 min)
-   - p95 latency on `POST /checkout`
-   - SSE consumer drop rate on `/visualization-updates`
+   - p95 latency on `POST /orders`
+   - SSE consumer drop rate on `/visualization/events`
 4. **OpenSearch / OpenTelemetry-native APM.** Out of scope until logs land.
 5. **Trace-to-log and trace-to-profiles correlation.** Both Loki and the
    metrics reader need to exist first.
@@ -28,7 +28,7 @@ The shipped minimum (Tempo, Prometheus, Grafana, otel-contrib) is verified by:
 
 ```bash
 ./dev up obs
-./dev hack trace GET /catalog/products    # prints span tree from Tempo
+./dev hack trace GET /products    # prints span tree from Tempo
 open http://localhost:3030                # Grafana → BFF Overview
 ```
 

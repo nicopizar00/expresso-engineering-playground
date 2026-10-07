@@ -7,16 +7,17 @@
 //   - POST /auth/register   — create user + sign in (409 {field} on conflict)
 //   - POST /auth/login      — sign in by username or email (generic 401)
 //   - POST /auth/logout     — end the session (idempotent, 204)
-//   - GET  /auth/me         — {user} or {user: null}
+//   - GET  /me              — {user} or {user: null}
 
 import { Module } from "@nestjs/common";
 import { AuthCoreModule } from "../../core/auth/auth-core.module";
 import { AuthController } from "./auth.controller";
+import { MeController } from "./me.controller";
 import { AuthService } from "./auth.service";
 
 @Module({
   imports: [AuthCoreModule],
-  controllers: [AuthController],
+  controllers: [AuthController, MeController],
   providers: [AuthService],
 })
 export class AuthModule {}

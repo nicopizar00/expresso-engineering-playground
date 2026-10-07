@@ -34,15 +34,15 @@ When the count drops to zero, the topic is done.
    - Remaining: represent hot vs cold cups in the visualizer scene.
 4. **[Simplify Orders](simplify-orders.md)** — _shipped 2026-10-05_
    - Place-and-done orders (no status lifecycle), session-owned
-     `GET /orders/mine`, My/All orders tabs, `temperatureCounts` aggregates.
+     `GET /orders?owner=session`, My/All orders tabs, `temperatureCounts` aggregates.
 5. **[Login and Order Ownership](login.md)** — _core shipped 2026-10-05_ (1 anchor)
    - Register/login/logout/me, scrypt + DB-backed `auth` cookie sessions,
-     checkout `orderFor` (self / guest / another user), `GET /account/orders`,
+     checkout `orderFor` (self / guest / another user), `GET /me/orders`,
      web sign-in dialog, Orders "My account" tab, latest-order card.
    - Remaining: rate limiting, CSRF token, profile edit / password reset,
      session sweep, authenticated k6 scenarios.
 6. **[Hot Coffee Banner](hot-status.md)** — _core shipped 2026-10-05_
-   - Polled `GET /account/hot-status` banner; Punch load chain and SSE push
+   - Polled `GET /me/hot-status` banner; Punch load chain and SSE push
      are follow-ups.
 7. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
    asset certification_
@@ -75,9 +75,9 @@ When the count drops to zero, the topic is done.
 
 ✅ **Visualizer reactivity** — _SSE primary, polling fallback shipped_
 
-- 3D scene connects to `GET /visualization-updates` and receives a full
+- 3D scene connects to `GET /visualization/events` and receives a full
   snapshot on connect and after domain mutations.
-- Falls back to polling `GET /visualization-data` every 2 s when SSE is
+- Falls back to polling `GET /visualization` every 2 s when SSE is
   unavailable.
 - In-flight guard, hidden-tab pause, focus reconnect, and reload-triggered
   reconnect are implemented.

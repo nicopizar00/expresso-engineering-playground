@@ -116,7 +116,7 @@ Preserve these truths unless the repository owner explicitly changes them:
   implementation explicitly changes that.
 - `/performance` must not claim live telemetry, real Grafana data, or actual
   k6 execution.
-- The standalone 3D visualizer reads from `GET /visualization-data`.
+- The standalone 3D visualizer reads from `GET /visualization`.
 
 ## Codex Prompting Policy
 

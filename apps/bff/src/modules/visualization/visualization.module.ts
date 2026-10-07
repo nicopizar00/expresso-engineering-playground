@@ -5,8 +5,9 @@
 // this module.
 //
 // Public surface:
-//   - GET /visualization-data — aggregates catalog and orders into a flat
+//   - GET /visualization — aggregates catalog and orders into a flat
 //     VisualizationItem[] the frontend renders as 3D primitives.
+//   - GET /visualization/events — SSE: full snapshot on connect and per mutation
 
 import { Module } from "@nestjs/common";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";

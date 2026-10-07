@@ -22,7 +22,7 @@ a performance test and not an automated E2E suite.
   - Orders persist in PostgreSQL.
   - Cart is in-memory and resets on BFF restart.
   - The Performance section is mock-only and must not imply live telemetry.
-  - The visualizer reads `GET /visualization-data` and never remounts when
+  - The visualizer reads `GET /visualization` and never remounts when
     the active section changes.
   - Contracts, telemetry, and k6 are outside this UAT.
 
@@ -425,7 +425,7 @@ Manual steps:
 
 1. Open the API section from the header nav (formerly the `/dev` route).
 2. Click `GET /health`.
-3. Click `GET /catalog/products`.
+3. Click `GET /products`.
 4. Use `Cart - Add Item` to add a product.
 5. Copy the returned `itemId` from the response body.
 6. Paste the `itemId` into `Cart - Update / Remove`.
@@ -465,7 +465,7 @@ Manual steps:
    objects and a `live · N objects` status.
 5. Click `Open Standalone`.
 6. Confirm the standalone tab opens `http://localhost:3002`.
-7. Confirm `GET /visualization-data` contains:
+7. Confirm `GET /visualization` contains:
    - Catalog products with `type: "cube"` and source `catalog`.
    - Orders with `type: "sphere"` and source `orders`.
    - Cart with `type: "marker"` and source `cart`.
@@ -551,7 +551,7 @@ Results:
 [PASS]  route-9 - `/dev` returned 200.
 [PASS]  viz-1 - `/viz/index.html` and `/viz/scene.js` returned 200 through the web proxy.
 [PASS]  viz-2 - Standalone visualizer assets at `http://localhost:3002/` and `/scene.js` returned 200.
-[PASS]  viz-3 - `/api/bff/visualization-data` returned 76 items: 7 catalog, 68 orders, 1 cart.
+[PASS]  viz-3 - `/api/bff/visualization` returned 76 items: 7 catalog, 68 orders, 1 cart.
 [PASS]  cart-1 - Proxy cart CRUD worked: POST added `ci_001`, PATCH set quantity 3, DELETE removed it.
 [PASS]  checkout-orders-1 - Proxy checkout created `ord_067`, drained cart to 0, and order status persisted as `preparing` after manage + reload.
 [SKIP]  manual-1 - Header/footer click navigation was not browser-executed because no browser automation surface was available.
@@ -583,7 +583,7 @@ Resolution update on 2026-05-29:
   postgres, and otel-collector healthy; it no longer fails with
   `unknown flag: --profile`.
 - `pnpm pg:smoke` passed 10/10 checks, including the SSE
-  `/visualization-updates` smoke check.
+  `/visualization/events` smoke check.
 
 
 ## Failure Detail
@@ -669,7 +669,7 @@ Observed from code and shell probes:
   - `sphere` to sphere geometry.
   - `marker` to cone geometry.
   - `ok`, `warn`, `error`, `idle` to green, orange, red, and gray.
-- `visualization-data` currently contains real domain state: 7 catalog items,
+- `GET /visualization` currently contains real domain state: 7 catalog items,
   68 order items, and 1 cart marker.
 
 Recommendation:

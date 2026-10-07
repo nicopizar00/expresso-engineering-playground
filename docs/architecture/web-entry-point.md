@@ -119,7 +119,7 @@ automatically; `.env.example` keeps them commented for this reason.
 - Visual components never call `fetch` directly — they go through
   `expresso-api.ts`, which targets the proxy.
 - The web frontend owns no Three.js or visualization-transformation code; the
-  visualizer reads `GET /visualization-data` only.
+  visualizer reads `GET /visualization` only.
 - `@mini-commerce/contracts` is the shared wire-format boundary; the proxy does
   not reshape payloads.
 - The Next.js standalone server entrypoint in a pnpm monorepo is

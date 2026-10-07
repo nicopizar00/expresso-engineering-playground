@@ -8,14 +8,14 @@ Spec: [`docs/superpowers/specs/2026-10-05-login-design.md`](../superpowers/specs
 
 - **Accounts:** `POST /auth/register` (username + email + password, signs in),
   `POST /auth/login` (username or email), `POST /auth/logout`,
-  `GET /auth/me`. scrypt hashes; DB-backed sessions behind an httpOnly `auth`
+  `GET /me`. scrypt hashes; DB-backed sessions behind an httpOnly `auth`
   cookie, independent of the cart's `sid`. TTL: `AUTH_SESSION_TTL_DAYS`
   (default 30).
 - **Order for:** checkout takes `orderFor` — `self`, `guest`, or
   `user` + `recipient` (username or email, need not exist). Omitted → self
   when signed in, guest otherwise. Stored as `Order.ownerUsername` /
   `Order.ownerEmail`.
-- **Account orders:** `GET /account/orders` → `{items, latest}` for the
+- **Account orders:** `GET /me/orders` → `{items, latest}` for the
   signed-in user (owner username OR email), newest first.
 - **Web:** header Sign in / Register dialog (icon-only Sign in button below
   the `sm` breakpoint, `aria-label` "Sign in"), "Order for" radio in
@@ -60,7 +60,7 @@ Register that email to see it appear.
   `apps/bff/src/core/auth/auth-session.service.ts`.
 - Test the latest-order card's live hot to cold flip (no component or e2e
   test covers it).
-- Paginate `/account/orders` (currently unbounded).
+- Paginate `/me/orders` (currently unbounded).
 - Clear the sign-in dialog's typed state (including the password) on close.
 - Tooling gap: `./dev up` does not rebuild the BFF image after code changes.
   Use `docker compose -f infra/docker/compose.yaml up -d --build bff`.

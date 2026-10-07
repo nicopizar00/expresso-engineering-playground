@@ -4,7 +4,7 @@ Covers two needs:
   - JSON request/response with a configurable expected status.
   - Streaming SSE read that asserts at least one `data:` frame within a
     deadline. Used by the smoke command to verify
-    GET /visualization-updates.
+    GET /visualization/events.
 """
 
 from __future__ import annotations

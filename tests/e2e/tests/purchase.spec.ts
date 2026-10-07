@@ -80,7 +80,7 @@ test.describe("End-to-end purchase flow", () => {
 
     await expect(catalog.errorState()).toBeVisible();
     await expect(catalog.errorState()).toHaveText(
-      /Failed to load products[\s\S]*Could not connect to the BFF|Failed to load products[\s\S]*GET \/catalog\/products/,
+      /Failed to load products[\s\S]*Could not connect to the BFF|Failed to load products[\s\S]*GET \/products/,
     );
   });
 });

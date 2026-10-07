@@ -110,7 +110,7 @@ services:
       - "8889:8889"  # prometheus exporter (scraped by prometheus svc)
 
   # visualizer-3d — opt-in static frontend that renders a Three.js room and
-  # consumes /visualization-data from the BFF.
+  # consumes /visualization from the BFF.
   # Activated by: pnpm pg:up viz  (or pnpm pg:up full)
   # Legacy alias: --profile visualizer still works.
   visualizer-3d:

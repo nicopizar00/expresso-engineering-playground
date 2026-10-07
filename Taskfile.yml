@@ -160,7 +160,7 @@ tasks:
       - pnpm pg:perf:login
 
   perf:hot-status:
-    desc: k6 hot-status profile in Docker (GET /account/hot-status with auth-tokens from login)
+    desc: k6 hot-status profile in Docker (GET /me/hot-status with auth-tokens from login)
     cmds:
       - pnpm pg:perf:hot-status
 

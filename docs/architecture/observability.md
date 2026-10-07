@@ -70,8 +70,8 @@ Refuses if Tempo is unreachable; hints the user to `./dev up obs`.
 
 ```bash
 ./dev up obs                              # one-time per session
-./dev hack trace GET /catalog/products
-./dev hack trace POST /checkout --body '{}'
+./dev hack trace GET /products
+./dev hack trace POST /orders --body '{}'
 ```
 
 ## What's not yet in
@@ -83,7 +83,7 @@ Tracked in [`../next-steps/observability-grafana.md`](../next-steps/observabilit
 2. **BFF metrics reader** — `telemetry.ts` only configures a trace exporter, so
    the dashboard metric panels populate only from k6 runs.
 3. **Alerting** — no Prometheus alert rules yet; SLO-shaped thresholds (5xx
-   rate, p95 on `/checkout`) are the obvious first cuts.
+   rate, p95 on `POST /orders`) are the obvious first cuts.
 4. **Trace-to-log / trace-to-profiles correlation** — depends on logs + metrics
    landing first.
 

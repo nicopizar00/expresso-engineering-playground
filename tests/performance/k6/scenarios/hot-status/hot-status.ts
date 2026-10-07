@@ -2,7 +2,7 @@
 //
 // Requires the auth-tokens dataset (produced by `login --produce
 // auth-tokens`). Each iteration sends one token as the `auth` cookie to
-// GET /account/hot-status and checks the response shape only — orders cool
+// GET /me/hot-status and checks the response shape only — orders cool
 // after ORDER_COOL_DOWN_SECONDS, so hotCount may legitimately be 0.
 //
 // Load: ITERATIONS (default 5, shared-iterations) or DURATION (constant-vus
@@ -67,7 +67,7 @@ interface HotStatusBody {
 export default function () {
   const row = tokens[exec.scenario.iterationInTest % tokens.length];
   http.cookieJar().set(url("/"), "auth", row.token);
-  const res = http.get(url("/account/hot-status"));
+  const res = http.get(url("/me/hot-status"));
   let body: HotStatusBody = {};
   try {
     body = res.json() as HotStatusBody;

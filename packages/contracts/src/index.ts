@@ -120,13 +120,13 @@ export interface OrderStatusResponse {
   readonly checkedAt: string;
 }
 
-// GET /account/orders — the signed-in user's orders, newest first.
+// GET /me/orders — the signed-in user's orders, newest first.
 export interface AccountOrdersResponse {
   readonly items: ReadonlyArray<Order>;
   readonly latest: Order | null;
 }
 
-// GET /account/hot-status — the signed-in user's hot-order summary.
+// GET /me/hot-status — the signed-in user's hot-order summary.
 export interface HotStatusResponse {
   readonly hotCount: number;
   // Earliest coolsAt among hot orders; null when hotCount is 0.

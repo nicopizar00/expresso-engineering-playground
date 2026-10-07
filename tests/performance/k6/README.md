@@ -136,12 +136,12 @@ purchase-flow-browser ───────────────────�
 ### cart-fulfill / cart-fulfill-browser → place-order
 
 `cart-fulfill` mirrors `purchase-flow`'s pre-checkout steps (browse → add to
-cart → view cart) but stops before `POST /checkout` and emits each reserved
+cart → view cart) but stops before `POST /orders` and emits each reserved
 cart as `[DATA carts] <cartId>,<productId>,<sid>`. `sid` is the session cookie
 the BFF minted for that cart — the cart is looked up by session, not by
 `cartId` alone (see `cart.service.ts`), so `place-order` replays it via
 `http.cookieJar().set(...)` before checkout. `place-order` then completes
-`POST /checkout` per row and verifies the order and the visualizer feed.
+`POST /orders` per row and verifies the order and the visualizer feed.
 
 ```bash
 ./dev perf:cart-fulfill --produce carts      # writes data/carts.csv
@@ -202,7 +202,7 @@ idempotent).
 
 ### purchase-registered → login → hot-status
 
-Load-tests `GET /account/hot-status` with real login tokens.
+Load-tests `GET /me/hot-status` with real login tokens.
 
 ```bash
 ./dev perf:purchase-registered --produce owned-orders   # orders for seeded demo users
@@ -261,7 +261,7 @@ The current mappings are:
 
 `purchase-flow` is the one full load/perf workflow: it mimics the web app
 exactly (catalog list → add to cart → cart view → checkout → verify order →
-verify visualizer feed), with no `GET /catalog/products/:id` hop since the
+verify visualizer feed), with no `GET /products/:id` hop since the
 web catalog grid never calls it. `cart-fulfill` and `place-order` split that
 same journey into a pair — reserve, then checkout — passing reserved cart ids
 between them as the `carts` dataset; see "Data pipeline" above.

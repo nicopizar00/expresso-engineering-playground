@@ -6,7 +6,7 @@ Spec: [`docs/superpowers/specs/2026-10-05-hot-status-banner-design.md`](../super
 
 ## What shipped
 
-- **BFF:** `GET /account/hot-status` → `{hotCount, nextCoolsAt, serverTime}`
+- **BFF:** `GET /me/hot-status` → `{hotCount, nextCoolsAt, serverTime}`
   for the signed-in user (`auth` cookie only; 401 otherwise). One Postgres
   aggregate in `HotStatusService`; never loads order rows. Composite indexes
   `(ownerUsername, placedAt)` and `(ownerEmail, placedAt)`.
@@ -34,7 +34,7 @@ traffic identical to what Punch drives.
   `login` → `hot-status` k6 workflows, with Punch optional datasets for the
   login fallback. See the "purchase-registered → login → hot-status" section
   of [`tests/performance/k6/README.md`](../../tests/performance/k6/README.md).
-- **SSE push** (`GET /account/hot-status/stream`) with owner-carrying domain
+- **SSE push** (`GET /me/hot-status/stream`) with owner-carrying domain
   events, once Punch can drive SSE (`xk6-sse`).
 - An order placed for me from another browser shows up within one poll
   interval (≤ 15 s), not instantly.

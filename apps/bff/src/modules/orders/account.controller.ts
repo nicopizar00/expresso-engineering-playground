@@ -11,9 +11,9 @@ import { HotStatusService } from "./hot-status.service";
 import { OrdersService } from "./orders.service";
 import type { AccountOrdersResponse, HotStatusResponse } from "./orders.types";
 
-// Lives under /account (not /orders) so it can never collide with
-// GET /orders/:id.
-@Controller("account")
+// Current-user routes under /me (GET /me itself is the auth module's
+// MeController). Never under /orders, so nothing collides with GET /orders/:id.
+@Controller("me")
 export class AccountController {
   constructor(
     private readonly ordersService: OrdersService,
