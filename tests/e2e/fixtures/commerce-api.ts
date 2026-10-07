@@ -141,20 +141,21 @@ export async function installCommerceApiMock(
     const request = route.request();
     const method = request.method();
     const pathname = new URL(request.url()).pathname;
+    const owner = new URL(request.url()).searchParams.get("owner");
     const path = pathname.startsWith("/api/bff")
       ? pathname.slice("/api/bff".length) || "/"
       : pathname;
 
     if (
       method === "GET" &&
-      (path === "/catalog/products" || path === "/api/products")
+      (path === "/products" || path === "/api/products")
     ) {
       return options.failCatalog
         ? fulfillJson(route, 500, { message: "Catalog unavailable" })
         : fulfillJson(route, 200, { items: options.products });
     }
 
-    const productMatch = path.match(/^\/catalog\/products\/([^/]+)$/);
+    const productMatch = path.match(/^\/products\/([^/]+)$/);
     if (method === "GET" && productMatch?.[1]) {
       const product = options.products.find(
         (item) => item.productId === decodeURIComponent(productMatch[1]!),
@@ -224,7 +225,7 @@ export async function installCommerceApiMock(
       return fulfillJson(route, 200, currentCart());
     }
 
-    if (method === "POST" && path === "/checkout") {
+    if (method === "POST" && path === "/orders") {
       if (options.checkoutFailure === "network-drop") {
         return route.abort("failed");
       }
@@ -283,14 +284,22 @@ export async function installCommerceApiMock(
     }
 
     if (method === "GET" && path === "/orders") {
+      // Mirrors the BFF: owner=session → this browser's orders, no owner →
+      // all orders, anything else → 400.
+      if (owner !== null && owner !== "session") {
+        return fulfillJson(route, 400, {
+          message: 'owner must be "session" when present',
+        });
+      }
       return fulfillJson(route, 200, {
         items: Array.from(orders.values())
+          .filter((o) => owner === null || myOrderIds.has(o.orderId))
           .sort(newestFirst)
           .map(withTemperature),
       });
     }
 
-    if (method === "GET" && path === "/account/orders") {
+    if (method === "GET" && path === "/me/orders") {
       if (!currentUser) {
         return fulfillJson(route, 401, {
           statusCode: 401,
@@ -311,7 +320,7 @@ export async function installCommerceApiMock(
       return fulfillJson(route, 200, { items: mine, latest: mine[0] ?? null });
     }
 
-    if (method === "GET" && path === "/account/hot-status") {
+    if (method === "GET" && path === "/me/hot-status") {
       if (!currentUser) {
         return fulfillJson(route, 401, {
           statusCode: 401,
@@ -335,15 +344,6 @@ export async function installCommerceApiMock(
           ? new Date(earliest + coolDownMs).toISOString()
           : null,
         serverTime: new Date(now).toISOString(),
-      });
-    }
-
-    if (method === "GET" && path === "/orders/mine") {
-      return fulfillJson(route, 200, {
-        items: Array.from(orders.values())
-          .filter((o) => myOrderIds.has(o.orderId))
-          .sort(newestFirst)
-          .map(withTemperature),
       });
     }
 
@@ -375,7 +375,7 @@ export async function installCommerceApiMock(
         : fulfillJson(route, 404, { message: "Order not found" });
     }
 
-    if (method === "GET" && path === "/auth/me") {
+    if (method === "GET" && path === "/me") {
       return fulfillJson(route, 200, { user: currentUser });
     }
     if (method === "POST" && path === "/auth/login") {

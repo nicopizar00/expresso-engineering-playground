@@ -128,10 +128,10 @@ async function installScene(
       route.fulfill({ status, json: body });
     if (endpoint === "/health")
       return json({ status: "ok", checks: { db: "ok" } });
-    if (endpoint === "/catalog/products")
+    if (endpoint === "/products")
       return json({ items: [product, secondProduct] });
-    if (endpoint === "/visualization-data") return json({ scene: scene() });
-    if (endpoint === "/visualization-updates") {
+    if (endpoint === "/visualization") return json({ scene: scene() });
+    if (endpoint === "/visualization/events") {
       return route.fulfill({
         contentType: "text/event-stream",
         body: `data: ${JSON.stringify({ scene: scene() })}\n\n`,
@@ -155,7 +155,7 @@ async function installScene(
           : [],
       });
     }
-    if (endpoint === "/checkout") {
+    if (endpoint === "/orders" && request.method() === "POST") {
       if (options.failCheckout)
         return json({ message: "Checkout conflict" }, 409);
       const order = makeOrder(
