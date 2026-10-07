@@ -5,14 +5,14 @@ import { DomainEventsService } from "../../core/domain-events/domain-events.serv
 import { VisualizationService } from "./visualization.service";
 import type { VisualizationDataResponse } from "./visualization.types";
 
-@Controller()
+@Controller("visualization")
 export class VisualizationController {
   constructor(
     private readonly visualization: VisualizationService,
     private readonly domainEvents: DomainEventsService,
   ) {}
 
-  @Get("visualization-data")
+  @Get()
   list(): VisualizationDataResponse {
     return this.visualization.list();
   }
@@ -20,7 +20,7 @@ export class VisualizationController {
   // SSE stream — pushes a full snapshot immediately on connect, then on each
   // domain mutation. debounceTime(50) coalesces rapid bursts (e.g. checkout
   // emits twice: create order + clear cart).
-  @Sse("visualization-updates")
+  @Sse("events")
   updates(): Observable<MessageEvent> {
     return merge(
       of(null),
