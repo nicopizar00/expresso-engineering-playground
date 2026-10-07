@@ -141,7 +141,11 @@ export async function installCommerceApiMock(
     const request = route.request();
     const method = request.method();
     const pathname = new URL(request.url()).pathname;
-    const owner = new URL(request.url()).searchParams.get("owner");
+    // getAll, not get: the BFF 400s a repeated owner (Express parses it as
+    // an array), so the mock must not read ?owner=session&owner=session as
+    // "session".
+    const owners = new URL(request.url()).searchParams.getAll("owner");
+    const owner = owners.length === 0 ? null : owners.join(",");
     const path = pathname.startsWith("/api/bff")
       ? pathname.slice("/api/bff".length) || "/"
       : pathname;
