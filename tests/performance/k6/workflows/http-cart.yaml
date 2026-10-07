@@ -22,3 +22,4 @@ spec:
       - dataset: carts
         columns: [cartId, productId, sid]
         targets: [http-orders]
+        recommended: true

@@ -123,7 +123,14 @@ browser-purchase ─────────────────────
   zero-row run, a malformed row, or a failed process fails the workflow and
   keeps the previous file.
 - A consumer fails before Docker when a required dataset is missing or has no
-  rows, naming the workflows that produce it. Punch injects the container path
+  rows, naming the workflows that produce it. Through `punch run` or the
+  `punch` menu in a terminal, Punch first offers each optional dataset's source
+  (built-in default or `data/<dataset>.csv`), then — for missing data — lists
+  every producer with the `recommended: true` one preselected (`http-cart` for
+  `carts`, `http-purchase` for `orders`), runs the picked one with
+  `--produce`, and tells you which workflow to re-run. `--no-input` and
+  `--data <dataset>=default` are the non-interactive equivalents. Punch injects
+  the container path
   as `DATA_<DATASET>_CSV`; `--data <dataset>=<path>` reads an alternate file
   under `data/`. After the run, an interactive terminal is asked whether to
   delete each consumed file; non-interactive runs keep it.
