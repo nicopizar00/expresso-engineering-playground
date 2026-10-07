@@ -72,7 +72,7 @@ git submodule update --init --recursive  # initialize shared performance-testing
 Expected final line:
 
 ```
-All 21 smoke checks passed.
+All 23 smoke checks passed.
 ```
 
 If you got that, the stack is live at <http://localhost:3001>. Open the

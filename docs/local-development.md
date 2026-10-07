@@ -169,6 +169,8 @@ Target: http://localhost:3001
   ✓ GET  /orders/ord_demo
   ✓ GET  /orders/ord_demo/status (typed temperature)
   ✓ GET  /orders?owner=session (session-owned)
+  ✓ GET  /orders?owner=bogus (rejected)
+  ✓ GET  /catalog/products (retired → 404)
   ✓ POST /auth/register
   ✓ GET  /me
   ✓ POST /orders (orderFor self)
@@ -178,7 +180,7 @@ Target: http://localhost:3001
   ✓ GET  /visualization (scene shape)
   ✓ GET  /visualization/events (SSE)
 
-All 21 smoke checks passed.
+All 23 smoke checks passed.
 ```
 
 The smoke test requires the BFF to be running (`pnpm pg:dev` or
