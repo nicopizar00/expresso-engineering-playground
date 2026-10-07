@@ -1,6 +1,6 @@
 """Dispatch layer. Argparse-based to avoid third-party deps, but
 sub-command dispatch is hand-rolled because the legacy CLI uses colon
-names (perf:smoke etc.) that argparse subparsers refuse.
+names (perf:http-purchase etc.) that argparse subparsers refuse.
 """
 
 from __future__ import annotations
@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Callable, Dict, List, Sequence
 
 from pg.ansi import bold, dim
+from pg.workflows import WORKFLOWS
 
 # Lazy import command modules so a syntax error in one doesn't break --help.
 def _doctor(_a: Sequence[str]) -> int:
@@ -70,54 +71,11 @@ def _open(_a: Sequence[str]) -> int:
     return open_cmd.run()
 
 
-def _perf_smoke(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.smoke(args)
-
-
-def _perf_purchase_flow(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.purchase_flow(args)
-
-
-def _perf_purchase_flow_browser(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.purchase_flow_browser(args)
-
-
-def _perf_cart_fulfill(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.cart_fulfill(args)
-
-
-def _perf_cart_fulfill_browser(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.cart_fulfill_browser(args)
-
-
-def _perf_place_order(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.place_order(args)
-
-
-def _perf_order_status(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.order_status(args)
-
-
-def _perf_hot_status(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.hot_status(args)
-
-
-def _perf_login(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.login(args)
-
-
-def _perf_purchase_registered(args: Sequence[str]) -> int:
-    from pg import perf
-    return perf.purchase_registered(args)
+def _perf(name: str) -> Callable[[Sequence[str]], int]:
+    def run(args: Sequence[str]) -> int:
+        from pg import perf
+        return perf.run(name, args)
+    return run
 
 
 def _perf_open_report(_a: Sequence[str]) -> int:
@@ -153,16 +111,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "status": _status,
     "logs": _logs,
     "open": _open,
-    "perf:smoke": _perf_smoke,
-    "perf:purchase-flow": _perf_purchase_flow,
-    "perf:purchase-flow-browser": _perf_purchase_flow_browser,
-    "perf:cart-fulfill": _perf_cart_fulfill,
-    "perf:cart-fulfill-browser": _perf_cart_fulfill_browser,
-    "perf:place-order": _perf_place_order,
-    "perf:order-status": _perf_order_status,
-    "perf:purchase-registered": _perf_purchase_registered,
-    "perf:login": _perf_login,
-    "perf:hot-status": _perf_hot_status,
+    **{f"perf:{name}": _perf(name) for name in WORKFLOWS},
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,
@@ -176,7 +125,7 @@ def _usage() -> None:
     print("Requires: Docker Desktop  |  Python ≥ 3.9 on PATH.")
     print("Performance commands additionally require Punch's pinned dependency:")
     print("  python3 -m pip install -r vendor/punch/requirements.txt")
-    print("Data-producing workflows write their dataset only with --produce <dataset> (e.g. perf:cart-fulfill --produce carts).")
+    print("Data-producing workflows write their dataset only with --produce <dataset> (e.g. perf:http-cart --produce carts).")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()
