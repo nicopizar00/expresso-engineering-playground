@@ -206,10 +206,12 @@ jobs:
           }
       - name: Build k6 image
         run: docker compose -f infra/docker/compose.performance.yaml build k6
-      - name: Run k6 smoke workflow
+      - name: Run k6 purchase workflow
         env:
           BASE_URL: http://host.docker.internal:3001
-        run: ./dev perf:smoke
+          VUS: "1"
+          ITERATIONS: "1"
+        run: ./dev perf:http-purchase
       - name: Tear down stack
         if: always()
         run: docker compose -f infra/docker/compose.yaml down --volumes

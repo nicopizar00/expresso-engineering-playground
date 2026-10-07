@@ -50,15 +50,15 @@ Full guidance: [`tooling-efficiency.md`](tooling-efficiency.md).
    `docs/performance/**` rather than restating their rules elsewhere.
 5. **Validation is local-first.** Run the narrowest applicable playbook row;
    CI is a backstop, not the gate for "done".
-6. **Performance workflows are consumer-owned YAML.** The seven Expresso
+6. **Performance workflows are consumer-owned YAML.** The nine Expresso
    workflow files select the scenario and permitted environment; Punch owns
    loading, the `spec.data` dataset contract, one Compose run, and stream
    logging. Install `vendor/punch/requirements.txt` before `perf:*` work.
    Datasets are written only with `--produce <dataset>`, from stdout
    `[DATA <dataset>]` records; they fail on zero records and publish
-   atomically, and consumers are preflighted before Docker. CI's smoke
-   workflow builds first and invokes `./dev perf:smoke` rather than duplicating
-   the Compose command.
+   atomically, and consumers are preflighted before Docker. The CI k6 gate
+   builds first and invokes `VUS=1 ITERATIONS=1 ./dev perf:http-purchase`
+   rather than duplicating the Compose command.
 
 ## Roadmap
 
@@ -68,9 +68,9 @@ Out of scope for this phase, deferred to a future track:
   prompt files, Copilot-specific skills).
 - A second Copilot pointer at `.github/copilot-instructions.md` beyond the
   current tiny pointer.
-- CI coverage beyond the CI smoke workflow. The smoke workflow is the
-  explicitly owned baseline; promoting another scenario still needs explicit
-  owner sign-off.
+- CI coverage beyond the CI k6 gate (one `http-purchase` iteration). That
+  gate is the explicitly owned baseline; promoting another scenario still
+  needs explicit owner sign-off.
 - Multi-repo / multi-service performance workflows. The orchestrator stays
   monorepo-internal until a second target needs it.
 

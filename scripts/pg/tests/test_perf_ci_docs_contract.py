@@ -27,7 +27,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
             steps,
         )
 
-    def test_performance_ci_builds_then_selects_the_smoke_workflow(self) -> None:
+    def test_performance_ci_builds_then_selects_the_purchase_workflow(self) -> None:
         """Bypassing ./dev would duplicate the repository YAML execution contract."""
         ci = yaml.safe_load(
             (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -55,9 +55,13 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         )
         run_workflow = step_index(
             {
-                "name": "Run k6 smoke workflow",
-                "env": {"BASE_URL": "http://host.docker.internal:3001"},
-                "run": "./dev perf:smoke",
+                "name": "Run k6 purchase workflow",
+                "env": {
+                    "BASE_URL": "http://host.docker.internal:3001",
+                    "VUS": "1",
+                    "ITERATIONS": "1",
+                },
+                "run": "./dev perf:http-purchase",
             }
         )
 
@@ -65,7 +69,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertLess(install_punch, start_bff)
         self.assertLess(start_bff, build_k6)
         self.assertLess(build_k6, run_workflow)
-        self.assertEqual(sum(step.get("run") == "./dev perf:smoke" for step in steps), 1)
+        self.assertEqual(sum(step.get("run") == "./dev perf:http-purchase" for step in steps), 1)
         self.assertFalse(
             any(
                 "docker compose" in step.get("run", "")
@@ -132,5 +136,5 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertIn("perf:open-report", documents["tests/performance/k6/README.md"])
         self.assertIn("perf:clean", documents["tests/performance/k6/README.md"])
         self.assertIn("supersedes INT-002", documents["docs/specs/punch-submodule-integration.md"])
-        self.assertIn("CI smoke workflow", documents["docs/ai/claude-code-operating-protocol.md"])
+        self.assertIn("CI k6 gate", documents["docs/ai/claude-code-operating-protocol.md"])
         self.assertNotIn("punch's _stream primitive", documents["docs/performance/orchestrator.md"])
