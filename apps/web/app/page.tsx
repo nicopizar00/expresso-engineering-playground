@@ -44,7 +44,7 @@ export default function HomeWorkspace() {
 
   const { user, isLoading: authLoading } = useAuth();
   const { mutate: globalMutate } = useSWRConfig();
-  // undefined until /auth/me first resolves, so a signed-in page load
+  // undefined until /me first resolves, so a signed-in page load
   // defaults to the Account tab without jumping sections.
   const prevUser = useRef<string | null | undefined>(undefined);
   useEffect(() => {

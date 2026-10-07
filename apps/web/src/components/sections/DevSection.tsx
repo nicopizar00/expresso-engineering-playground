@@ -579,18 +579,18 @@ function ReadinessPanel() {
     {
       label: "Product catalog",
       status: "wired",
-      note: "GET /catalog/products",
+      note: "GET /products",
     },
     {
       label: "Product detail",
       status: "wired",
-      note: "GET /catalog/products/:id",
+      note: "GET /products/:id",
     },
     { label: "Cart view", status: "wired", note: "GET /cart" },
     { label: "Add to cart", status: "wired", note: "POST /cart/items" },
-    { label: "Checkout", status: "wired", note: "POST /checkout" },
+    { label: "Checkout", status: "wired", note: "POST /orders" },
     { label: "Order lookup", status: "wired", note: "GET /orders/:id" },
-    { label: "My orders", status: "wired", note: "GET /orders/mine" },
+    { label: "My orders", status: "wired", note: "GET /orders?owner=session" },
     { label: "Health check", status: "wired", note: "GET /health" },
     { label: "Order list", status: "wired", note: "GET /orders" },
     {
@@ -708,7 +708,7 @@ function CatalogCard({
   return (
     <Card title="Catalog - Load Products">
       <ActionButton onClick={load} loading={loading}>
-        GET /catalog/products
+        GET /products
       </ActionButton>
       {products && products.length > 0 && (
         <ul
@@ -925,7 +925,7 @@ function CheckoutCard() {
         }
         loading={loading}
       >
-        POST /checkout
+        POST /orders
       </ActionButton>
       <ResponseBox result={result} />
     </Card>
@@ -975,7 +975,7 @@ function MyOrdersCard() {
         onClick={() => call(() => expressoApi.getMyOrders())}
         loading={loading}
       >
-        GET /orders/mine
+        GET /orders?owner=session
       </ActionButton>
       <ResponseBox result={result} />
     </Card>

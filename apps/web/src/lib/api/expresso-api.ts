@@ -21,21 +21,22 @@
  * | Endpoint                     | BFF Controller       | Status    |
  * |------------------------------|----------------------|-----------|
  * | GET  /health                 | health.controller    | VERIFIED  |
- * | GET  /catalog/products       | catalog.controller   | VERIFIED  |
- * | GET  /catalog/products/:id   | catalog.controller   | VERIFIED  |
+ * | GET  /products               | catalog.controller   | VERIFIED  |
+ * | GET  /products/:id           | catalog.controller   | VERIFIED  |
  * | GET    /cart                 | cart.controller      | VERIFIED  |
  * | POST   /cart/items           | cart.controller      | VERIFIED  |
  * | PATCH  /cart/items/:itemId   | cart.controller      | VERIFIED  |
  * | DELETE /cart/items/:itemId   | cart.controller      | VERIFIED  |
- * | POST   /checkout             | checkout.controller  | VERIFIED  |
+ * | POST   /orders               | checkout.controller  | VERIFIED  |
  * | GET    /orders/:id           | orders.controller    | VERIFIED  |
- * | GET    /orders/mine          | orders.controller    | VERIFIED  |
+ * | GET    /orders?owner=session | orders.controller    | VERIFIED  |
  * | GET    /orders               | orders.controller    | VERIFIED  |
  * | POST   /auth/register        | auth.controller      | VERIFIED  |
  * | POST   /auth/login           | auth.controller      | VERIFIED  |
  * | POST   /auth/logout          | auth.controller      | VERIFIED  |
- * | GET    /auth/me              | auth.controller      | VERIFIED  |
- * | GET    /account/orders       | account.controller   | VERIFIED  |
+ * | GET    /me                   | me.controller        | VERIFIED  |
+ * | GET    /me/orders            | account.controller   | VERIFIED  |
+ * | GET    /me/hot-status        | account.controller   | VERIFIED  |
  *
  * All endpoints are reached through the same-origin /api/bff proxy in the
  * browser (next.config.mjs rewrites it to the internal BFF container).
@@ -254,7 +255,7 @@ const mockApi = {
   async getProducts(): Promise<ProductsResponse> {
     await simulateLatency();
     if (shouldSimulateError()) {
-      throw new ExpressoApiError("GET", "/catalog/products", 500, {
+      throw new ExpressoApiError("GET", "/products", 500, {
         message: "Internal error (mock)",
       });
     }
@@ -264,14 +265,14 @@ const mockApi = {
   async getProductById(productId: string): Promise<Product> {
     await simulateLatency();
     if (shouldSimulateError()) {
-      throw new ExpressoApiError("GET", `/catalog/products/${productId}`, 500, {
+      throw new ExpressoApiError("GET", `/products/${productId}`, 500, {
         message: "Internal error (mock)",
       });
     }
     const products = getMockProducts();
     const product = products.find((p) => p.productId === productId);
     if (!product) {
-      throw new ExpressoApiError("GET", `/catalog/products/${productId}`, 404, {
+      throw new ExpressoApiError("GET", `/products/${productId}`, 404, {
         message: "Product not found",
       });
     }
@@ -305,7 +306,7 @@ const mockApi = {
     await simulateLatency(300);
     const cart = getMockCart();
     if (cart.items.length === 0) {
-      throw new ExpressoApiError("POST", "/checkout", 400, {
+      throw new ExpressoApiError("POST", "/orders", 400, {
         message: "Cart is empty",
       });
     }
@@ -375,14 +376,14 @@ const mockApi = {
 
   async getAccountOrders(): Promise<AccountOrdersResponse> {
     await simulateLatency();
-    throw new ExpressoApiError("GET", "/account/orders", 401, {
+    throw new ExpressoApiError("GET", "/me/orders", 401, {
       error: { message: "sign in to see your orders" },
     });
   },
 
   async getHotStatus(): Promise<HotStatusResponse> {
     await simulateLatency();
-    throw new ExpressoApiError("GET", "/account/hot-status", 401, {
+    throw new ExpressoApiError("GET", "/me/hot-status", 401, {
       error: { message: "sign in to see your hot coffees" },
     });
   },
@@ -403,13 +404,13 @@ const realApi = {
   },
 
   getProducts(): Promise<ProductsResponse> {
-    return request<ProductsResponse>("GET", "/catalog/products");
+    return request<ProductsResponse>("GET", "/products");
   },
 
   getProductById(productId: string): Promise<Product> {
     return request<Product>(
       "GET",
-      `/catalog/products/${encodeURIComponent(productId)}`,
+      `/products/${encodeURIComponent(productId)}`,
     );
   },
 
@@ -436,7 +437,7 @@ const realApi = {
   },
 
   checkout(input: CheckoutInput): Promise<CheckoutResponse> {
-    return request<CheckoutResponse>("POST", "/checkout", input);
+    return request<CheckoutResponse>("POST", "/orders", input);
   },
 
   getOrders(): Promise<OrdersResponse> {
@@ -446,7 +447,7 @@ const realApi = {
   // Session-scoped: the BFF resolves the caller from the `sid` cookie,
   // which same-origin fetch through the /api/bff proxy sends by default.
   getMyOrders(): Promise<OrdersResponse> {
-    return request<OrdersResponse>("GET", "/orders/mine");
+    return request<OrdersResponse>("GET", "/orders?owner=session");
   },
 
   getOrderById(orderId: string): Promise<Order> {
@@ -474,17 +475,17 @@ const realApi = {
   },
 
   getMe(): Promise<MeResponse> {
-    return request<MeResponse>("GET", "/auth/me");
+    return request<MeResponse>("GET", "/me");
   },
 
   // Signed-in only (401 otherwise); the `auth` cookie rides the same-origin
   // /api/bff proxy like `sid`.
   getAccountOrders(): Promise<AccountOrdersResponse> {
-    return request<AccountOrdersResponse>("GET", "/account/orders");
+    return request<AccountOrdersResponse>("GET", "/me/orders");
   },
 
   getHotStatus(): Promise<HotStatusResponse> {
-    return request<HotStatusResponse>("GET", "/account/hot-status");
+    return request<HotStatusResponse>("GET", "/me/hot-status");
   },
 };
 

@@ -2,7 +2,7 @@
 
 /**
  * HotCoffeeBanner - shown to a signed-in user while at least one coffee
- * placed for them is hot. Fed only by GET /account/hot-status (polled);
+ * placed for them is hot. Fed only by GET /me/hot-status (polled);
  * never reads the order list. The live region carries the count only so
  * the ticking countdown does not flood screen readers.
  */
