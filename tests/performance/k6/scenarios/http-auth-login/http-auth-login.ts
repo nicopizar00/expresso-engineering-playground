@@ -2,7 +2,7 @@
 //
 // Source of users (Punch optional dataset, spec.data.optional):
 //   - owned-orders present (DATA_OWNED_ORDERS_CSV set) → the owners of
-//     orders a purchase-registered run placed (username column);
+//     orders an http-purchase-registered run placed (username column);
 //   - absent → the seeded demo users (support/demo-users.ts).
 // Each iteration clears its cookie jar, logs in (a new AuthSession row each
 // time), and emits `[DATA auth-tokens] <username>,<token>` from the `auth`
@@ -38,7 +38,7 @@ const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 
 export const options = {
   scenarios: {
-    login: {
+    http_auth_login: {
       executor: "shared-iterations",
       vus: VUS,
       iterations: ITERATIONS,
@@ -46,7 +46,7 @@ export const options = {
     },
   },
   thresholds: loginThresholds,
-  tags: { suite: "mini-commerce-login" },
+  tags: { suite: "mini-commerce-http-auth-login" },
 };
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -83,13 +83,13 @@ export default function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Login",
-    testType: "login",
+    testType: "http-auth-login",
     targetUrl: url(""),
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/login-report.html",
-    "/scripts/reports/login-summary.json",
+    "/scripts/reports/http-auth-login-report.html",
+    "/scripts/reports/http-auth-login-summary.json",
   );
 }

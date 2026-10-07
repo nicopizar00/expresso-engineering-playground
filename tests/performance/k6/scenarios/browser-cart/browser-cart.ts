@@ -1,12 +1,12 @@
 // Cart-fulfill-browser scenario — the browser-driven mirror of
-// cart-fulfill.ts. Same pre-checkout steps as purchase-flow-browser.ts
+// http-cart.ts. Same pre-checkout steps as browser-purchase.ts
 // (browse -> add to cart -> checkout panel renders), but stops before
 // "Place Order" and emits the reserved cart as a `[DATA carts]` record
-// instead, exactly like cart-fulfill.ts does over HTTP.
+// instead, exactly like http-cart.ts does over HTTP.
 //
-// Downstream: place-order (scenarios/place-order/place-order.ts) consumes
+// Downstream: http-orders (scenarios/http-orders/http-orders.ts) consumes
 // the "carts" dataset (data/carts.csv) over plain HTTP, indifferent to
-// whether cart-fulfill or cart-fulfill-browser produced it.
+// whether http-cart or browser-cart produced it.
 //
 // Reading the cart id:
 //   cartId is server-generated and required verbatim at checkout
@@ -17,7 +17,7 @@
 //   interception (Page.on() only supports 'console'/'metric'), so reading
 //   the POST /cart/items response body directly isn't an option.
 //
-// productId is intentionally left blank in the emitted row: place-order.ts
+// productId is intentionally left blank in the emitted row: http-orders.ts
 // never reads that column (only cartId/sid), and there is no DOM-exposed
 // productId to report honestly instead.
 
@@ -28,18 +28,18 @@ import { purchaseFlowBrowserThresholds } from "../../config/thresholds";
 import { buildSummaryOutputs } from "../../support/report";
 
 // @types/k6 doesn't declare k6's global `console` (see k6/console docs);
-// mirrors cart-fulfill.ts's declaration for the [DATA] harvest protocol.
+// mirrors http-cart.ts's declaration for the [DATA] harvest protocol.
 declare const console: { log: (message: string) => void };
 
 const VUS = Number(__ENV.VUS) || 1;
 // Each VU drives a full Chromium instance — same reasoning as
-// purchase-flow-browser.ts, defaults to 5 reserved carts. Set ITERATIONS
+// browser-purchase.ts, defaults to 5 reserved carts. Set ITERATIONS
 // explicitly for a different batch size.
 const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 
 export const options = {
   scenarios: {
-    cart_fulfill_browser: {
+    browser_cart: {
       executor: "shared-iterations",
       vus: VUS,
       iterations: ITERATIONS,
@@ -94,13 +94,13 @@ export default async function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Cart Fulfill (Browser)",
-    testType: "cart-fulfill-browser",
+    testType: "browser-cart",
     targetUrl: BASE_URL,
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/cart-fulfill-browser-report.html",
-    "/scripts/reports/cart-fulfill-browser-summary.json",
+    "/scripts/reports/browser-cart-report.html",
+    "/scripts/reports/browser-cart-summary.json",
   );
 }

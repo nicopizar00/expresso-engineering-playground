@@ -1,9 +1,9 @@
-// Place-order scenario — the checkout half of cart-fulfill's pair.
+// http-orders scenario — the checkout half of http-cart's pair.
 //
-// cart-fulfill (scenarios/cart-fulfill/cart-fulfill.ts) reserves carts and
+// http-cart (scenarios/http-cart/http-cart.ts) reserves carts and
 // stops before checkout, emitting each cart as a `[DATA carts]` record; with
 // `--produce carts` Punch publishes them as the "carts" dataset. This
-// scenario requires that dataset (spec.data in workflows/place-order.yaml),
+// scenario requires that dataset (spec.data in workflows/http-orders.yaml),
 // reads it via a SharedArray — loaded once at init and shared read-only
 // across VUs — and completes checkout for each row instead of creating a
 // fresh cart itself.
@@ -12,12 +12,12 @@
 //   Punch injects the dataset's container path as DATA_CARTS_CSV (under the
 //   live-mounted /scripts/data volume, see infra/docker/compose.performance.yaml)
 //   and fails before Docker when it has no rows. Line 1 is the header
-//   `cartId,productId,sid`; rows are unquoted (see cart-fulfill.ts's
+//   `cartId,productId,sid`; rows are unquoted (see http-cart.ts's
 //   console.log).
 //
 // Session handoff:
 //   The BFF's cart is session-scoped, not addressable by cartId alone (see
-//   the note in cart-fulfill.ts) — checkout only finds a cart that belongs
+//   the note in http-cart.ts) — checkout only finds a cart that belongs
 //   to the caller's own `sid` session. Before checkout, this VU's cookie
 //   jar is set to the row's captured `sid` so the request lands in the
 //   session that actually owns the cart, instead of this run's own fresh
@@ -29,14 +29,14 @@
 //   VUS/ITERATIONS only — no DURATION. A fixed cart pool doesn't fit a
 //   time-based soak: each row should be consumed once. ITERATIONS defaults
 //   to 5 — same fixed-count default as every other scenario (environment
-//   independent) — matching cart-fulfill's own 5-iteration default rather
+//   independent) — matching http-cart's own 5-iteration default rather
 //   than tracking however many rows happen to be in the pool. Set it
 //   explicitly to consume a different subset, or higher than the pool size
 //   to wrap around and re-attempt already-placed orders (those checks will
 //   fail, not crash; the "no data" case is caught by Punch's preflight).
 //
 // Coverage:
-//   POST /orders            — place order for a cart-fulfill-reserved cart
+//   POST /orders            — place order for an http-cart-reserved cart
 //   GET  /orders/:id          — verify order persisted
 //                               (emits `[DATA orders] <orderId>`)
 //   GET  /visualization  — verify order sphere reaches the visualizer
@@ -77,7 +77,7 @@ const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 
 export const options = {
   scenarios: {
-    place_order: {
+    http_orders: {
       executor: "shared-iterations",
       vus: VUS,
       iterations: ITERATIONS,
@@ -160,13 +160,13 @@ export default function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Place Order",
-    testType: "place-order",
+    testType: "http-orders",
     targetUrl: url(""),
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/place-order-report.html",
-    "/scripts/reports/place-order-summary.json",
+    "/scripts/reports/http-orders-report.html",
+    "/scripts/reports/http-orders-summary.json",
   );
 }

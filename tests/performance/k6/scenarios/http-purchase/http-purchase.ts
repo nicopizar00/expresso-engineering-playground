@@ -12,7 +12,7 @@
 //
 // Load shape:
 //   Set DURATION (+ VUS) for a constant-VU soak, or set ITERATIONS (+ VUS)
-//   for a fixed number of purchase-flow runs instead of a time budget.
+//   for a fixed number of http-purchase runs instead of a time budget.
 //   ITERATIONS takes precedence when both are set. Neither set: defaults to
 //   5 iterations — environment independent, unlike a DURATION-based soak
 //   whose throughput (and therefore op count) varies with how fast the
@@ -55,7 +55,7 @@ const scenario = ITERATIONS
   : { executor: "constant-vus", vus: VUS, duration: DURATION };
 
 export const options = {
-  scenarios: { purchase_flow: scenario },
+  scenarios: { http_purchase: scenario },
   thresholds: purchaseFlowThresholds,
   tags: { suite: "mini-commerce-purchase-flow" },
 };
@@ -183,13 +183,13 @@ export default function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Purchase Flow",
-    testType: "purchase-flow",
+    testType: "http-purchase",
     targetUrl: url(""),
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/purchase-flow-report.html",
-    "/scripts/reports/purchase-flow-summary.json",
+    "/scripts/reports/http-purchase-report.html",
+    "/scripts/reports/http-purchase-summary.json",
   );
 }

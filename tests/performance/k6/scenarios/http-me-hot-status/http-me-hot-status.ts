@@ -51,9 +51,9 @@ const scenario = ITERATIONS
   : { executor: "constant-vus", vus: VUS, duration: DURATION };
 
 export const options = {
-  scenarios: { hot_status: scenario },
+  scenarios: { http_me_hot_status: scenario },
   thresholds: hotStatusThresholds,
-  tags: { suite: "mini-commerce-hot-status" },
+  tags: { suite: "mini-commerce-http-me-hot-status" },
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
@@ -92,13 +92,13 @@ export default function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Hot Status",
-    testType: "hot-status",
+    testType: "http-me-hot-status",
     targetUrl: url(""),
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/hot-status-report.html",
-    "/scripts/reports/hot-status-summary.json",
+    "/scripts/reports/http-me-hot-status-report.html",
+    "/scripts/reports/http-me-hot-status-summary.json",
   );
 }

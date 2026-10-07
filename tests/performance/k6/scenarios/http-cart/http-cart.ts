@@ -1,9 +1,9 @@
 // Cart-fulfill scenario — generates reserved carts without completing checkout.
 //
-// Mirrors purchase-flow's pre-checkout steps exactly, then emits the cart id
+// Mirrors http-purchase's pre-checkout steps exactly, then emits the cart id
 // as a `[DATA carts]` stdout record instead of placing an order. Punch writes
 // those rows to data/carts.csv when the run opts in with `--produce carts`
-// (see spec.data in workflows/cart-fulfill.yaml), giving place-order a batch
+// (see spec.data in workflows/http-cart.yaml), giving http-orders a batch
 // of live cart ids without exercising the checkout path.
 //
 // Session handoff:
@@ -15,12 +15,12 @@
 //   that run replays the exact same `sid` cookie. session.service.ts reads
 //   `sid` straight off the Cookie header with no signing, so it's a plain
 //   replayable bearer token — this row's 3rd column carries it for
-//   place-order (scenarios/place-order/place-order.ts) to set explicitly via
+//   http-orders (scenarios/http-orders/http-orders.ts) to set explicitly via
 //   http.cookieJar().set(...) before its checkout call.
 //
 // Load shape:
 //   Set DURATION (+ VUS) for a constant-VU soak, or set ITERATIONS (+ VUS)
-//   for a fixed number of cart-fulfill runs instead of a time budget.
+//   for a fixed number of http-cart runs instead of a time budget.
 //   ITERATIONS takes precedence when both are set. Neither set: defaults to
 //   5 iterations — environment independent, unlike a DURATION-based soak
 //   whose throughput (and therefore op count) varies with how fast the
@@ -60,7 +60,7 @@ const scenario = ITERATIONS
   : { executor: "constant-vus", vus: VUS, duration: DURATION };
 
 export const options = {
-  scenarios: { cart_fulfill: scenario },
+  scenarios: { http_cart: scenario },
   thresholds: purchaseFlowThresholds,
   tags: { suite: "mini-commerce-cart-fulfill" },
 };
@@ -138,13 +138,13 @@ export default function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Cart Fulfill",
-    testType: "cart-fulfill",
+    testType: "http-cart",
     targetUrl: url(""),
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/cart-fulfill-report.html",
-    "/scripts/reports/cart-fulfill-summary.json",
+    "/scripts/reports/http-cart-report.html",
+    "/scripts/reports/http-cart-summary.json",
   );
 }

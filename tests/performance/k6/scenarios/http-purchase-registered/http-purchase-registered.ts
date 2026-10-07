@@ -45,7 +45,7 @@ const scenario = ITERATIONS
   : { executor: "constant-vus", vus: VUS, duration: DURATION };
 
 export const options = {
-  scenarios: { purchase_registered: scenario },
+  scenarios: { http_purchase_registered: scenario },
   thresholds: purchaseRegisteredThresholds,
   tags: { suite: "mini-commerce-purchase-registered" },
 };
@@ -119,13 +119,13 @@ export default function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Purchase Registered",
-    testType: "purchase-registered",
+    testType: "http-purchase-registered",
     targetUrl: url(""),
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/purchase-registered-report.html",
-    "/scripts/reports/purchase-registered-summary.json",
+    "/scripts/reports/http-purchase-registered-report.html",
+    "/scripts/reports/http-purchase-registered-summary.json",
   );
 }

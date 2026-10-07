@@ -1,20 +1,20 @@
 apiVersion: punch/v1
 kind: K6Workflow
 metadata:
-  name: order-status
-  description: Read back status of previously placed orders.
+  name: http-orders-status
+  description: Read order status
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6
   k6:
-    script: /scripts/scenarios/order-status/order-status.js
+    script: /scripts/scenarios/http-orders-status/http-orders-status.js
   environment:
     forward: [BASE_URL, VUS, ITERATIONS, EXPECT_TEMPERATURE, ORDER_COOL_DOWN_SECONDS]
   outputs:
     summary:
-      path: tests/performance/k6/reports/order-status-summary.json
+      path: tests/performance/k6/reports/http-orders-status-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data

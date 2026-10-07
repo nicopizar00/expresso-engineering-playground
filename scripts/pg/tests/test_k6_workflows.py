@@ -31,64 +31,65 @@ class K6WorkflowCoverageTests(unittest.TestCase):
         workflows = [load_workflow(path) for path in workflow_paths]
 
         expected_names = {
-            "smoke",
-            "purchase-flow",
-            "purchase-flow-browser",
-            "cart-fulfill",
-            "cart-fulfill-browser",
-            "place-order",
-            "order-status",
-            "purchase-registered",
-            "login",
-            "hot-status",
+            "browser-cart",
+            "browser-purchase",
+            "http-auth-login",
+            "http-cart",
+            "http-me-hot-status",
+            "http-orders",
+            "http-orders-status",
+            "http-purchase",
+            "http-purchase-registered",
         }
         expected_compose_service = {
-            "smoke": "k6",
-            "purchase-flow": "k6",
-            "purchase-flow-browser": "k6-browser",
-            "cart-fulfill": "k6",
-            "cart-fulfill-browser": "k6-browser",
-            "place-order": "k6",
-            "order-status": "k6",
-            "purchase-registered": "k6",
-            "login": "k6",
-            "hot-status": "k6",
+            name: ("k6-browser" if name.startswith("browser-") else "k6")
+            for name in expected_names
         }
         expected_environment_forward = {
-            "smoke": ["BASE_URL"],
-            "purchase-flow": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
-            "purchase-flow-browser": ["BASE_URL", "VUS", "ITERATIONS"],
-            "cart-fulfill": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
-            "cart-fulfill-browser": ["BASE_URL", "VUS", "ITERATIONS"],
-            "place-order": ["BASE_URL", "VUS", "ITERATIONS"],
-            "order-status": [
+            "browser-cart": ["BASE_URL", "VUS", "ITERATIONS"],
+            "browser-purchase": ["BASE_URL", "VUS", "ITERATIONS"],
+            "http-auth-login": ["BASE_URL", "VUS", "ITERATIONS", "DEMO_PASSWORD"],
+            "http-cart": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
+            "http-me-hot-status": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
+            "http-orders": ["BASE_URL", "VUS", "ITERATIONS"],
+            "http-orders-status": [
                 "BASE_URL",
                 "VUS",
                 "ITERATIONS",
                 "EXPECT_TEMPERATURE",
                 "ORDER_COOL_DOWN_SECONDS",
             ],
-            "purchase-registered": ["BASE_URL", "VUS", "DURATION", "ITERATIONS", "USERS"],
-            "login": ["BASE_URL", "VUS", "ITERATIONS", "DEMO_PASSWORD"],
-            "hot-status": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
+            "http-purchase": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
+            "http-purchase-registered": ["BASE_URL", "VUS", "DURATION", "ITERATIONS", "USERS"],
         }
         expected_data = {
-            "cart-fulfill": {"produces": {"carts": ("place-order",)}, "requires": ()},
-            "cart-fulfill-browser": {"produces": {"carts": ("place-order",)}, "requires": ()},
-            "place-order": {"produces": {"orders": ("order-status",)}, "requires": ("carts",)},
-            "purchase-flow": {"produces": {"orders": ("order-status",)}, "requires": ()},
-            "purchase-flow-browser": {"produces": {"orders": ("order-status",)}, "requires": ()},
-            "order-status": {"produces": {}, "requires": ("orders",)},
-            "purchase-registered": {
-                "produces": {"owned-orders": ("login",)},
+            "http-cart": {"produces": {"carts": ("http-orders",)}, "requires": ()},
+            "browser-cart": {"produces": {"carts": ("http-orders",)}, "requires": ()},
+            "http-orders": {"produces": {"orders": ("http-orders-status",)}, "requires": ("carts",)},
+            "http-purchase": {"produces": {"orders": ("http-orders-status",)}, "requires": ()},
+            "browser-purchase": {"produces": {"orders": ("http-orders-status",)}, "requires": ()},
+            "http-orders-status": {"produces": {}, "requires": ("orders",)},
+            "http-purchase-registered": {
+                "produces": {"owned-orders": ("http-auth-login",)},
                 "requires": (),
             },
-            "login": {
-                "produces": {"auth-tokens": ("hot-status",)},
+            "http-auth-login": {
+                "produces": {"auth-tokens": ("http-me-hot-status",)},
                 "requires": (),
                 "optional": ("owned-orders",),
             },
-            "hot-status": {"produces": {}, "requires": ("auth-tokens",)},
+            "http-me-hot-status": {"produces": {}, "requires": ("auth-tokens",)},
+        }
+        expected_description = {
+            "http-cart": "Reserve carts, no checkout",
+            "browser-cart": "Reserve carts in Chromium",
+            "http-orders": "Create orders from carts",
+            "http-orders-status": "Read order status",
+            "http-auth-login": "Log in, capture tokens",
+            "http-me-hot-status": "Poll hot-status banner",
+            "http-purchase": "Full purchase journey",
+            "browser-purchase": "Full purchase in Chromium",
+            "http-purchase-registered": "Purchase as demo users",
         }
         self.assertEqual(len(workflow_paths), len(expected_names))
         self.assertEqual({path.stem for path in workflow_paths}, expected_names)
@@ -98,6 +99,18 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             with self.subTest(workflow=path.stem):
                 document = yaml.safe_load(path.read_text(encoding="utf-8"))
                 self.assertEqual(workflow.name, path.stem)
+                self.assertEqual(
+                    workflow.k6_script, f"/scripts/scenarios/{path.stem}/{path.stem}.js"
+                )
+                self.assertEqual(workflow.description, expected_description[path.stem])
+                self.assertTrue(3 <= len(workflow.description.split()) <= 5)
+                scenario_source = (
+                    REPO_ROOT / "tests/performance/k6/scenarios" / path.stem / f"{path.stem}.ts"
+                ).read_text(encoding="utf-8")
+                # The scenario's own handleSummary must write the report the
+                # YAML points Punch at, or Punch prints no metrics.
+                self.assertIn(f'"/scripts/reports/{path.stem}-summary.json"', scenario_source)
+                self.assertIn(f'"/scripts/reports/{path.stem}-report.html"', scenario_source)
                 self.assertEqual(
                     document["spec"]["compose"],
                     {
@@ -136,20 +149,25 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                     {"forward": expected_environment_forward[path.stem]},
                 )
 
+        scenarios_dir = REPO_ROOT / "tests/performance/k6/scenarios"
+        self.assertEqual(
+            {p.name for p in scenarios_dir.iterdir() if p.is_dir()}, expected_names
+        )
+
 
 class K6WorkflowCatalogTests(unittest.TestCase):
     def test_workflow_catalog_links_are_valid(self) -> None:
         from punch.catalog import load_catalog
 
         catalog = load_catalog(PERF_WORKFLOWS_DIR)
-        self.assertEqual(catalog.producers_of("carts"), ("cart-fulfill", "cart-fulfill-browser"))
-        self.assertEqual(catalog.consumers_of("carts"), ("place-order",))
+        self.assertEqual(catalog.producers_of("carts"), ("browser-cart", "http-cart"))
+        self.assertEqual(catalog.consumers_of("carts"), ("http-orders",))
         self.assertEqual(
             catalog.producers_of("orders"),
-            ("place-order", "purchase-flow", "purchase-flow-browser"),
+            ("browser-purchase", "http-orders", "http-purchase"),
         )
-        self.assertEqual(catalog.consumers_of("orders"), ("order-status",))
-        self.assertEqual(catalog.producers_of("owned-orders"), ("purchase-registered",))
-        self.assertEqual(catalog.consumers_of("owned-orders"), ("login",))
-        self.assertEqual(catalog.producers_of("auth-tokens"), ("login",))
-        self.assertEqual(catalog.consumers_of("auth-tokens"), ("hot-status",))
+        self.assertEqual(catalog.consumers_of("orders"), ("http-orders-status",))
+        self.assertEqual(catalog.producers_of("owned-orders"), ("http-purchase-registered",))
+        self.assertEqual(catalog.consumers_of("owned-orders"), ("http-auth-login",))
+        self.assertEqual(catalog.producers_of("auth-tokens"), ("http-auth-login",))
+        self.assertEqual(catalog.consumers_of("auth-tokens"), ("http-me-hot-status",))

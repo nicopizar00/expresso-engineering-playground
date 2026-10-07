@@ -1,5 +1,5 @@
 // Purchase-flow-browser scenario — the browser-driven mirror of
-// purchase-flow.ts. Same journey (add product, place order, land on the
+// http-purchase.ts. Same journey (add product, place order, land on the
 // order it created), but exercised through a real Chromium tab against the
 // web app instead of raw HTTP calls against the BFF.
 //
@@ -7,7 +7,7 @@
 //   - The catalog and the cart/checkout panel render on the same page (`/`),
 //     side by side — no cart drawer to open, no /checkout route.
 //   - Checkout is a single "Place Order" submit with no shipping form
-//     (mirrors purchase-flow.ts's empty-body POST /orders).
+//     (mirrors http-purchase.ts's empty-body POST /orders).
 //   - Placing an order flips the page to the Orders section and selects the
 //     new order, which fetches it from the BFF and renders it — that render
 //     is this scenario's order-persisted check; there is no /orders/:id
@@ -42,7 +42,7 @@ declare const console: { log: (message: string) => void };
 
 const VUS = Number(__ENV.VUS) || 1;
 // Each VU drives a full Chromium instance, so this stays iteration-count
-// based instead of purchase-flow.ts's time-based soak — a DURATION-based
+// based instead of http-purchase.ts's time-based soak — a DURATION-based
 // default here would silently multiply browser sessions. Defaults to 5,
 // same fixed-count default as every other scenario (environment
 // independent); set ITERATIONS explicitly to run a different count.
@@ -50,7 +50,7 @@ const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 
 export const options = {
   scenarios: {
-    purchase_flow_browser: {
+    browser_purchase: {
       executor: "shared-iterations",
       vus: VUS,
       iterations: ITERATIONS,
@@ -115,13 +115,13 @@ export default async function () {
 export function handleSummary(data: any) {
   const meta = {
     title: "Mini-Commerce Purchase Flow (Browser)",
-    testType: "purchase-flow-browser",
+    testType: "browser-purchase",
     targetUrl: BASE_URL,
   };
   return buildSummaryOutputs(
     data,
     meta,
-    "/scripts/reports/purchase-flow-browser-report.html",
-    "/scripts/reports/purchase-flow-browser-summary.json",
+    "/scripts/reports/browser-purchase-report.html",
+    "/scripts/reports/browser-purchase-summary.json",
   );
 }

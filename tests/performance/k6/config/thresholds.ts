@@ -4,30 +4,13 @@
 //
 // Every scenario should import from here so thresholds evolve in one place.
 
-export const smokeThresholds = {
-  http_req_failed: ["rate<0.01"],
-  http_req_duration: ["p(95)<500"],
-  checks: ["rate>0.99"],
-};
-
-export const loadThresholds = {
-  http_req_failed: ["rate<0.02"],
-  http_req_duration: ["p(95)<800"],
-  checks: ["rate>0.98"],
-};
-
-export const stressThresholds = {
-  http_req_failed: ["rate<0.10"],
-  http_req_duration: ["p(95)<2000"],
-};
-
 export const purchaseFlowThresholds = {
   http_req_failed: ["rate<0.01"],
   http_req_duration: ["p(95)<1000"],
   checks: ["rate>0.99"],
 };
 
-// order-status reads one DB-backed status per iteration; checks carry the
+// http-orders-status reads one DB-backed status per iteration; checks carry the
 // temperature assertions.
 export const orderStatusThresholds = {
   http_req_failed: ["rate<0.01"],
@@ -42,7 +25,7 @@ export const purchaseFlowBrowserThresholds = {
   checks: ["rate>0.95"],
 };
 
-// Hot-status load chain (purchase-registered → login → hot-status): looser
+// Hot-status load chain (http-purchase-registered → http-auth-login → http-me-hot-status): looser
 // gates than the purchase flow — up to 10% failures, p90 latency.
 export const purchaseRegisteredThresholds = {
   http_req_failed: ["rate<0.10"],

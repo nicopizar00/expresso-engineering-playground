@@ -1,21 +1,24 @@
 apiVersion: punch/v1
 kind: K6Workflow
 metadata:
-  name: hot-status
-  description: Poll account hot-status with logged-in auth tokens.
+  name: http-purchase
+  description: Full purchase journey
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6
   k6:
-    script: /scripts/scenarios/hot-status/hot-status.js
+    script: /scripts/scenarios/http-purchase/http-purchase.js
   environment:
     forward: [BASE_URL, VUS, DURATION, ITERATIONS]
   outputs:
     summary:
-      path: tests/performance/k6/reports/hot-status-summary.json
+      path: tests/performance/k6/reports/http-purchase-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
-    requires: [auth-tokens]
+    produces:
+      - dataset: orders
+        columns: [orderId]
+        targets: [http-orders-status]

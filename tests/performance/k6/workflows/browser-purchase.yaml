@@ -1,24 +1,24 @@
 apiVersion: punch/v1
 kind: K6Workflow
 metadata:
-  name: purchase-flow-browser
-  description: Full purchase journey through a real Chromium tab.
+  name: browser-purchase
+  description: Full purchase in Chromium
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6-browser
   k6:
-    script: /scripts/scenarios/purchase-flow-browser/purchase-flow-browser.js
+    script: /scripts/scenarios/browser-purchase/browser-purchase.js
   environment:
     forward: [BASE_URL, VUS, ITERATIONS]
   outputs:
     summary:
-      path: tests/performance/k6/reports/purchase-flow-browser-summary.json
+      path: tests/performance/k6/reports/browser-purchase-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
     produces:
       - dataset: orders
         columns: [orderId]
-        targets: [order-status]
+        targets: [http-orders-status]

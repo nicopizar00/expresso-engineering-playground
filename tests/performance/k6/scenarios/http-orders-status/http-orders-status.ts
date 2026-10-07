@@ -1,10 +1,10 @@
 // Order-status scenario — consumer of the "orders" dataset.
 //
-// Producers (place-order, purchase-flow, purchase-flow-browser) emit
+// Producers (http-orders, http-purchase, browser-purchase) emit
 // `[DATA orders] <orderId>` after verifying each order; with
 // `--produce orders` Punch publishes tests/performance/k6/data/orders.csv
 // (header `orderId`) and injects its container path here as
-// DATA_ORDERS_CSV (see spec.data in workflows/order-status.yaml). Punch fails
+// DATA_ORDERS_CSV (see spec.data in workflows/http-orders-status.yaml). Punch fails
 // the run before Docker when the dataset is missing or empty.
 //
 // Each iteration reads GET /orders/:id/status — a direct Postgres read in
@@ -53,7 +53,7 @@ if (!["auto", "hot", "cold"].includes(EXPECT)) {
 
 export const options = {
   scenarios: {
-    order_status: {
+    http_orders_status: {
       executor: "shared-iterations",
       vus: VUS,
       iterations: ITERATIONS,
@@ -117,10 +117,10 @@ export function handleSummary(data: any) {
     data,
     {
       title: "Mini-Commerce Order Status",
-      testType: "order-status",
+      testType: "http-orders-status",
       targetUrl: url(""),
     },
-    "/scripts/reports/order-status-report.html",
-    "/scripts/reports/order-status-summary.json",
+    "/scripts/reports/http-orders-status-report.html",
+    "/scripts/reports/http-orders-status-summary.json",
   );
 }
