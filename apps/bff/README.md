@@ -34,10 +34,10 @@ src/
 │   └── telemetry.ts              # OpenTelemetry SDK + OTLP trace export
 └── modules/
     ├── health/        # GET /health
-    ├── catalog/       # GET /catalog/products, GET /catalog/products/:id
+    ├── catalog/       # GET /products, GET /products/:id
     ├── cart/          # GET /cart, POST /cart/items
-    ├── checkout/      # POST /checkout
-    ├── orders/        # GET /orders, GET /orders/mine, GET /orders/:id, GET /orders/:id/status
+    ├── checkout/      # POST /orders
+    ├── orders/        # GET /orders[?owner=session], GET /orders/:id, GET /orders/:id/status, GET /me/orders, GET /me/hot-status
     ├── customers/     # placeholder (not wired into AppModule)
     └── notifications/ # placeholder (not wired into AppModule)
 ```
@@ -47,18 +47,22 @@ src/
 | Method | Path                    | Notes                                                                                                                      |
 | ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/health`               | Liveness; `checks.db` is `"skipped"` for now.                                                                              |
-| GET    | `/catalog/products`     | Deterministic catalog of exactly one product (Cup of Coffee).                                                              |
-| GET    | `/catalog/products/:id` | `prod_unknown` returns 404 for error-path tests.                                                                           |
+| GET    | `/products`             | Deterministic catalog of exactly one product (Cup of Coffee).                                                              |
+| GET    | `/products/:id`         | `prod_unknown` returns 404 for error-path tests.                                                                           |
 | GET    | `/cart`                 | Current cart snapshot; empty or one Cup of Coffee at quantity 1.                                                           |
 | POST   | `/cart/items`           | Adds the one allowed line; rejects a second add (409), a bad quantity (400), or an unknown product (404).                  |
 | PATCH  | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — quantity can never change.                                                         |
 | DELETE | `/cart/items/:itemId`   | Rejected (409) once a cup is selected — only Place Order clears the cart.                                                  |
-| POST   | `/checkout`             | Anonymous, terminal Place Order; converts the cart to an order and resets it. Rejects a `customerName` field (400).        |
+| POST   | `/orders`               | Anonymous, terminal Place Order; converts the cart to an order and resets it. Rejects a `customerName` field (400).        |
 | GET    | `/orders`               | Lists all persisted orders, including seeded `ord_demo`.                                                                   |
-| GET    | `/orders/mine`          | The caller's orders (session cookie), newest first; a fresh session gets `{ items: [] }`.                                  |
+| GET    | `/orders?owner=session` | The caller's orders (session cookie), newest first; a fresh session gets `{ items: [] }`. Any other `owner` → 400.         |
 | GET    | `/orders/:id`           | Finds a persisted order; unknown ids return 404.                                                                           |
 | GET    | `/orders/:id/status`    | `{ orderId, temperature, placedAt, coolsAt, checkedAt }`; Hot until `ORDER_COOL_DOWN_SECONDS` after `placedAt`, then Cold. |
-| GET    | `/visualization-data`   | Aggregates catalog, orders, and cart for the 3D client.                                                                    |
+| GET    | `/me`                   | `{ user }` for the signed-in user, `{ user: null }` for guests.                                                            |
+| GET    | `/me/orders`            | Signed-in user's orders, newest first, plus `latest`; 401 when signed out.                                                 |
+| GET    | `/me/hot-status`        | Signed-in user's hot count and next `coolsAt` (banner); 401 when signed out.                                               |
+| GET    | `/visualization`        | Aggregates catalog, orders, and cart for the 3D client.                                                                    |
+| GET    | `/visualization/events` | SSE: full snapshot on connect and after each mutation.                                                                     |
 
 ## Local run
 
@@ -76,7 +80,7 @@ pnpm --filter @mini-commerce/bff dev
 
 # Smoke test
 curl http://localhost:3001/health
-curl http://localhost:3001/catalog/products
+curl http://localhost:3001/products
 ```
 
 To run everything (BFF + Postgres + otel-collector) in containers:
