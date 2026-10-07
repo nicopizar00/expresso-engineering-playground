@@ -54,7 +54,7 @@ reachable from the host (e.g. `http://localhost:3001`, not `http://bff:3001`).
 
 ## How it connects to application data
 
-The visualizer consumes the typed `GET /visualization-data` on the BFF,
+The visualizer consumes the typed `GET /visualization` on the BFF,
 defined in [`apps/bff/src/modules/visualization`](../bff/src/modules/visualization).
 The BFF projects its current domain state through a `VisualizationScene`:
 
@@ -76,14 +76,14 @@ in the HUD as `offline · N mock objects`.
 
 ### Refresh behavior
 
-The scene connects to `GET /visualization-updates` (SSE) on load, so a
+The scene connects to `GET /visualization/events` (SSE) on load, so a
 mutation in the web app or via curl — add to cart, place an order, manage an
 order — appears in 3D in tens of milliseconds, without clicking **Reload
 data** and without the 2 s poll delay. The BFF pushes a full snapshot
 immediately on connection and again after each domain mutation.
 
 If SSE is unavailable (unsupported browser, transient BFF error),
-`transport.js` falls back to polling `GET /visualization-data` every 2 s
+`transport.js` falls back to polling `GET /visualization` every 2 s
 (`POLL_INTERVAL_MS`) and retries the SSE connection after 5 s
 (`SSE_RETRY_MS`). Only one request is in flight at a time (overlapping ticks
 are skipped). Both SSE and polling pause while the browser tab is hidden and
@@ -143,7 +143,7 @@ Three reasons, in priority order:
   explicitly owned BFF contract rather than direct data-store access.
 - Optional richer geometry (still primitives — no model loaders).
 - A small legend / inspector panel.
-- A read-heavy k6 load / stress profile for `/visualization-data`. Smoke
+- A read-heavy k6 load / stress profile for `/visualization`. Smoke
   coverage already hits the endpoint via
   `tests/performance/k6/scenarios/smoke/smoke.js`.
 
