@@ -155,10 +155,11 @@ the BFF minted for that cart — the cart is looked up by session, not by
 re-attempts already-placed carts (those checks fail, they don't crash).
 
 `browser-cart` is the browser-driven twin: it drives the web app with
-Chromium, stops before "Place Order", and emits `[DATA carts] <cartId>,,<sid>`
-into the same dataset. `cartId` is read from `CartCheckoutPanel.tsx`'s
-`data-cart-id` attribute (k6's browser module cannot intercept responses);
-`productId` is left blank because `http-orders` never reads it.
+Chromium, stops before "Place Order", and emits
+`[DATA carts] <cartId>,<productId>,<sid>` into the same dataset. `cartId` is
+read from `CartCheckoutPanel.tsx`'s `data-cart-id` attribute and `productId`
+from the add button's `data-product-id` (k6's browser module cannot intercept
+responses), so its rows match `http-cart`'s columns.
 
 ```bash
 ./dev up web

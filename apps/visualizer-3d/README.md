@@ -143,9 +143,9 @@ Three reasons, in priority order:
   explicitly owned BFF contract rather than direct data-store access.
 - Optional richer geometry (still primitives — no model loaders).
 - A small legend / inspector panel.
-- A read-heavy k6 load / stress profile for `/visualization`. Smoke
-  coverage already hits the endpoint via
-  `tests/performance/k6/scenarios/smoke/smoke.js`.
+- A read-heavy k6 load / stress profile for `/visualization`. The
+  `http-purchase` workflow already hits the endpoint (its
+  `visualization 200` check).
 
 ## Design tooling boundary
 

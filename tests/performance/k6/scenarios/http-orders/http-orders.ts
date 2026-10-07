@@ -85,7 +85,7 @@ export const options = {
     },
   },
   thresholds: purchaseFlowThresholds,
-  tags: { suite: "mini-commerce-place-order" },
+  tags: { suite: "mini-commerce-http-orders" },
 };
 
 const JSON_HEADERS = { "Content-Type": "application/json" };

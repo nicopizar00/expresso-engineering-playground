@@ -65,7 +65,7 @@ export const options = {
     },
   },
   thresholds: purchaseFlowBrowserThresholds,
-  tags: { suite: "mini-commerce-purchase-flow-browser" },
+  tags: { suite: "mini-commerce-browser-purchase" },
 };
 
 export default async function () {

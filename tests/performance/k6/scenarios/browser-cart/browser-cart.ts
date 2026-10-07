@@ -54,7 +54,7 @@ export const options = {
     },
   },
   thresholds: purchaseFlowBrowserThresholds,
-  tags: { suite: "mini-commerce-cart-fulfill-browser" },
+  tags: { suite: "mini-commerce-browser-cart" },
 };
 
 export default async function () {
@@ -101,7 +101,10 @@ export default async function () {
         !!productName &&
         t.includes(productName) &&
         typeof cartId === "string" &&
-        cartId.length > 0,
+        cartId.length > 0 &&
+        // A web image without data-product-id fails here instead of
+        // silently dropping the carts row below.
+        !!productId,
     });
 
     // step: cart: fulfill

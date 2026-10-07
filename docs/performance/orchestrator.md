@@ -148,7 +148,8 @@ skipped otherwise; `http-auth-login` falls back to the seeded demo users.
 
 `carts` carries the BFF session cookie `sid` because the cart is
 session-scoped; `http-orders` replays it via `http.cookieJar().set(...)`
-before checkout. `browser-cart` leaves `productId` blank. `orders`
+before checkout. `browser-cart` reads `productId` from the add button's
+`data-product-id`, so its rows carry the same three columns. `orders`
 rows are emitted only after the producer verified the order; the browser
 producer reads the id from the rendered orders section, since k6's browser
 module cannot read the checkout response. `http-orders-status` reads

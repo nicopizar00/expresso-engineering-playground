@@ -56,6 +56,21 @@ class BrowserAlignmentTests(unittest.TestCase):
                 self.assertEqual(len(fields), 3, template)
                 self.assertTrue(all(f.strip() for f in fields), template)
 
+    def test_browser_cart_fails_its_check_when_it_cannot_emit_a_row(self) -> None:
+        """A stale web image without data-product-id must fail a check, not
+        silently drop the carts row at 100% checks."""
+        src = source("browser-cart")
+        predicate = src[src.index('"cart contains added item"'):src.index("});", src.index('"cart contains added item"'))]
+        self.assertIn("productId", predicate)
+
+    def test_docs_describe_the_full_browser_carts_row(self) -> None:
+        for doc in ("docs/performance/orchestrator.md", "tests/performance/k6/README.md"):
+            with self.subTest(doc=doc):
+                text = (REPO_ROOT / doc).read_text(encoding="utf-8")
+                self.assertNotIn("<cartId>,,<sid>", text)
+                self.assertNotIn("leaves `productId` blank", text)
+                self.assertNotIn("productId is left blank", text)
+
     def test_browser_steps_follow_the_http_group_order(self) -> None:
         for (http, browser) in SHARED:
             with self.subTest(browser=browser):

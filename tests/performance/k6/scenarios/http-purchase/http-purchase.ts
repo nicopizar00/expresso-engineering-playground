@@ -57,7 +57,7 @@ const scenario = ITERATIONS
 export const options = {
   scenarios: { http_purchase: scenario },
   thresholds: purchaseFlowThresholds,
-  tags: { suite: "mini-commerce-purchase-flow" },
+  tags: { suite: "mini-commerce-http-purchase" },
 };
 
 const JSON_HEADERS = { "Content-Type": "application/json" };

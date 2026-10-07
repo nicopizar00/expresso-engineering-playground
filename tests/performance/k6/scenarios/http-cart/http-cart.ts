@@ -62,7 +62,7 @@ const scenario = ITERATIONS
 export const options = {
   scenarios: { http_cart: scenario },
   thresholds: purchaseFlowThresholds,
-  tags: { suite: "mini-commerce-cart-fulfill" },
+  tags: { suite: "mini-commerce-http-cart" },
 };
 
 const JSON_HEADERS = { "Content-Type": "application/json" };

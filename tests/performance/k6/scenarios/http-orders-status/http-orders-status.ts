@@ -61,7 +61,7 @@ export const options = {
     },
   },
   thresholds: orderStatusThresholds,
-  tags: { suite: "mini-commerce-order-status" },
+  tags: { suite: "mini-commerce-http-orders-status" },
 };
 
 interface OrderStatusBody {

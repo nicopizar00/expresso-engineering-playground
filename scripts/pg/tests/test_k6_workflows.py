@@ -112,6 +112,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 # YAML points Punch at, or Punch prints no metrics.
                 self.assertIn(f'"/scripts/reports/{path.stem}-summary.json"', scenario_source)
                 self.assertIn(f'"/scripts/reports/{path.stem}-report.html"', scenario_source)
+                self.assertIn(f'suite: "mini-commerce-{path.stem}"', scenario_source)
                 self.assertEqual(
                     document["spec"]["compose"],
                     {

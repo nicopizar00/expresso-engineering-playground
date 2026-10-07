@@ -1,6 +1,6 @@
-// Hot-status scenario — last link of the hot-status load chain.
+// http-me-hot-status scenario — last link of the hot-status load chain.
 //
-// Requires the auth-tokens dataset (produced by `login --produce
+// Requires the auth-tokens dataset (produced by `http-auth-login --produce
 // auth-tokens`). Each iteration sends one token as the `auth` cookie to
 // GET /me/hot-status and checks the response shape only — orders cool
 // after ORDER_COOL_DOWN_SECONDS, so hotCount may legitimately be 0.
