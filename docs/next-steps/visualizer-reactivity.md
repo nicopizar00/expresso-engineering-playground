@@ -31,7 +31,7 @@ app at <http://localhost:3000>, switch to the visualizer at
 data** is clicked. The visualizer feels frozen.
 
 Polling is the cheapest fix because the existing aggregator endpoint
-(`GET /visualization-data`) already returns a complete snapshot of
+(`GET /visualization`) already returns a complete snapshot of
 products, cart, and orders — no event bus, no SSE, no WebSocket needed.
 
 ## Target behavior
@@ -86,7 +86,7 @@ products, cart, and orders — no event bus, no SSE, no WebSocket needed.
       'Content-Type: application/json'`.
    c. Within ≤ 2 s the cone (cart marker) should appear in 3D
       without clicking **Reload data**.
-   d. Place an order via `POST /checkout`; within ≤ 2 s a new sphere
+   d. Place an order via `POST /orders`; within ≤ 2 s a new sphere
       appears.
    e. Background the visualizer tab for 30 s, foreground it, and
       observe the immediate refresh on focus.
@@ -110,7 +110,7 @@ products, cart, and orders — no event bus, no SSE, no WebSocket needed.
   within `POLL_INTERVAL_MS + one fetch RTT`.
 - Polling pauses when the tab is hidden, resumes on focus with an
   immediate fetch.
-- No request overlap — at most one `GET /visualization-data` is in
+- No request overlap — at most one `GET /visualization` is in
   flight at any moment.
 - Visualizer `README.md` matches the new behavior.
 - `./dev smoke` still passes; no new typecheck or lint failures.
@@ -124,7 +124,7 @@ recorded here for future iterations.
 
 Shipped in this iteration. Summary of changes:
 
-- `GET /visualization-updates` SSE endpoint in
+- `GET /visualization/events` SSE endpoint in
   `apps/bff/src/modules/visualization/visualization.controller.ts`.
 - `VisualizationEventsService` (RxJS `Subject<void>`, `@Global()` module)
   injected into `CartService`, `OrdersService`, and `CheckoutService`.

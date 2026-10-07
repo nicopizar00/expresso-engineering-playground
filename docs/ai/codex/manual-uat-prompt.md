@@ -47,7 +47,7 @@ page. There is no footer.
 8. API section's API matrix and Cart Update/Remove card.
 9. The visualizer stage (always mounted above whichever section is active,
    never a section itself): `/viz` assets, standalone link,
-   visualization-data mapping, reload reactivity, and that its iframe never
+   `/visualization` mapping, reload reactivity, and that its iframe never
    remounts when switching sections.
 
 EXECUTE WHERE POSSIBLE

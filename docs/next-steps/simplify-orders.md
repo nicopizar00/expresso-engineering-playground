@@ -9,7 +9,7 @@ Plan: `docs/superpowers/plans/2026-10-05-simplify-orders.md`
 - Placing an order is final. No prepare, no cancel, no `status`.
 - `Order.sessionId` (nullable, never serialized) records the anonymous
   `sid` owner. Seed and older orders have none.
-- `GET /orders/mine` lists the caller's orders newest first;
+- `GET /orders?owner=session` lists the caller's orders newest first;
   `GET /orders` lists all.
 - Web Orders section: My orders (default) / All orders toggle; Hot/Cold
   badges flip at `coolsAt` without polling; order detail is read-only.

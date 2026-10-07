@@ -55,7 +55,7 @@
 - R1, R2, R3 touch only a frontend page and a dev script — no backend
   contracts, telemetry, k6, or visualizer internals. No gate.
 - R5 changed visualizer internals (`scene.js`) — the owner approved this scope
-  on 2026-05-29; backend contracts and the `/visualization-data` shape were not
+  on 2026-05-29; backend contracts and the `/visualization` shape were not
   touched.
 
 ## Validation commands
@@ -82,9 +82,9 @@ curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/orders/does-not-exi
   with no `unknown flag: --profile` error.
 - Gates: `pnpm --filter @mini-commerce/web typecheck` and `build` pass;
   `pnpm pg:smoke` → 12/12.
-- R5: `apps/visualizer-3d/public/scene.js` now polls `/visualization-data` every
+- R5: `apps/visualizer-3d/public/scene.js` now polls `/visualization` every
   2 s (in-flight guard, hidden-tab pause, reload resets timer; HUD shows
   `polling…`/`live`/`error`/`offline`). All 5 next-steps anchors removed; the
-  `/visualization-data` contract is unchanged.
+  `/visualization` contract is unchanged.
 - R4 (manual browser pass) remains open.
 

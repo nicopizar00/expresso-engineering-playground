@@ -211,7 +211,7 @@ Neither k6's commerce requests nor the domain-state SSE stream change.
     immediately, and MUST NOT perform synchronous work that could slow
     the caller (k6).
   - `GET /workflow-traffic-updates` (SSE) — pushes each accepted event as
-    a discrete message, in arrival order. Unlike `/visualization-updates`,
+    a discrete message, in arrival order. Unlike `/visualization/events`,
     this stream is **event-based, not snapshot-based**: each SSE message
     is one event, not a recomputed full state.
 - The module MUST hold a bounded in-memory buffer (e.g. last 500 events)
@@ -220,7 +220,7 @@ Neither k6's commerce requests nor the domain-state SSE stream change.
   animation history beyond that bound, per SPEC-007's reconnect rule.
 - The module MUST be independent of `VisualizationModule`: it MUST NOT be
   added to `VisualizationModule`'s providers, and MUST NOT alter
-  `/visualization-data` or `/visualization-updates` behavior.
+  `/visualization` or `/visualization/events` behavior.
 - A workflow-traffic ingest failure or a disconnected SSE client MUST NOT
   raise unhandled exceptions in the BFF process.
 
@@ -370,7 +370,7 @@ domain-state ones.
 - Adapters for `commerce.cart-edit`, `commerce.order-fulfillment`,
   `visualization.observe-state`, `visualization.subscribe-live`.
 - The CERT-001 through CERT-011 automated certification suite.
-- Any change to `/visualization-data`, `/visualization-updates`, or the
+- Any change to `/visualization`, `/visualization/events`, or the
   domain-state scene contract.
 - Any change to `objects/espresso-cup.js`, `geometry/frustum.js`'s
   existing exports, `objects/disposal.js`, `layout/render.js`, or

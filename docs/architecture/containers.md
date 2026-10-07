@@ -48,7 +48,7 @@ flowchart LR
 
   Web -->|"/api/bff/*"| BFF
   Web -->|"/viz/*"| Viz
-  Viz -->|"/visualization-updates"| BFF
+  Viz -->|"/visualization/events"| BFF
   BFF --> PG
   Studio --> PG
 

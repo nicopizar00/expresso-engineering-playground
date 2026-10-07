@@ -62,7 +62,7 @@ export interface AccountOrdersResponse {
   readonly latest: Order | null;
 }
 
-// GET /account/hot-status — banner snapshot for the signed-in user.
+// GET /me/hot-status — banner snapshot for the signed-in user.
 export interface HotStatusResponse {
   readonly hotCount: number;
   // Earliest coolsAt among hot orders; null when hotCount is 0.

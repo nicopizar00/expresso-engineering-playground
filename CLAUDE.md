@@ -38,7 +38,7 @@ cp .env.example .env
 ./dev up obs        # + Tempo + Prometheus + Grafana
 ./dev up full       # everything
 ./dev dev           # docker compose watch (BFF + web hot reload)
-./dev smoke         # 21 endpoint checks (typed scene shape + order temperature + SSE frame + login + hot status)
+./dev smoke         # 23 endpoint checks (typed scene shape + order temperature + SSE frame + login + hot status)
 ./dev down          # stop
 ```
 

@@ -157,26 +157,26 @@ Playground Smoke Test
 Target: http://localhost:3001
 
   ✓ GET  /health
-  ✓ GET  /catalog/products
-  ✓ GET  /catalog/products/prod_espresso
+  ✓ GET  /products
+  ✓ GET  /products/prod_espresso
   ✓ POST /cart/items
   ✓ POST /cart/items (2nd, rejected — cart occupied)
   ✓ GET  /cart
   ✓ PATCH /cart/items/:id (rejected — quantity change not allowed)
   ✓ DELETE /cart/items/:id (rejected — removal not allowed once selected)
-  ✓ POST /checkout (rejected — customerName not accepted)
-  ✓ POST /checkout
+  ✓ POST /orders (rejected — customerName not accepted)
+  ✓ POST /orders
   ✓ GET  /orders/ord_demo
   ✓ GET  /orders/ord_demo/status (typed temperature)
-  ✓ GET  /orders/mine (session-owned)
+  ✓ GET  /orders?owner=session (session-owned)
   ✓ POST /auth/register
-  ✓ GET  /auth/me
-  ✓ POST /checkout (orderFor self)
-  ✓ GET  /account/orders (latest hot)
-  ✓ GET  /account/hot-status (hot count)
-  ✓ GET  /visualization-data
-  ✓ GET  /visualization-data (scene shape)
-  ✓ GET  /visualization-updates (SSE)
+  ✓ GET  /me
+  ✓ POST /orders (orderFor self)
+  ✓ GET  /me/orders (latest hot)
+  ✓ GET  /me/hot-status (hot count)
+  ✓ GET  /visualization
+  ✓ GET  /visualization (scene shape)
+  ✓ GET  /visualization/events (SSE)
 
 All 21 smoke checks passed.
 ```

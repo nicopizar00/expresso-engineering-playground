@@ -43,8 +43,8 @@ depend on that host exposure.
   category filter UI still exists but is vestigial against a one-product
   catalog.
 - Product detail via quick view (no quantity control — quantity is always 1).
-- Endpoints: `GET /catalog/products`, `GET /catalog/products/:id`. The
-  product-creation route (`POST /catalog/products`) is unreachable — the
+- Endpoints: `GET /products`, `GET /products/:id`. The
+  product-creation route (`POST /products`) is unreachable — the
   controller no longer registers it.
 
 ### Cart (in-memory, one-cup invariant)
@@ -59,13 +59,13 @@ depend on that host exposure.
 
 ### Checkout (anonymous, persists an order)
 
-- Place the order anonymously on `/checkout` (`POST /checkout`) — there is
+- Place the order anonymously on `/checkout` (`POST /orders`) — there is
   no name field, and a request that supplies `customerName` is rejected
   (400). A successful checkout drains the cart and persists the order.
 
 ### Orders (persisted)
 
-- My orders / All orders lists (`GET /orders/mine`, `GET /orders`).
+- My orders / All orders lists (`GET /orders?owner=session`, `GET /orders`).
 - Read-only order detail (`GET /orders/:id`, `GET /orders/:id/status`).
 - Placing an order is final; an order is Hot until `ORDER_COOL_DOWN_SECONDS`
   after `placedAt`, then Cold.
@@ -77,7 +77,7 @@ depend on that host exposure.
   which reaches the visualizer container over the internal network.
 - A separate "Open Standalone" link opens the host visualizer
   (`NEXT_PUBLIC_VISUALIZER_URL`, default `http://localhost:3002`) in a new tab.
-- The visualizer reads `GET /visualization-data`; the web frontend owns no
+- The visualizer reads `GET /visualization`; the web frontend owns no
   Three.js code.
 
 ### Performance Playground (mock-only)
@@ -90,7 +90,7 @@ depend on that host exposure.
 
 ### Developer diagnostics
 
-- `/dev` provides an API debug console (including Cart Update/Remove and `GET /orders/mine` cards),
+- `/dev` provides an API debug console (including Cart Update/Remove and `GET /orders?owner=session` cards),
   demo-mode and mock-scenario controls, and a frontend-readiness panel.
 
 ## 3. UX state per route
@@ -116,17 +116,17 @@ the web-frontend consumer state.
 | Method + path                | Behavior                                                                                                                                                                                       | Consumer status         |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
 | `GET /health`                | Runtime status                                                                                                                                                                                 | Wired                   |
-| `GET /catalog/products`      | Reads persisted catalog                                                                                                                                                                        | Wired                   |
-| `GET /catalog/products/:id`  | Reads persisted product                                                                                                                                                                        | Wired                   |
+| `GET /products`      | Reads persisted catalog                                                                                                                                                                        | Wired                   |
+| `GET /products/:id`  | Reads persisted product                                                                                                                                                                        | Wired                   |
 | `GET /cart`                  | Reads transient cart                                                                                                                                                                           | Wired                   |
 | `POST /cart/items`           | Adds the one allowed line; rejects a second add                                                                                                                                                | Wired                   |
 | `PATCH /cart/items/:itemId`  | Rejected (409) — quantity can never change once selected                                                                                                                                       | Wired                   |
 | `DELETE /cart/items/:itemId` | Rejected (409) — only Place Order clears the cart                                                                                                                                              | Wired                   |
-| `POST /checkout`             | Anonymous; drains cart, persists order; rejects a supplied `customerName`                                                                                                                      | Wired                   |
+| `POST /orders`             | Anonymous; drains cart, persists order; rejects a supplied `customerName`                                                                                                                      | Wired                   |
 | `GET /orders`                | Lists all persisted orders                                                                                                                                                                     | Wired                   |
-| `GET /orders/mine`           | The caller's orders (session cookie), newest first                                                                                                                                             | Wired                   |
+| `GET /orders?owner=session`           | The caller's orders (session cookie), newest first                                                                                                                                             | Wired                   |
 | `GET /orders/:id`            | Reads persisted order                                                                                                                                                                          | Wired                   |
-| `GET /visualization-data`    | Projects current domain state; carries the semantic `scene` payload (products, recentOrders capped at 10, orderAggregates, cart, latestActivityAt) plus a deprecated `items[]` for back-compat | Visualizer consumer     |
+| `GET /visualization`    | Projects current domain state; carries the semantic `scene` payload (products, recentOrders capped at 10, orderAggregates, cart, latestActivityAt) plus a deprecated `items[]` for back-compat | Visualizer consumer     |
 
 ## 5. Demo mode
 
@@ -140,7 +140,7 @@ the web-frontend consumer state.
 
 - BFF smoke: **13/13** checks pass (`./dev smoke` / `pnpm pg:smoke`), including
   `POST`, `PATCH`, `DELETE` cart operations and an SSE frame assertion against
-  `/visualization-updates`.
+  `/visualization/events`.
 - Typecheck passes for `@mini-commerce/web`, `@mini-commerce/bff`, and contracts.
 - The web production build (Next.js standalone) builds and runs in Docker; all
   feature routes and both proxies return `200` from the host.

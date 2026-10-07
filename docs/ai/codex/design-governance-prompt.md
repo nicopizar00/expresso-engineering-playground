@@ -25,7 +25,7 @@ FUNCTIONAL TRUTHS
 - Orders persist and survive BFF restarts.
 - Cart is intentionally in-memory and resets on BFF restart.
 - `/performance` is mock-only and must not claim live telemetry.
-- The standalone 3D visualizer reads `GET /visualization-data`.
+- The standalone 3D visualizer reads `GET /visualization`.
 - Do not change backend contracts, telemetry, or k6 scope unless explicitly
   approved by the repository owner.
 

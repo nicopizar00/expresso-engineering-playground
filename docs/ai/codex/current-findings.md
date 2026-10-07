@@ -40,7 +40,7 @@ scene.
   pending artistic approval.
 - `docs/next-steps/expresso-order-counter.md` records the broader scene
   direction and keeps implementation assigned to Claude Code.
-- `GET /visualization-updates` is SSE-primary with polling fallback.
+- `GET /visualization/events` is SSE-primary with polling fallback.
 
 ## Open Risks
 

@@ -54,7 +54,7 @@ for the dispatch diagram.
 | Hot-reload dev on host        | — (host only)         | `pnpm pg:dev:host`      | `task dev:host`     |
 | Service status                | `./dev status`        | `pnpm pg:status`        | `task status`       |
 | Follow logs                   | `./dev logs`          | `pnpm pg:logs`          | `task logs`         |
-| Endpoint smoke test (21 checks + SSE) | `./dev smoke`  | `pnpm pg:smoke`         | `task smoke`        |
+| Endpoint smoke test (23 checks + SSE) | `./dev smoke`  | `pnpm pg:smoke`         | `task smoke`        |
 | Seed database                 | `./dev seed`          | `pnpm pg:seed`          | `task seed`         |
 | Stop services                 | `./dev down`          | `pnpm pg:down`          | `task down`         |
 | Restart                       | `./dev restart`       | `pnpm pg:restart`       | `task restart`      |
@@ -69,7 +69,7 @@ for the dispatch diagram.
 | k6 order-status (reads `GET /orders/:id/status` for each row of the `orders` dataset produced by place-order / purchase-flow / purchase-flow-browser with `--produce orders`), `VUS`/`ITERATIONS`/`EXPECT_TEMPERATURE` (`auto`\|`hot`\|`cold`)/`ORDER_COOL_DOWN_SECONDS` env, fails before Docker if `orders` is missing | `./dev perf:order-status` | `pnpm pg:perf:order-status` | `task perf:order-status` |
 | k6 purchase-registered (anonymous orders for seeded demo users; produces `owned-orders` with `--produce owned-orders`), `VUS`/`DURATION`/`ITERATIONS`/`USERS` env | `./dev perf:purchase-registered` | `pnpm pg:perf:purchase-registered` | `task perf:purchase-registered` |
 | k6 login (owners of `owned-orders` when present, else the seeded demo users; produces `auth-tokens` with `--produce auth-tokens`), `VUS`/`ITERATIONS`/`DEMO_PASSWORD` env | `./dev perf:login` | `pnpm pg:perf:login` | `task perf:login` |
-| k6 hot-status (`GET /account/hot-status` per `auth-tokens` row; shape checks), `VUS`/`DURATION`/`ITERATIONS` env, fails before Docker if `auth-tokens` is missing | `./dev perf:hot-status` | `pnpm pg:perf:hot-status` | `task perf:hot-status` |
+| k6 hot-status (`GET /me/hot-status` per `auth-tokens` row; shape checks), `VUS`/`DURATION`/`ITERATIONS` env, fails before Docker if `auth-tokens` is missing | `./dev perf:hot-status` | `pnpm pg:perf:hot-status` | `task perf:hot-status` |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
 | Interactive k6 workflow picker | `./bin/punch` | — | — |
@@ -84,7 +84,7 @@ profiles up. See [`architecture/orchestrator-python.md`](architecture/orchestrat
 | Shell into a service | `./dev hack exec <svc>` (e.g. `bff`, `web`, `postgres`) |
 | Diff container env vs root `.env` | `./dev hack env <svc>` |
 | One-shot SQL against postgres | `./dev hack sql --query 'SELECT count(*) FROM "Product";'` |
-| Trace a BFF request via Tempo | `./dev hack trace GET /catalog/products` (needs `up obs`) |
+| Trace a BFF request via Tempo | `./dev hack trace GET /products` (needs `up obs`) |
 
 Each `perf:*` command selects one repository-owned YAML workflow. Punch
 loads, validates, preflights any required dataset, confirms the Docker

@@ -36,7 +36,7 @@ Mark these manual or skipped unless a real browser is available:
 
 - Old order-detail and Compose profile drift blockers are recorded as done in
   `docs/next-steps/uat-remediation.md`.
-- `/viz` proxy assets and visualization-data are reachable; Classic
+- `/viz` proxy assets and `GET /visualization` are reachable; Classic
   Expresso/Espresso pixel certification remains manual until a browser pass is
   available.
 - The visualizer may still need implementation work if real BFF-driven drink
