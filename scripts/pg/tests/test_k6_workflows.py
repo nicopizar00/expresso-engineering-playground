@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -153,6 +154,15 @@ class K6WorkflowCoverageTests(unittest.TestCase):
         self.assertEqual(
             {p.name for p in scenarios_dir.iterdir() if p.is_dir()}, expected_names
         )
+
+
+class ComposeScriptPathTests(unittest.TestCase):
+    def test_every_compose_scenario_path_is_a_workflow_script(self) -> None:
+        compose = (REPO_ROOT / "infra/docker/compose.performance.yaml").read_text(encoding="utf-8")
+        scripts = {load_workflow(p).k6_script for p in PERF_WORKFLOWS_DIR.glob("*.yaml")}
+        referenced = set(re.findall(r"/scripts/scenarios/[\w-]+/[\w-]+\.js", compose))
+        self.assertTrue(referenced)
+        self.assertLessEqual(referenced, scripts)
 
 
 class K6WorkflowCatalogTests(unittest.TestCase):

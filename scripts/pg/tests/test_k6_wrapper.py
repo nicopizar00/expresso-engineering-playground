@@ -45,86 +45,99 @@ class K6WrapperTests(unittest.TestCase):
         result.captured_args_path = captured_args_path  # type: ignore[attr-defined]
         return result
 
-    def test_scenario_smoke_replaces_positional_script_arg(self) -> None:
+    def test_scenario_replaces_positional_script_arg(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="smoke", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="http-purchase", tmp_dir=Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(captured, ["run", "/scripts/scenarios/smoke/smoke.js"])
+            self.assertEqual(captured, ["run", "/scripts/scenarios/http-purchase/http-purchase.js"])
 
-    def test_scenario_purchase_flow_maps_to_its_script(self) -> None:
+    def test_scenario_http_purchase_maps_to_its_script(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="purchase-flow", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="http-purchase", tmp_dir=Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(captured, ["run", "/scripts/scenarios/purchase-flow/purchase-flow.js"])
+            self.assertEqual(captured, ["run", "/scripts/scenarios/http-purchase/http-purchase.js"])
 
-    def test_scenario_purchase_flow_browser_maps_to_its_script(self) -> None:
+    def test_scenario_browser_purchase_maps_to_its_script(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="purchase-flow-browser", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="browser-purchase", tmp_dir=Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(captured, ["run", "/scripts/scenarios/purchase-flow-browser/purchase-flow-browser.js"])
+            self.assertEqual(captured, ["run", "/scripts/scenarios/browser-purchase/browser-purchase.js"])
 
-    def test_scenario_cart_fulfill_maps_to_its_script(self) -> None:
+    def test_scenario_http_cart_maps_to_its_script(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="cart-fulfill", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="http-cart", tmp_dir=Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(captured, ["run", "/scripts/scenarios/cart-fulfill/cart-fulfill.js"])
+            self.assertEqual(captured, ["run", "/scripts/scenarios/http-cart/http-cart.js"])
 
-    def test_scenario_cart_fulfill_browser_maps_to_its_script(self) -> None:
+    def test_scenario_browser_cart_maps_to_its_script(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="cart-fulfill-browser", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="browser-cart", tmp_dir=Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(captured, ["run", "/scripts/scenarios/cart-fulfill-browser/cart-fulfill-browser.js"])
+            self.assertEqual(captured, ["run", "/scripts/scenarios/browser-cart/browser-cart.js"])
+
+    def test_scenario_http_orders_maps_to_its_script(self) -> None:
+        with TemporaryDirectory() as tmp:
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="http-orders", tmp_dir=Path(tmp))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(captured, ["run", "/scripts/scenarios/http-orders/http-orders.js"])
+
+    def test_retired_smoke_scenario_is_unknown(self) -> None:
+        with TemporaryDirectory() as tmp:
+            result = self._run_wrapper([], scenario="smoke", tmp_dir=Path(tmp))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unknown SCENARIO", result.stderr)
 
     def test_no_scenario_passes_args_through_unchanged(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/smoke/smoke.js"], scenario=None, tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/http-purchase/http-purchase.js"], scenario=None, tmp_dir=Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(captured, ["run", "/scripts/scenarios/smoke/smoke.js"])
+            self.assertEqual(captured, ["run", "/scripts/scenarios/http-purchase/http-purchase.js"])
 
     def test_scenario_with_no_positional_args_defaults_to_run(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper([], scenario="smoke", tmp_dir=Path(tmp))
+            result = self._run_wrapper([], scenario="http-purchase", tmp_dir=Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
             captured = result.captured_args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(captured, ["run", "/scripts/scenarios/smoke/smoke.js"])
+            self.assertEqual(captured, ["run", "/scripts/scenarios/http-purchase/http-purchase.js"])
 
     def test_unknown_scenario_fails_before_invoking_k6(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/smoke/smoke.js"], scenario="bogus", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/http-purchase/http-purchase.js"], scenario="bogus", tmp_dir=Path(tmp))
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("unknown SCENARIO", result.stderr)
             self.assertFalse(result.captured_args_path.exists())
 
     def test_prints_punch_banner(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/smoke/smoke.js"], scenario=None, tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/http-purchase/http-purchase.js"], scenario=None, tmp_dir=Path(tmp))
             self.assertIn("👊", result.stderr)
             self.assertIn("Punch", result.stderr)
 
     def test_prints_success_before_launching_k6(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/smoke/smoke.js"], scenario=None, tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/http-purchase/http-purchase.js"], scenario=None, tmp_dir=Path(tmp))
             self.assertIn("✅", result.stderr)
 
     def test_unknown_scenario_error_uses_error_emoji(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/smoke/smoke.js"], scenario="bogus", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/http-purchase/http-purchase.js"], scenario="bogus", tmp_dir=Path(tmp))
             self.assertIn("❌", result.stderr)
 
     def test_passthrough_without_scenario_prints_info(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/smoke/smoke.js"], scenario=None, tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/http-purchase/http-purchase.js"], scenario=None, tmp_dir=Path(tmp))
             self.assertIn("ℹ️", result.stderr)
 
     def test_scenario_overriding_explicit_script_warns(self) -> None:
         with TemporaryDirectory() as tmp:
-            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="purchase-flow", tmp_dir=Path(tmp))
+            result = self._run_wrapper(["run", "/scripts/scenarios/ignored/ignored.js"], scenario="http-purchase", tmp_dir=Path(tmp))
             self.assertIn("⚠️", result.stderr)
             self.assertIn("/scripts/scenarios/ignored/ignored.js", result.stderr)
 
