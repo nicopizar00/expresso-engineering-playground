@@ -2,8 +2,8 @@
 //
 // Responsibility: product catalog and product lookup.
 // Public surface (current iteration — mocked):
-//   - GET /catalog/products       — return a deterministic list of products
-//   - GET /catalog/products/:id   — return one product or 404
+//   - GET /products       — return a deterministic list of products
+//   - GET /products/:id   — return one product or 404
 //
 // TODO (next iterations):
 //   - Filtering and pagination
