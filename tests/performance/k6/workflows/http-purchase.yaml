@@ -1,0 +1,24 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: http-purchase
+  description: Full purchase journey
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/http-purchase/http-purchase.js
+  environment:
+    forward: [BASE_URL, VUS, DURATION, ITERATIONS]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/http-purchase-summary.json
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    produces:
+      - dataset: orders
+        columns: [orderId]
+        targets: [http-orders-status]

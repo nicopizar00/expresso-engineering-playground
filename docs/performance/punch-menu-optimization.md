@@ -7,10 +7,11 @@ Compose execution path; free-text URLs, CSV consent, and Docker confirmation
 retain their existing prompts.
 
 Before the workflow selector opens, Punch prints a [rich](https://github.com/Textualize/rich)
-table with one row per workflow: **ID** (file stem, also the selector entry),
-**Description** (optional `metadata.description`), **Required Input**
-(`spec.data.requires`/`optional` datasets and their producers), and
-**Generated Output** (`spec.data.produces` datasets and their targets).
+table with one row per workflow: **Name** (file stem, also the selector entry),
+**Description** (optional `metadata.description`), **In** (`spec.data.requires`
+datasets, then `optional` ones marked `?`), and **Out** (`spec.data.produces`
+dataset names). Producer and target lists left the table on 2026-10-07; the
+YAML `targets:` still drive Punch's data preflight.
 
 ## Observed improvement
 

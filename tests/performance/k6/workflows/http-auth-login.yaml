@@ -1,0 +1,25 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: http-auth-login
+  description: Log in, capture tokens
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/http-auth-login/http-auth-login.js
+  environment:
+    forward: [BASE_URL, VUS, ITERATIONS, DEMO_PASSWORD]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/http-auth-login-summary.json
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    produces:
+      - dataset: auth-tokens
+        columns: [username, authToken]
+        targets: [http-me-hot-status]
+    optional: [owned-orders]

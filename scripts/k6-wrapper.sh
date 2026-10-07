@@ -14,19 +14,15 @@ echo "👊 Punch k6-wrapper" >&2
 
 resolve_script() {
   case "$1" in
-    smoke) echo "${SCRIPTS_DIR}/smoke/smoke.js" ;;
-    purchase-flow) echo "${SCRIPTS_DIR}/purchase-flow/purchase-flow.js" ;;
-    purchase-flow-browser) echo "${SCRIPTS_DIR}/purchase-flow-browser/purchase-flow-browser.js" ;;
-    cart-fulfill) echo "${SCRIPTS_DIR}/cart-fulfill/cart-fulfill.js" ;;
-    cart-fulfill-browser) echo "${SCRIPTS_DIR}/cart-fulfill-browser/cart-fulfill-browser.js" ;;
-    place-order) echo "${SCRIPTS_DIR}/place-order/place-order.js" ;;
+    http-purchase|browser-purchase|http-cart|browser-cart|http-orders)
+      echo "${SCRIPTS_DIR}/$1/$1.js" ;;
     *) return 1 ;;
   esac
 }
 
 if [ -n "${SCENARIO:-}" ]; then
   if ! script_path=$(resolve_script "$SCENARIO"); then
-    echo "❌ k6-wrapper: unknown SCENARIO '${SCENARIO}' (expected: smoke, purchase-flow, purchase-flow-browser, cart-fulfill, cart-fulfill-browser, place-order)" >&2
+    echo "❌ k6-wrapper: unknown SCENARIO '${SCENARIO}' (expected: http-purchase, browser-purchase, http-cart, browser-cart, http-orders)" >&2
     exit 1
   fi
 

@@ -40,7 +40,7 @@ flowchart LR
   Unit --> Build["build<br/>(turbo run build)"]
   Build --> Contract["contract<br/>(Pact — stub body)"]
   Build --> E2E["e2e-smoke<br/>(BFF stack + curl)"]
-  Build --> Perf["perf-smoke<br/>(k6 smoke profile)"]
+  Build --> Perf["perf-smoke<br/>(one k6 http-purchase iteration)"]
 
   classDef real fill:#dff7df,stroke:#2a8a2a,color:#000;
   classDef stub fill:#fff5e6,stroke:#c47a2a,color:#000;
@@ -62,7 +62,7 @@ flowchart LR
 6. **Build** — `pnpm build` across the workspace.
 7. **E2E smoke** — boots the Compose BFF stack, waits for `/health`, runs
    `pnpm test:e2e` (stub body), tears down.
-8. **Performance smoke** — `pnpm pg:perf:smoke` (k6 smoke profile).
+8. **Performance smoke** — `VUS=1 ITERATIONS=1 ./dev perf:http-purchase` (one purchase journey).
 
 ### Stubbed (job runs, body is a TODO)
 

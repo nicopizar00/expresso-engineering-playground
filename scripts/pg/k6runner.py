@@ -35,7 +35,7 @@ def default_base_url(port: int = BFF_PORT) -> str:
 def _readiness_hint(port: int) -> tuple[str, str]:
     """What's expected to be listening on `port`, and how to start it.
 
-    purchase-flow-browser drives the web app's UI directly (port 3000);
+    browser-purchase drives the web app's UI directly (port 3000);
     every other workflow calls the BFF (port 3001).
     """
     if port == WEB_PORT:

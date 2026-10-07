@@ -11,11 +11,11 @@
 # — the plain `k6`/`k6-otel` image stays bare on purpose.
 #
 # Quick start (use the wrapper command for the default invocation):
-#   pnpm pg:perf:smoke
+#   pnpm pg:perf:http-purchase
 #
 # Direct invocation (handy when iterating on a scenario):
 #   docker compose -f infra/docker/compose.performance.yaml run --rm k6 \
-#     run /scripts/scenarios/smoke/smoke.js
+#     run /scripts/scenarios/http-purchase/http-purchase.js
 #
 # OTLP-enabled invocation (requires the main stack to be up so the
 # otel-collector and its network exist):
@@ -29,7 +29,7 @@
 #     entry below maps it to the Docker host gateway. macOS/Windows
 #     resolve it natively; the mapping is a no-op there.
 #   - To target a non-host environment, override BASE_URL on the command
-#     line, e.g. `BASE_URL=https://perf.example pnpm pg:perf:smoke`.
+#     line, e.g. `BASE_URL=https://perf.example pnpm pg:perf:http-purchase`.
 
 # Explicit project name — this file shares a directory with the main
 # compose.yaml, and without a distinct name they'd collide on Docker's
@@ -46,7 +46,7 @@ services:
     working_dir: /scripts
     # Scenarios are baked into the image at build time (Task 2); reports
     # and data need live mounts — reports so output lands on the host,
-    # data so place-order's SharedArray sees cart-fulfill's freshly
+    # data so http-orders' SharedArray sees http-cart's freshly
     # duplicated CSV without an image rebuild in between runs.
     volumes:
       - ../../tests/performance/k6/reports:/scripts/reports
@@ -54,7 +54,7 @@ services:
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
       K6_ENV: ${K6_ENV:-local}
-      # k6 defaults --log-output to stderr, so console.log() (cart-fulfill's
+      # k6 defaults --log-output to stderr, so console.log() (http-cart's
       # [DATA] records) never reaches the stdout stream Punch harvests unless
       # this is redirected. Confirmed live: without it, execution.py reports
       # "no [DATA <dataset>] records were produced" despite the lines firing.
@@ -76,10 +76,10 @@ services:
   # Opt-in variant that exports OTLP metrics to the otel-collector running
   # in the main stack (compose.yaml). Reuses the exact same built image as
   # `k6` (the `k6-build` anchor above — scenarios are baked in, not mounted)
-  # so its /scripts/scenarios/smoke/smoke.js path is guaranteed to exist;
+  # so its /scripts/scenarios/http-purchase/http-purchase.js path is guaranteed to exist;
   # it differs from `k6` only in the K6_OTEL_* env wiring and the explicit
   # `--out experimental-opentelemetry` flag in the command. The default
-  # pg:perf:smoke wrapper still uses the plain `k6` service; this service is
+  # pg:perf:http-purchase wrapper still uses the plain `k6` service; this service is
   # invoked manually when you want to see metrics land in the collector.
   k6-otel:
     build: *k6-build
@@ -88,7 +88,7 @@ services:
     volumes:
       - ../../tests/performance/k6/reports:/scripts/reports
       - ../../tests/performance/k6/data:/scripts/data
-    command: run --out experimental-opentelemetry /scripts/scenarios/smoke/smoke.js
+    command: run --out experimental-opentelemetry /scripts/scenarios/http-purchase/http-purchase.js
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal:3001}
       K6_ENV: ${K6_ENV:-local}
@@ -102,7 +102,7 @@ services:
       - default
       - mini_commerce
 
-  # Browser-driven variant of purchase-flow — drives the web app's real UI
+  # Browser-driven variant of http-purchase — drives the web app's real UI
   # with Chromium (k6/browser) instead of calling the BFF over HTTP, so its
   # target is the web app's port (3000), not the BFF's (3001) that `k6` and
   # `k6-otel` default to. shm_size is raised from Docker's 64 MB default —

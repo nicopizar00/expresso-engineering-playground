@@ -1,0 +1,21 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: http-me-hot-status
+  description: Poll hot-status banner
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/http-me-hot-status/http-me-hot-status.js
+  environment:
+    forward: [BASE_URL, VUS, DURATION, ITERATIONS]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/http-me-hot-status-summary.json
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    requires: [auth-tokens]

@@ -1,0 +1,25 @@
+apiVersion: punch/v1
+kind: K6Workflow
+metadata:
+  name: http-orders
+  description: Create orders from carts
+spec:
+  workingDirectory: ../../../..
+  compose:
+    file: infra/docker/compose.performance.yaml
+    service: k6
+  k6:
+    script: /scripts/scenarios/http-orders/http-orders.js
+  environment:
+    forward: [BASE_URL, VUS, ITERATIONS]
+  outputs:
+    summary:
+      path: tests/performance/k6/reports/http-orders-summary.json
+  data:
+    directory: tests/performance/k6/data
+    mountedAt: /scripts/data
+    produces:
+      - dataset: orders
+        columns: [orderId]
+        targets: [http-orders-status]
+    requires: [carts]

@@ -189,6 +189,7 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
             }}
             aria-label={`Add ${product.name} to cart`}
             data-testid="product-add-button"
+            data-product-id={product.productId}
           >
             {isAdding ? (
               <Loader2 className="h-3 w-3 animate-spin" />

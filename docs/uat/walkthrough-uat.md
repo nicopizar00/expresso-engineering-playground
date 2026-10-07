@@ -184,7 +184,7 @@ git checkout -- apps/bff/src/modules/health/health.controller.ts
 
 | #   | Command            | Pass criterion                                                                                                                                        |
 | --- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 7.1 | `./dev perf:smoke` | Exits 0; `tests/performance/k6/reports/smoke-summary.json` exists and is valid JSON (`jq . tests/performance/k6/reports/smoke-summary.json` exits 0). |
+| 7.1 | `VUS=1 ITERATIONS=1 ./dev perf:http-purchase` | Exits 0; `tests/performance/k6/reports/http-purchase-summary.json` exists and is valid JSON (`jq . tests/performance/k6/reports/http-purchase-summary.json` exits 0). |
 
 Cleanup (do not fail the UAT on this):
 
@@ -221,15 +221,10 @@ iteration can then decide which to act on.
    the route was removed from `catalog.controller.ts` (the catalog is now
    strictly one product; see CUP-001). Check 3.11 asserts the route now
    404s.
-3. **`tests/performance/k6/scenarios/load/` and
-   `tests/performance/k6/scenarios/stress/` exist but have no CLI
-   command.** Either wire them through `./dev perf:*` and
-   `pnpm pg:perf:*`, or delete the empty scaffolds.
-4. **`./dev` ships only `perf:smoke` and `perf:clean`.** The
-   `checkout-flow` and `read-heavy` scenarios are reachable only via
-   `pnpm pg:*` (which requires host Node + pnpm). For Docker-only
-   parity, add `cmd_perf_checkout_flow` and `cmd_perf_read_heavy` to
-   the `dev` script.
+3. ~~**The `load` and `stress` k6 scenarios exist but have no CLI
+   command.**~~ Resolved — both unwired scaffolds were deleted.
+4. ~~**`./dev` ships only `perf:smoke` and `perf:clean`.**~~ Resolved —
+   every k6 workflow now has its own `./dev perf:<id>` command.
 5. **`./dev doctor` warns about `.env` but does not auto-create it,
    while `pnpm pg:doctor` does.** Align both CLIs by adding the same
    `.env.example → .env` bootstrap to the `dev` script.

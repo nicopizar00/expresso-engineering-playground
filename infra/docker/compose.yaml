@@ -45,7 +45,7 @@ services:
       # a user-supplied .env value does not silently break tracing.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       # Seconds an order stays "hot" after placement (default 300). Lower it
-      # (e.g. 20) to exercise the hot -> cold flip in k6 order-status runs.
+      # (e.g. 20) to exercise the hot -> cold flip in k6 http-orders-status runs.
       ORDER_COOL_DOWN_SECONDS: "${ORDER_COOL_DOWN_SECONDS:-300}"
     ports:
       - "${BFF_PORT:-3001}:3001"

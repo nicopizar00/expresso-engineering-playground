@@ -221,27 +221,26 @@ curl -s http://localhost:3001/health | jq
 
 `Ctrl+C` to exit watch mode (containers keep running).
 
-### Step 7 — Run the performance smoke
+### Step 7 — Run one purchase journey
 
 ```bash
 docker compose -f infra/docker/compose.performance.yaml build k6
-./dev perf:smoke
+VUS=1 ITERATIONS=1 ./dev perf:http-purchase
 ```
 
-`./dev perf:smoke` selects the repository-owned smoke YAML, which Punch
-loads and validates before issuing one Docker Compose run against the local
-BFF (~20 seconds). Stdout/stderr are logged and the existing summary lands in
-`tests/performance/k6/reports/`. A configurable load profile,
-`purchase-flow`, lives alongside it — it mimics the web app end to end
-(search, add to cart, checkout, verify order) and its `VUS`/`DURATION` are
-set via environment variables. See
-[`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
-for how to run it and what its thresholds mean.
+`./dev perf:http-purchase` selects the repository-owned `http-purchase` YAML,
+which Punch loads and validates before issuing one Docker Compose run against
+the local BFF. Stdout/stderr are logged and the summary lands in
+`tests/performance/k6/reports/`. The journey mimics the web app end to end
+(search, add to cart, checkout, verify order); drop `ITERATIONS` and set
+`VUS`/`DURATION` for a load profile. CI runs exactly this one-iteration
+command. See [`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
+for every workflow and what its thresholds mean.
 
 Workflows can hand data to each other through `spec.data` datasets: a
 producer writes its dataset only with `--produce <dataset>` (e.g.
-`./dev perf:cart-fulfill --produce carts`), and a consumer such as
-`place-order` fails before Docker until that dataset exists.
+`./dev perf:http-cart --produce carts`), and a consumer such as
+`http-orders` fails before Docker until that dataset exists.
 
 ```bash
 ./dev perf:clean           # remove generated reports when done

@@ -264,7 +264,7 @@ remain rejected.
 
 `scripts/pg/tests/test_k6_checkout_contract.py` allows `{cartId,
 idempotencyKey, orderFor}` (plus `orderFor`'s nested `type`/`recipient`).
-Most k6 traffic stays on the guest path; `purchase-registered` (hot-status
+Most k6 traffic stays on the guest path; `http-purchase-registered` (hot-status
 load chain, 2026-10-06) sends `orderFor: {type: "user", recipient}` for the
 seeded demo users.
 
