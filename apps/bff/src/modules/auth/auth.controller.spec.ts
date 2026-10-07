@@ -25,8 +25,12 @@ describe("AuthController routes", () => {
     ["register", "register", RequestMethod.POST, 201],
     ["login", "login", RequestMethod.POST, 200],
     ["logout", "logout", RequestMethod.POST, 204],
-    ["me", "me", RequestMethod.GET, undefined],
   ] as const)("%s → %s", (name, path, method, code) => {
     expect(route(name)).toEqual({ path, method, code });
+  });
+  it("no longer serves me (moved to GET /me)", () => {
+    expect(Object.getOwnPropertyNames(AuthController.prototype)).not.toContain(
+      "me",
+    );
   });
 });

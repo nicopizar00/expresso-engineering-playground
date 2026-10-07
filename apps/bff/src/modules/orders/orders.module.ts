@@ -6,8 +6,8 @@
 // Public surface:
 //   - GET /orders               — every order (newest first)
 //   - GET /orders?owner=session — the caller's orders (session cookie), newest first
-//   - GET /account/orders       — signed-in user's orders (owner username OR email), newest first + latest
-//   - GET /account/hot-status   — signed-in user's hot count + next coolsAt (banner)
+//   - GET /me/orders            — signed-in user's orders (owner username OR email), newest first + latest
+//   - GET /me/hot-status        — signed-in user's hot count + next coolsAt (banner)
 //   - GET /orders/:id           — a single order (404 for unknown)
 //   - GET /orders/:id/status    — temperature read from Postgres
 //                                 (cold after ORDER_COOL_DOWN_SECONDS)
