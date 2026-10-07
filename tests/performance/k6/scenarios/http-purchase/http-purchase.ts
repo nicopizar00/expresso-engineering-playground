@@ -162,7 +162,7 @@ export default function () {
     const res = http.get(url("/visualization"));
     check(res, {
       "visualization 200": (r) => r.status === 200,
-      "order sphere present": (r) => {
+      "visualizer ok after order": (r) => {
         try {
           const items = r.json("items");
           const expectedId = `viz_order_${orderId}`;

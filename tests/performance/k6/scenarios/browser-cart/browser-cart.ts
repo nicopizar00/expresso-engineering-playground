@@ -1,4 +1,4 @@
-// Cart-fulfill-browser scenario — the browser-driven mirror of
+// browser-cart scenario — the browser-driven mirror of
 // http-cart.ts. Same pre-checkout steps as browser-purchase.ts
 // (browse -> add to cart -> checkout panel renders), but stops before
 // "Place Order" and emits the reserved cart as a `[DATA carts]` record
@@ -17,9 +17,13 @@
 //   interception (Page.on() only supports 'console'/'metric'), so reading
 //   the POST /cart/items response body directly isn't an option.
 //
-// productId is intentionally left blank in the emitted row: http-orders.ts
-// never reads that column (only cartId/sid), and there is no DOM-exposed
-// productId to report honestly instead.
+// productId comes from the add button's data-product-id, so a browser-cart
+// row carries the same three non-empty columns as an http-cart row.
+//
+// Steps mirror http-cart.ts's groups as `// step:` markers (k6 0.54's
+// group() does not accept async callbacks) and share its outcome checks;
+// HTTP status checks stay http-only because the browser module cannot see
+// network responses.
 
 import { browser } from "k6/browser";
 import { check } from "k6";
@@ -57,32 +61,55 @@ export default async function () {
   const page = await browser.newPage();
 
   try {
+    // step: catalog: browse
     await page.goto(BASE_URL, { waitUntil: "networkidle" });
-
     await page.waitForSelector('[data-testid="product-add-button"]', {
       state: "visible",
     });
+    const addButtons = await page.$$('[data-testid="product-add-button"]');
+    check(addButtons, {
+      "catalog has items": (b) => b.length > 0,
+    });
+
+    // step: cart: add item
+    const productId = await page.getAttribute(
+      '[data-testid="product-add-button"]',
+      "data-product-id",
+    );
+    const label = await page.getAttribute(
+      '[data-testid="product-add-button"]',
+      "aria-label",
+    );
+    const productName = label?.replace(/^Add /, "").replace(/ to cart$/, "");
     await page.click('[data-testid="product-add-button"]');
 
+    // step: cart: view
     await page.waitForSelector(
       '[data-testid="cart-checkout-panel"] button[type="submit"]',
       { state: "visible" },
     );
-
+    const panelText = await page.textContent(
+      '[data-testid="cart-checkout-panel"]',
+    );
     const cartId = await page.getAttribute(
       '[data-testid="cart-checkout-panel"]',
       "data-cart-id",
     );
-    const cartIdOk = check(cartId, {
-      "cart id rendered on the checkout panel": (id) =>
-        typeof id === "string" && id.length > 0,
+    const inCart = check(panelText, {
+      "cart contains added item": (t) =>
+        typeof t === "string" &&
+        !!productName &&
+        t.includes(productName) &&
+        typeof cartId === "string" &&
+        cartId.length > 0,
     });
 
-    if (cartIdOk) {
+    // step: cart: fulfill
+    if (inCart && productId) {
       const cookies = await page.context().cookies();
       const sid = cookies.find((cookie) => cookie.name === "sid")?.value;
       if (sid) {
-        console.log(`[DATA carts] ${cartId},,${sid}`);
+        console.log(`[DATA carts] ${cartId},${productId},${sid}`);
       }
     }
   } finally {

@@ -1,4 +1,4 @@
-// Purchase-flow-browser scenario — the browser-driven mirror of
+// browser-purchase scenario — the browser-driven mirror of
 // http-purchase.ts. Same journey (add product, place order, land on the
 // order it created), but exercised through a real Chromium tab against the
 // web app instead of raw HTTP calls against the BFF.
@@ -29,6 +29,10 @@
 // explicitly act on the first match when a selector resolves to several
 // elements (e.g. one "product-add-button" per catalog card) — used here on
 // purpose instead of page.locator().
+
+// Steps mirror http-purchase.ts's groups as `// step:` markers (k6 0.54's
+// group() does not accept async callbacks) and share its outcome checks;
+// HTTP status checks stay http-only.
 
 import { browser } from "k6/browser";
 import { check } from "k6";
@@ -68,21 +72,41 @@ export default async function () {
   const page = await browser.newPage();
 
   try {
+    // step: catalog: browse
     await page.goto(BASE_URL, { waitUntil: "networkidle" });
-
     await page.waitForSelector('[data-testid="product-add-button"]', {
       state: "visible",
     });
+    const addButtons = await page.$$('[data-testid="product-add-button"]');
+    check(addButtons, {
+      "catalog has items": (b) => b.length > 0,
+    });
+
+    // step: cart: add item
+    const label = await page.getAttribute(
+      '[data-testid="product-add-button"]',
+      "aria-label",
+    );
+    const productName = label?.replace(/^Add /, "").replace(/ to cart$/, "");
     await page.click('[data-testid="product-add-button"]');
 
+    // step: cart: view
     await page.waitForSelector(
       '[data-testid="cart-checkout-panel"] button[type="submit"]',
       { state: "visible" },
     );
+    const panelText = await page.textContent(
+      '[data-testid="cart-checkout-panel"]',
+    );
+    check(panelText, {
+      "cart contains added item": (t) =>
+        typeof t === "string" && !!productName && t.includes(productName),
+    });
+
+    // step: checkout
     await page.click(
       '[data-testid="cart-checkout-panel"] button[type="submit"]',
     );
-
     await page.waitForSelector('[data-testid="home-orders"]', {
       state: "visible",
       timeout: 10000,
@@ -91,7 +115,7 @@ export default async function () {
       '[data-testid="home-orders"] p.font-mono',
     );
     check(orderIdText, {
-      "order id rendered on the orders section": (t) =>
+      "checkout returns orderId": (t) =>
         typeof t === "string" && t.trim().length > 0,
     });
     // k6's browser module can't read the checkout response, so the "orders"
@@ -100,11 +124,12 @@ export default async function () {
     const renderedOrderId = orderIdText?.trim();
     if (renderedOrderId) console.log(`[DATA orders] ${renderedOrderId}`);
 
+    // step: visualization: order sphere present
     const vizStatus = await page.textContent(
       '[data-testid="visualizer-status"]',
     );
     check(vizStatus, {
-      "visualizer status is not Error": (t) => t !== "Error",
+      "visualizer ok after order": (t) => t !== "Error",
     });
   } finally {
     await page.close();
