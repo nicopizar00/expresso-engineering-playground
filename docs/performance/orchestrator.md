@@ -162,7 +162,7 @@ All ten bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
 `tests/performance/k6/reports/http-purchase-summary.json`). Unlike a dataset,
 this is read-only and needs no opt-in flag — after a passing run,
-`./dev perf:http-purchase` / `perf:http-purchase` and `./bin/punch`'s interactive
+any `./dev perf:<id>` and `./bin/punch`'s interactive
 menu print its `totalRequests`, `errorRate`, `p90Ms`, `checkPassRate`, and
 `durationMs` fields.
 

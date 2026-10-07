@@ -26,7 +26,7 @@ design itself is in [`orchestrator.md`](orchestrator.md).
 - **PR description**: includes the metric values that the change was meant
   to affect or guard against. Example:
 
-  > http-purchase after change: `http_req_duration p(95) = 38.1ms` (threshold 200ms),
+  > http-purchase after change: `http_req_duration p(95) = 38.1ms` (threshold 1000ms),
   > `http_req_failed = 0%`. Summary at
   > `tests/performance/k6/reports/http-purchase-summary.json`.
 
