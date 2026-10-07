@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import unittest
@@ -78,6 +79,24 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
             )
         )
         self.assertFalse(any("--produce" in step.get("run", "") for step in steps))
+
+    def test_k6_env_example_does_not_force_a_scenario(self) -> None:
+        """An active SCENARIO= line overrides every ./dev perf:* workflow for
+        anyone who sources the file (see compose.performance.yaml)."""
+        text = (REPO_ROOT / "tests/performance/k6/.env.example").read_text(encoding="utf-8")
+        self.assertNotRegex(text, r"(?m)^SCENARIO=")
+
+    def test_validation_example_quotes_the_real_http_purchase_threshold(self) -> None:
+        thresholds = (REPO_ROOT / "tests/performance/k6/config/thresholds.ts").read_text(encoding="utf-8")
+        block = thresholds[thresholds.index("export const purchaseFlowThresholds"):]
+        p95 = re.search(r'"p\(95\)<(\d+)"', block).group(1)
+        doc = (REPO_ROOT / "docs/performance/validation.md").read_text(encoding="utf-8")
+        example = re.search(r"http-purchase after change: .*?\(threshold (\d+)ms\)", doc).group(1)
+        self.assertEqual(example, p95)
+
+    def test_orchestrator_doc_lists_each_command_once(self) -> None:
+        doc = (REPO_ROOT / "docs/performance/orchestrator.md").read_text(encoding="utf-8")
+        self.assertNotIn("`./dev perf:http-purchase` / `perf:http-purchase`", doc)
 
     def test_dev_help_explains_the_performance_only_python_dependency(self) -> None:
         """A fresh user needs the Punch installation command before a perf command."""

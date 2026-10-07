@@ -71,6 +71,9 @@ async function installScene(
 ) {
   let cartProduct: typeof product | null = null;
   const orders = [makeOrder("ord_before_load", product)];
+  // Orders this test placed through the mocked checkout — what
+  // GET /orders?owner=session returns, mirroring the BFF's session scope.
+  const sessionOrderIds = new Set<string>();
   let releaseScene = () => {};
   const sceneGate = new Promise<void>((resolve) => {
     releaseScene = resolve;
@@ -163,10 +166,19 @@ async function installScene(
         options.checkoutProduct ?? cartProduct!,
       );
       orders.unshift(order);
+      sessionOrderIds.add(order.orderId);
       cartProduct = null;
       return json({ ...order, cartId: "cart_viz" });
     }
-    if (endpoint === "/orders") return json({ items: orders });
+    if (endpoint === "/orders") {
+      const owners = url.searchParams.getAll("owner");
+      if (owners.length === 0) return json({ items: orders });
+      if (owners.length > 1 || owners[0] !== "session")
+        return json({ message: 'owner must be "session" when present' }, 400);
+      return json({
+        items: orders.filter((o) => sessionOrderIds.has(o.orderId)),
+      });
+    }
     const order = orders.find((item) => endpoint === `/orders/${item.orderId}`);
     if (order) return json(order);
     return json({ message: "Unknown test endpoint" }, 404);

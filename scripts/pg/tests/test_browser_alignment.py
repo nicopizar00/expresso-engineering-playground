@@ -63,6 +63,26 @@ class BrowserAlignmentTests(unittest.TestCase):
         predicate = src[src.index('"cart contains added item"'):src.index("});", src.index('"cart contains added item"'))]
         self.assertIn("productId", predicate)
 
+    def test_browser_catalog_check_can_fail(self) -> None:
+        """A bare waitForSelector throws before "catalog has items" runs, so
+        the check could only ever pass; the wait must be caught."""
+        for name in ("browser-cart", "browser-purchase"):
+            with self.subTest(name=name):
+                src = source(name)
+                step = src[src.index("// step: catalog: browse"):src.index("// step: cart: add item")]
+                self.assertNotRegex(
+                    step, r'await page\.waitForSelector\(\s*\'\[data-testid="product-add-button"\]\'[^;]*\);'
+                )
+                self.assertIn('"catalog has items"', step)
+
+    def test_browser_visualizer_check_requires_connected(self) -> None:
+        """"Loading" is not "ok after order"; only the Connected badge is."""
+        src = source("browser-purchase")
+        check = src[src.index('"visualizer ok after order"'):]
+        check = check[:check.index("});")]
+        self.assertIn('"Connected"', check)
+        self.assertNotIn('!== "Error"', check)
+
     def test_docs_describe_the_full_browser_carts_row(self) -> None:
         for doc in ("docs/performance/orchestrator.md", "tests/performance/k6/README.md"):
             with self.subTest(doc=doc):

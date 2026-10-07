@@ -2,32 +2,42 @@ import "reflect-metadata";
 import { RequestMethod } from "@nestjs/common";
 import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import { describe, expect, it } from "vitest";
-import { AssetsController } from "./modules/assets/assets.controller";
-import { AuthController } from "./modules/auth/auth.controller";
-import { MeController } from "./modules/auth/me.controller";
-import { CartController } from "./modules/cart/cart.controller";
-import { CatalogController } from "./modules/catalog/catalog.controller";
-import { CheckoutController } from "./modules/checkout/checkout.controller";
-import { HealthController } from "./modules/health/health.controller";
-import { AccountController } from "./modules/orders/account.controller";
-import { OrdersController } from "./modules/orders/orders.controller";
-import { VisualizationController } from "./modules/visualization/visualization.controller";
+import { AppModule } from "./app.module";
 
-// The whole public route table, derived from decorator metadata. Adding,
-// moving, or removing a route fails here until the spec's route map (and
-// this list) say so.
-const CONTROLLERS = [
-  AssetsController,
-  AuthController,
-  MeController,
-  CartController,
-  CatalogController,
-  CheckoutController,
-  HealthController,
-  AccountController,
-  OrdersController,
-  VisualizationController,
-];
+// The whole public route table, derived from decorator metadata on every
+// controller AppModule actually registers (walked through module imports),
+// so a new controller can't add routes this test never sees. Adding, moving,
+// or removing a route fails here until the spec's route map (and the list
+// below) say so.
+type Ctor = new (...args: never[]) => unknown;
+
+function registeredControllers(root: Ctor): Ctor[] {
+  const seen = new Set<unknown>();
+  const controllers: Ctor[] = [];
+  const visit = (entry: unknown) => {
+    // Dynamic modules ({ module, controllers?, imports? }) carry their own
+    // metadata alongside the class's.
+    const mod = (entry as { module?: Ctor })?.module ?? entry;
+    if (!mod || seen.has(mod)) return;
+    seen.add(mod);
+    const dynamic = entry as { controllers?: Ctor[]; imports?: unknown[] };
+    controllers.push(
+      ...((Reflect.getMetadata("controllers", mod) as Ctor[] | undefined) ??
+        []),
+      ...(dynamic.controllers ?? []),
+    );
+    for (const child of [
+      ...((Reflect.getMetadata("imports", mod) as unknown[] | undefined) ?? []),
+      ...(dynamic.imports ?? []),
+    ]) {
+      visit(child);
+    }
+  };
+  visit(root);
+  return controllers;
+}
+
+const CONTROLLERS = registeredControllers(AppModule);
 
 const trim = (s: unknown) => String(s ?? "").replace(/^\/+|\/+$/g, "");
 
@@ -50,6 +60,10 @@ function routeTable(): string[] {
 }
 
 describe("BFF route table", () => {
+  it("finds every module's controllers", () => {
+    expect(CONTROLLERS.length).toBe(10);
+  });
+
   it("matches the REST route map exactly", () => {
     expect(routeTable()).toEqual(
       [
