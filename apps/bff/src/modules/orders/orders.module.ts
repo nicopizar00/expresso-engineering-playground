@@ -5,7 +5,7 @@
 // temperature is derived on read from placedAt.
 // Public surface:
 //   - GET /orders               — every order (newest first)
-//   - GET /orders/mine          — the caller's orders (session cookie), newest first
+//   - GET /orders?owner=session — the caller's orders (session cookie), newest first
 //   - GET /account/orders       — signed-in user's orders (owner username OR email), newest first + latest
 //   - GET /account/hot-status   — signed-in user's hot count + next coolsAt (banner)
 //   - GET /orders/:id           — a single order (404 for unknown)
