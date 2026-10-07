@@ -60,16 +60,15 @@ for the dispatch diagram.
 | Restart                       | `./dev restart`       | `pnpm pg:restart`       | `task restart`      |
 | Print local URLs              | `./dev open`          | `pnpm pg:open`          | `task open`         |
 | Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
-| k6 smoke (Docker k6)          | `./dev perf:smoke`    | `pnpm pg:perf:smoke`    | `task perf:smoke`   |
-| k6 purchase-flow (search → cart → checkout, `VUS`/`DURATION` env) | `./dev perf:purchase-flow` | `pnpm pg:perf:purchase-flow` | `task perf:purchase-flow` |
-| k6 purchase-flow driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly), `VUS`/`ITERATIONS` env | `./dev perf:purchase-flow-browser` | `pnpm pg:perf:purchase-flow-browser` | `task perf:purchase-flow-browser` |
-| k6 cart-fulfill (search → add to cart, stops before checkout, emits `[DATA carts]` rows), `VUS`/`DURATION`/`ITERATIONS` env, writes `data/carts.csv` only with `--produce carts` | `./dev perf:cart-fulfill` | `pnpm pg:perf:cart-fulfill` | `task perf:cart-fulfill` |
-| k6 cart-fulfill driven by a real browser (Chromium via k6/browser, web app UI), stops before Place Order, emits `[DATA carts]` rows into the same `carts` dataset, `VUS`/`ITERATIONS` env, writes it only with `--produce carts` | `./dev perf:cart-fulfill-browser` | `pnpm pg:perf:cart-fulfill-browser` | `task perf:cart-fulfill-browser` |
-| k6 place-order (checks out carts reserved by cart-fulfill or cart-fulfill-browser via the `carts` dataset, verifies order + visualizer), `VUS`/`ITERATIONS` env, fails before Docker if `carts` is missing; `--data carts=<path>` reads another file | `./dev perf:place-order` | `pnpm pg:perf:place-order` | `task perf:place-order` |
-| k6 order-status (reads `GET /orders/:id/status` for each row of the `orders` dataset produced by place-order / purchase-flow / purchase-flow-browser with `--produce orders`), `VUS`/`ITERATIONS`/`EXPECT_TEMPERATURE` (`auto`\|`hot`\|`cold`)/`ORDER_COOL_DOWN_SECONDS` env, fails before Docker if `orders` is missing | `./dev perf:order-status` | `pnpm pg:perf:order-status` | `task perf:order-status` |
-| k6 purchase-registered (anonymous orders for seeded demo users; produces `owned-orders` with `--produce owned-orders`), `VUS`/`DURATION`/`ITERATIONS`/`USERS` env | `./dev perf:purchase-registered` | `pnpm pg:perf:purchase-registered` | `task perf:purchase-registered` |
-| k6 login (owners of `owned-orders` when present, else the seeded demo users; produces `auth-tokens` with `--produce auth-tokens`), `VUS`/`ITERATIONS`/`DEMO_PASSWORD` env | `./dev perf:login` | `pnpm pg:perf:login` | `task perf:login` |
-| k6 hot-status (`GET /me/hot-status` per `auth-tokens` row; shape checks), `VUS`/`DURATION`/`ITERATIONS` env, fails before Docker if `auth-tokens` is missing | `./dev perf:hot-status` | `pnpm pg:perf:hot-status` | `task perf:hot-status` |
+| k6 http-purchase (search → cart → checkout, `VUS`/`DURATION`/`ITERATIONS` env; CI runs one iteration) | `./dev perf:http-purchase` | `pnpm pg:perf:http-purchase` | `task perf:http-purchase` |
+| k6 http-purchase driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly), `VUS`/`ITERATIONS` env | `./dev perf:browser-purchase` | `pnpm pg:perf:browser-purchase` | `task perf:browser-purchase` |
+| k6 http-cart (search → add to cart, stops before checkout, emits `[DATA carts]` rows), `VUS`/`DURATION`/`ITERATIONS` env, writes `data/carts.csv` only with `--produce carts` | `./dev perf:http-cart` | `pnpm pg:perf:http-cart` | `task perf:http-cart` |
+| k6 http-cart driven by a real browser (Chromium via k6/browser, web app UI), stops before Place Order, emits `[DATA carts]` rows into the same `carts` dataset, `VUS`/`ITERATIONS` env, writes it only with `--produce carts` | `./dev perf:browser-cart` | `pnpm pg:perf:browser-cart` | `task perf:browser-cart` |
+| k6 http-orders (checks out carts reserved by http-cart or browser-cart via the `carts` dataset, verifies order + visualizer), `VUS`/`ITERATIONS` env, fails before Docker if `carts` is missing; `--data carts=<path>` reads another file | `./dev perf:http-orders` | `pnpm pg:perf:http-orders` | `task perf:http-orders` |
+| k6 http-orders-status (reads `GET /orders/:id/status` for each row of the `orders` dataset produced by http-orders / http-purchase / browser-purchase with `--produce orders`), `VUS`/`ITERATIONS`/`EXPECT_TEMPERATURE` (`auto`\|`hot`\|`cold`)/`ORDER_COOL_DOWN_SECONDS` env, fails before Docker if `orders` is missing | `./dev perf:http-orders-status` | `pnpm pg:perf:http-orders-status` | `task perf:http-orders-status` |
+| k6 http-purchase-registered (anonymous orders for seeded demo users; produces `owned-orders` with `--produce owned-orders`), `VUS`/`DURATION`/`ITERATIONS`/`USERS` env | `./dev perf:http-purchase-registered` | `pnpm pg:perf:http-purchase-registered` | `task perf:http-purchase-registered` |
+| k6 http-auth-login (owners of `owned-orders` when present, else the seeded demo users; produces `auth-tokens` with `--produce auth-tokens`), `VUS`/`ITERATIONS`/`DEMO_PASSWORD` env | `./dev perf:http-auth-login` | `pnpm pg:perf:http-auth-login` | `task perf:http-auth-login` |
+| k6 http-me-hot-status (`GET /me/hot-status` per `auth-tokens` row; shape checks), `VUS`/`DURATION`/`ITERATIONS` env, fails before Docker if `auth-tokens` is missing | `./dev perf:http-me-hot-status` | `pnpm pg:perf:http-me-hot-status` | `task perf:http-me-hot-status` |
 | Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
 | Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
 | Interactive k6 workflow picker | `./bin/punch` | — | — |
@@ -96,7 +95,7 @@ not the supported workflow path.
 
 Workflows that produce a dataset (`spec.data.produces`) write it only when
 the run passes `--produce <dataset>` (or `--produce all`), e.g.
-`./dev perf:cart-fulfill --produce carts`; an explicit `--produce` also skips
+`./dev perf:http-cart --produce carts`; an explicit `--produce` also skips
 the Docker prompt. Consumers fail before Docker until their datasets exist and
 accept `--data <dataset>=<path>` for an alternate file under
 `tests/performance/k6/data/`.

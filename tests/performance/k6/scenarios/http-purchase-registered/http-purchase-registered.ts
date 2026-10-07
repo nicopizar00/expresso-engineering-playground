@@ -3,7 +3,7 @@
 // Places one anonymous order per iteration FOR a seeded demo user
 // (orderFor: {type: "user", recipient}), verifies the persisted owner, and
 // emits `[DATA owned-orders] <orderId>,<username>,<email>`. With
-// `--produce owned-orders` Punch publishes those rows; `login` consumes them
+// `--produce owned-orders` Punch publishes those rows; `http-auth-login` consumes them
 // as an optional dataset.
 //
 // Users: support/demo-users.ts (round-robin by iteration); USERS=ana,ben

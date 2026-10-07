@@ -63,7 +63,7 @@ environment, and construct the one Compose run. Build the image separately:
 ```bash
 python3 -m pip install -r vendor/punch/requirements.txt
 docker compose -f infra/docker/compose.performance.yaml build k6
-./dev perf:smoke
+./dev perf:http-purchase
 ```
 
 Workflows exchange data through `spec.data` datasets. A producer's stdout
@@ -87,7 +87,7 @@ exist, and receives each path as `DATA_<DATASET>_CSV`. See
 | `smoke`                  | 23 endpoint checks incl. SSE frame assertion   |
 | `seed`                   | `prisma db seed`                               |
 | `status` / `logs` / `open` | Inspection                                   |
-| `perf:smoke` / `perf:purchase-flow` / `perf:purchase-flow-browser` / `perf:cart-fulfill` / `perf:place-order` / `perf:order-status` / `perf:purchase-registered` / `perf:login` / `perf:hot-status` | named k6 YAML workflows in Docker (`purchase-flow` configurable via `VUS`/`DURATION`/`BASE_URL`; `purchase-flow-browser` mirrors it via a real Chromium browser against the web app, `VUS`/`ITERATIONS`/`BASE_URL`; `cart-fulfill` stops before checkout and produces the `carts` dataset with `--produce carts`; `place-order` requires `carts` — Punch fails it fast when the dataset is missing/empty and offers to delete it once done, `VUS`/`ITERATIONS`/`BASE_URL`; `place-order` and both `purchase-flow` variants produce the `orders` dataset with `--produce orders`, which `order-status` consumes to check hot/cold temperature via `EXPECT_TEMPERATURE`; the hot-status load chain runs `purchase-registered --produce owned-orders` → `login --produce auth-tokens` (optional `owned-orders`, falls back to the seeded demo users) → `hot-status`) |
+| `perf:browser-cart` / `perf:browser-purchase` / `perf:http-purchase` / `perf:http-cart` / `perf:http-orders` / `perf:http-orders-status` / `perf:http-purchase-registered` / `perf:http-auth-login` / `perf:http-me-hot-status` | named k6 YAML workflows in Docker (`http-purchase` configurable via `VUS`/`DURATION`/`BASE_URL`; `browser-purchase` mirrors it via a real Chromium browser against the web app, `VUS`/`ITERATIONS`/`BASE_URL`; `http-cart` stops before checkout and produces the `carts` dataset with `--produce carts`; `http-orders` requires `carts` — Punch fails it fast when the dataset is missing/empty and offers to delete it once done, `VUS`/`ITERATIONS`/`BASE_URL`; `http-orders` and both `http-purchase` variants produce the `orders` dataset with `--produce orders`, which `http-orders-status` consumes to check hot/cold temperature via `EXPECT_TEMPERATURE`; the hot-status load chain runs `http-purchase-registered --produce owned-orders` → `login --produce auth-tokens` (optional `owned-orders`, falls back to the seeded demo users) → `hot-status`) |
 | `perf:open-report` / `perf:clean` | Manage k6 report artefacts             |
 | `hack {exec,env,sql,trace}` | Debugging affordances (see below)            |
 

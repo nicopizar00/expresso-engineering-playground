@@ -30,7 +30,7 @@ When the count drops to zero, the topic is done.
      history before broader arcade-world expansion.
 3. **[Order Temperature](order-temperature.md)** — _visualizer follow-up_ (1 anchor)
    - Hot/cold order temperature shipped across BFF (Postgres-backed status
-     endpoint), web badge, smoke, and the `order-status` k6 workflow.
+     endpoint), web badge, smoke, and the `http-orders-status` k6 workflow.
    - Remaining: represent hot vs cold cups in the visualizer scene.
 4. **[Simplify Orders](simplify-orders.md)** — _shipped 2026-10-05_
    - Place-and-done orders (no status lifecycle), session-owned

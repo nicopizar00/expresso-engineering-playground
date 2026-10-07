@@ -126,7 +126,7 @@ orchestration capability.
 - Design + invariants: [`docs/performance/orchestrator.md`](docs/performance/orchestrator.md)
 - Validation evidence rules: [`docs/performance/validation.md`](docs/performance/validation.md)
 - Scenario library: [`tests/performance/k6/README.md`](tests/performance/k6/README.md)
-- Run from a fresh checkout: `./dev perf:smoke`
+- Run from a fresh checkout: `VUS=1 ITERATIONS=1 ./dev perf:http-purchase`
 
 Core `scripts/pg/` stays standard-library-only. Performance commands load the
 public Punch workflow engine, so initialize the submodule and install its
@@ -141,8 +141,8 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 Each performance command selects one repository-owned YAML workflow; Punch
 loads, validates, and runs it once through Docker Compose. Workflows declare
 datasets in `spec.data`; a producer writes its dataset only with
-`--produce <dataset>` (e.g. `./dev perf:cart-fulfill --produce carts`), and a
-consumer such as `place-order` fails before Docker until its dataset exists.
+`--produce <dataset>` (e.g. `./dev perf:http-cart --produce carts`), and a
+consumer such as `http-orders` fails before Docker until its dataset exists.
 
 ## Out of scope for this phase
 

@@ -26,13 +26,14 @@ design itself is in [`orchestrator.md`](orchestrator.md).
 - **PR description**: includes the metric values that the change was meant
   to affect or guard against. Example:
 
-  > Smoke after change: `http_req_duration p(95) = 38.1ms` (threshold 200ms),
+  > http-purchase after change: `http_req_duration p(95) = 38.1ms` (threshold 200ms),
   > `http_req_failed = 0%`. Summary at
-  > `tests/performance/k6/reports/smoke-summary.json`.
+  > `tests/performance/k6/reports/http-purchase-summary.json`.
 
-- **CI**: there is no perf-gating CI today. CI gating per scenario is an
-  explicit, owner-approved follow-up. Until then, local evidence is the
-  gate.
+- **CI**: the `perf-smoke` job runs one `http-purchase` iteration
+  (`VUS=1 ITERATIONS=1 ./dev perf:http-purchase`); its thresholds fail the
+  job. Gating any other scenario is an explicit, owner-approved follow-up, so
+  for everything else local evidence is the gate.
 
 ## What "good" evidence looks like
 
@@ -57,9 +58,9 @@ Thresholds: all passed
 ```
 
 (The scenario's own `handleSummary` writes the report/summary files — the
-orchestrator itself no longer prints a "Summary:" line for `smoke` /
-`checkout-flow` / `read-heavy` / `campaign`. Note the summary path
-separately, e.g. `tests/performance/k6/reports/smoke-summary.json`.)
+orchestrator itself prints no "Summary:" line for any workflow. Note the
+summary path separately, e.g.
+`tests/performance/k6/reports/http-purchase-summary.json`.)
 
 ## Diffing across runs
 
@@ -68,10 +69,10 @@ report; that's intentional — comparison stays explicit.
 
 ```bash
 jq '.metrics.http_req_duration.values' \
-  tests/performance/k6/reports/smoke-summary.json
+  tests/performance/k6/reports/http-purchase-summary.json
 
 jq '{p95:.metrics.http_req_duration.values["p(95)"], failed:.metrics.http_req_failed.value}' \
-  tests/performance/k6/reports/smoke-summary.json
+  tests/performance/k6/reports/http-purchase-summary.json
 ```
 
 If a regression appears (p(95) up by > 20% with no scenario change), treat

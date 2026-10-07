@@ -17,8 +17,8 @@ is derived on every read — never stored, no scheduler.
   startup.
 - **Web:** hot/cold badge in the orders list and detail; the detail view
   refetches once at `coolsAt` so the badge flips live.
-- **Perf:** `order-status` consumes the `orders` dataset produced by
-  `place-order`, `purchase-flow`, and `purchase-flow-browser`
+- **Perf:** `http-orders-status` consumes the `orders` dataset produced by
+  `http-orders`, `http-purchase`, and `browser-purchase`
   (`--produce orders`); `EXPECT_TEMPERATURE=auto|hot|cold` selects the check.
 - **Smoke:** `./dev smoke` checks the typed status shape (20 checks).
 
@@ -27,4 +27,4 @@ is derived on every read — never stored, no scheduler.
 - Visualizer: show hot vs cold cups (e.g. steam on hot) from `temperature`
   in the scene feed. Anchor: `TODO(next-steps/order-temperature)` in
   `apps/bff/src/modules/orders/order-temperature.ts`.
-- An `order-status-browser` scenario (reads the badge through the web app).
+- An `http-orders-status-browser` scenario (reads the badge through the web app).

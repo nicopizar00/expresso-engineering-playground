@@ -14,7 +14,7 @@ SCENARIOS_DIR = REPO_ROOT / "tests" / "performance" / "k6" / "scenarios"
 # field — CUP-002 only forbids the latter (customerName and friends) from perf
 # checkout calls. orderFor (nested type/recipient) carries a username or email
 # identifier, never a human name — allowed since the login amendment;
-# purchase-registered uses it to place orders for seeded demo users.
+# http-purchase-registered uses it to place orders for seeded demo users.
 FIELD_PATTERN = re.compile(r"(\w+)\s*:")
 ORDER_FOR_PATTERN = re.compile(r"orderFor\s*:\s*\{([^{}]*)\}")
 TOP_LEVEL_FIELDS = {"cartId", "idempotencyKey", "orderFor"}

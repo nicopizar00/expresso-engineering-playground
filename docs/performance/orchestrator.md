@@ -2,7 +2,7 @@
 
 The repository-owned performance layer selects k6 workflows; Punch owns the
 generic workflow engine. This is the canonical design for `./dev perf:*`,
-`tests/performance/k6/workflows/`, and CI's smoke run.
+`tests/performance/k6/workflows/`, and CI's k6 gate (one `http-purchase` iteration).
 
 ## Prerequisites and ownership
 
@@ -20,7 +20,7 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ```
 
 Expresso owns its TypeScript scenarios (BFF-targeting and, for
-purchase-flow-browser/cart-fulfill-browser, web-app-targeting), their build
+browser-purchase/browser-cart, web-app-targeting), their build
 entries, and the workflow YAML files. Punch owns YAML loading and validation,
 the `spec.data` dataset contract (produce opt-in, harvesting, atomic
 publication, consumer preflight, container path injection), Compose command
@@ -39,7 +39,7 @@ one docker compose run -> stdout/stderr log + existing HTML/JSON + opted-in data
 For a selected workflow, Punch constructs exactly one explicit `docker compose
 --project-directory ... -f ... run --rm k6 k6 run ...` command. Building the
 image, starting the BFF, collecting logs, and cleanup are separate operations.
-CI therefore builds the `k6` image first, then invokes `./dev perf:smoke`; it
+CI therefore builds the `k6` image first, then invokes `./dev perf:http-purchase`; it
 does not recreate the Compose command in workflow YAML.
 
 The baked image contains compiled scenario code. Existing scenario
@@ -57,20 +57,20 @@ that result and record before treating generated artifacts as evidence.
 
 There are ten YAML files, exactly one for every TypeScript k6 build entry.
 All ten select `infra/docker/compose.performance.yaml` and forward
-`BASE_URL`; `purchase-flow` and `cart-fulfill` additionally forward `VUS`,
-`DURATION`, and `ITERATIONS`; `purchase-flow-browser`, `cart-fulfill-browser`,
-`place-order`, and `order-status` forward `VUS` and `ITERATIONS` (no `DURATION` — each is a
+`BASE_URL`; `http-purchase` and `http-cart` additionally forward `VUS`,
+`DURATION`, and `ITERATIONS`; `browser-purchase`, `browser-cart`,
+`http-orders`, and `http-orders-status` forward `VUS` and `ITERATIONS` (no `DURATION` — each is a
 fixed-size run, either one Chromium instance per VU or one reserved cart per
 iteration, not a time-based soak), so their load shape is configurable
-without editing YAML. `order-status` also forwards `EXPECT_TEMPERATURE`
+without editing YAML. `http-orders-status` also forwards `EXPECT_TEMPERATURE`
 (`auto`|`hot`|`cold`) and `ORDER_COOL_DOWN_SECONDS` (must match the BFF's).
-The hot-status load chain adds `purchase-registered` (`VUS`, `DURATION`,
-`ITERATIONS`, `USERS`), `login` (`VUS`, `ITERATIONS`, `DEMO_PASSWORD`), and
-`hot-status` (`VUS`, `DURATION`, `ITERATIONS`), all on service `k6`.
+The hot-status load chain adds `http-purchase-registered` (`VUS`, `DURATION`,
+`ITERATIONS`, `USERS`), `http-auth-login` (`VUS`, `ITERATIONS`, `DEMO_PASSWORD`), and
+`http-me-hot-status` (`VUS`, `DURATION`, `ITERATIONS`), all on service `k6`.
 
-`purchase-flow`, `cart-fulfill`, `place-order`, `order-status`, and `smoke` select service
-`k6` (bare `grafana/k6` image, the BFF as target). `purchase-flow-browser`
-and `cart-fulfill-browser` select service `k6-browser` instead — a separate
+`http-purchase`, `http-cart`, `http-orders`, and `http-orders-status` select service
+`k6` (bare `grafana/k6` image, the BFF as target). `browser-purchase`
+and `browser-cart` select service `k6-browser` instead — a separate
 image
 ([`infra/docker/k6-browser.Dockerfile`](../../infra/docker/k6-browser.Dockerfile),
 layered on Grafana's official `-with-browser` Chromium-bundled tag) and a
@@ -79,15 +79,18 @@ different target (the web app, not the BFF) — see
 
 | Build entry | Workflow YAML | Container script |
 | --- | --- | --- |
-| `scenarios/smoke/smoke.ts` | `workflows/smoke.yaml` | `/scripts/scenarios/smoke/smoke.js` |
-| `scenarios/purchase-flow/purchase-flow.ts` | `workflows/purchase-flow.yaml` | `/scripts/scenarios/purchase-flow/purchase-flow.js` |
-| `scenarios/purchase-flow-browser/purchase-flow-browser.ts` | `workflows/purchase-flow-browser.yaml` | `/scripts/scenarios/purchase-flow-browser/purchase-flow-browser.js` |
-| `scenarios/cart-fulfill/cart-fulfill.ts` | `workflows/cart-fulfill.yaml` | `/scripts/scenarios/cart-fulfill/cart-fulfill.js` |
-| `scenarios/cart-fulfill-browser/cart-fulfill-browser.ts` | `workflows/cart-fulfill-browser.yaml` | `/scripts/scenarios/cart-fulfill-browser/cart-fulfill-browser.js` |
-| `scenarios/place-order/place-order.ts` | `workflows/place-order.yaml` | `/scripts/scenarios/place-order/place-order.js` |
+| `scenarios/browser-cart/browser-cart.ts` | `workflows/browser-cart.yaml` | `/scripts/scenarios/browser-cart/browser-cart.js` |
+| `scenarios/browser-purchase/browser-purchase.ts` | `workflows/browser-purchase.yaml` | `/scripts/scenarios/browser-purchase/browser-purchase.js` |
+| `scenarios/http-auth-login/http-auth-login.ts` | `workflows/http-auth-login.yaml` | `/scripts/scenarios/http-auth-login/http-auth-login.js` |
+| `scenarios/http-cart/http-cart.ts` | `workflows/http-cart.yaml` | `/scripts/scenarios/http-cart/http-cart.js` |
+| `scenarios/http-me-hot-status/http-me-hot-status.ts` | `workflows/http-me-hot-status.yaml` | `/scripts/scenarios/http-me-hot-status/http-me-hot-status.js` |
+| `scenarios/http-orders/http-orders.ts` | `workflows/http-orders.yaml` | `/scripts/scenarios/http-orders/http-orders.js` |
+| `scenarios/http-orders-status/http-orders-status.ts` | `workflows/http-orders-status.yaml` | `/scripts/scenarios/http-orders-status/http-orders-status.js` |
+| `scenarios/http-purchase/http-purchase.ts` | `workflows/http-purchase.yaml` | `/scripts/scenarios/http-purchase/http-purchase.js` |
+| `scenarios/http-purchase-registered/http-purchase-registered.ts` | `workflows/http-purchase-registered.yaml` | `/scripts/scenarios/http-purchase-registered/http-purchase-registered.js` |
 
-The unwired `load` and `stress` placeholders are not build entries and have no
-workflow. Do not add a second workflow for a build entry or add an ad-hoc
+Each ID is the same string everywhere: YAML stem, `metadata.name`, scenario
+directory and file, report file, and `./dev perf:<id>`. Do not add a second workflow for a build entry or add an ad-hoc
 script path to `perf.py`.
 
 ## Data pipeline (`spec.data`)
@@ -104,7 +107,7 @@ spec:
     produces:
       - dataset: carts
         columns: [cartId, productId, sid]
-        targets: [place-order]
+        targets: [http-orders]
     requires: [carts]                      # consumer side
 ```
 
@@ -121,8 +124,8 @@ spec:
   untouched.
 - **Consuming.** Before Docker starts, every required dataset file must exist
   with at least one row, or the run fails naming its producers (e.g.
-  `place-order requires "carts"; produce it with: cart-fulfill,
-  cart-fulfill-browser (--produce carts)`). Punch injects
+  `http-orders requires "carts"; produce it with: http-cart,
+  browser-cart (--produce carts)`). Punch injects
   `DATA_<DATASET>_CSV=<container path>`; `--data <dataset>=<path>` reads an
   alternate file beneath `directory`. After the run, an interactive terminal is
   asked whether to delete each consumed file; non-interactive runs keep it.
@@ -135,20 +138,20 @@ Current datasets:
 
 | Dataset | Columns | Producers | Consumers |
 | --- | --- | --- | --- |
-| `carts` | `cartId,productId,sid` | `cart-fulfill`, `cart-fulfill-browser` | `place-order` |
-| `orders` | `orderId` | `place-order`, `purchase-flow`, `purchase-flow-browser` | `order-status` |
-| `owned-orders` | `orderId,username,email` | `purchase-registered` | `login` (optional) |
-| `auth-tokens` | `username,authToken` | `login` | `hot-status` |
+| `carts` | `cartId,productId,sid` | `http-cart`, `browser-cart` | `http-orders` |
+| `orders` | `orderId` | `http-orders`, `http-purchase`, `browser-purchase` | `http-orders-status` |
+| `owned-orders` | `orderId,username,email` | `http-purchase-registered` | `http-auth-login` (optional) |
+| `auth-tokens` | `username,authToken` | `http-auth-login` | `http-me-hot-status` |
 
 An optional dataset (`spec.data.optional`) is used when its file has rows and
-skipped otherwise; `login` falls back to the seeded demo users.
+skipped otherwise; `http-auth-login` falls back to the seeded demo users.
 
 `carts` carries the BFF session cookie `sid` because the cart is
-session-scoped; `place-order` replays it via `http.cookieJar().set(...)`
-before checkout. `cart-fulfill-browser` leaves `productId` blank. `orders`
+session-scoped; `http-orders` replays it via `http.cookieJar().set(...)`
+before checkout. `browser-cart` leaves `productId` blank. `orders`
 rows are emitted only after the producer verified the order; the browser
 producer reads the id from the rendered orders section, since k6's browser
-module cannot read the checkout response. `order-status` reads
+module cannot read the checkout response. `http-orders-status` reads
 `GET /orders/:id/status` (a direct Postgres read in the BFF) per row and checks
 the hot/cold temperature.
 
@@ -156,9 +159,9 @@ the hot/cold temperature.
 
 All ten bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
-`tests/performance/k6/reports/smoke-summary.json`). Unlike a dataset,
+`tests/performance/k6/reports/http-purchase-summary.json`). Unlike a dataset,
 this is read-only and needs no opt-in flag — after a passing run,
-`./dev perf:smoke` / `perf:purchase-flow` and `./bin/punch`'s interactive
+`./dev perf:http-purchase` / `perf:http-purchase` and `./bin/punch`'s interactive
 menu print its `totalRequests`, `errorRate`, `p90Ms`, `checkPassRate`, and
 `durationMs` fields.
 
@@ -177,7 +180,7 @@ offers to load one of `tests/performance/k6/options/*.json` — the same
 presets [`options/`](../../tests/performance/k6/options) documents for the
 manual `export $(jq ...)` path — merging the chosen preset into the forwarded
 environment; the step is skipped for a workflow that forwards nothing besides
-`BASE_URL` (e.g. `smoke`), or when no preset exists. See
+`BASE_URL`, or when no preset exists. See
 [`punch-menu-optimization.md`](punch-menu-optimization.md) for the dependency,
 compatibility, and before/after evidence.
 

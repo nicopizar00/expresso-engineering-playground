@@ -30,9 +30,10 @@ traffic identical to what Punch drives.
 
 ## Open follow-ups
 
-- **Load chain (shipped 2026-10-06):** `purchase-registered` →
-  `login` → `hot-status` k6 workflows, with Punch optional datasets for the
-  login fallback. See the "purchase-registered → login → hot-status" section
+- **Load chain (shipped 2026-10-06):** `http-purchase-registered` →
+  `http-auth-login` → `http-me-hot-status` k6 workflows, with Punch optional
+  datasets for the login fallback. See the "http-purchase-registered →
+  http-auth-login → http-me-hot-status" section
   of [`tests/performance/k6/README.md`](../../tests/performance/k6/README.md).
 - **SSE push** (`GET /me/hot-status/stream`) with owner-carrying domain
   events, once Punch can drive SSE (`xk6-sse`).

@@ -156,7 +156,7 @@ tests/e2e/playwright-report/
 tests/performance/k6/reports/*
 !tests/performance/k6/reports/.gitkeep
 
-# Performance test data — cart-fulfill's duplicated CSV that place-order
+# Performance test data — http-cart's duplicated CSV that http-orders
 # consumes; regenerated per run, not committed. Directory tracked via
 # .gitkeep.
 tests/performance/k6/data/*
