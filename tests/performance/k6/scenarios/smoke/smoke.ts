@@ -5,15 +5,15 @@
 //   Runs in well under a minute so it is safe to wire into per-PR CI.
 //
 // Coverage (the happy-path endpoints of `pnpm pg:smoke`, which also checks
-//   GET /orders/mine and the rejected cart/checkout cases):
+//   GET /orders?owner=session and the rejected cart/checkout cases):
 //   GET  /health
-//   GET  /catalog/products
-//   GET  /catalog/products/:id
+//   GET  /products
+//   GET  /products/:id
 //   POST /cart/items
 //   GET  /cart
-//   POST /checkout
+//   POST /orders
 //   GET  /orders/:id
-//   GET  /visualization-data
+//   GET  /visualization
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
@@ -42,7 +42,7 @@ export default function () {
   });
 
   group("catalog: list", () => {
-    const res = http.get(url("/catalog/products"));
+    const res = http.get(url("/products"));
     check(res, {
       "catalog 200": (r) => r.status === 200,
       "catalog has items": (r) => {
@@ -57,7 +57,7 @@ export default function () {
   });
 
   group("catalog: product by id", () => {
-    const res = http.get(url("/catalog/products/prod_espresso"));
+    const res = http.get(url("/products/prod_espresso"));
     check(res, {
       "product 200": (r) => r.status === 200,
       "product id matches": (r) => r.json("productId") === "prod_espresso",
@@ -84,7 +84,7 @@ export default function () {
   group("checkout", () => {
     // The add-item response minted this session's 1-hour cart reservation;
     // checkout must echo its cartId back or the BFF rejects it (409).
-    const res = http.post(url("/checkout"), JSON.stringify({ cartId }), {
+    const res = http.post(url("/orders"), JSON.stringify({ cartId }), {
       headers: JSON_HEADERS,
     });
     check(res, { "checkout 201": (r) => r.status === 201 });
@@ -96,7 +96,7 @@ export default function () {
   });
 
   group("visualization data", () => {
-    const res = http.get(url("/visualization-data"));
+    const res = http.get(url("/visualization"));
     check(res, {
       "visualization 200": (r) => r.status === 200,
       "visualization has items": (r) => {

@@ -36,10 +36,10 @@
 //   fail, not crash; the "no data" case is caught by Punch's preflight).
 //
 // Coverage:
-//   POST /checkout            — place order for a cart-fulfill-reserved cart
+//   POST /orders            — place order for a cart-fulfill-reserved cart
 //   GET  /orders/:id          — verify order persisted
 //                               (emits `[DATA orders] <orderId>`)
-//   GET  /visualization-data  — verify order sphere reaches the visualizer
+//   GET  /visualization  — verify order sphere reaches the visualizer
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
@@ -97,7 +97,7 @@ export default function () {
   group("checkout", () => {
     http.cookieJar().set(url("/"), "sid", cart.sid);
     const res = http.post(
-      url("/checkout"),
+      url("/orders"),
       JSON.stringify({ cartId: cart.cartId }),
       { headers: JSON_HEADERS },
     );
@@ -136,7 +136,7 @@ export default function () {
 
   group("visualization: order sphere present", () => {
     if (!orderId) return;
-    const res = http.get(url("/visualization-data"));
+    const res = http.get(url("/visualization"));
     check(res, {
       "visualization 200": (r) => r.status === 200,
       "order sphere present": (r) => {

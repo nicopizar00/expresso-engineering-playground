@@ -7,7 +7,7 @@
 //   - The catalog and the cart/checkout panel render on the same page (`/`),
 //     side by side — no cart drawer to open, no /checkout route.
 //   - Checkout is a single "Place Order" submit with no shipping form
-//     (mirrors purchase-flow.ts's empty-body POST /checkout).
+//     (mirrors purchase-flow.ts's empty-body POST /orders).
 //   - Placing an order flips the page to the Orders section and selects the
 //     new order, which fetches it from the BFF and renders it — that render
 //     is this scenario's order-persisted check; there is no /orders/:id

@@ -27,7 +27,7 @@
 //   target environment is.
 //
 // Coverage:
-//   GET  /catalog/products    — browse/search the grid
+//   GET  /products    — browse/search the grid
 //   POST /cart/items          — add first product to cart (creates the cart,
 //                                mints the session's `sid` cookie)
 //   GET  /cart                — view cart (mirrors CartDrawer)
@@ -72,7 +72,7 @@ export default function () {
   let cartId: string | undefined;
 
   group("catalog: browse", () => {
-    const res = http.get(url("/catalog/products"));
+    const res = http.get(url("/products"));
     const ok = check(res, {
       "catalog 200": (r) => r.status === 200,
       "catalog has items": (r) => {

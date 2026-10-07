@@ -12,7 +12,7 @@
 //
 // Coverage:
 //   POST /cart/items   — add prod_espresso (returns the cartId checkout needs)
-//   POST /checkout     — orderFor another user
+//   POST /orders     — orderFor another user
 //   GET  /orders/:id   — owner is {username}
 
 import http from "k6/http";
@@ -71,7 +71,7 @@ export default function () {
   group("checkout: order for user", () => {
     if (!cartId) return;
     const res = http.post(
-      url("/checkout"),
+      url("/orders"),
       JSON.stringify({
         cartId,
         orderFor: { type: "user", recipient: username },

@@ -1,6 +1,6 @@
 // Purchase-flow scenario — the one repository-owned perf workflow.
 //
-// Mirrors the web app exactly: it never calls GET /catalog/products/:id
+// Mirrors the web app exactly: it never calls GET /products/:id
 // because the web catalog grid adds to cart straight from the list, with
 // no product-detail fetch.
 //
@@ -19,13 +19,13 @@
 //   target environment is.
 //
 // Coverage:
-//   GET  /catalog/products    — browse/search the grid
+//   GET  /products    — browse/search the grid
 //   POST /cart/items          — add first product to cart
 //   GET  /cart                — view cart (mirrors CartDrawer)
-//   POST /checkout            — place order
+//   POST /orders            — place order
 //   GET  /orders/:id          — verify order persisted
 //                               (emits `[DATA orders] <orderId>`)
-//   GET  /visualization-data  — verify order sphere reaches the embedded visualizer
+//   GET  /visualization  — verify order sphere reaches the embedded visualizer
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
@@ -68,7 +68,7 @@ export default function () {
   let cartId: string | undefined;
 
   group("catalog: browse", () => {
-    const res = http.get(url("/catalog/products"));
+    const res = http.get(url("/products"));
     const ok = check(res, {
       "catalog 200": (r) => r.status === 200,
       "catalog has items": (r) => {
@@ -121,7 +121,7 @@ export default function () {
   group("checkout", () => {
     // Echoes back the reservation cartId minted by "cart: add item" — the
     // BFF now requires it and rejects a mismatch/missing id with 409.
-    const res = http.post(url("/checkout"), JSON.stringify({ cartId }), {
+    const res = http.post(url("/orders"), JSON.stringify({ cartId }), {
       headers: JSON_HEADERS,
     });
     const ok = check(res, {
@@ -159,7 +159,7 @@ export default function () {
 
   group("visualization: order sphere present", () => {
     if (!orderId) return;
-    const res = http.get(url("/visualization-data"));
+    const res = http.get(url("/visualization"));
     check(res, {
       "visualization 200": (r) => r.status === 200,
       "order sphere present": (r) => {
