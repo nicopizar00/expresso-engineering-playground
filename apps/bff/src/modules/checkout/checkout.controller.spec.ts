@@ -46,7 +46,10 @@ describe("CheckoutController", () => {
     expect(checkout.checkout).toHaveBeenCalledWith("sid", body, null);
   });
 
-  it("is POST /checkout with a 201", () => {
+  it("is POST /orders with a 201", () => {
+    expect(Reflect.getMetadata(PATH_METADATA, CheckoutController)).toBe(
+      "orders",
+    );
     const handler = CheckoutController.prototype.create;
     expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBe(
       RequestMethod.POST,

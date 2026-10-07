@@ -6,7 +6,10 @@ import { CheckoutDto } from "./checkout.dto";
 import { CheckoutService } from "./checkout.service";
 import type { CheckoutResponse } from "./checkout.types";
 
-@Controller("checkout")
+// POST /orders creates an order from the session cart. It lives in the
+// checkout module (cart → order orchestration); OrdersController owns the
+// GET routes on the same path.
+@Controller("orders")
 export class CheckoutController {
   constructor(
     private readonly checkout: CheckoutService,

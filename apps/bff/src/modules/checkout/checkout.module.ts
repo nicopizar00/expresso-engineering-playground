@@ -3,7 +3,7 @@
 // Responsibility: convert the current cart into an order. No real payment
 // processing is performed in this iteration.
 // Public surface (current iteration — mocked):
-//   - POST /checkout       — checkout the current cart, returns the new order
+//   - POST /orders         — checkout the current cart, returns the new order
 //
 // Depends on CartModule and OrdersModule via their public services.
 //
