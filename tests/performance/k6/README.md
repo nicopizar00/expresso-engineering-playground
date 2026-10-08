@@ -130,10 +130,9 @@ browser-purchase ─────────────────────
   `carts`, `http-purchase` for `orders`), runs the picked one with
   `--produce`, and tells you which workflow to re-run. `--no-input` and
   `--data <dataset>=default` are the non-interactive equivalents. Punch injects
-  the container path
-  as `DATA_<DATASET>_CSV`; `--data <dataset>=<path>` reads an alternate file
-  under `data/`. After the run, an interactive terminal is asked whether to
-  delete each consumed file; non-interactive runs keep it.
+  the container path as `DATA_<DATASET>_CSV`; `--data <dataset>=<path>` reads
+  an alternate file under `data/`. After the run, an interactive terminal is
+  asked whether to delete each consumed file; non-interactive runs keep it.
 
 | Dataset | Columns | Producers | Consumers |
 | --- | --- | --- | --- |
