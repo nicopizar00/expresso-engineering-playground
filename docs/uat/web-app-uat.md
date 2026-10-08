@@ -160,8 +160,8 @@ Manual steps:
 
 Expected user-visible result:
 
-- Products appear as cards with name, description, price, inventory, category
-  marker, and Add action.
+- Products appear as cards with name, description, price, category marker,
+  and Add action.
 - Category tabs update the visible cards and their count badges.
 - `All` restores the full product list.
 
@@ -188,9 +188,9 @@ Manual steps:
 
 Expected user-visible result:
 
-- Dialog includes product name, SKU, description, price, inventory, quantity
-  controls, and Add to Cart.
-- Quantity cannot go below 1 or above the product inventory or 20.
+- Dialog includes product name, SKU, description, price, quantity controls,
+  and Add to Cart.
+- Quantity cannot go below 1 or above 20.
 - Add to Cart gives visible feedback and updates the cart count.
 
 Pass criterion:

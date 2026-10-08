@@ -42,7 +42,7 @@ hex values should appear in asset builders.
 | `coffee` | `#5B3A1E` | Espresso fill, dark surfaces |
 | `shadow` | `#2E251C` | Deepest shadow, contour lines |
 
-Inventory-status colours (`STATUS_COLORS`) are used for **non-drink** items
+Status colours (`STATUS_COLORS`) are used for **non-drink** items
 (spheres, cubes, cones) that represent generic catalogue entries. When an item
 has `metadata.color`, that value overrides `STATUS_COLORS`.
 

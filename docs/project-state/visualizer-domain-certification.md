@@ -307,7 +307,7 @@ Recommendation:
   paths.
 - Require the cup to pass the `ps1-espresso-cup.md` artistic approval checklist.
 - Ensure the real BFF-driven scene preserves ceramic cup color rather than
-  inventory-status green/amber/red as the base material.
+  status green/amber/red as the base material.
 
 ### C8 - Catalog Mutations Do Not Push SSE Updates _(resolved by EOC-2)_
 

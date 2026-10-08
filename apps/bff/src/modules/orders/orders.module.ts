@@ -20,7 +20,6 @@ import { Module } from "@nestjs/common";
 import { AuthCoreModule } from "../../core/auth/auth-core.module";
 import { SessionModule } from "../../core/session/session.module";
 import { DomainEventsModule } from "../../core/domain-events/domain-events.module";
-import { CatalogModule } from "../catalog/catalog.module";
 import { ORDER_COOL_DOWN_MS, parseCoolDownSeconds } from "./order-temperature";
 import { AccountController } from "./account.controller";
 import { OrdersController } from "./orders.controller";
@@ -28,7 +27,7 @@ import { OrdersService } from "./orders.service";
 import { HotStatusService } from "./hot-status.service";
 
 @Module({
-  imports: [DomainEventsModule, CatalogModule, SessionModule, AuthCoreModule],
+  imports: [DomainEventsModule, SessionModule, AuthCoreModule],
   controllers: [OrdersController, AccountController],
   providers: [
     OrdersService,

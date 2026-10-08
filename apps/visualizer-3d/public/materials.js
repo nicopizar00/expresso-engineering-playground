@@ -12,8 +12,8 @@ export const ESPRESSO_PALETTE = {
   shadow:     0x2E251C,  // deepest shadow
 };
 
-// Inventory-status → mesh colour. Items that carry metadata.color bypass this.
-// << EXTEND: add "featured", "new", "lowStock" etc. as the UI evolves.
+// Status → mesh colour. Items that carry metadata.color bypass this.
+// << EXTEND: add "featured", "new" etc. as the UI evolves.
 export const STATUS_COLORS = {
   ok:   0x4caf50,
   warn: 0xf2a200,

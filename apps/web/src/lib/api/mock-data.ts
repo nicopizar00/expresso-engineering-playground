@@ -126,7 +126,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
       "Rich, bold single-shot espresso made from premium Arabica beans.",
     category: "drink",
     price: money(350),
-    inventory: 50,
   },
   {
     productId: "prod_latte_001",
@@ -135,7 +134,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     description: "Smooth espresso with steamed milk and a hint of vanilla.",
     category: "drink",
     price: money(525),
-    inventory: 35,
   },
   {
     productId: "prod_water_001",
@@ -144,7 +142,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     description: "Refreshing sparkling mineral water, 500ml bottle.",
     category: "drink",
     price: money(250),
-    inventory: 100,
   },
   {
     productId: "prod_cookie_001",
@@ -153,7 +150,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     description: "Warm, gooey chocolate chip cookie made with real butter.",
     category: "food",
     price: money(300),
-    inventory: 30,
   },
   {
     productId: "prod_sandwich_001",
@@ -162,7 +158,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     description: "Fresh turkey, lettuce, tomato on artisan bread.",
     category: "food",
     price: money(850),
-    inventory: 12,
   },
   {
     productId: "prod_notebook_001",
@@ -172,7 +167,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
       "A5 lined notebook with soft-touch cover and Expresso branding.",
     category: "accessory",
     price: money(1200),
-    inventory: 25,
   },
   {
     productId: "prod_backpack_001",
@@ -181,7 +175,6 @@ const FULL_PRODUCT_CATALOG: Product[] = [
     description: "Water-resistant backpack with padded laptop sleeve.",
     category: "accessory",
     price: money(4500),
-    inventory: 10,
   },
 ];
 

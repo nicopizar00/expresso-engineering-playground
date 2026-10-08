@@ -15,7 +15,6 @@ const PRODUCTS: Product[] = [
     description: "Single shot.",
     category: "drink",
     price: { amountMinor: 180, currency: "EUR" },
-    inventory: 120,
   },
   {
     productId: "prod_backpack",
@@ -24,7 +23,6 @@ const PRODUCTS: Product[] = [
     description: "Canvas backpack.",
     category: "accessory",
     price: { amountMinor: 4500, currency: "EUR" },
-    inventory: 8,
   },
 ];
 
@@ -117,12 +115,12 @@ describe("VisualizationService", () => {
       expect(productItems.every((i) => i.type === "cube")).toBe(true);
     });
 
-    it("product status reflects inventory level", () => {
+    it("products always report ok", () => {
       const { items } = makeSvc().list();
       const espresso = items.find((i) => i.id === "viz_product_prod_espresso");
       const backpack = items.find((i) => i.id === "viz_product_prod_backpack");
-      expect(espresso?.status).toBe("ok"); // inventory 120
-      expect(backpack?.status).toBe("warn"); // inventory 8 < 20
+      expect(espresso?.status).toBe("ok");
+      expect(backpack?.status).toBe("ok");
     });
 
     it("order items are spheres tinted ok while hot", () => {
@@ -222,7 +220,7 @@ describe("VisualizationService", () => {
       expect(typeof response.scene.latestActivityAt).toBe("number");
     });
 
-    it("scene.products carries one entry per catalog product with derived status", () => {
+    it("scene.products carries one entry per catalog product, status ok", () => {
       const { scene } = makeSvc().list();
       expect(scene.products).toHaveLength(2);
       const espresso = scene.products.find(
@@ -232,7 +230,7 @@ describe("VisualizationService", () => {
         (p) => p.productId === "prod_backpack",
       );
       expect(espresso?.status).toBe("ok");
-      expect(backpack?.status).toBe("warn");
+      expect(backpack?.status).toBe("ok");
       expect(espresso?.price).toEqual({ amountMinor: 180, currency: "EUR" });
     });
 

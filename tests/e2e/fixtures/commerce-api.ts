@@ -12,7 +12,6 @@ export type Product = {
   description: string;
   category: "drink" | "food" | "accessory";
   price: Money;
-  inventory: number;
 };
 
 export type CartItem = {

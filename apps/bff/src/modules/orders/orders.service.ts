@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Inject,
   Injectable,
   Logger,
@@ -15,7 +14,6 @@ import type {
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { PrismaService } from "../../prisma.service";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
-import { CatalogService } from "../catalog/catalog.service";
 import {
   DEFAULT_COOL_DOWN_SECONDS,
   ORDER_COOL_DOWN_MS,
@@ -72,7 +70,7 @@ export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
   private cache: StoredOrder[] = [];
   // Idempotency index: clientRequestId → orderId. Lets a retried checkout
-  // short-circuit before the seq/tx/decrement work even runs.
+  // short-circuit before the seq/insert work even runs.
   private idempotencyIndex = new Map<string, string>();
   // Session index: orderId → owning session id. Kept beside the cache (not
   // on StoredOrder) so the owner can never leak into a serialized Order.
@@ -82,7 +80,6 @@ export class OrdersService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly domainEvents: DomainEventsService,
-    private readonly catalog: CatalogService,
     @Optional()
     @Inject(ORDER_COOL_DOWN_MS)
     private readonly coolDownMs: number = DEFAULT_COOL_DOWN_SECONDS * 1000,
@@ -208,7 +205,7 @@ export class OrdersService implements OnModuleInit {
     return tracer.startActiveSpan("orders.create", async (span) => {
       try {
         // Fast-path idempotent replay: caller retried with the same key.
-        // No seq allocation, no transaction, no inventory work.
+        // No seq allocation, no insert.
         if (input.clientRequestId) {
           const replay = this.findByClientRequestId(input.clientRequestId);
           if (replay) {
@@ -226,57 +223,36 @@ export class OrdersService implements OnModuleInit {
         span.setAttribute("order.id", orderId);
         span.setAttribute("order.line_count", input.lines.length);
 
-        // Atomic per-line CAS: `inventory >= quantity` is checked in the same
-        // UPDATE that decrements, so concurrent checkouts cannot oversell.
-        // A failed guard (count !== 1) throws inside the transaction so the
-        // order row and any prior decrements roll back together.
         let row: DbOrder & { lines: DbOrderLine[] };
         try {
-          row = await this.prisma.$transaction(async (tx) => {
-            for (const line of input.lines) {
-              const result = await tx.product.updateMany({
-                where: {
+          row = await this.prisma.order.create({
+            data: {
+              orderId,
+              clientRequestId: input.clientRequestId ?? null,
+              customerName: input.customerName ?? null,
+              sessionId: input.sessionId ?? null,
+              ownerUsername: input.ownerUsername ?? null,
+              ownerEmail: input.ownerEmail ?? null,
+              totalAmountMinor: input.total.amountMinor,
+              totalCurrency: input.total.currency,
+              placedAt: new Date(),
+              lines: {
+                create: input.lines.map((line) => ({
                   productId: line.productId,
-                  inventory: { gte: line.quantity },
-                },
-                data: { inventory: { decrement: line.quantity } },
-              });
-              if (result.count !== 1) {
-                throw new ConflictException(
-                  `insufficient inventory for product ${line.productId}`,
-                );
-              }
-            }
-            return tx.order.create({
-              data: {
-                orderId,
-                clientRequestId: input.clientRequestId ?? null,
-                customerName: input.customerName ?? null,
-                sessionId: input.sessionId ?? null,
-                ownerUsername: input.ownerUsername ?? null,
-                ownerEmail: input.ownerEmail ?? null,
-                totalAmountMinor: input.total.amountMinor,
-                totalCurrency: input.total.currency,
-                placedAt: new Date(),
-                lines: {
-                  create: input.lines.map((line) => ({
-                    productId: line.productId,
-                    name: line.name,
-                    quantity: line.quantity,
-                    unitAmountMinor: line.unitPrice.amountMinor,
-                    unitCurrency: line.unitPrice.currency,
-                    lineAmountMinor: line.lineTotal.amountMinor,
-                    lineCurrency: line.lineTotal.currency,
-                  })),
-                },
+                  name: line.name,
+                  quantity: line.quantity,
+                  unitAmountMinor: line.unitPrice.amountMinor,
+                  unitCurrency: line.unitPrice.currency,
+                  lineAmountMinor: line.lineTotal.amountMinor,
+                  lineCurrency: line.lineTotal.currency,
+                })),
               },
-              include: { lines: true },
-            });
+            },
+            include: { lines: true },
           });
         } catch (err) {
-          // Concurrent-retry race: another transaction committed the same key
-          // first. Our transaction (including any decrements) rolled back, so
-          // it's safe to return the winner without touching inventory.
+          // Concurrent-retry race: another insert committed the same key
+          // first, so ours failed on the unique index. Return the winner.
           if (
             input.clientRequestId &&
             isUniqueViolation(err, "clientRequestId")
@@ -305,9 +281,6 @@ export class OrdersService implements OnModuleInit {
           throw err;
         }
 
-        for (const line of input.lines) {
-          this.catalog.applyInventoryDelta(line.productId, -line.quantity);
-        }
         const order = toOrder(row);
         this.cache.push(order);
         if (row.sessionId) {

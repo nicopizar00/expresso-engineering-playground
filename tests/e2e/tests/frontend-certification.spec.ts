@@ -9,7 +9,6 @@ const products: Product[] = [
     description: "Rich, bold espresso made from premium beans.",
     category: "drink",
     price: { amountMinor: 350, currency: "EUR" },
-    inventory: 20,
   },
   {
     productId: "prod_cookie",
@@ -18,7 +17,6 @@ const products: Product[] = [
     description: "A warm cookie for checkout confidence.",
     category: "food",
     price: { amountMinor: 300, currency: "EUR" },
-    inventory: 12,
   },
   {
     productId: "prod_mug",
@@ -27,7 +25,6 @@ const products: Product[] = [
     description: "Ceramic mug for the engineering playground.",
     category: "accessory",
     price: { amountMinor: 1200, currency: "EUR" },
-    inventory: 8,
   },
 ];
 

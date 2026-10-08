@@ -55,7 +55,7 @@ Use PASS / FAIL / DRIFT / SKIP. Never fake rendered-pixel confirmation.
    - Canvas is nonblank.
    - HUD reaches live SSE or documented fallback state.
    - Classic Expresso/Espresso is visible as the primary business icon.
-   - It reads as white/off-white ceramic, not inventory green/amber/red.
+   - It reads as white/off-white ceramic, not status green/amber/red.
    - Square cup, square opening, dark coffee fill, distinct flat handle, and
      square saucer are visible at default camera.
    - The asset feels PS1-era low-poly: flat, pixelated, simple, rough, and not

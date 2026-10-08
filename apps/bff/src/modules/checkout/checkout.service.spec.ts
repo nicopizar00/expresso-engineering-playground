@@ -216,20 +216,7 @@ describe("CheckoutService", () => {
       expect(response.orderId).toBe(ORDER.orderId);
     });
 
-    it("clears the cart and emits when order creation fails with insufficient inventory", async () => {
-      orders.create.mockRejectedValueOnce(
-        new ConflictException(
-          "insufficient inventory for product prod_espresso",
-        ),
-      );
-      await expect(service.checkout(SESSION_ID, PAYLOAD, null)).rejects.toThrow(
-        ConflictException,
-      );
-      expect(cart.clear).toHaveBeenCalledOnce();
-      expect(domainEvents.emit).toHaveBeenCalledOnce();
-    });
-
-    it("does not clear the cart when order creation fails with a non-conflict error", async () => {
+    it("does not clear the cart when order creation fails", async () => {
       orders.create.mockRejectedValueOnce(new Error("db connection lost"));
       await expect(service.checkout(SESSION_ID, PAYLOAD, null)).rejects.toThrow(
         "db connection lost",

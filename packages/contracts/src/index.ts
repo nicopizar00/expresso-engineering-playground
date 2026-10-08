@@ -25,7 +25,6 @@ export interface Product {
   readonly description: string;
   readonly category: ProductCategory;
   readonly price: Money;
-  readonly inventory: number;
 }
 
 export interface ProductsResponse {
@@ -38,7 +37,6 @@ export interface CreateProductRequest {
   readonly description: string;
   readonly category: ProductCategory;
   readonly price: Money;
-  readonly inventory: number;
 }
 
 // ---------------------------------------------------------------------------

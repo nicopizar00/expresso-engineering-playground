@@ -18,7 +18,6 @@ const products: Product[] = [
       "Rich, bold single-shot espresso made from premium Arabica beans.",
     category: "drink",
     price: { amountMinor: 350, currency: "USD" },
-    inventory: 50,
   },
   {
     productId: "prod_cookie_001",
@@ -27,7 +26,6 @@ const products: Product[] = [
     description: "Warm, gooey chocolate chip cookie made with real butter.",
     category: "food",
     price: { amountMinor: 300, currency: "USD" },
-    inventory: 30,
   },
 ];
 

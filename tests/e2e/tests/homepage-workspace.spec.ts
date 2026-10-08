@@ -15,7 +15,6 @@ const products: Product[] = [
     description: "Espresso shot used to drive the homepage workspace tests.",
     category: "drink",
     price: { amountMinor: 350, currency: "USD" },
-    inventory: 25,
   },
   {
     productId: "prod_cookie_home",
@@ -24,7 +23,6 @@ const products: Product[] = [
     description: "Cookie that keeps the food category populated.",
     category: "food",
     price: { amountMinor: 225, currency: "USD" },
-    inventory: 12,
   },
 ];
 

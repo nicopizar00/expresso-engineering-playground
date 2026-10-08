@@ -58,11 +58,10 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
 
   const category = categoryConfig[product.category];
   const CategoryIcon = category.icon;
-  const isOutOfStock = product.inventory === 0;
 
   async function handleAddToCart(e: React.MouseEvent) {
     e.stopPropagation();
-    if (isAdding || isOutOfStock) return;
+    if (isAdding) return;
 
     setIsAdding(true);
     setError(null);
@@ -111,19 +110,6 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
           {category.label}
         </span>
 
-        {/* Stock indicator */}
-        {isOutOfStock && (
-          <span
-            className="absolute top-3 right-3 px-2 py-1 text-[10px] font-medium rounded-md uppercase tracking-wider"
-            style={{
-              backgroundColor: "rgba(239, 68, 68, 0.15)",
-              color: "var(--destructive)",
-            }}
-          >
-            Out of Stock
-          </span>
-        )}
-
         {/* Quick view button - visible on hover */}
         <span
           className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-200"
@@ -167,19 +153,11 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
             >
               {formatMoney(product.price.amountMinor, product.price.currency)}
             </p>
-            {!isOutOfStock && (
-              <p
-                className="text-[10px] mt-0.5"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {product.inventory} in stock
-              </p>
-            )}
           </div>
 
           <button
             onClick={handleAddToCart}
-            disabled={isAdding || isOutOfStock}
+            disabled={isAdding}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[32px]"
             style={{
               backgroundColor: justAdded ? "var(--success)" : "var(--primary)",

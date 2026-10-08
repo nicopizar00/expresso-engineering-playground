@@ -25,7 +25,7 @@ File: `apps/visualizer-3d/public/scene.js`
 | Saucer source shape | Source now uses a two-piece square rim plus raised platform. Browser approval still pending. |
 | Disposal | `clearGroup` traverses sub-meshes and disposes geometry + texture + material |
 | SSE / polling | Primary SSE path with polling fallback; cup renders offline via `FALLBACK_SCENE` in `fallback.js` |
-| `metadata.color` | Per-item colour override — separates ceramic tone from inventory status |
+| `metadata.color` | Per-item colour override — separates ceramic tone from item status |
 
 ---
 
@@ -41,14 +41,14 @@ products may therefore render with status colours such as green or amber.
 
 **Suggested fix:** keep status information in data, but provide a separate
 ceramic base colour or visual role for drink products so Three.js can render the
-cup as white/off-white ceramic and show inventory health as a tint, accent, or
+cup as white/off-white ceramic and show item status as a tint, accent, or
 nearby marker.
 
 ### 1. Cup colour — WHITE CERAMIC  *(browser approval pending)*
 The cup should render as **white or off-white ceramic** by default.
 The fallback item now uses `ESPRESSO_PALETTE.lightBeige` (`#F1ECDA`), but the
 real BFF-driven scene and the default lighting still need browser approval.
-Status-colour overrides (green/amber/red for inventory health) should be
+Status-colour overrides (green/amber/red for item status) should be
 applied as a **tint or accent**, not replace the base colour.
 
 **Certification check:** compare standalone `:3002` fallback and live BFF data

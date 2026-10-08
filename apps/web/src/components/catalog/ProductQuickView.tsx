@@ -44,10 +44,9 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
 
   const category = categoryConfig[product.category];
   const CategoryIcon = category.icon;
-  const isOutOfStock = product.inventory === 0;
 
   async function handleAddToCart() {
-    if (isAdding || isOutOfStock) return;
+    if (isAdding) return;
 
     setIsAdding(true);
     setError(null);
@@ -124,19 +123,6 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
           >
             {category.label}
           </span>
-
-          {/* Stock indicator */}
-          {isOutOfStock && (
-            <span
-              className="absolute top-3 right-14 px-2 py-1 text-xs font-medium rounded-md"
-              style={{
-                backgroundColor: "rgba(239, 68, 68, 0.9)",
-                color: "var(--foreground)",
-              }}
-            >
-              Out of Stock
-            </span>
-          )}
         </div>
 
         {/* Content */}
@@ -171,20 +157,12 @@ export function ProductQuickView({ product, onClose }: ProductQuickViewProps) {
             >
               {formatMoney(product.price.amountMinor, product.price.currency)}
             </p>
-            {!isOutOfStock && (
-              <p
-                className="text-sm"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {product.inventory} in stock
-              </p>
-            )}
           </div>
 
           {/* Add to cart button */}
           <button
             onClick={handleAddToCart}
-            disabled={isAdding || isOutOfStock}
+            disabled={isAdding}
             className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               backgroundColor: justAdded ? "var(--success)" : "var(--primary)",

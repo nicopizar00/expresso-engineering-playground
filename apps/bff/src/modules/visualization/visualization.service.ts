@@ -64,12 +64,6 @@ function orderPosition(index: number): PositionHint {
   };
 }
 
-function productStatus(inventory: number): VisualizationItemStatus {
-  if (inventory === 0) return "error";
-  if (inventory < 20) return "warn";
-  return "ok";
-}
-
 // A hot order is a fresh, live event; a cold one is settled history.
 function orderVizStatus(
   temperature: OrderTemperature,
@@ -91,13 +85,12 @@ function fromProduct(
     label: product.name,
     type: "cube",
     value: product.price.amountMinor,
-    status: productStatus(product.inventory),
+    status: "ok",
     positionHint: productPosition(index),
     metadata: {
       category: product.category,
       price: product.price.amountMinor,
       currency: product.price.currency,
-      inventory: product.inventory,
       source: "catalog",
       updatedAt: 0,
       ...assetMetadata(config, model),
@@ -142,9 +135,8 @@ function toSceneProduct(
     productId: product.productId,
     name: product.name,
     category: product.category,
-    inventory: product.inventory,
     price: product.price,
-    status: productStatus(product.inventory),
+    status: "ok",
     ...(model
       ? { asset: { url: model.assetUrl, format: model.assetFormat } }
       : {}),

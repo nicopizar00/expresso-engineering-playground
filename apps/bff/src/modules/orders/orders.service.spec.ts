@@ -1,4 +1,4 @@
-import { NotFoundException, ConflictException } from "@nestjs/common";
+import { NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -7,7 +7,6 @@ import type {
 } from "@prisma/client";
 import { DomainEventsService } from "../../core/domain-events/domain-events.service";
 import { PrismaService } from "../../prisma.service";
-import { CatalogService } from "../catalog/catalog.service";
 import { ORDER_COOL_DOWN_MS } from "./order-temperature";
 import { OrdersService } from "./orders.service";
 import type { CreateOrderInput } from "./orders.types";
@@ -51,10 +50,6 @@ const DB_ORDER: DbOrder & { lines: DbOrderLine[] } = {
 };
 
 function makePrisma() {
-  // $transaction invokes the callback against the same mock so existing
-  // assertions on prisma.order.create still see the call; product.updateMany
-  // defaults to a single-row success (inventory check passes) and is
-  // overridden per-test for oversell scenarios.
   const prisma: any = {
     order: {
       findMany: vi.fn().mockResolvedValue([DB_ORDER]),
@@ -62,13 +57,7 @@ function makePrisma() {
       create: vi.fn(),
       update: vi.fn(),
     },
-    product: {
-      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-    },
   };
-  prisma.$transaction = vi.fn(async (cb: (tx: typeof prisma) => unknown) =>
-    cb(prisma),
-  );
   return prisma;
 }
 
@@ -76,21 +65,15 @@ function makeDomainEvents() {
   return { emit: vi.fn() };
 }
 
-function makeCatalog() {
-  return { applyInventoryDelta: vi.fn() };
-}
-
 async function makeService(
   prisma: ReturnType<typeof makePrisma>,
   domainEvents: ReturnType<typeof makeDomainEvents> = makeDomainEvents(),
-  catalog: ReturnType<typeof makeCatalog> = makeCatalog(),
 ) {
   const module = await Test.createTestingModule({
     providers: [
       OrdersService,
       { provide: PrismaService, useValue: prisma },
       { provide: DomainEventsService, useValue: domainEvents },
-      { provide: CatalogService, useValue: catalog },
     ],
   }).compile();
 
@@ -103,13 +86,11 @@ describe("OrdersService", () => {
   let service: OrdersService;
   let prisma: ReturnType<typeof makePrisma>;
   let domainEvents: ReturnType<typeof makeDomainEvents>;
-  let catalog: ReturnType<typeof makeCatalog>;
 
   beforeEach(async () => {
     prisma = makePrisma();
     domainEvents = makeDomainEvents();
-    catalog = makeCatalog();
-    service = await makeService(prisma, domainEvents, catalog);
+    service = await makeService(prisma, domainEvents);
   });
 
   describe("onModuleInit()", () => {
@@ -372,70 +353,6 @@ describe("OrdersService", () => {
       expect(domainEvents.emit).toHaveBeenCalledOnce();
     });
 
-    it("decrements inventory atomically per line inside the transaction", async () => {
-      const newRow: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER,
-        id: 2,
-        orderId: "ord_001",
-      };
-      prisma.order.create.mockResolvedValue(newRow);
-
-      await service.create(INPUT);
-
-      expect(prisma.$transaction).toHaveBeenCalledOnce();
-      expect(prisma.product.updateMany).toHaveBeenCalledWith({
-        where: { productId: "prod_latte", inventory: { gte: 1 } },
-        data: { inventory: { decrement: 1 } },
-      });
-    });
-
-    it("applies inventory delta to catalog cache after the transaction commits", async () => {
-      const newRow: DbOrder & { lines: DbOrderLine[] } = {
-        ...DB_ORDER,
-        id: 2,
-        orderId: "ord_001",
-      };
-      prisma.order.create.mockResolvedValue(newRow);
-
-      await service.create(INPUT);
-
-      expect(catalog.applyInventoryDelta).toHaveBeenCalledWith(
-        "prod_latte",
-        -1,
-      );
-    });
-
-    it("throws ConflictException when inventory CAS guard fails", async () => {
-      prisma.product.updateMany.mockResolvedValueOnce({ count: 0 });
-
-      await expect(service.create(INPUT)).rejects.toThrow(ConflictException);
-      // Order row was never created, cache was never mutated, no event emitted.
-      expect(prisma.order.create).not.toHaveBeenCalled();
-      expect(catalog.applyInventoryDelta).not.toHaveBeenCalled();
-      expect(domainEvents.emit).not.toHaveBeenCalled();
-      expect(service.listAll()).toHaveLength(1);
-    });
-
-    it("aborts before later lines if an earlier line fails the guard", async () => {
-      // Two-line order where the second product is sold out.
-      const TWO_LINE: CreateOrderInput = {
-        ...INPUT,
-        lines: [
-          INPUT.lines[0]!,
-          { ...INPUT.lines[0]!, productId: "prod_sold_out" },
-        ],
-      };
-      prisma.product.updateMany
-        .mockResolvedValueOnce({ count: 1 })
-        .mockResolvedValueOnce({ count: 0 });
-
-      await expect(service.create(TWO_LINE)).rejects.toThrow(ConflictException);
-      // First-line decrement was attempted (and would roll back with the tx),
-      // but the order row must not have been created.
-      expect(prisma.product.updateMany).toHaveBeenCalledTimes(2);
-      expect(prisma.order.create).not.toHaveBeenCalled();
-    });
-
     it("increments nextOrderSeq for successive creates", async () => {
       const newRow1: DbOrder & { lines: DbOrderLine[] } = {
         ...DB_ORDER,
@@ -493,10 +410,7 @@ describe("OrdersService", () => {
       });
 
       // Reset call counters so we can assert the replay path is a pure short-circuit.
-      prisma.$transaction.mockClear();
-      prisma.product.updateMany.mockClear();
       prisma.order.create.mockClear();
-      catalog.applyInventoryDelta.mockClear();
       domainEvents.emit.mockClear();
 
       const replay = await service.create({
@@ -505,16 +419,13 @@ describe("OrdersService", () => {
       });
 
       expect(replay.orderId).toBe(first.orderId);
-      expect(prisma.$transaction).not.toHaveBeenCalled();
-      expect(prisma.product.updateMany).not.toHaveBeenCalled();
       expect(prisma.order.create).not.toHaveBeenCalled();
-      expect(catalog.applyInventoryDelta).not.toHaveBeenCalled();
       expect(domainEvents.emit).not.toHaveBeenCalled();
     });
 
     it("recovers from a concurrent-retry race via the P2002 unique violation", async () => {
-      // Both retries reached the transaction; the other one won. Our tx
-      // rolled back (so no inventory drift). We refetch and return the winner.
+      // Both retries reached the insert; the other one won. We refetch and
+      // return the winner.
       const winner: DbOrder & { lines: DbOrderLine[] } = {
         ...DB_ORDER,
         id: 2,
@@ -539,9 +450,6 @@ describe("OrdersService", () => {
         where: { clientRequestId: "key-race" },
         include: { lines: true },
       });
-      // Race recovery skips the catalog cache delta — the winner's tx already
-      // decremented inventory, and ours rolled back.
-      expect(catalog.applyInventoryDelta).not.toHaveBeenCalled();
     });
 
     it("warms idempotencyIndex from DB on boot so cross-process replays hit the cache", async () => {
@@ -613,7 +521,6 @@ describe("OrdersService", () => {
           OrdersService,
           { provide: PrismaService, useValue: prisma },
           { provide: DomainEventsService, useValue: makeDomainEvents() },
-          { provide: CatalogService, useValue: makeCatalog() },
           { provide: ORDER_COOL_DOWN_MS, useValue: 20_000 },
         ],
       }).compile();

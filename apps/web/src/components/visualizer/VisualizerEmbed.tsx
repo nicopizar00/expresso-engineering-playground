@@ -38,12 +38,7 @@ function toSelectionProduct(product: Product): SelectionProduct {
     productId: product.productId,
     name: product.name,
     category: product.category,
-    status:
-      product.inventory === 0
-        ? "error"
-        : product.inventory < 20
-          ? "warn"
-          : "ok",
+    status: "ok",
   };
 }
 

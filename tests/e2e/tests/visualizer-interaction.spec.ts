@@ -10,7 +10,6 @@ const product = {
   description: "Coffee for the visualizer interaction checks.",
   category: "drink",
   price: { amountMinor: 350, currency: "USD" },
-  inventory: 50,
 };
 const secondProduct = {
   ...product,

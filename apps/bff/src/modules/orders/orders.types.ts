@@ -39,7 +39,7 @@ export interface CreateOrderInput {
   readonly lines: ReadonlyArray<OrderLine>;
   readonly total: Money;
   // Optional caller-supplied idempotency key. When set, a retry with the same
-  // key returns the original order without re-decrementing inventory.
+  // key returns the original order instead of placing a second one.
   readonly clientRequestId?: string;
   // Anonymous owner (the caller's `sid`). Stored, never serialized.
   readonly sessionId?: string;

@@ -16,7 +16,6 @@ export interface Product {
   readonly description: string;
   readonly category: "drink" | "food" | "accessory";
   readonly price: Money;
-  readonly inventory: number;
 }
 
 export interface ProductsResponse {
@@ -51,8 +50,4 @@ export class CreateProductDto {
   @ValidateNested()
   @Type(() => CreatePriceDto)
   price!: CreatePriceDto;
-
-  @IsInt()
-  @Min(0)
-  inventory!: number;
 }

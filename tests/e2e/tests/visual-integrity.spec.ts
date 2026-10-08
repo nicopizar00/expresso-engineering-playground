@@ -19,7 +19,6 @@ const products: Product[] = [
     description: "Rich single-shot espresso for visual regression coverage.",
     category: "drink",
     price: { amountMinor: 350, currency: "USD" },
-    inventory: 50,
   },
   {
     productId: "prod_cookie_visual",
@@ -28,7 +27,6 @@ const products: Product[] = [
     description: "Chocolate cookie used to keep the catalog grid non-empty.",
     category: "food",
     price: { amountMinor: 300, currency: "USD" },
-    inventory: 30,
   },
   {
     productId: "prod_notebook_visual",
@@ -37,7 +35,6 @@ const products: Product[] = [
     description: "Notebook used to exercise accessory category styling.",
     category: "accessory",
     price: { amountMinor: 1200, currency: "USD" },
-    inventory: 25,
   },
 ];
 

@@ -16,7 +16,6 @@ const PRODUCT = {
   description: "Short and strong",
   category: "coffee" as const,
   price: { amountMinor: 180, currency: "EUR" },
-  inventory: 100,
 };
 
 const SESSION_A = "sid_test_a";

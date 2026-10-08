@@ -12,7 +12,6 @@ const PRODUCTS = [
     category: "drink",
     priceAmountMinor: 180,
     priceCurrency: "EUR",
-    inventory: 120,
   },
 ];
 

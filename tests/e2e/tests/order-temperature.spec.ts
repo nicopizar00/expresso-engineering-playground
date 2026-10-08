@@ -13,7 +13,6 @@ const products: Product[] = [
     description: "Rich, bold single-shot espresso.",
     category: "drink",
     price: { amountMinor: 350, currency: "USD" },
-    inventory: 50,
   },
 ];
 

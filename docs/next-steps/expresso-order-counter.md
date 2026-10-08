@@ -152,7 +152,7 @@ The backend should provide meaning such as:
 - older order aggregate counts
 - status counts
 - product composition per recent order
-- product categories and inventory
+- product categories
 - cart summary
 - latest activity timestamp
 - optional future performance/load signals

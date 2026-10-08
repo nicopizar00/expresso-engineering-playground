@@ -20,7 +20,6 @@ export interface SceneProduct {
   readonly productId: string;
   readonly name: string;
   readonly category: string;
-  readonly inventory: number;
   readonly price: Money;
   readonly status: VisualizationItemStatus;
   readonly asset?: SceneAssetRef;

@@ -15,7 +15,6 @@ const DB_ROW = {
   category: "drink",
   priceAmountMinor: 180,
   priceCurrency: "EUR",
-  inventory: 120,
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-01"),
 };
@@ -89,25 +88,6 @@ describe("CatalogService", () => {
     });
   });
 
-  describe("applyInventoryDelta()", () => {
-    it("decrements the cached inventory for the matched product", () => {
-      service.applyInventoryDelta("prod_espresso", -5);
-      expect(service.getById("prod_espresso").inventory).toBe(115);
-    });
-
-    it("supports positive deltas (e.g. cancel/refund flows)", () => {
-      service.applyInventoryDelta("prod_espresso", 3);
-      expect(service.getById("prod_espresso").inventory).toBe(123);
-    });
-
-    it("is a no-op for unknown productIds", () => {
-      const before = service.list().items.map((p) => p.inventory);
-      service.applyInventoryDelta("prod_unknown", -10);
-      const after = service.list().items.map((p) => p.inventory);
-      expect(after).toEqual(before);
-    });
-  });
-
   describe("create()", () => {
     const DTO: CreateProductDto = {
       sku: "SKU-NEW-01",
@@ -115,7 +95,6 @@ describe("CatalogService", () => {
       description: "Buttery croissant.",
       category: "food",
       price: { amountMinor: 250, currency: "EUR" },
-      inventory: 40,
     } as CreateProductDto;
 
     it("persists via prisma.product.create and returns the mapped product", async () => {
