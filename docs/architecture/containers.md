@@ -91,7 +91,7 @@ flowchart LR
 | File | Purpose |
 |---|---|
 | `infra/docker/compose.yaml` | Base stack — all profiles defined here |
-| `infra/docker/compose.dev.yaml` | Dev override — `bff` + `web` swap to dev stages, `docker compose watch` |
+| `infra/docker/compose.dev.yaml` | Dev override — `bff` + `web` swap to dev stages under their own `mini-commerce/*:dev` tags, `docker compose watch` |
 | `infra/docker/compose.performance.yaml` | k6 stack — separate file so it never mutates the main one |
 
 ## Browser request topology

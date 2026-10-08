@@ -9,6 +9,12 @@
 # defines the watch rules that tell Docker which file changes to sync into
 # containers.
 #
+# bff and web get their own image tags. Without them the dev stage and the
+# runtime stage (compose.yaml) share one default tag, so whichever was built
+# last silently wins: `./dev seed` would run in the runtime image (no
+# prisma.config.ts, so `prisma db seed` is a silent no-op) and `./dev up`
+# could serve the dev stage.
+#
 # Sync rules:
 #   bff           — src/ changes synced; nest --watch picks them up.
 #                   package.json changes trigger a full image rebuild.
@@ -21,6 +27,7 @@
 
 services:
   bff:
+    image: mini-commerce/bff:dev
     build:
       target: dev
     develop:
@@ -32,6 +39,7 @@ services:
           path: apps/bff/package.json
 
   web:
+    image: mini-commerce/web:dev
     build:
       target: dev
     develop:

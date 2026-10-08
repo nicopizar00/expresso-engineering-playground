@@ -61,11 +61,12 @@ def capture(
 
 
 def run_bff_dev(args: Sequence[str], *, check: bool = True) -> int:
-    """One-off BFF container using the dev-stage image. Mirrors
-    `compose_run_bff_dev` in ./dev:66."""
+    """One-off BFF container using the dev-stage image. `--build` rebuilds
+    it from the current tree (cached layers make this cheap) so seed.ts and
+    new migrations are never stale."""
     cmd = (
         base_cmd(extra_files=[COMPOSE_DEV_FILE])
-        + ["run", "--rm", "--no-deps", "bff"]
+        + ["run", "--rm", "--build", "--no-deps", "bff"]
         + list(args)
     )
     result = subprocess.run(cmd, check=False)
