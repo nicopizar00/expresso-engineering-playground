@@ -127,8 +127,9 @@ browser-purchase ─────────────────────
   `punch` menu in a terminal, Punch first offers each optional dataset's source
   (built-in default or `data/<dataset>.csv`), then — for missing data — lists
   every producer with the `recommended: true` one preselected (`http-cart` for
-  `carts`, `http-purchase` for `orders`), runs the picked one with
-  `--produce`, and tells you which workflow to re-run. `--no-input` and
+  `carts`, `http-purchase` for `orders`), runs the picked one (`punch run`
+  with `--produce`; the menu asks before writing, as for a direct pick), and
+  tells you which workflow to re-run. `--no-input` and
   `--data <dataset>=default` are the non-interactive equivalents. Punch injects
   the container path as `DATA_<DATASET>_CSV`; `--data <dataset>=<path>` reads
   an alternate file under `data/`. After the run, an interactive terminal is
@@ -138,6 +139,29 @@ browser-purchase ─────────────────────
 | --- | --- | --- | --- |
 | `carts` | `cartId,productId,sid` | `http-cart`, `browser-cart` | `http-orders` |
 | `orders` | `orderId` | `http-orders`, `http-purchase`, `browser-purchase` | `http-orders-status` |
+
+### Size a producer for a target
+
+Every workflow here declares `spec.sizing`: a measured one-VU
+`iterationSeconds`, `maxSeconds: 270` on producers (30 s under the
+scenarios' 5 m `maxDuration`), and `margin: 0.15` on targets. Instead of
+picking producer options, size the producer for the run you plan next:
+
+```bash
+# menu: pick http-cart → "Size for a target workflow" → pick http-orders' preset
+PYTHONPATH=vendor/punch/src python3 -m punch menu tests/performance/k6/workflows
+
+# CLI: the environment is the target's load shape
+ITERATIONS=50 PYTHONPATH=vendor/punch/src python3 -m punch run \
+  tests/performance/k6/workflows/http-cart.yaml --size-for http-orders
+```
+
+Punch prints the estimate (rows needed, producer iterations with margin,
+producer VUs and time), writes the dataset, warns when fewer rows came out
+than the target needs, and names the target run to do next. `http-orders`
+and `http-orders-status` forward `ITERATIONS` only, so `DURATION` presets
+show as not estimable for them
+([follow-up](../../../docs/next-steps/sizing-duration-targets.md)).
 
 ### http-cart / browser-cart → http-orders
 

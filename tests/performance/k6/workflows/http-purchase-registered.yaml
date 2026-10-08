@@ -22,3 +22,6 @@ spec:
       - dataset: owned-orders
         columns: [orderId, username, email]
         targets: [http-auth-login]
+  sizing:
+    iterationSeconds: 1.1   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration

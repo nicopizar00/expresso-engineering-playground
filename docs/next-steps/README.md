@@ -49,6 +49,10 @@ When the count drops to zero, the topic is done.
    - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
    - Pending artistic approval for ceramic color, saucer depth, coffee
      visibility, handle readability, scale, and icon-size clarity.
+8. **[Sizing DURATION targets](sizing-duration-targets.md)** — _performance
+   tooling follow-up_ (2 anchors)
+   - Let http-orders / http-orders-status run time-based so DURATION presets
+     can be sized.
 
 ## Done
 

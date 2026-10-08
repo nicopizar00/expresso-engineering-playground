@@ -156,6 +156,16 @@ module cannot read the checkout response. `http-orders-status` reads
 `GET /orders/:id/status` (a direct Postgres read in the BFF) per row and checks
 the hot/cold temperature.
 
+### Sizing for a target (`spec.sizing`)
+
+A workflow may declare `spec.sizing` (`iterationSeconds`, `maxSeconds`,
+`margin`). Punch sizes a producer for a target in its `produces[].targets`:
+rows needed come from the target's `ITERATIONS` (or `VUS` × `DURATION` /
+`iterationSeconds`), the producer runs `⌈rows × (1 + margin)⌉` iterations
+with enough VUs to fit `maxSeconds`, still in one Compose run. Entry points:
+the menu's `Size for a target workflow` mode and `punch run --size-for`.
+Contract: `vendor/punch/docs/specs/spec-target-data-sizing.md`.
+
 ## Summary output and Docker Compose confirmation
 
 All ten bundled workflows declare `spec.outputs.summary.path`, pointing at the

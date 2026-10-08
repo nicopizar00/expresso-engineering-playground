@@ -11,6 +11,7 @@ spec:
   k6:
     script: /scripts/scenarios/http-orders/http-orders.js
   environment:
+    # TODO(next-steps/sizing-duration-targets): forward DURATION once the scenario runs time-based
     forward: [BASE_URL, VUS, ITERATIONS]
   outputs:
     summary:
@@ -23,3 +24,7 @@ spec:
         columns: [orderId]
         targets: [http-orders-status]
     requires: [carts]
+  sizing:
+    iterationSeconds: 1.1   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration
+    margin: 0.15            # extra rows over the estimate (producer errors)

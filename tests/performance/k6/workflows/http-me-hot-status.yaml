@@ -19,3 +19,6 @@ spec:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
     requires: [auth-tokens]
+  sizing:
+    iterationSeconds: 1.1   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    margin: 0.15            # extra rows over the estimate (producer errors)

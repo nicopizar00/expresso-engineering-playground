@@ -23,3 +23,6 @@ spec:
         columns: [orderId]
         targets: [http-orders-status]
         recommended: true
+  sizing:
+    iterationSeconds: 1.1   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration

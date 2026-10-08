@@ -22,3 +22,6 @@ spec:
       - dataset: carts
         columns: [cartId, productId, sid]
         targets: [http-orders]
+  sizing:
+    iterationSeconds: 2.7   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration

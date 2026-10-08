@@ -22,3 +22,6 @@ spec:
       - dataset: orders
         columns: [orderId]
         targets: [http-orders-status]
+  sizing:
+    iterationSeconds: 7.6   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration

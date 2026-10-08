@@ -23,3 +23,7 @@ spec:
         columns: [username, authToken]
         targets: [http-me-hot-status]
     optional: [owned-orders]
+  sizing:
+    iterationSeconds: 1.2   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration
+    margin: 0.15            # extra rows over the estimate (producer errors)
