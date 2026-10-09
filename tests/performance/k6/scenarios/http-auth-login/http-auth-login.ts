@@ -33,18 +33,10 @@ const users = new SharedArray<string>("login-users", () => {
 });
 
 const PASSWORD = __ENV.DEMO_PASSWORD || "espresso-demo";
-const VUS = Number(__ENV.VUS) || 1;
-const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
-
+// Load shape (executor, VUs, iterations or duration) comes from the k6
+// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
-  scenarios: {
-    http_auth_login: {
-      executor: "shared-iterations",
-      vus: VUS,
-      iterations: ITERATIONS,
-      maxDuration: "5m",
-    },
-  },
   thresholds: loginThresholds,
   tags: { suite: "mini-commerce-http-auth-login" },
 };

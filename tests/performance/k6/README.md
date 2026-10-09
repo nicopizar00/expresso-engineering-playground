@@ -30,43 +30,49 @@ Set a different target without changing a workflow:
 BASE_URL=https://perf.example.test ./dev perf:http-purchase
 ```
 
-`http-purchase` also forwards `VUS`, `DURATION`, and `ITERATIONS`, so its load
-shape is configurable without editing YAML:
+## Load shape (`k6 run --config`)
+
+The load shape — executor, VUs, iterations or duration — is a native k6
+options JSON that Punch passes as `k6 run --config`. It is never an
+environment variable. Each workflow's `spec.k6.config` names its default,
+`options/5-iterations.json` (1 VU, 5 shared iterations, 5m `maxDuration`;
+`options/5-iterations-browser.json` for the browser workflows). That gives a
+fixed op count that doesn't depend on the environment, unlike a
+`constant-vus` soak whose throughput (and therefore op count) varies with how
+fast the target environment is. Pick another config for one run with
+`--config`:
 
 ```bash
-VUS=5 DURATION=1m ./dev perf:http-purchase       # constant VUs for a time budget
-ITERATIONS=5 ./dev perf:http-purchase            # fixed run count instead of a time budget
+./dev perf:http-purchase --config 5-vu-5m              # preset name → options/5-vu-5m.json
+./dev perf:http-purchase --config 1-iteration          # one purchase journey (CI)
+./dev perf:http-purchase --config path/to/mine.json    # any k6 options JSON
 ```
 
-`VUS` defaults to `1`. With neither `DURATION` nor `ITERATIONS` set, `ITERATIONS`
-defaults to `5` (`shared-iterations`) — a fixed op count, environment
-independent, unlike a `DURATION`-based soak whose throughput (and therefore
-op count) varies with how fast the target environment is. Set `DURATION`
-explicitly to switch to a constant-VU time budget instead; `ITERATIONS`
-takes precedence over `DURATION` whenever both are set. The BFF cart is
-keyed by session (the `sid` cookie), and k6 gives each VU its own cookie
-jar, so raising `VUS` is safe — concurrent VUs land on distinct carts, not a
-shared one.
+| Preset | Scenario |
+| --- | --- |
+| [`1-iteration`](options/1-iteration.json) | `shared-iterations`, 1 VU × 1 iteration |
+| [`5-iterations`](options/5-iterations.json) | `shared-iterations`, 1 VU, 5 iterations (default) |
+| [`1-vu-5m`](options/1-vu-5m.json) | `constant-vus`, 1 VU for 5m |
+| [`5-vu-5m`](options/5-vu-5m.json) | `constant-vus`, 5 VUs for 5m |
+| [`1-iteration-browser`](options/1-iteration-browser.json) | as `1-iteration`, plus `options.browser.type: chromium` |
+| [`5-iterations-browser`](options/5-iterations-browser.json) | as `5-iterations`, plus `options.browser.type: chromium` (browser default) |
 
-Common combinations are saved as presets in [`options/`](options/); export one
-with `jq` before running:
-
-```bash
-export $(jq -r 'to_entries[] | "\(.key)=\(.value)"' options/5-vu-5m.json)
-./dev perf:http-purchase
-```
+Punch bind-mounts the chosen file read-only at `/punch/k6-config.json`, so
+editing a preset needs no image rebuild. The scenarios export only
+`thresholds` and `tags`: in k6, script `options` outrank `--config`, so an
+exported `scenarios`/`vus`/`iterations`/`duration` would silently override
+the file. The BFF cart is keyed by session (the `sid` cookie), and k6 gives
+each VU its own cookie jar, so raising `vus` is safe — concurrent VUs land on
+distinct carts, not a shared one.
 
 `./dev perf:*` stays non-interactive and never opens the picker. Punch's
 interactive menu (`PYTHONPATH=vendor/punch/src python3 -m punch menu
 tests/performance/k6/workflows`) is a separate entry point: after picking a
-workflow and a `BASE_URL` target, it offers to load one of these same
-`options/*.json` presets — skip it to fall back to the shell environment.
-The step is only shown for a workflow that forwards a name besides
-`BASE_URL` (e.g. `http-purchase`), and only when `options/`
-holds at least one preset. Every preset is offered to every such workflow
-regardless of which vars it forwards — a var the workflow doesn't forward
-is dropped, same as setting it directly in the shell. The menu's cursor
-defaults to `5-iterations`, matching the scenarios' own default.
+workflow and a `BASE_URL` target, it offers these same `options/*.json`
+presets as the run's `--config`; its first entry (the cursor's default) keeps
+the workflow's own `spec.k6.config`. The step is shown whenever `options/`
+holds at least one preset, and every preset is offered to every workflow — a
+browser workflow needs a `*-browser` preset.
 
 ## Run the browser variant
 
@@ -85,13 +91,12 @@ docker compose -f infra/docker/compose.performance.yaml build k6-browser
 ./dev perf:browser-purchase
 ```
 
-Each VU is a full Chromium instance, so this stays iteration-count based
-rather than `http-purchase`'s time-based soak — a `DURATION`-based default
-here would silently multiply browser sessions. It defaults to 5 runs
-(`VUS=1 ITERATIONS=5`), same fixed-count default as every other scenario;
-set `ITERATIONS` explicitly for a different count (e.g.
-[`options/1-iteration-browser.json`](options/1-iteration-browser.json) for
-a single run). It forwards `VUS`/`ITERATIONS` only, not `DURATION`. Its report
+Each VU is a full Chromium instance, so its default stays iteration-count
+based (`options/5-iterations-browser.json`: 1 VU, 5 runs) rather than a
+time-based soak, which would silently multiply browser sessions. k6/browser
+requires `options.browser.type: chromium` on the scenario, and the scenario
+lives in the config, so pass a `*-browser` preset (e.g.
+`--config 1-iteration-browser` for a single run) or a JSON that sets it. Its report
 still uses the shared HTML/JSON helpers, but no `k6/http` calls happen in a
 browser test, so every `http_req_*` metric is absent — `checks` is the only
 meaningful signal there, and it drives the real `passed` verdict (both the
@@ -143,25 +148,28 @@ browser-purchase ─────────────────────
 ### Size a producer for a target
 
 Every workflow here declares `spec.sizing`: a measured one-VU
-`iterationSeconds`, `maxSeconds: 270` on producers (30 s under the
-scenarios' 5 m `maxDuration`), and `margin: 0.15` on targets. Instead of
+`iterationSeconds`, `maxSeconds: 270` on producers (30 s under the default
+configs' 5 m `maxDuration`), and `margin: 0.15` on targets. Instead of
 picking producer options, size the producer for the run you plan next:
 
 ```bash
 # menu: pick http-cart → "Size for a target workflow" → pick http-orders' preset
 PYTHONPATH=vendor/punch/src python3 -m punch menu tests/performance/k6/workflows
 
-# CLI: the environment is the target's load shape
-ITERATIONS=50 PYTHONPATH=vendor/punch/src python3 -m punch run \
-  tests/performance/k6/workflows/http-cart.yaml --size-for http-orders
+# CLI: --config is the target's load shape (default: the target's spec.k6.config)
+PYTHONPATH=vendor/punch/src python3 -m punch run \
+  tests/performance/k6/workflows/http-cart.yaml --size-for http-orders \
+  --config tests/performance/k6/options/5-vu-5m.json
 ```
 
-Punch prints the estimate (rows needed, producer iterations with margin,
-producer VUs and time), writes the dataset, warns when fewer rows came out
-than the target needs, and names the target run to do next. `http-orders`
-and `http-orders-status` forward `ITERATIONS` only, so `DURATION` presets
-show as not estimable for them
-([follow-up](../../../docs/next-steps/sizing-duration-targets.md)).
+Rows needed come from the target config: `iterations` for
+`shared-iterations`, or `vus` × `duration` / the target's `iterationSeconds`
+for a `constant-vus` soak. Punch prints the estimate (rows needed, producer
+iterations with margin, producer VUs and time), runs the producer with a
+generated copy of its own config (`vendor/punch/reports/state/k6-config-<producer>.json`,
+`shared-iterations` with the sized VUs and iterations, browser type kept),
+writes the dataset, warns when fewer rows came out than the target needs,
+and names the target run to do next.
 
 ### http-cart / browser-cart → http-orders
 
@@ -178,11 +186,11 @@ the BFF minted for that cart — the cart is looked up by session, not by
 ./dev perf:http-orders                       # consumes it
 ```
 
-`http-cart` forwards `VUS`/`DURATION`/`ITERATIONS` like `http-purchase`
-(use `ITERATIONS=20` for a fixed batch). `http-orders` forwards
-`VUS`/`ITERATIONS` only — a fixed cart pool doesn't fit a time-based soak;
-`ITERATIONS` defaults to `5`, and a count above the pool size wraps around and
-re-attempts already-placed carts (those checks fail, they don't crash).
+Both default to `options/5-iterations.json`. Each cart should be checked out
+once, so a `http-orders` run that iterates past the pool size wraps around
+and re-attempts already-placed carts (those checks fail, they don't crash).
+Size `http-cart` for the `http-orders` config you plan to run (see above) —
+that includes a `constant-vus` soak such as `5-vu-5m`.
 
 `browser-cart` is the browser-driven twin: it drives the web app with
 Chromium, stops before "Place Order", and emits
@@ -227,9 +235,8 @@ EXPECT_TEMPERATURE=hot ./dev perf:http-orders-status
 EXPECT_TEMPERATURE=cold ./dev perf:http-orders-status
 ```
 
-It forwards `VUS`/`ITERATIONS` (default 5 iterations; rows are reused
-round-robin when `ITERATIONS` exceeds the dataset size — the reads are
-idempotent).
+It defaults to `options/5-iterations.json`; rows are reused round-robin
+when the run iterates past the dataset size — the reads are idempotent.
 
 ### http-purchase-registered → http-auth-login → http-me-hot-status
 
@@ -251,7 +258,7 @@ Load-tests `GET /me/hot-status` with real login tokens.
   12 demo users. Password: `DEMO_PASSWORD` (default `espresso-demo`); it never
   enters a dataset. Emits `auth-tokens` `[username, authToken]`.
 - `http-me-hot-status` requires `auth-tokens` and checks response shape only
-  (`hotCount` may be 0 once orders cool). `ITERATIONS` or `DURATION`.
+  (`hotCount` may be 0 once orders cool). Any `--config` shape fits.
 - Thresholds for all three: `http_req_failed` < 10%, checks > 90%,
   p(90) < 1000 ms (500 ms for http-me-hot-status).
 
@@ -303,7 +310,8 @@ between them as the `carts` dataset; see "Data pipeline" above.
 
 Add the scenario source, add one TypeScript build entry, then add exactly one
 matching `workflows/<name>.yaml`. The workflow supplies the Compose file,
-service, container script, permitted environment, and optional `spec.data`
+service, container script, default k6 config (`spec.k6.config`; the script
+exports only `thresholds` and `tags`), permitted environment, and optional `spec.data`
 (`produces` with columns and targets, and/or `requires`); do not put an
 additional script-path branch in `scripts/pg/perf.py`. Punch owns the whole
 data lifecycle — opt-in, preflight, path injection, delete prompt — so a new
@@ -321,5 +329,6 @@ not the supported or CI path:
 
 ```bash
 cd tests/performance/k6 && npm ci && npm run build
-BASE_URL=http://localhost:3001 k6 run dist/http-purchase/http-purchase.js
+BASE_URL=http://localhost:3001 k6 run --config options/5-iterations.json \
+  dist/http-purchase/http-purchase.js
 ```

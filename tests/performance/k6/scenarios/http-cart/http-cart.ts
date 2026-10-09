@@ -19,12 +19,11 @@
 //   http.cookieJar().set(...) before its checkout call.
 //
 // Load shape:
-//   Set DURATION (+ VUS) for a constant-VU soak, or set ITERATIONS (+ VUS)
-//   for a fixed number of http-cart runs instead of a time budget.
-//   ITERATIONS takes precedence when both are set. Neither set: defaults to
-//   5 iterations — environment independent, unlike a DURATION-based soak
-//   whose throughput (and therefore op count) varies with how fast the
-//   target environment is.
+//   From the k6 config Punch passes as `k6 run --config`. The workflow
+//   default is options/5-iterations.json — a fixed op count, environment
+//   independent, unlike a constant-vus soak (options/*-vu-5m.json) whose
+//   throughput (and therefore op count) varies with how fast the target
+//   environment is.
 //
 // Coverage:
 //   GET  /products    — browse/search the grid
@@ -42,25 +41,10 @@ import { buildSummaryOutputs } from "../../support/report";
 // this is the first TS scenario to need it for the [DATA] harvest protocol.
 declare const console: { log: (message: string) => void };
 
-const VUS = Number(__ENV.VUS) || 1;
-const DURATION = __ENV.DURATION || "30s";
-const ITERATIONS = __ENV.ITERATIONS
-  ? Number(__ENV.ITERATIONS)
-  : __ENV.DURATION
-    ? undefined
-    : 5;
-
-const scenario = ITERATIONS
-  ? {
-      executor: "shared-iterations",
-      vus: VUS,
-      iterations: ITERATIONS,
-      maxDuration: "5m",
-    }
-  : { executor: "constant-vus", vus: VUS, duration: DURATION };
-
+// Load shape (executor, VUs, iterations or duration) comes from the k6
+// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
-  scenarios: { http_cart: scenario },
   thresholds: purchaseFlowThresholds,
   tags: { suite: "mini-commerce-http-cart" },
 };

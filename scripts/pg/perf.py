@@ -2,7 +2,8 @@
 
 Dataset produce/require behavior lives in each workflow's spec.data and is
 handled by Punch; these commands only pick the workflow and target port.
-`--produce <dataset>` and `--data <dataset>=<path>` pass straight through.
+`--produce <dataset>`, `--data <dataset>=<path>`, and `--config <preset|path>`
+(the k6 options JSON for `k6 run --config`) pass straight through.
 """
 
 from __future__ import annotations

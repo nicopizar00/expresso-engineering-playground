@@ -5,8 +5,9 @@
 // GET /me/hot-status and checks the response shape only — orders cool
 // after ORDER_COOL_DOWN_SECONDS, so hotCount may legitimately be 0.
 //
-// Load: ITERATIONS (default 5, shared-iterations) or DURATION (constant-vus
-// soak). Tokens are reusable and the endpoint is read-only.
+// Load: the k6 config Punch passes as `k6 run --config` (default
+// options/5-iterations.json; a constant-vus soak works too). Tokens are
+// reusable and the endpoint is read-only.
 
 import http from "k6/http";
 import { check, sleep } from "k6";
@@ -33,25 +34,10 @@ const tokens = new SharedArray<TokenRow>("auth-tokens", () =>
     }),
 );
 
-const VUS = Number(__ENV.VUS) || 1;
-const DURATION = __ENV.DURATION || "30s";
-const ITERATIONS = __ENV.ITERATIONS
-  ? Number(__ENV.ITERATIONS)
-  : __ENV.DURATION
-    ? undefined
-    : 5;
-
-const scenario = ITERATIONS
-  ? {
-      executor: "shared-iterations",
-      vus: VUS,
-      iterations: ITERATIONS,
-      maxDuration: "5m",
-    }
-  : { executor: "constant-vus", vus: VUS, duration: DURATION };
-
+// Load shape (executor, VUs, iterations or duration) comes from the k6
+// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
-  scenarios: { http_me_hot_status: scenario },
   thresholds: hotStatusThresholds,
   tags: { suite: "mini-commerce-http-me-hot-status" },
 };

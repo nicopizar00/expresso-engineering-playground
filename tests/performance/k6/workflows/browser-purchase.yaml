@@ -10,8 +10,9 @@ spec:
     service: k6-browser
   k6:
     script: /scripts/scenarios/browser-purchase/browser-purchase.js
+    config: tests/performance/k6/options/5-iterations-browser.json
   environment:
-    forward: [BASE_URL, VUS, ITERATIONS]
+    forward: [BASE_URL]
   outputs:
     summary:
       path: tests/performance/k6/reports/browser-purchase-summary.json
@@ -23,5 +24,5 @@ spec:
         columns: [orderId]
         targets: [http-orders-status]
   sizing:
-    iterationSeconds: 7.6   # measured: VUS=1 ITERATIONS=10, durationMs / 10
-    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration
+    iterationSeconds: 7.6   # measured: 1 VU × 10 iterations, durationMs / 10
+    maxSeconds: 270         # 30 s under the default config's 5m maxDuration

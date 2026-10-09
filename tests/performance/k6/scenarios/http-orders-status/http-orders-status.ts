@@ -16,9 +16,9 @@
 // ORDER_COOL_DOWN_SECONDS must match the BFF's value (default 300).
 //
 // Load shape:
-//   VUS/ITERATIONS only, default 5 iterations (same fixed-count default as
-//   every other scenario). Rows are reused round-robin when ITERATIONS
-//   exceeds the dataset size — reads are idempotent.
+//   From the k6 config Punch passes as `k6 run --config`; the workflow
+//   default is options/5-iterations.json. Rows are reused round-robin when
+//   the run iterates past the dataset size — reads are idempotent.
 //
 // Coverage:
 //   GET /orders/:id/status — status + temperature straight from Postgres
@@ -39,8 +39,6 @@ const orderIds = new SharedArray<string>("orders", () =>
     .filter((line) => line.length > 0),
 );
 
-const VUS = Number(__ENV.VUS) || 1;
-const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
 const EXPECT = (__ENV.EXPECT_TEMPERATURE || "auto").toLowerCase();
 const COOL_DOWN_MS = (Number(__ENV.ORDER_COOL_DOWN_SECONDS) || 300) * 1000;
 const SKEW_MS = 2000;
@@ -51,15 +49,10 @@ if (!["auto", "hot", "cold"].includes(EXPECT)) {
   );
 }
 
+// Load shape (executor, VUs, iterations or duration) comes from the k6
+// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
-  scenarios: {
-    http_orders_status: {
-      executor: "shared-iterations",
-      vus: VUS,
-      iterations: ITERATIONS,
-      maxDuration: "5m",
-    },
-  },
   thresholds: orderStatusThresholds,
   tags: { suite: "mini-commerce-http-orders-status" },
 };

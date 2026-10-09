@@ -27,25 +27,10 @@ import { buildSummaryOutputs } from "../../support/report";
 declare const console: { log: (message: string) => void };
 
 const USERS = parseUsers(__ENV.USERS);
-const VUS = Number(__ENV.VUS) || 1;
-const DURATION = __ENV.DURATION || "30s";
-const ITERATIONS = __ENV.ITERATIONS
-  ? Number(__ENV.ITERATIONS)
-  : __ENV.DURATION
-    ? undefined
-    : 5;
-
-const scenario = ITERATIONS
-  ? {
-      executor: "shared-iterations",
-      vus: VUS,
-      iterations: ITERATIONS,
-      maxDuration: "5m",
-    }
-  : { executor: "constant-vus", vus: VUS, duration: DURATION };
-
+// Load shape (executor, VUs, iterations or duration) comes from the k6
+// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
-  scenarios: { http_purchase_registered: scenario },
   thresholds: purchaseRegisteredThresholds,
   tags: { suite: "mini-commerce-http-purchase-registered" },
 };

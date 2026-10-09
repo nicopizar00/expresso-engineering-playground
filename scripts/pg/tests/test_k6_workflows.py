@@ -10,7 +10,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.paths import PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
+from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
 from punch.workflow import load_workflow  # noqa: E402
 
 
@@ -46,22 +46,27 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             name: ("k6-browser" if name.startswith("browser-") else "k6")
             for name in expected_names
         }
+        # The load shape is never an environment variable: it comes from the
+        # k6 config Punch passes as `k6 run --config` (spec.k6.config).
         expected_environment_forward = {
-            "browser-cart": ["BASE_URL", "VUS", "ITERATIONS"],
-            "browser-purchase": ["BASE_URL", "VUS", "ITERATIONS"],
-            "http-auth-login": ["BASE_URL", "VUS", "ITERATIONS", "DEMO_PASSWORD"],
-            "http-cart": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
-            "http-me-hot-status": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
-            "http-orders": ["BASE_URL", "VUS", "ITERATIONS"],
+            "browser-cart": ["BASE_URL"],
+            "browser-purchase": ["BASE_URL"],
+            "http-auth-login": ["BASE_URL", "DEMO_PASSWORD"],
+            "http-cart": ["BASE_URL"],
+            "http-me-hot-status": ["BASE_URL"],
+            "http-orders": ["BASE_URL"],
             "http-orders-status": [
                 "BASE_URL",
-                "VUS",
-                "ITERATIONS",
                 "EXPECT_TEMPERATURE",
                 "ORDER_COOL_DOWN_SECONDS",
             ],
-            "http-purchase": ["BASE_URL", "VUS", "DURATION", "ITERATIONS"],
-            "http-purchase-registered": ["BASE_URL", "VUS", "DURATION", "ITERATIONS", "USERS"],
+            "http-purchase": ["BASE_URL"],
+            "http-purchase-registered": ["BASE_URL", "USERS"],
+        }
+        expected_config = {
+            name: PERF_OPTIONS_DIR
+            / ("5-iterations-browser.json" if name.startswith("browser-") else "5-iterations.json")
+            for name in expected_names
         }
         expected_data = {
             "http-cart": {"produces": {"carts": ("http-orders",)}, "requires": ()},
@@ -113,6 +118,10 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 self.assertIn(f'"/scripts/reports/{path.stem}-summary.json"', scenario_source)
                 self.assertIn(f'"/scripts/reports/{path.stem}-report.html"', scenario_source)
                 self.assertIn(f'suite: "mini-commerce-{path.stem}"', scenario_source)
+                # Script options outrank `k6 run --config`; a shape here would win.
+                self.assertNotRegex(scenario_source, r"\b(scenarios|vus|iterations|duration|stages):")
+                self.assertNotRegex(scenario_source, r"__ENV\.(VUS|ITERATIONS|DURATION)\b")
+                self.assertEqual(workflow.k6_config, expected_config[path.stem])
                 self.assertEqual(
                     document["spec"]["compose"],
                     {
@@ -155,6 +164,30 @@ class K6WorkflowCoverageTests(unittest.TestCase):
         self.assertEqual(
             {p.name for p in scenarios_dir.iterdir() if p.is_dir()}, expected_names
         )
+
+
+class K6OptionsPresetTests(unittest.TestCase):
+    def test_presets_are_native_single_scenario_k6_configs(self) -> None:
+        presets = sorted(PERF_OPTIONS_DIR.glob("*.json"))
+        self.assertEqual(
+            sorted(path.stem for path in presets),
+            [
+                "1-iteration",
+                "1-iteration-browser",
+                "1-vu-5m",
+                "5-iterations",
+                "5-iterations-browser",
+                "5-vu-5m",
+            ],
+        )
+        for path in presets:
+            with self.subTest(preset=path.stem):
+                config = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(list(config), ["scenarios"])
+                [scenario] = config["scenarios"].values()
+                self.assertIn(scenario["executor"], ("shared-iterations", "constant-vus"))
+                browser = scenario.get("options", {}).get("browser", {}).get("type")
+                self.assertEqual(browser, "chromium" if path.stem.endswith("-browser") else None)
 
 
 class ComposeScriptPathTests(unittest.TestCase):

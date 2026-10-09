@@ -10,9 +10,9 @@ spec:
     service: k6
   k6:
     script: /scripts/scenarios/http-orders/http-orders.js
+    config: tests/performance/k6/options/5-iterations.json
   environment:
-    # TODO(next-steps/sizing-duration-targets): forward DURATION once the scenario runs time-based
-    forward: [BASE_URL, VUS, ITERATIONS]
+    forward: [BASE_URL]
   outputs:
     summary:
       path: tests/performance/k6/reports/http-orders-summary.json
@@ -25,6 +25,6 @@ spec:
         targets: [http-orders-status]
     requires: [carts]
   sizing:
-    iterationSeconds: 1.1   # measured: VUS=1 ITERATIONS=10, durationMs / 10
-    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration
+    iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
+    maxSeconds: 270         # 30 s under the default config's 5m maxDuration
     margin: 0.15            # extra rows over the estimate (producer errors)

@@ -126,6 +126,7 @@ def _usage() -> None:
     print("Performance commands additionally require Punch's pinned dependency:")
     print("  python3 -m pip install -r vendor/punch/requirements.txt")
     print("Data-producing workflows write their dataset only with --produce <dataset> (e.g. perf:http-cart --produce carts).")
+    print("perf:* take their k6 load shape from --config <preset|path> (e.g. perf:http-purchase --config 5-vu-5m).")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()

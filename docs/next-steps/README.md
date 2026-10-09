@@ -50,9 +50,9 @@ When the count drops to zero, the topic is done.
    - Pending artistic approval for ceramic color, saucer depth, coffee
      visibility, handle readability, scale, and icon-size clarity.
 8. **[Sizing DURATION targets](sizing-duration-targets.md)** — _performance
-   tooling follow-up_ (2 anchors)
-   - Let http-orders / http-orders-status run time-based so DURATION presets
-     can be sized.
+   tooling follow-up_ (0 anchors; live check pending)
+   - Resolved in code by native `k6 run --config` (2026-10-09); run the
+     `5-vu-5m` http-cart → http-orders check, then move it to Done.
 
 ## Done
 

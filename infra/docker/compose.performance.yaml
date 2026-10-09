@@ -16,6 +16,12 @@
 # Direct invocation (handy when iterating on a scenario):
 #   docker compose -f infra/docker/compose.performance.yaml run --rm k6 \
 #     run /scripts/scenarios/http-purchase/http-purchase.js
+# The scenarios export no load shape, so this runs k6's default single
+# iteration. Punch mounts a k6 options JSON (spec.k6.config or --config)
+# instead; to do the same by hand:
+#   docker compose -f infra/docker/compose.performance.yaml run --rm \
+#     -v "$PWD/tests/performance/k6/options/5-iterations.json:/punch/k6-config.json:ro" \
+#     k6 run /scripts/scenarios/http-purchase/http-purchase.js --config /punch/k6-config.json
 #
 # OTLP-enabled invocation (requires the main stack to be up so the
 # otel-collector and its network exist):
