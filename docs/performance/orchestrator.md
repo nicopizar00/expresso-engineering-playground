@@ -57,16 +57,26 @@ that result and record before treating generated artifacts as evidence.
 
 There are ten YAML files, exactly one for every TypeScript k6 build entry.
 All ten select `infra/docker/compose.performance.yaml` and forward
-`BASE_URL`; `http-purchase` and `http-cart` additionally forward `VUS`,
-`DURATION`, and `ITERATIONS`; `browser-purchase`, `browser-cart`,
-`http-orders`, and `http-orders-status` forward `VUS` and `ITERATIONS` (no `DURATION` — each is a
-fixed-size run, either one Chromium instance per VU or one reserved cart per
-iteration, not a time-based soak), so their load shape is configurable
-without editing YAML. `http-orders-status` also forwards `EXPECT_TEMPERATURE`
-(`auto`|`hot`|`cold`) and `ORDER_COOL_DOWN_SECONDS` (must match the BFF's).
-The hot-status load chain adds `http-purchase-registered` (`VUS`, `DURATION`,
-`ITERATIONS`, `USERS`), `http-auth-login` (`VUS`, `ITERATIONS`, `DEMO_PASSWORD`), and
-`http-me-hot-status` (`VUS`, `DURATION`, `ITERATIONS`), all on service `k6`.
+`BASE_URL`. `http-orders-status` also forwards `EXPECT_TEMPERATURE`
+(`auto`|`hot`|`cold`) and `ORDER_COOL_DOWN_SECONDS` (must match the BFF's);
+the hot-status load chain adds `USERS` (`http-purchase-registered`) and
+`DEMO_PASSWORD` (`http-auth-login`), all on service `k6`.
+
+### Load shape (`k6 run --config`)
+
+No load shape travels as an environment variable. Each workflow names a
+native k6 options JSON in `spec.k6.config` —
+`tests/performance/k6/options/5-iterations.json` (1 VU, 5 shared iterations,
+5m `maxDuration`), or `5-iterations-browser.json` for `browser-purchase` and
+`browser-cart`, whose scenario must also set `options.browser.type:
+chromium`. Punch bind-mounts the selected file read-only at
+`/punch/k6-config.json` and appends `--config /punch/k6-config.json` to
+`k6 run`. `./dev perf:<id> --config <preset|path>` replaces the default for one
+run: a bare name resolves to `tests/performance/k6/options/<name>.json`,
+anything else is a JSON path. The scenarios export only `thresholds` and
+`tags` — in k6, script `options` outrank `--config`, so an exported
+`scenarios`/`vus`/`iterations`/`duration` would silently win. A
+contract test (`scripts/pg/tests/test_k6_workflows.py`) enforces both sides.
 
 `http-purchase`, `http-cart`, `http-orders`, and `http-orders-status` select service
 `k6` (bare `grafana/k6` image, the BFF as target). `browser-purchase`
@@ -160,10 +170,13 @@ the hot/cold temperature.
 
 A workflow may declare `spec.sizing` (`iterationSeconds`, `maxSeconds`,
 `margin`). Punch sizes a producer for a target in its `produces[].targets`:
-rows needed come from the target's `ITERATIONS` (or `VUS` × `DURATION` /
-`iterationSeconds`), the producer runs `⌈rows × (1 + margin)⌉` iterations
-with enough VUs to fit `maxSeconds`, still in one Compose run. Entry points:
-the menu's `Size for a target workflow` mode and `punch run --size-for`.
+rows needed come from the target's k6 config (`iterations` for
+`shared-iterations`, or `vus` × `duration` / `iterationSeconds` for a
+`constant-vus` soak), and the producer runs a generated copy of its own
+config with `⌈rows × (1 + margin)⌉` shared iterations and enough VUs to fit
+`maxSeconds`, still in one Compose run. Entry points: the menu's
+`Size for a target workflow` mode and `punch run --size-for <target>
+[--config <target config>]`.
 Contract: `vendor/punch/docs/specs/spec-target-data-sizing.md`.
 
 ## Summary output and Docker Compose confirmation
@@ -187,11 +200,11 @@ skips the build and continues to workflow selection. The interactive menu (`punc
 exactly one workflow per invocation and exits — no "run another?" loop.
 Its terminal picker supports arrow keys, `j`/`k`, and `/` search; Escape or
 `q` cancels before running a workflow. After the `BASE_URL` target, it also
-offers to load one of `tests/performance/k6/options/*.json` — the same
-presets [`options/`](../../tests/performance/k6/options) documents for the
-manual `export $(jq ...)` path — merging the chosen preset into the forwarded
-environment; the step is skipped for a workflow that forwards nothing besides
-`BASE_URL`, or when no preset exists. See
+offers one of `tests/performance/k6/options/*.json` — the same
+presets [`options/`](../../tests/performance/k6/options) `./dev perf:<id>
+--config <name>` accepts — as the run's `k6 run --config`; the first entry
+keeps the workflow's own `spec.k6.config`. The step is skipped only when no
+preset exists. See
 [`punch-menu-optimization.md`](punch-menu-optimization.md) for the dependency,
 compatibility, and before/after evidence.
 

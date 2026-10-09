@@ -126,7 +126,7 @@ orchestration capability.
 - Design + invariants: [`docs/performance/orchestrator.md`](docs/performance/orchestrator.md)
 - Validation evidence rules: [`docs/performance/validation.md`](docs/performance/validation.md)
 - Scenario library: [`tests/performance/k6/README.md`](tests/performance/k6/README.md)
-- Run from a fresh checkout: `VUS=1 ITERATIONS=1 ./dev perf:http-purchase`
+- Run from a fresh checkout: `./dev perf:http-purchase --config 1-iteration`
 
 Core `scripts/pg/` stays standard-library-only. Performance commands load the
 public Punch workflow engine, so initialize the submodule and install its

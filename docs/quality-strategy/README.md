@@ -62,7 +62,7 @@ flowchart LR
 6. **Build** — `pnpm build` across the workspace.
 7. **E2E smoke** — boots the Compose BFF stack, waits for `/health`, runs
    `pnpm test:e2e` (stub body), tears down.
-8. **Performance smoke** — `VUS=1 ITERATIONS=1 ./dev perf:http-purchase` (one purchase journey).
+8. **Performance smoke** — `./dev perf:http-purchase --config 1-iteration` (one purchase journey).
 
 ### Stubbed (job runs, body is a TODO)
 

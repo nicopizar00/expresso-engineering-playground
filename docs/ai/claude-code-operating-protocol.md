@@ -57,7 +57,7 @@ Full guidance: [`tooling-efficiency.md`](tooling-efficiency.md).
    Datasets are written only with `--produce <dataset>`, from stdout
    `[DATA <dataset>]` records; they fail on zero records and publish
    atomically, and consumers are preflighted before Docker. The CI k6 gate
-   builds first and invokes `VUS=1 ITERATIONS=1 ./dev perf:http-purchase`
+   builds first and invokes `./dev perf:http-purchase --config 1-iteration`
    rather than duplicating the Compose command.
 
 ## Roadmap

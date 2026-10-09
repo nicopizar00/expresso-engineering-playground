@@ -69,6 +69,27 @@ class RunK6Tests(unittest.TestCase):
         self.assertIn("/scripts/scenarios/http-purchase/http-purchase.js", args)
         self.assertNotIn("IGNORED_SECRET=no", args)
 
+    def test_run_k6_passes_the_workflow_config_by_default(self) -> None:
+        self.assertEqual(run_k6("http-purchase"), 0)
+        args = self.fake_docker_args()
+        preset = REPO_ROOT / "tests/performance/k6/options/5-iterations.json"
+        self.assertIn(f"{preset}:/punch/k6-config.json:ro", args)
+        self.assertEqual(args[-2:], ["--config", "/punch/k6-config.json"])
+
+    def test_run_k6_config_accepts_a_preset_name_or_a_path(self) -> None:
+        preset = REPO_ROOT / "tests/performance/k6/options/1-iteration.json"
+        custom = self.root / "custom.json"
+        custom.write_text('{"iterations": 2}', encoding="utf-8")
+        for value, path in (("1-iteration", preset), (str(custom), custom.resolve())):
+            with self.subTest(value=value):
+                self.assertEqual(run_k6("http-purchase", ["--config", value]), 0)
+                self.assertIn(f"{path}:/punch/k6-config.json:ro", self.fake_docker_args())
+
+    def test_run_k6_rejects_an_unknown_config_before_docker(self) -> None:
+        with patch("sys.stdout", StringIO()):
+            self.assertEqual(run_k6("http-purchase", ["--config", "no-such-preset"]), 1)
+        self.assertFalse(self.fake_args_path.exists())
+
     def test_unknown_workflow_name_fails_before_docker(self) -> None:
         self.assertEqual(run_k6("missing"), 1)
         self.assertFalse(self.fake_args_path.exists())

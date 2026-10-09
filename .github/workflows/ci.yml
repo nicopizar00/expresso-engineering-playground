@@ -209,9 +209,7 @@ jobs:
       - name: Run k6 purchase workflow
         env:
           BASE_URL: http://host.docker.internal:3001
-          VUS: "1"
-          ITERATIONS: "1"
-        run: ./dev perf:http-purchase
+        run: ./dev perf:http-purchase --config 1-iteration
       - name: Tear down stack
         if: always()
         run: docker compose -f infra/docker/compose.yaml down --volumes

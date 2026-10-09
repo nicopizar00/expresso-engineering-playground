@@ -10,8 +10,9 @@ spec:
     service: k6
   k6:
     script: /scripts/scenarios/http-me-hot-status/http-me-hot-status.js
+    config: tests/performance/k6/options/5-iterations.json
   environment:
-    forward: [BASE_URL, VUS, DURATION, ITERATIONS]
+    forward: [BASE_URL]
   outputs:
     summary:
       path: tests/performance/k6/reports/http-me-hot-status-summary.json
@@ -20,5 +21,5 @@ spec:
     mountedAt: /scripts/data
     requires: [auth-tokens]
   sizing:
-    iterationSeconds: 1.1   # measured: VUS=1 ITERATIONS=10, durationMs / 10
+    iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
     margin: 0.15            # extra rows over the estimate (producer errors)

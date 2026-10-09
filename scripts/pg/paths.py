@@ -33,6 +33,7 @@ COMPOSE_PERF_FILE: Path = REPO_ROOT / "infra" / "docker" / "compose.performance.
 PERF_REPORTS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "reports"
 PERF_DATA_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "data"
 PERF_WORKFLOWS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "workflows"
+PERF_OPTIONS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "options"
 
 
 def _port(name: str, default: int) -> int:

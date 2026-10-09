@@ -44,26 +44,11 @@ import { buildSummaryOutputs } from "../../support/report";
 // harvest protocol.
 declare const console: { log: (message: string) => void };
 
-const VUS = Number(__ENV.VUS) || 1;
-// Each VU drives a full Chromium instance, so this stays iteration-count
-// based instead of http-purchase.ts's time-based soak — a DURATION-based
-// default here would silently multiply browser sessions. Defaults to 5,
-// same fixed-count default as every other scenario (environment
-// independent); set ITERATIONS explicitly to run a different count.
-const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
-
+// Load shape (executor, VUs, iterations or duration) comes from the k6
+// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// or an options/*.json preset. Exporting scenarios here would override it.
+// Its scenario must set options.browser.type (the *-browser presets).
 export const options = {
-  scenarios: {
-    browser_purchase: {
-      executor: "shared-iterations",
-      vus: VUS,
-      iterations: ITERATIONS,
-      maxDuration: "5m",
-      options: {
-        browser: { type: "chromium" },
-      },
-    },
-  },
   thresholds: purchaseFlowBrowserThresholds,
   tags: { suite: "mini-commerce-browser-purchase" },
 };

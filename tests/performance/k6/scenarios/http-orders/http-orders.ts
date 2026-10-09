@@ -26,14 +26,14 @@
 //   meant to work — not a workaround.
 //
 // Load shape:
-//   VUS/ITERATIONS only — no DURATION. A fixed cart pool doesn't fit a
-//   time-based soak: each row should be consumed once. ITERATIONS defaults
-//   to 5 — same fixed-count default as every other scenario (environment
-//   independent) — matching http-cart's own 5-iteration default rather
-//   than tracking however many rows happen to be in the pool. Set it
-//   explicitly to consume a different subset, or higher than the pool size
-//   to wrap around and re-attempt already-placed orders (those checks will
+//   From the k6 config Punch passes as `k6 run --config`; the workflow
+//   default is options/5-iterations.json, matching http-cart's own default
+//   rather than tracking however many rows happen to be in the pool. Each
+//   row should be consumed once: a run that iterates past the pool size
+//   wraps around and re-attempts already-placed orders (those checks will
 //   fail, not crash; the "no data" case is caught by Punch's preflight).
+//   Sizing the producer for http-orders (`--size-for http-orders`) makes the
+//   pool fit the chosen config, time-based soaks included.
 //
 // Coverage:
 //   POST /orders            — place order for an http-cart-reserved cart
@@ -72,18 +72,10 @@ const reservedCarts = new SharedArray<ReservedCart>("reserved-carts", () => {
     });
 });
 
-const VUS = Number(__ENV.VUS) || 1;
-const ITERATIONS = __ENV.ITERATIONS ? Number(__ENV.ITERATIONS) : 5;
-
+// Load shape (executor, VUs, iterations or duration) comes from the k6
+// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
-  scenarios: {
-    http_orders: {
-      executor: "shared-iterations",
-      vus: VUS,
-      iterations: ITERATIONS,
-      maxDuration: "5m",
-    },
-  },
   thresholds: purchaseFlowThresholds,
   tags: { suite: "mini-commerce-http-orders" },
 };

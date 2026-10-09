@@ -31,7 +31,7 @@ design itself is in [`orchestrator.md`](orchestrator.md).
   > `tests/performance/k6/reports/http-purchase-summary.json`.
 
 - **CI**: the `perf-smoke` job runs one `http-purchase` iteration
-  (`VUS=1 ITERATIONS=1 ./dev perf:http-purchase`); its thresholds fail the
+  (`./dev perf:http-purchase --config 1-iteration`); its thresholds fail the
   job. Gating any other scenario is an explicit, owner-approved follow-up, so
   for everything else local evidence is the gate.
 

@@ -57,12 +57,8 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         run_workflow = step_index(
             {
                 "name": "Run k6 purchase workflow",
-                "env": {
-                    "BASE_URL": "http://host.docker.internal:3001",
-                    "VUS": "1",
-                    "ITERATIONS": "1",
-                },
-                "run": "./dev perf:http-purchase",
+                "env": {"BASE_URL": "http://host.docker.internal:3001"},
+                "run": "./dev perf:http-purchase --config 1-iteration",
             }
         )
 
@@ -70,7 +66,9 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertLess(install_punch, start_bff)
         self.assertLess(start_bff, build_k6)
         self.assertLess(build_k6, run_workflow)
-        self.assertEqual(sum(step.get("run") == "./dev perf:http-purchase" for step in steps), 1)
+        self.assertEqual(
+            sum(step.get("run", "").startswith("./dev perf:http-purchase") for step in steps), 1
+        )
         self.assertFalse(
             any(
                 "docker compose" in step.get("run", "")
@@ -110,6 +108,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
 
         self.assertIn("vendor/punch/requirements.txt", result.stdout)
         self.assertIn("--produce", result.stdout)
+        self.assertIn("--config", result.stdout)
 
     def test_current_guidance_describes_yaml_owned_execution_and_csv_safety(self) -> None:
         """Current guides must not revive private runner or no-pip guidance."""

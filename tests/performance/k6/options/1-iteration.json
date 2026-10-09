@@ -1,3 +1,10 @@
 {
-  "ITERATIONS": 1
+  "scenarios": {
+    "default": {
+      "executor": "shared-iterations",
+      "vus": 1,
+      "iterations": 1,
+      "maxDuration": "5m"
+    }
+  }
 }

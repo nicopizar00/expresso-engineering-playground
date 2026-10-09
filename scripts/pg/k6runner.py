@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Optional, Sequence
 
 from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, WEB_PORT
+from pg.paths import BFF_PORT, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, WEB_PORT
 from pg.ports import port_in_use
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
@@ -25,7 +25,7 @@ from punch.execution import (
     resolve_data_overrides,
     validate_produce,
 )
-from punch.workflow import K6Workflow, WorkflowError, load_workflow
+from punch.workflow import K6Workflow, WorkflowError, load_workflow, read_k6_config
 
 
 def default_base_url(port: int = BFF_PORT) -> str:
@@ -71,7 +71,24 @@ def _parse_data_args(workflow_name: str, args: Sequence[str]) -> argparse.Namesp
         "--data", action="append", default=[], metavar="DATASET=PATH",
         help="Read a required dataset from PATH (beneath the workflow's data directory).",
     )
+    parser.add_argument(
+        "--config", default=None, metavar="PRESET|PATH",
+        help="k6 options JSON for `k6 run --config`: a preset name from "
+             "tests/performance/k6/options/ or a file path (default: the workflow's "
+             "spec.k6.config).",
+    )
     return parser.parse_args(list(args))
+
+
+def resolve_config(value: Optional[str]) -> Optional[Path]:
+    """A preset name (options/<name>.json) or a path to a k6 options JSON."""
+    if value is None:
+        return None
+    path = Path(value)
+    if not path.is_file() and (PERF_OPTIONS_DIR / f"{value}.json").is_file():
+        path = PERF_OPTIONS_DIR / f"{value}.json"
+    read_k6_config(path)
+    return path.resolve()
 
 
 def _announce_data(
@@ -106,6 +123,7 @@ def run_k6(
         catalog = load_catalog(PERF_WORKFLOWS_DIR)
         produce = validate_produce(workflow, parsed.produce)
         overrides = resolve_data_overrides(workflow, parsed.data)
+        config = resolve_config(parsed.config) or workflow.k6_config
     except (WorkflowError, CatalogError, ValueError) as error:
         fail(f"Could not prepare k6 workflow {workflow_name}: {error}")
         return 1
@@ -116,6 +134,7 @@ def run_k6(
 
     info(f"Target  : {base_url}")
     info(f"Scenario: {workflow.k6_script}")
+    info(f"Config  : {config.name if config is not None else 'script options'}")
     print()
 
     if (
@@ -128,7 +147,7 @@ def run_k6(
 
     _announce_data(workflow, catalog, produce)
     command = build_compose_run_command(
-        workflow, environment, data_env=data_environment(workflow, overrides)
+        workflow, environment, data_env=data_environment(workflow, overrides), config=config
     )
     # An explicit --produce is already a deliberate, scripted choice, so it
     # also skips the Docker prompt.
@@ -148,6 +167,7 @@ def run_k6(
         stdout=sys.stdout,
         stderr=sys.stderr,
         log_path=PERF_REPORTS_DIR / "logs" / f"k6-{workflow.name}.log",
+        config=config,
     )
     print()
     if result.child_exit_code is not None:

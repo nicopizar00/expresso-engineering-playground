@@ -10,8 +10,9 @@ spec:
     service: k6
   k6:
     script: /scripts/scenarios/http-auth-login/http-auth-login.js
+    config: tests/performance/k6/options/5-iterations.json
   environment:
-    forward: [BASE_URL, VUS, ITERATIONS, DEMO_PASSWORD]
+    forward: [BASE_URL, DEMO_PASSWORD]
   outputs:
     summary:
       path: tests/performance/k6/reports/http-auth-login-summary.json
@@ -24,6 +25,6 @@ spec:
         targets: [http-me-hot-status]
     optional: [owned-orders]
   sizing:
-    iterationSeconds: 1.2   # measured: VUS=1 ITERATIONS=10, durationMs / 10
-    maxSeconds: 270         # 30 s under the scenario's 5m maxDuration
+    iterationSeconds: 1.2   # measured: 1 VU × 10 iterations, durationMs / 10
+    maxSeconds: 270         # 30 s under the default config's 5m maxDuration
     margin: 0.15            # extra rows over the estimate (producer errors)

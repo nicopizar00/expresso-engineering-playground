@@ -184,7 +184,7 @@ git checkout -- apps/bff/src/modules/health/health.controller.ts
 
 | #   | Command            | Pass criterion                                                                                                                                        |
 | --- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 7.1 | `VUS=1 ITERATIONS=1 ./dev perf:http-purchase` | Exits 0; `tests/performance/k6/reports/http-purchase-summary.json` exists and is valid JSON (`jq . tests/performance/k6/reports/http-purchase-summary.json` exits 0). |
+| 7.1 | `./dev perf:http-purchase --config 1-iteration` | Exits 0; `tests/performance/k6/reports/http-purchase-summary.json` exists and is valid JSON (`jq . tests/performance/k6/reports/http-purchase-summary.json` exits 0). |
 
 Cleanup (do not fail the UAT on this):
 

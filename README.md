@@ -225,16 +225,18 @@ curl -s http://localhost:3001/health | jq
 
 ```bash
 docker compose -f infra/docker/compose.performance.yaml build k6
-VUS=1 ITERATIONS=1 ./dev perf:http-purchase
+./dev perf:http-purchase --config 1-iteration
 ```
 
 `./dev perf:http-purchase` selects the repository-owned `http-purchase` YAML,
 which Punch loads and validates before issuing one Docker Compose run against
 the local BFF. Stdout/stderr are logged and the summary lands in
 `tests/performance/k6/reports/`. The journey mimics the web app end to end
-(search, add to cart, checkout, verify order); drop `ITERATIONS` and set
-`VUS`/`DURATION` for a load profile. CI runs exactly this one-iteration
-command. See [`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
+(search, add to cart, checkout, verify order). The load shape is a native
+k6 options JSON passed as `k6 run --config`: `--config 1-iteration` picks
+`tests/performance/k6/options/1-iteration.json`; pick `5-vu-5m` (or any JSON
+path) for a load profile, or omit it for the workflow's default (5
+iterations). CI runs exactly this one-iteration command. See [`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
 for every workflow and what its thresholds mean.
 
 Workflows can hand data to each other through `spec.data` datasets: a
