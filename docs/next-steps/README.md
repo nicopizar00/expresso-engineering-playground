@@ -49,12 +49,17 @@ When the count drops to zero, the topic is done.
    - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
    - Pending artistic approval for ceramic color, saucer depth, coffee
      visibility, handle readability, scale, and icon-size clarity.
-8. **[Sizing DURATION targets](sizing-duration-targets.md)** — _performance
-   tooling follow-up_ (0 anchors; live check pending)
-   - Resolved in code by native `k6 run --config` (2026-10-09); run the
-     `5-vu-5m` http-cart → http-orders check, then move it to Done.
-
 ## Done
+
+✅ **Sizing time-based targets** — _0 anchors; verified live 2026-10-09_
+
+- Load shape is a native k6 config (`k6 run --config`), so `http-orders` /
+  `http-orders-status` run any executor and Punch sizes producers for a
+  `constant-vus` target.
+- `http-cart --size-for http-orders --config 5-vu-5m` wrote 1569 carts;
+  `http-orders --config 5-vu-5m` ran 1425 iterations, 100% checks, no
+  cart reused.
+- Record: [sizing-duration-targets.md](sizing-duration-targets.md)
 
 ✅ **Observability — Tempo + Prometheus + Grafana minimum** — _shipped under
 `./dev up obs`_
