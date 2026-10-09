@@ -1,7 +1,7 @@
 # Sizing: time-based shapes for iteration-only targets
 
-Status: resolved in code 2026-10-09 by native `k6 run --config`; the live
-check under "Done when" has not been run yet.
+Status: done 2026-10-09 — resolved by native `k6 run --config`, live check
+passed (see "Evidence").
 Spec: `vendor/punch/docs/specs/spec-target-data-sizing.md`
 
 ## Problem
@@ -32,3 +32,17 @@ PYTHONPATH=vendor/punch/src python3 -m punch run \
 
 sizes without error, and the following `http-orders` run passes without
 reusing a cart.
+
+## Evidence (2026-10-09, local stack)
+
+- Sizing: `rows needed : 1364 (constant-vus vus=5 duration=5m)`,
+  `margin 15% : 1569 producer iterations`, `producer VUS : 7 (~247s of 270s
+  budget)`.
+- `http-cart` (sized): 1569 iterations, checks 100%, `http_req_failed` 0%;
+  `carts` ready with 1569 rows, no duplicate `cartId`.
+- `http-orders --config 5-vu-5m`: 5 looping VUs for 5m, 1425 iterations
+  (≤ 1569 rows, so no cart was reused), checks 100% (8550),
+  `http_req_failed` 0%, p(95) 40.64 ms.
+- Observed pace was ~1.05 s per iteration against the measured 1.1 s, so the
+  target ran 4.5% more iterations than the 1364-row estimate; the 15% margin
+  absorbed it.
