@@ -301,6 +301,8 @@ inventory: [`docs/architecture/containers.md`](./docs/architecture/containers.md
 
 ## Further reading
 
+- [`docs/architecture/README.md`](./docs/architecture/README.md) — general
+  architecture index; start here, then follow the focused component guides.
 - [`docs/README.md`](./docs/README.md) — documentation hub (start here for
   any non-walkthrough question).
 - [`docs/cli-reference.md`](./docs/cli-reference.md) — `./dev`, `pnpm pg:*`,

@@ -1,5 +1,8 @@
 # Architecture
 
+This is the general architecture index. Begin here, then follow the focused
+spoke for the system or reusable pattern you need.
+
 > Current-state architecture of the mini-commerce engineering playground.
 > Keep documentation **just ahead** of the code, not behind it.
 
@@ -23,13 +26,20 @@ flowchart TD
 
 ## Current spokes
 
-| Doc | View |
-|---|---|
-| [`containers.md`](containers.md) | C4 L2 — container map across all Compose profiles |
-| [`web-entry-point.md`](web-entry-point.md) | Browser → web → BFF/visualizer proxy topology |
-| [`bff-modules.md`](bff-modules.md) | C4 L3 — BFF module graph + invariants |
-| [`observability.md`](observability.md) | OTel SDK → collector → Tempo + Prometheus + Grafana |
+| Doc                                                | View                                                             |
+| -------------------------------------------------- | ---------------------------------------------------------------- |
+| [`containers.md`](containers.md)                   | C4 L2 — container map across all Compose profiles                |
+| [`web-entry-point.md`](web-entry-point.md)         | Browser → web → BFF/visualizer proxy topology                    |
+| [`bff-modules.md`](bff-modules.md)                 | C4 L3 — BFF module graph + invariants                            |
+| [`observability.md`](observability.md)             | OTel SDK → collector → Tempo + Prometheus + Grafana              |
 | [`orchestrator-python.md`](orchestrator-python.md) | Local orchestrator — `./dev` → `python -m pg` → `docker compose` |
+
+## Portable reference guides
+
+| Doc                                                                                                | View                                                                                      |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [`performance-workflow-orchestrator-reference.md`](performance-workflow-orchestrator-reference.md) | Workflow/options/data-sizing architecture and independent enterprise implementation guide |
+| [`punch-implementation.md`](punch-implementation.md)                                               | Parent-to-Punch boundary and links to Punch's own reference implementation guide          |
 
 ## Planned
 

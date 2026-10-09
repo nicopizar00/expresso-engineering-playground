@@ -55,8 +55,8 @@ fits your muscle memory; the behaviour is identical.
 one docker compose run -> stdout/stderr log + existing HTML/JSON + opted-in datasets
 ```
 
-The repository owns two workflow files under
-`tests/performance/k6/workflows/`, one per TypeScript build entry. The Python
+The repository owns one workflow file per TypeScript build entry under
+`tests/performance/k6/workflows/`. The Python
 adapter selects exactly one file; Punch's public APIs load it, allow-list its
 environment, and construct the one Compose run. Build the image separately:
 
@@ -73,6 +73,10 @@ if none arrive, and are atomically published only after a successful run;
 stderr remains log-only. A consumer fails before Docker until its datasets
 exist, and receives each path as `DATA_<DATASET>_CSV`. See
 [`docs/performance/orchestrator.md`](../performance/orchestrator.md#data-pipeline-specdata).
+
+For the technology-neutral architecture and a clean-room implementation path
+for restricted environments, see
+[`performance-workflow-orchestrator-reference.md`](performance-workflow-orchestrator-reference.md).
 
 ## Command map
 
