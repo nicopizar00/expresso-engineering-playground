@@ -22,15 +22,14 @@ git grep -n "TODO(next-steps/"
    session sweep, authenticated k6 scenarios.
 5. **[Hot Coffee Banner](hot-status.md)** — polled banner shipped 2026-10-05;
    SSE push is a follow-up.
-6. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — signed off and on `main`;
-   remaining: a fixed camera angle and position the user cannot adjust.
-7. **[Observability follow-ups](observability-grafana.md)** — Loki, BFF
+6. **[Observability follow-ups](observability-grafana.md)** — Loki, BFF
    metrics reader, alert rules.
 
 ## Done
 
 | Iteration                                    | Record                                                                           |
 | -------------------------------------------- | -------------------------------------------------------------------------------- |
+| PS1 Espresso Cup, fixed camera (2026-10-10)  | [ps1-espresso-cup.md](ps1-espresso-cup.md)                                       |
 | Sizing time-based targets (2026-10-09)       | [sizing-duration-targets.md](sizing-duration-targets.md)                         |
 | Simplify orders (2026-10-05)                 | [simplify-orders.md](simplify-orders.md)                                         |
 | Geometry DB params (`AssetConfig`)           | [geometry-db-params.md](geometry-db-params.md)                                   |

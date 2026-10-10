@@ -93,9 +93,8 @@ export function createRenderer({ dataGroup }) {
 
 // Hero keeps its idle spin and spawn burst, and eases toward the checkout
 // foreground depth (ORDERED_Z) once Place Order succeeds.
-export function createAnimator({ scene, camera, renderer, controls, dataGroup }) {
+export function createAnimator({ scene, camera, renderer, dataGroup }) {
   function frame() {
-    controls.update();
     const now = performance.now();
     for (const child of dataGroup.children) {
       const ud = child.userData;

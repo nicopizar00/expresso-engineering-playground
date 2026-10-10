@@ -14,7 +14,6 @@
 //   • fallback.js           — offline typed scene
 
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { FALLBACK_SCENE } from "./fallback.js";
 import { ROOM, buildRoom } from "./objects/room.js";
 import { createRenderer, createAnimator } from "./layout/render.js";
@@ -36,22 +35,16 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100,
 );
-// Positioned to frame a single centred product: close enough to read the PS1
-// polygon facets, high enough to see the saucer sitting on the floor.
-// Orbit controls let the user freely navigate after load.
-camera.position.set(1.2, 0.65, 1.8);
-camera.lookAt(0, 0.22, 0);
+// One fixed product-showcase view (docs/visualizer/art-direction.md): close
+// enough to read the PS1 polygon facets, high enough to see the saucer on the
+// floor. Set once here and never moved — the user cannot orbit, zoom, or pan.
+camera.position.set(1.5, 0.8, 2.0);
+camera.lookAt(0, 0.30, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(stage.clientWidth, stage.clientHeight);
 stage.appendChild(renderer.domElement);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.target.set(0, 0.22, 0);
-controls.minDistance = 0.5;
-controls.maxDistance = 12;
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 const keyLight = new THREE.DirectionalLight(0xffffff, 0.6);
@@ -68,7 +61,7 @@ scene.add(dataGroup);
 // fire renderScene without re-passing it. Same dataGroup instance flows into
 // transport for the "previous scene stays on error" guard.
 const { renderScene, setSelection, sceneObjectCount } = createRenderer({ dataGroup });
-const animator = createAnimator({ scene, camera, renderer, controls, dataGroup });
+const animator = createAnimator({ scene, camera, renderer, dataGroup });
 
 // Placed-order rain — separate group and a separate tick loop from the
 // domain-state animator above, but fed by the same domain-state snapshot

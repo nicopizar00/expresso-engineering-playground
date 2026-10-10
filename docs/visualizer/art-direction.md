@@ -125,11 +125,15 @@ viewport height. Aim for objects in the **0.35–0.55 unit** total height range.
 
 ## Silhouette test
 
-Before committing an asset, verify its silhouette from these four angles:
+The camera is fixed at `(1.5, 0.8, 2.0)` → lookAt `(0, 0.30, 0)` (set once in
+`scene.js`; there are no user camera controls). Before committing an asset,
+verify its silhouette from these four angles:
 
 1. **Default camera** `(1.5, 0.8, 2.0)` → standard product-showcase view
-2. **Top-down** (orbit straight above) → shape must be recognisable
-3. **Side** (orbit 90° around Y) → depth and handle must read correctly
+2. **Top-down** (temporarily set `camera.position` straight above in a local,
+   uncommitted `scene.js` edit) → shape must be recognisable
+3. **Side** (watch the hero's idle spin from the default camera) → depth and
+   handle must read correctly
 4. **Icon scale** (resize browser to ~200px wide) → asset must still be
    identifiable with all key elements present
 
