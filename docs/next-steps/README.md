@@ -1,145 +1,43 @@
 # Next Steps
 
-Open threads of work for this repo. Each file is self-contained — a future
-session (human or Claude Code) can read one and have everything needed to
-pick up the thread.
-
-Anchors live in source code as `// TODO(next-steps/<topic>)` or
-`# TODO(next-steps/<topic>)` comments. Find them all with:
+Open threads of work. Each file is self-contained: a future session can read
+one and pick up the thread. Source anchors are `TODO(next-steps/<topic>)`
+comments; a topic is done when its anchors are gone:
 
 ```bash
-grep -rn "next-steps/" --include='*.ts' --include='*.prisma' --include='*.mjs' --include='*.yaml' .
+git grep -n "TODO(next-steps/"
 ```
-
-The count next to each entry below is the number of source anchors today.
-When the count drops to zero, the topic is done.
 
 ## Open threads (priority order)
 
-1. **[UAT remediation](uat-remediation.md)** — _manual browser pass remaining_
-   - Code blockers (order-detail 500, invalid-order 500, `pnpm pg:up full`
-     `--profile` drift) are fixed and validated.
-   - Remaining: R4 — a human/browser walkthrough of header/footer nav,
-     cart-drawer pixels, Demo Mode scenarios, and `/dev` cards (now unblocked).
-2. **[Expresso Order Counter](expresso-order-counter.md)** — _visualizer domain
-   and art-direction evolution_
-   - Turns the current "Hello Room" technical visualizer into a minimal
-     coffee-shop order-counter scene.
-   - Starts with Classic Expresso as the first domain-specific low-poly asset.
-   - Requires semantic visualization data, recent-order focus, and aggregate
-     history before broader arcade-world expansion.
-3. **[Order Temperature](order-temperature.md)** — _visualizer follow-up_ (1 anchor)
-   - Hot/cold order temperature shipped across BFF (Postgres-backed status
-     endpoint), web badge, smoke, and the `http-orders-status` k6 workflow.
-   - Remaining: represent hot vs cold cups in the visualizer scene.
-4. **[Simplify Orders](simplify-orders.md)** — _shipped 2026-10-05_
-   - Place-and-done orders (no status lifecycle), session-owned
-     `GET /orders?owner=session`, My/All orders tabs, `temperatureCounts` aggregates.
-5. **[Login and Order Ownership](login.md)** — _core shipped 2026-10-05_ (1 anchor)
-   - Register/login/logout/me, scrypt + DB-backed `auth` cookie sessions,
-     checkout `orderFor` (self / guest / another user), `GET /me/orders`,
-     web sign-in dialog, Orders "My account" tab, latest-order card.
-   - Remaining: rate limiting, CSRF token, profile edit / password reset,
-     session sweep, authenticated k6 scenarios.
-6. **[Hot Coffee Banner](hot-status.md)** — _core shipped 2026-10-05_
-   - Polled `GET /me/hot-status` banner; Punch load chain and SSE push
-     are follow-ups.
-7. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — _Classic Expresso/Espresso
-   asset certification_
-   - WIP / beta implementation exists in `apps/visualizer-3d/public/scene.js`.
-   - Pending artistic approval for ceramic color, saucer depth, coffee
-     visibility, handle readability, scale, and icon-size clarity.
+1. **[UAT remediation](uat-remediation.md)** — code blockers fixed; a manual
+   browser walkthrough (nav, cart drawer, Demo Mode, `/dev` cards) remains.
+2. **[Expresso Order Counter](expresso-order-counter.md)** — evolve the
+   visualizer into a coffee-shop order-counter scene with semantic data,
+   recent-order focus, and aggregate history.
+3. **[Order Temperature](order-temperature.md)** — hot/cold shipped in BFF,
+   web, smoke, and k6; remaining: hot vs cold cups in the visualizer.
+4. **[Login and Order Ownership](login.md)** — core shipped 2026-10-05;
+   remaining: rate limiting, CSRF token, profile edit / password reset,
+   session sweep, authenticated k6 scenarios.
+5. **[Hot Coffee Banner](hot-status.md)** — polled banner shipped 2026-10-05;
+   SSE push is a follow-up.
+6. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — asset lives in
+   `apps/visualizer-3d/public/objects/espresso-cup.js`; artistic approval
+   pending.
+7. **[Observability follow-ups](observability-grafana.md)** — Loki, BFF
+   metrics reader, alert rules.
+
 ## Done
 
-✅ **Sizing time-based targets** — _0 anchors; verified live 2026-10-09_
-
-- Load shape is a native k6 config (`k6 run --config`), so `http-orders` /
-  `http-orders-status` run any executor and Punch sizes producers for a
-  `constant-vus` target.
-- `http-cart --size-for http-orders --config 5-vu-5m` wrote 1569 carts;
-  `http-orders --config 5-vu-5m` ran 1425 iterations, 100% checks, no
-  cart reused.
-- Record: [sizing-duration-targets.md](sizing-duration-targets.md)
-
-✅ **Observability — Tempo + Prometheus + Grafana minimum** — _shipped under
-`./dev up obs`_
-
-- `otel-collector` swapped to `otel-contrib:0.110.0`; traces fan out to
-  Tempo, metrics to a Prometheus exporter scraped by Prometheus
-- Grafana 11.3 with pre-provisioned datasources and `BFF Overview` dashboard
-- `./dev hack trace` queries Tempo via its HTTP API
-- Topology: [`../architecture/observability.md`](../architecture/observability.md)
-- Remaining follow-ups (Loki, BFF metrics reader, alert rules):
-  [observability-grafana.md](observability-grafana.md)
-
-✅ **Python orchestrator** — _replaces `scripts/playground.mjs`_
-
-- Stdlib-only Python package at `scripts/pg/`
-- `./dev` is now a bash trampoline to `python3 -m pg`; `pnpm pg:*` and
-  `task` chain into the same dispatcher
-- Adds `pg hack {exec,env,sql,trace}` debugging affordances
-- 13-check smoke (with SSE frame) replaces the previous 12-check version
-- CI adds a `python` job (ruff + unittest) and `lint-docker` (hadolint)
-- Doc: [`../architecture/orchestrator-python.md`](../architecture/orchestrator-python.md)
-
-✅ **Visualizer reactivity** — _SSE primary, polling fallback shipped_
-
-- 3D scene connects to `GET /visualization/events` and receives a full
-  snapshot on connect and after domain mutations.
-- Falls back to polling `GET /visualization` every 2 s when SSE is
-  unavailable.
-- In-flight guard, hidden-tab pause, focus reconnect, and reload-triggered
-  reconnect are implemented.
-- HUD status includes `live (sse) · N objects`, `live · N objects`,
-  `polling…`, `error · <reason>`, and `offline · N mock objects`; source
-  anchors removed.
-- Spec + variants: [visualizer-reactivity.md](visualizer-reactivity.md)
-
-✅ **Unified web entry point** — _web app as the single browser-facing shell_
-
-- Containerized Next.js standalone server runs from Docker and is reachable
-  at `http://localhost:3000` (fixed the monorepo standalone entrypoint path)
-- Browser talks only to the web app; the web server proxies `/api/bff/*` to
-  the BFF and `/viz/*` to the visualizer over the internal Docker network
-- Cart gained full CRUD: `PATCH` / `DELETE /cart/items/:itemId`, wired into
-  the cart drawer and `/cart` page (in-memory cart preserved)
-- State + topology: [../project-state/current-system.md](../project-state/current-system.md),
-  [../architecture/web-entry-point.md](../architecture/web-entry-point.md)
-
-✅ **OpenTelemetry SDK** — _wired in `feat/otel-sdk`_
-
-- `initTelemetry()` initializes NodeSDK + OTLP HTTP exporter
-- Auto-instrumentations: HTTP, Express, pg (fs disabled)
-- Resource attributes: `service.name=bff`, `service.version`, `deployment.environment`
-- Manual spans on `orders.create` and `orders.manage` with domain attributes
-- No-ops when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset
-
-✅ **k6 scenario library** — _added in `feat/k6-scenarios`_
-
-- `scenarios/checkout-flow/checkout-flow.ts` — 1 VU write path, asserts real persisted orderId
-- `scenarios/read-heavy/read-heavy.ts` — 30 VU ramping, all GET endpoints, baseline latency
-- `config/thresholds.ts` extended with `checkoutFlowThresholds` + `readHeavyThresholds`
-- `pnpm pg:perf:checkout-flow` and `pnpm pg:perf:read-heavy` commands wired
-
-✅ **Orders persistence** — _0 anchors remaining_
-
-- `Order` + `OrderLine` Prisma models added to schema
-- Migration `20260516022844_init_orders` applied
-- `OrdersService` uses Prisma + warm sync cache via `OnModuleInit`
-- `listAll()` / `get()` remain synchronous (cache reads)
-- `create()` / `manage()` are async (write to DB, mutate cache)
-- `CheckoutService.checkout()` awaits `orders.create()`
-- `seed.ts` seeds `ord_demo` order
-- `GET /orders` list endpoint added; orders visible from browser without knowing ID
-- `orders.service.spec.ts` + `orders.controller.spec.ts` cover all paths
-
-✅ **Orchestrator wire-up** — _0 anchors remaining_
-
-- Root `.env` centralizes all config (POSTGRES_USER, BFF_PORT, WEB_PORT, etc.)
-- `pnpm pg:up [core|web|viz|full]` with target profiles
-- `pnpm pg:dev` → docker compose watch (hot-reload for bff + web)
-- `pnpm pg:status` shows service health
-- Containerized web app + Dockerfile (Next.js standalone)
-- Auto-run `prisma migrate deploy` + `prisma db seed` on `pg:up`
-- Shell scripts shimmed to `pnpm pg:*` delegation
-- Development: `pnpm pg:dev:host` escape hatch for turbo run dev on host
+| Iteration                                    | Record                                                                           |
+| -------------------------------------------- | -------------------------------------------------------------------------------- |
+| Sizing time-based targets (2026-10-09)       | [sizing-duration-targets.md](sizing-duration-targets.md)                         |
+| Simplify orders (2026-10-05)                 | [simplify-orders.md](simplify-orders.md)                                         |
+| Geometry DB params (`AssetConfig`)           | [geometry-db-params.md](geometry-db-params.md)                                   |
+| Visualizer reactivity (SSE + polling)        | [visualizer-reactivity.md](visualizer-reactivity.md)                             |
+| Observability minimum (Tempo/Prom/Grafana)   | [../architecture/observability.md](../architecture/observability.md)             |
+| Python orchestrator (`./dev`, `pg hack`)     | [../architecture/orchestrator-python.md](../architecture/orchestrator-python.md) |
+| Unified web entry point (`/api/bff`, `/viz`) | [../architecture/web-entry-point.md](../architecture/web-entry-point.md)         |
+| k6 workflows (`./dev perf:*`)                | [../performance/orchestrator.md](../performance/orchestrator.md)                 |
+| OpenTelemetry SDK, orders persistence        | [../architecture/bff-modules.md](../architecture/bff-modules.md)                 |

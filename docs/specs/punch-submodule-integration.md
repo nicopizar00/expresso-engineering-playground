@@ -10,7 +10,8 @@ Status: Proposed
 > public workflow APIs. No historical requirement below is silently rewritten.
 
 Related specifications:
-[`live-workflow-traffic-and-falling-cups.md`](live-workflow-traffic-and-falling-cups.md)
+`live-workflow-traffic-and-falling-cups.md` (retired; superseded by
+[`synchronized-single-cup-order-visualizer-and-live-rain.md`](synchronized-single-cup-order-visualizer-and-live-rain.md))
 (this document supersedes that spec's RUN-001, RUN-003, and RUN-004 as far
 as *where* campaign orchestration and scenario code live — the runtime
 behavior those sections describe is unchanged, only their ownership and

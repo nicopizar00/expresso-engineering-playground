@@ -6,7 +6,7 @@ have installed.
 
 | CLI            | Host prerequisites          | Best for                                        |
 | -------------- | --------------------------- | ----------------------------------------------- |
-| `./dev`        | Docker + Python ≥ 3.9       | The README walkthrough. Zero Node on the host.  |
+| `./dev`        | Docker + Python ≥ 3.9       | The local walkthrough. Zero Node on the host.   |
 | `pnpm pg:*`    | + Node ≥ 20 + pnpm 9        | Contributors already running pnpm.              |
 | `task`         | + `go-task` (Homebrew)      | Optional convenience wrapper over `pnpm pg:*`.  |
 
@@ -120,7 +120,7 @@ non-interactive runs.
 
 ## Picking a CLI
 
-- Following the README walkthrough → `./dev`.
+- Following the [local walkthrough](local-development.md) → `./dev`.
 - Contributing patches that touch host-side scripts → `pnpm pg:*`.
 - Power user with `brew install go-task` → `task` (it just shells out
   to `pnpm pg:*`, so the prerequisites are the same as that path).

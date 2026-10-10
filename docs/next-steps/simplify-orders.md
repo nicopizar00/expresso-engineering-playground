@@ -2,7 +2,6 @@
 
 Status: shipped 2026-10-05.
 Spec: `docs/superpowers/specs/2026-10-05-simplify-orders-design.md`
-Plan: `docs/superpowers/plans/2026-10-05-simplify-orders.md`
 
 ## What changed
 

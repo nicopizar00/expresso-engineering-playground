@@ -1,6 +1,7 @@
-# UAT — README Walkthrough Validation
+# UAT — Walkthrough Validation
 
-End-to-end user acceptance test for the `README.md` walkthrough.
+End-to-end user acceptance test for the `README.md` quick start and the
+`docs/local-development.md` walkthrough.
 
 **Audience.** A Claude Code agent (or any LLM agent that can run shell
 commands) in a fresh terminal on macOS or Linux, OR a developer following
@@ -246,7 +247,7 @@ validates against.
 - `apps/web/app/page.tsx` — the single page and its four nav-driven sections that the web UAT exercises.
 - `infra/docker/compose.yaml` — service names, ports, profiles.
 - `dev` — subcommand list and behavior.
-- `README.md` — the walkthrough this UAT validates.
+- `README.md` and `docs/local-development.md` — the walkthrough this UAT validates.
 
 ---
 
