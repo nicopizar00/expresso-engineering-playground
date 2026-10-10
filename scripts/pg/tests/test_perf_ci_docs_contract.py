@@ -122,7 +122,6 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
                 "docs/architecture/orchestrator-python.md",
                 "docs/performance/orchestrator.md",
                 "tests/performance/k6/README.md",
-                "docs/ai/claude-code-operating-protocol.md",
                 "docs/specs/punch-submodule-integration.md",
             )
         }
@@ -154,5 +153,4 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertIn("perf:open-report", documents["tests/performance/k6/README.md"])
         self.assertIn("perf:clean", documents["tests/performance/k6/README.md"])
         self.assertIn("supersedes INT-002", documents["docs/specs/punch-submodule-integration.md"])
-        self.assertIn("CI k6 gate", documents["docs/ai/claude-code-operating-protocol.md"])
         self.assertNotIn("punch's _stream primitive", documents["docs/performance/orchestrator.md"])

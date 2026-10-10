@@ -98,7 +98,5 @@ of the scenarios and thresholds before merging.
 ## Related
 
 - [`orchestrator.md`](orchestrator.md) — design and invariants.
-- [`../ai/claude/playbook.md#validation-matrix`](../ai/claude/playbook.md) —
-  the broader validation matrix this fits into.
 - [`../../tests/performance/k6/README.md`](../../tests/performance/k6/README.md) —
   scenario library.

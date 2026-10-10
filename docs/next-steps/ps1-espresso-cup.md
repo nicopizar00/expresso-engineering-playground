@@ -1,13 +1,17 @@
 # PS1 Espresso Cup — 3D Asset Milestone
 
-## Status: WIP / Beta — pending artistic approval
+## Status: signed off — pending fixed camera angle
 
-The geometry foundation is solid and the technical implementation is correct.
-The model has **not yet passed artistic review**. A human visual sign-off is
-required before this asset is promoted to the default scene render.
+The owner signed off the asset artistically and it is on `main`. One item
+remains: the camera must sit at **one fixed angle and position that the user
+cannot adjust** — no orbit, zoom, or pan. Today `scene.js` creates
+`OrbitControls` around `camera.position.set(1.2, 0.65, 1.8)`, so users can
+still move it.
 
-Branch: `feature/ps1-espresso-cup`
-File: `apps/visualizer-3d/public/scene.js`
+File: `apps/visualizer-3d/public/objects/espresso-cup.js` (camera:
+`apps/visualizer-3d/public/scene.js`)
+
+The deficiency sections below are the iteration history that led to sign-off.
 
 ---
 
@@ -135,39 +139,6 @@ No magic numbers inside `buildEspressoGroup`. To iterate:
 
 ---
 
-## AI tool prompts for next iteration
-
-### Claude Code (this tool)
-```
-Using docs/next-steps/ps1-espresso-cup.md as the reference,
-iterate on the Classic Espresso cup in apps/visualizer-3d/public/scene.js.
-Focus on artistic deficiency #N from the known-issues list.
-Do not redesign the asset from scratch. For asset-shape/color issues, prefer
-small changes to ESPRESSO_CFG and buildEspressoGroup. For deficiency #0, inspect
-the visualization data contract before changing scene code. Verify in the
-browser preview before reporting done.
-```
-
-### Codex certification
-```
-Use docs/ai/codex/artistic-certification-prompt.md or the
-visualizer-artistic-certification skill. Certify the current visualizer in the
-browser at http://localhost:3002 and http://localhost:3000/visualizer. Report
-PASS / FAIL / DRIFT / SKIP and leave implementation to Claude Code.
-```
-
-### v0.app
-```
-Design a PS1-era espresso cup icon for a retro e-commerce visualizer.
-Reference palette: #F1ECDA (light beige / ceramic), #CBBE9A (mid),
-#A29272 (shadow), #5B3A1E (coffee), #2E251C (deep shadow).
-Style: flat shading, square openings, no round edges, visible pixel blocks,
-800x600 era 3D graphics. Asset must read clearly at 16x16 pixels.
-Show: saucer with sloped rim, tapered square cup body, flat handle, dark coffee fill.
-```
-
----
-
 ## Next iteration tasks
 
 - [x] Resolve real BFF-driven ceramic colour for drink products
@@ -178,7 +149,8 @@ Show: saucer with sloped rim, tapered square cup body, flat handle, dark coffee 
 - [x] Triangle budget resolved: 26 tris, Standard tier (≤ 28) — two-piece saucer removed
 - [x] Evaluate at 64×64 icon size — owner approved
 - [x] Artistic sign-off from project owner
-- [ ] Merge to `main` after approval
+- [x] Merge to `main` after approval
+- [ ] Fix the camera: one fixed angle and position; remove user camera controls
 
 ## Extension: future domain assets
 

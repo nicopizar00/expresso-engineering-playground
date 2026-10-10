@@ -2,11 +2,6 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-This file is the **entry pointer** for a Claude Code session. The full
-playbook lives at [`docs/ai/claude/playbook.md`](docs/ai/claude/playbook.md);
-the cross-assistant frame lives at [`docs/ai/README.md`](docs/ai/README.md).
-Read those before non-trivial work.
-
 ## Working agreements (durable)
 
 - **No AI attribution.** Never add `Co-Authored-By: Claude`,
@@ -14,13 +9,12 @@ Read those before non-trivial work.
   commits, PR descriptions, or generated docs.
 - **English** for committed content. Conversation with the owner may be
   Spanish.
-- **No real names, URLs, IPs, or credentials** in committed content. The
-  domain is fictional.
+- **No credentials or secrets** in committed content.
 
 ## What this repo is
 
-An engineering playground for a fictional mini-commerce store (catalog →
-cart → checkout → orders → 3D visualizer). A modular monolith today; Phase 3
+An engineering playground for a mini-commerce store (catalog → cart →
+checkout → orders → 3D visualizer). A modular monolith today; Phase 3
 extracts modules into services. Container inventory lives in
 [`docs/architecture/containers.md`](docs/architecture/containers.md); BFF
 module pattern in
@@ -77,6 +71,7 @@ pnpm --filter @mini-commerce/web dev
 | Browser → web → BFF/visualizer proxy | [`docs/architecture/web-entry-point.md`](docs/architecture/web-entry-point.md) |
 | OTel pipeline | [`docs/architecture/observability.md`](docs/architecture/observability.md) |
 | Local orchestrator (`./dev` / `pnpm pg:*` / `task`) | [`docs/architecture/orchestrator-python.md`](docs/architecture/orchestrator-python.md) |
+| Punch performance engine + its docs index | [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md) |
 
 ## Phase context
 
@@ -99,10 +94,9 @@ pnpm --filter @mini-commerce/web dev
 
 `apps/visualizer-3d/public/` is a static ESM module graph. `scene.js` is a
 thin orchestrator; per-concern code lives in `materials.js`, `geometry/`,
-`objects/`, `layout/`, `transport.js`, and `fallback.js`. Working agreements
-and the module map are in
-[`docs/ai/claude/playbook.md`](docs/ai/claude/playbook.md#3d-visualizer-active-feature);
-art rules in [`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md);
+`objects/`, `layout/`, `transport.js`, and `fallback.js`. Module map:
+[`apps/visualizer-3d/README.md`](apps/visualizer-3d/README.md); art rules in
+[`docs/visualizer/art-direction.md`](docs/visualizer/art-direction.md);
 Classic Espresso cup record in
 [`docs/next-steps/ps1-espresso-cup.md`](docs/next-steps/ps1-espresso-cup.md).
 
@@ -110,22 +104,15 @@ New domain assets: add a `docs/next-steps/<topic>.md`, then follow the
 `buildEspressoGroup` + `ESPRESSO_CFG` pattern in `objects/espresso-cup.js`
 and dispatch from `layout/render.js` (or the relevant scene-mesh factory).
 
-## Claude Code
-
-Claude Code is the primary AI implementation environment for this phase.
-The full operating protocol lives at
-[`docs/ai/claude-code-operating-protocol.md`](docs/ai/claude-code-operating-protocol.md);
-project-local settings remain under `.claude/`. The repository does not ship
-custom Claude Code skills, commands, or agents.
-
 ## Performance engineering
 
 The Python-first k6 Docker layer is the repo's native performance
-orchestration capability.
+orchestration capability; the engine is Punch (`vendor/punch/`).
 
 - Design + invariants: [`docs/performance/orchestrator.md`](docs/performance/orchestrator.md)
 - Validation evidence rules: [`docs/performance/validation.md`](docs/performance/validation.md)
 - Scenario library: [`tests/performance/k6/README.md`](tests/performance/k6/README.md)
+- Punch boundary + docs index: [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md)
 - Run from a fresh checkout: `./dev perf:http-purchase --config 1-iteration`
 
 Core `scripts/pg/` stays standard-library-only. Performance commands load the
@@ -144,15 +131,5 @@ datasets in `spec.data`; a producer writes its dataset only with
 `--produce <dataset>` (e.g. `./dev perf:http-cart --produce carts`), and a
 consumer such as `http-orders` fails before Docker until its dataset exists.
 
-## Out of scope for this phase
-
-VS Code + GitHub Copilot Chat configuration (instructions files, prompt
-files, Copilot-specific skills) is **deferred to a future track**. The
-existing `.github/copilot-instructions.md` stays as a tiny pointer; no
-Copilot-specific work happens here. See the Roadmap section in
-[`docs/ai/claude-code-operating-protocol.md`](docs/ai/claude-code-operating-protocol.md#roadmap).
-
-## Tooling efficiency
-
-Subagent choice, parallel tool calls, `/loop` cadence, memory rules:
-[`docs/ai/tooling-efficiency.md`](docs/ai/tooling-efficiency.md).
+A `vendor/punch` pointer bump must reference a Punch commit already pushed to
+its remote, or CI checkout fails.

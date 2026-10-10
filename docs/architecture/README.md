@@ -49,8 +49,7 @@ Implementation Guide.
 
 ## Authoring rules
 
-- No real company, product, or service names. No real URLs, IPs, or
-  credentials.
+- No credentials or secrets.
 - Diagrams are Mermaid, authored inline in the markdown — keep the source
   diff-able.
 - Each spoke owns its facts once. Other docs link instead of restating.
