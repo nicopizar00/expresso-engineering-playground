@@ -55,8 +55,8 @@ that result and record before treating generated artifacts as evidence.
 
 ## Repository workflow mapping
 
-There are ten YAML files, exactly one for every TypeScript k6 build entry.
-All ten select `infra/docker/compose.performance.yaml` and forward
+There are nine YAML files, exactly one for every TypeScript k6 build entry.
+All nine select `infra/docker/compose.performance.yaml` and forward
 `BASE_URL`. `http-orders-status` also forwards `EXPECT_TEMPERATURE`
 (`auto`|`hot`|`cold`) and `ORDER_COOL_DOWN_SECONDS` (must match the BFF's);
 the hot-status load chain adds `USERS` (`http-purchase-registered`) and
@@ -181,7 +181,7 @@ Contract: `vendor/punch/docs/specs/spec-target-data-sizing.md`.
 
 ## Summary output and Docker Compose confirmation
 
-All ten bundled workflows declare `spec.outputs.summary.path`, pointing at the
+All nine bundled workflows declare `spec.outputs.summary.path`, pointing at the
 JSON file each scenario's `handleSummary()` already writes (e.g.
 `tests/performance/k6/reports/http-purchase-summary.json`). Unlike a dataset,
 this is read-only and needs no opt-in flag — after a passing run,
@@ -239,5 +239,7 @@ consumer execution path.
 - [`validation.md`](validation.md) — performance validation evidence rules.
 - [`../architecture/orchestrator-python.md`](../architecture/orchestrator-python.md)
   — Python CLI architecture.
+- [`../architecture/punch-implementation.md`](../architecture/punch-implementation.md)
+  — Punch boundary and index of Punch's docs.
 - [`../../tests/performance/k6/README.md`](../../tests/performance/k6/README.md)
   — scenario library and usage.

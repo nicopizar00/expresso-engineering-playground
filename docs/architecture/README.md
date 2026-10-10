@@ -34,12 +34,11 @@ flowchart TD
 | [`observability.md`](observability.md)             | OTel SDK → collector → Tempo + Prometheus + Grafana              |
 | [`orchestrator-python.md`](orchestrator-python.md) | Local orchestrator — `./dev` → `python -m pg` → `docker compose` |
 
-## Portable reference guides
+## Performance engine (Punch)
 
-| Doc                                                                                                | View                                                                                      |
-| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [`performance-workflow-orchestrator-reference.md`](performance-workflow-orchestrator-reference.md) | Workflow/options/data-sizing architecture and independent enterprise implementation guide |
-| [`punch-implementation.md`](punch-implementation.md)                                               | Parent-to-Punch boundary and links to Punch's own reference implementation guide          |
+[`punch-implementation.md`](punch-implementation.md) — Expresso ↔ Punch boundary
+and the index into Punch's docs, including its Reference Architecture and
+Implementation Guide.
 
 ## Planned
 
