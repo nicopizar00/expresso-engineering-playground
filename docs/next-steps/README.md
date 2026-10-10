@@ -22,9 +22,8 @@ git grep -n "TODO(next-steps/"
    session sweep, authenticated k6 scenarios.
 5. **[Hot Coffee Banner](hot-status.md)** — polled banner shipped 2026-10-05;
    SSE push is a follow-up.
-6. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — asset lives in
-   `apps/visualizer-3d/public/objects/espresso-cup.js`; artistic approval
-   pending.
+6. **[PS1 Espresso Cup](ps1-espresso-cup.md)** — signed off and on `main`;
+   remaining: a fixed camera angle and position the user cannot adjust.
 7. **[Observability follow-ups](observability-grafana.md)** — Loki, BFF
    metrics reader, alert rules.
 

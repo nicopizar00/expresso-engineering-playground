@@ -232,7 +232,7 @@ consumer execution path.
    forwarded.
 4. HTML/JSON reports remain stable; datasets are opt-in (`--produce`),
    stdout-only, column-checked, and atomic.
-5. No real URLs, secrets, or user data belong in scenarios, fixtures, or logs.
+5. No secrets or personal user data belong in scenarios, fixtures, or logs.
 
 ## Related
 

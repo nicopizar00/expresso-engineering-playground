@@ -19,12 +19,11 @@ with the [root README](../README.md), then
 | Design specs                              | [specs/](specs/), [superpowers/specs/](superpowers/specs/)                                 |
 | Manual acceptance                         | [uat/walkthrough-uat.md](uat/walkthrough-uat.md), [uat/web-app-uat.md](uat/web-app-uat.md) |
 | 3D visualizer art rules                   | [visualizer/art-direction.md](visualizer/art-direction.md)                                 |
-| AI assistants (which one, lanes, rules)   | [ai/README.md](ai/README.md)                                                               |
 
 ## Authoring rules
 
 - English for all durable content.
-- No real company, product, or service names, URLs, IPs, or credentials.
+- No credentials or secrets.
 - No AI attribution, generated-by text, or co-author trailers.
 - One canonical home per fact; indexes summarize, never restate.
 - Diagrams are Mermaid in-source — no PNGs.

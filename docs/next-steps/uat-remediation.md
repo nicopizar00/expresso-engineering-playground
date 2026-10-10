@@ -1,7 +1,7 @@
 # UAT Remediation
 
 > Source: manual UAT run captured in [`../uat/web-app-uat.md`](../uat/web-app-uat.md)
-> and [`../ai/codex/current-findings.md`](../ai/codex/current-findings.md).
+> and the Codex findings doc (`docs/ai/codex/current-findings.md`, since removed).
 > Created 2026-05-29. Confirmed against the running stack and source.
 
 ## Confirmed pending items
