@@ -204,9 +204,8 @@ offers one of `tests/performance/k6/options/*.json` — the same
 presets [`options/`](../../tests/performance/k6/options) `./dev perf:<id>
 --config <name>` accepts — as the run's `k6 run --config`; the first entry
 keeps the workflow's own `spec.k6.config`. The step is skipped only when no
-preset exists. See
-[`punch-menu-optimization.md`](punch-menu-optimization.md) for the dependency,
-compatibility, and before/after evidence.
+preset exists. The menu itself is Punch's; see
+[`vendor/punch/README.md`](../../vendor/punch/README.md).
 
 ## Extending a scenario
 

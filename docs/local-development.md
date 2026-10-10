@@ -1,155 +1,66 @@
 # Local Development Guide
 
-This guide explains how to run the mini-commerce engineering playground
-locally, validate the environment, and interact with the web app.
+Linear walkthrough of the local stack, from the repository root. Finish the
+[README quick start](../README.md#quick-start) first. Every `./dev <cmd>` has a
+`pnpm pg:<cmd>` and `task` equivalent — see [`cli-reference.md`](cli-reference.md).
+Container inventory: [`architecture/containers.md`](architecture/containers.md);
+request topology: [`architecture/web-entry-point.md`](architecture/web-entry-point.md).
 
----
-
-## Purpose
-
-The playground ships a Docker-only `./dev` command and a host-enabled
-`pnpm pg:*` utility layer. Both converge on `python3 -m pg` and cover the same
-local-stack operations from the **repository root**.
-
-For the full container inventory see
-[`architecture/containers.md`](architecture/containers.md). For the request
-topology see
-[`architecture/web-entry-point.md`](architecture/web-entry-point.md). This
-guide focuses on **host-mode operations** and troubleshooting.
-
-> Catalog and orders are persisted through Prisma/PostgreSQL. The cart is
-> intentionally stored in BFF process memory and resets when that process
-> restarts.
-
----
-
-## Prerequisites
-
-| Tool           | Version | Required for                           | Install                         |
-| -------------- | ------- | -------------------------------------- | ------------------------------- |
-| Docker Desktop | ≥ 4.x   | The stack (always)                     | https://docs.docker.com/desktop |
-| Python         | ≥ 3.9   | The orchestrator (always)              | System Python on macOS works    |
-| Node.js        | ≥ 20    | Host-mode dev + `pnpm pg:*` (optional) | https://nodejs.org or `nvm`     |
-| pnpm           | 9.x     | Same as above                          | `npm install -g pnpm@9`         |
-
-Verify everything at once:
+## 1. Core stack
 
 ```bash
-pnpm pg:doctor       # or: ./dev doctor
+./dev up
 ```
 
-The doctor checks Docker reachability, Python version, root `.env`, and port
-collisions on `BFF_PORT` / `WEB_PORT`. Node and pnpm are reported as
-informational — they only matter for the host-mode path below.
+| Service          | Port | Role                                    |
+| ---------------- | ---- | --------------------------------------- |
+| `postgres`       | 5432 | Catalog, orders, and auth persistence   |
+| `otel-collector` | 4317 | OTLP gRPC ingest                        |
+| `bff`            | 3001 | NestJS API (`/health`, `/products*`, …) |
 
----
+`./dev up` runs `prisma migrate deploy` and `prisma db seed` inside the BFF
+container — no host Prisma needed. `./dev seed` re-runs the seed (catalog plus
+the `ord_demo` order).
 
-## Install dependencies
+## 2. BFF tour with curl
+
+The cart is per-session and lives in BFF memory, so it resets on BFF restart;
+orders persist in Postgres. Reuse one cookie jar so cart, checkout, and
+`/orders?owner=session` share the anonymous session.
 
 ```bash
-pnpm install
+# Catalog
+curl -s http://localhost:3001/products | jq
+curl -s http://localhost:3001/products/prod_espresso | jq
+
+# Cart
+curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/cart/items \
+  -H 'Content-Type: application/json' \
+  -d '{"productId":"prod_espresso","quantity":1}' | jq
+CART_ID=$(curl -s -c cookies.txt -b cookies.txt http://localhost:3001/cart | jq -r '.cartId')
+
+# Checkout — returns the new orderId
+ORDER_ID=$(curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/orders \
+  -H 'Content-Type: application/json' \
+  -d "{\"cartId\":\"$CART_ID\"}" | jq -r '.orderId')
+
+# Orders (hot until ORDER_COOL_DOWN_SECONDS after placedAt, then cold)
+curl -s http://localhost:3001/orders | jq
+curl -s "http://localhost:3001/orders/$ORDER_ID/status" | jq
+curl -s -c cookies.txt -b cookies.txt "http://localhost:3001/orders?owner=session" | jq
+
+# Visualization feed (read-only aggregate used by the 3D scene)
+curl -s http://localhost:3001/visualization | jq '.items | length'
 ```
 
-This installs all workspace packages (BFF, web app, shared packages) in a
-single command via pnpm workspaces.
-
----
-
-## Set up environment
+## 3. Smoke validation
 
 ```bash
-cp .env.example .env
+./dev smoke
 ```
 
-The Compose stack and wrapper commands load this root configuration. You rarely
-need to edit it:
-
-- The browser reaches the BFF through the web app's own `/api/bff` proxy, so no
-  `NEXT_PUBLIC_API_BASE_URL` is required (it is an optional override only).
-- Compose sets the internal proxy targets (`BFF_INTERNAL_URL`,
-  `VISUALIZER_INTERNAL_URL`) to the in-container service names automatically.
-  Leave them unset in `.env` so host dev (`pnpm pg:dev:host`) falls back to
-  `localhost`.
-
----
-
-## Start local infrastructure
-
-```bash
-pnpm pg:up
-```
-
-This starts **PostgreSQL**, the **OpenTelemetry Collector**, and the **BFF**
-using Docker Compose (`infra/docker/compose.yaml`). Migrations and seed data
-are applied as part of the startup flow.
-
-To verify Postgres is healthy:
-
-```bash
-docker compose -f infra/docker/compose.yaml ps
-```
-
----
-
-## Start the web app
-
-```bash
-pnpm pg:up web
-```
-
-This adds the containerized web app on http://localhost:3000. For hot reload
-in containers use `pnpm pg:dev`; for host-mode application processes use
-`pnpm pg:dev:host`.
-
----
-
-## Open and interact with the web app
-
-```bash
-pnpm pg:open
-```
-
-This prints all local URLs. Open http://localhost:3000 in a browser.
-
-The web app is a single page (`/`) with a 3D visualizer stage pinned above
-four sections reached via header nav buttons — there are no other routes:
-
-| Section (header nav button) | Purpose                                                                                                                                     |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Catalog                     | Browse the seeded catalog, add items to the cart, and check out inline (checkout is a panel next to the catalog grid, not a separate page). |
-| Orders                      | My orders (default) and All orders tabs with Hot/Cold badges; order detail is read-only.                                                    |
-| Performance                 | Mock-only Performance Playground (no live telemetry).                                                                                       |
-| API                         | Inspect API wiring and demo-mode behavior (formerly `/dev`).                                                                                |
-
-The visualizer is not a section — it is always mounted in the stage above
-whichever section is active, embedding the Three.js scene via the `/viz`
-proxy (start with `pnpm pg:up viz` or `full`).
-
-### Suggested manual run-through
-
-1. Browse the catalog on `/` and add one or more items to the cart.
-2. Review totals in the cart drawer, click "Proceed to Checkout", and place
-   an order from the inline checkout panel.
-3. Confirm the app switches to the Orders section and shows the new order's
-   detail view with a Hot badge (read-only).
-4. Click "Orders" in the header nav to return to the orders list and confirm
-   the order appears there.
-5. The visualizer stage above the sections is visible throughout — no
-   navigation needed to inspect the BFF-projected scene.
-
----
-
-## Run the local smoke validation
-
-```bash
-pnpm pg:smoke
-```
-
-The smoke test calls the core mini-commerce endpoints in sequence. This is a
-developer validation check, not a performance test. Cart and checkout share
-in-memory cart state, so its write flow runs sequentially.
-
-Example output:
+Calls every core endpoint in sequence (developer check, not a performance
+test). Expected output:
 
 ```
 Playground Smoke Test
@@ -183,151 +94,105 @@ Target: http://localhost:3001
 All 23 smoke checks passed.
 ```
 
-The smoke test requires the BFF to be running (`pnpm pg:dev` or
-`pnpm --filter @mini-commerce/bff dev`).
-
----
-
-## Performance testing with k6
-
-The Docker-based k6 layer includes runnable smoke, checkout-flow, and
-read-heavy scenarios targeting the same BFF. See
-[`tests/performance/k6/README.md`](../tests/performance/k6/README.md) for
-commands and current limitations.
-
----
-
-## Seed local data
+## 4. Web app
 
 ```bash
-pnpm pg:seed
+./dev up web
 ```
 
-The seed task populates the persisted catalog and the `ord_demo` order in
-PostgreSQL so catalog and order endpoints are usable immediately. It does not
-seed the in-memory cart.
+Open <http://localhost:3000>. The browser talks only to the web app, which
+proxies `/api/bff/*` to the BFF and `/viz/*` to the visualizer. The app is a
+single page (`/`): a 3D visualizer stage sits above four sections switched from
+the header nav.
 
----
+| Section     | Purpose                                                                  |
+| ----------- | ------------------------------------------------------------------------ |
+| Catalog     | Browse the seeded catalog, add to cart, check out from the inline panel. |
+| Orders      | My orders (default) and All orders tabs with Hot/Cold badges; read-only. |
+| Performance | Mock-only Performance Playground (no live telemetry).                    |
+| API         | API wiring and demo-mode behavior.                                       |
 
-## Stop the environment
+Suggested run-through: add the cup to the cart, proceed to checkout, place the
+order, and confirm the Orders section shows it with a Hot badge.
 
-Stop only Docker services (keeps volumes):
+## 5. 3D visualizer
 
 ```bash
-pnpm pg:down
+./dev up viz       # visualizer only
+./dev up full      # everything: web, visualizer, Prisma Studio, observability
 ```
 
-Stop and **reset** to a clean state (volumes are preserved; explains how to
-remove them):
+Open <http://localhost:3002>. The scene subscribes to
+`GET /visualization/events` (SSE); the HUD shows `live (sse) · N objects`, or
+falls back to polling `GET /visualization`. The visualizer never reads
+Postgres directly — see [`architecture/bff-modules.md`](architecture/bff-modules.md).
+
+## 6. Observability
 
 ```bash
-pnpm pg:reset
+./dev up obs
+./dev hack trace GET /products    # span tree from Tempo
 ```
 
-To completely remove Postgres data volumes (destructive):
+Grafana runs at <http://localhost:3030> (admin/admin) with the `BFF Overview`
+dashboard. Topology: [`architecture/observability.md`](architecture/observability.md).
+
+## 7. Hot reload
 
 ```bash
-docker compose -f infra/docker/compose.yaml down -v
+./dev dev
 ```
 
----
+Switches the BFF and web containers to their `dev` stages and runs
+`docker compose watch`. Edits under `apps/bff/src/**` trigger
+`nest start --watch`; edits under `apps/web/app/**` or `apps/web/src/**`
+trigger `next dev` HMR. `Ctrl+C` exits watch mode; containers keep running.
 
-## Viewing logs
+### Host mode (Node + pnpm)
 
-Stream Docker Compose service logs (Ctrl+C to stop):
+For a debugger or IDE integration, run apps on the host. Requires Node ≥ 20
+and pnpm 9.
 
 ```bash
-pnpm pg:logs
+pnpm install
+pnpm pg:up           # infrastructure in Docker
+pnpm pg:dev:host     # turbo run dev on the host
 ```
 
-BFF and web app logs appear directly in the terminal where `pnpm pg:dev`
-is running.
+Leave `BFF_INTERNAL_URL` / `VISUALIZER_INTERNAL_URL` unset in `.env` so the web
+proxy falls back to `localhost`.
 
----
+## 8. Performance (k6)
+
+```bash
+python3 -m pip install -r vendor/punch/requirements.txt   # once
+docker compose -f infra/docker/compose.performance.yaml build k6
+./dev perf:http-purchase --config 1-iteration
+```
+
+Each `./dev perf:<workflow>` selects one repository-owned YAML workflow that
+Punch validates and runs once through Docker Compose; reports land in
+`tests/performance/k6/reports/` (`./dev perf:clean` removes them). `--config`
+picks the k6 load shape from `tests/performance/k6/options/`. Workflows,
+datasets, and thresholds: [`tests/performance/k6/README.md`](../tests/performance/k6/README.md).
+
+## 9. Logs and teardown
+
+```bash
+./dev logs        # follow compose logs (Ctrl+C to stop)
+./dev status      # service health
+./dev down        # stop all containers; Postgres volume preserved
+./dev reset       # same, and prints the destructive `down -v` command
+```
 
 ## Troubleshooting
 
-### Port conflict: address already in use
-
-Check what is using the port:
-
-```bash
-lsof -i :3000    # web app
-lsof -i :3001    # BFF
-lsof -i :5432    # Postgres
-```
-
-Stop the conflicting process or change the port:
-
-- BFF: set `PORT=3002` in `apps/bff/.env` and update the Docker Compose
-  mapping if needed.
-- Web app: change the port in `apps/web/package.json` (`next dev --port 3002`)
-  and update `NEXT_PUBLIC_API_BASE_URL` in `apps/web/.env.local`.
-
----
-
-### Docker is not running
-
-```
-docker compose up failed
-```
-
-Start Docker Desktop and retry `pnpm pg:up`. Verify with:
-
-```bash
-docker info
-```
-
----
-
-### Missing environment files
-
-```
-! apps/web/.env.local not found
-```
-
-Run `cp .env.example .env` from the repository root.
-
----
-
-### Cart is empty after restart
-
-The cart lives in BFF process memory. Restarting the BFF clears it. This is
-expected until a deliberate session/cart persistence design is adopted;
-orders are unaffected because they persist in PostgreSQL.
-
----
-
-### API not reachable from the web app
-
-Symptom: The web app UI shows an error in the response box.
-
-The browser calls the web app's own `/api/bff` proxy (same origin), so there is
-no browser CORS dependency for the main app.
-
-1. Confirm the BFF is running: `pnpm pg:smoke`.
-2. Confirm the proxy resolves: `curl -s -o /dev/null -w '%{http_code}'
-http://localhost:3000/api/bff/health` should return `200`.
-3. In Docker, the proxy target is `BFF_INTERNAL_URL=http://bff:3001`; for host
-   dev it falls back to `http://localhost:3001`. If you set
-   `NEXT_PUBLIC_API_BASE_URL`, it overrides the proxy — unset it to use the
-   proxy.
-
----
-
-### pnpm install fails
-
-```bash
-node --version   # must be >= 20
-pnpm --version   # must be 9.x
-```
-
-If pnpm is missing: `npm install -g pnpm@9`
-
----
-
-## Reference
-
-Full command matrix (with `./dev`, `pnpm pg:*`, `task` side by side, plus the
-`hack` debugging affordances) lives in
-[`cli-reference.md`](cli-reference.md).
+| Symptom                               | Fix                                                                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Cannot connect to the Docker daemon` | Start Docker Desktop (macOS) or `sudo systemctl start docker` (Linux).                                                                                       |
+| Port already in use                   | `lsof -ti:3001 \| xargs kill`, or change `BFF_PORT` / `WEB_PORT` / `VIZ_PORT` in `.env`.                                                                     |
+| `./dev smoke` shows `fetch failed`    | `./dev status` — `bff` should be `running` + `healthy`.                                                                                                      |
+| Web app cannot reach the BFF          | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/bff/health` should print `200`. Unset `NEXT_PUBLIC_API_BASE_URL` — it overrides the proxy. |
+| Cart empty after restart              | Expected: the cart lives in BFF memory. Orders persist.                                                                                                      |
+| Stale containers after a crash        | `./dev down && ./dev up`.                                                                                                                                    |
+| `pnpm install` fails                  | Check `node --version` (≥ 20) and `pnpm --version` (9.x); install with `npm install -g pnpm@9`.                                                              |

@@ -1,72 +1,29 @@
 # Mini Commerce Engineering Playground
 
-A small, runnable mini-commerce store (catalog → cart → checkout →
-orders → 3D visualizer) used as a sandbox for software engineering,
-testing, observability, and performance practices. This README is a
-**linear walkthrough**: paste the commands in a terminal, in order, and
-you will have the full stack running in about 10 minutes. The only
-host-side tools you need are **Docker** and **Homebrew** (or your
-Linux distro's package manager).
-
-For host-mode development (Node + pnpm + Turborepo), see
-[`docs/local-development.md`](./docs/local-development.md). For a side-by-side
-view of every CLI option (`./dev`, `pnpm pg:*`, `task`), see
-[`docs/cli-reference.md`](./docs/cli-reference.md).
-
----
+A small, runnable mini-commerce store (catalog → cart → checkout → orders →
+3D visualizer) used as a sandbox for software engineering, testing,
+observability, and performance practices. Today it is a modular monolith
+(NestJS BFF + Next.js web + Three.js visualizer on Postgres); Phase 3 extracts
+modules into services.
 
 ## Prerequisites
 
-### macOS
+- **Docker** with Compose v2 (Docker Desktop on macOS; Docker Engine + the
+  Compose plugin on Linux).
+- **Python ≥ 3.9** on `PATH` (runs the `./dev` orchestrator).
+- **jq** (optional, for the curl examples).
+
+Node and pnpm are only needed for host-mode development — see
+[`docs/local-development.md`](./docs/local-development.md#host-mode-node--pnpm).
+
+## Quick start
 
 ```bash
-brew install --cask docker     # Docker Desktop (bundles Compose v2)
-brew install jq                # JSON pretty-printing for the curl walkthrough
-```
-
-Open **Docker Desktop** once after install so the daemon starts. Subsequent
-terminal commands will then work without launching it manually.
-
-### Linux
-
-Install Docker Engine + the Compose v2 plugin via the official guide at
-<https://docs.docker.com/engine/install/>. Add your user to the `docker`
-group, log out and back in, then:
-
-```bash
-sudo apt install jq        # Debian/Ubuntu (use dnf / pacman / apk on others)
-```
-
-### Verify
-
-```bash
-docker --version           # Docker version 24.x or newer
-docker compose version     # Docker Compose version v2.x
-jq --version               # jq-1.6 or newer
-```
-
-If all three commands print a version line, you're ready.
-
-Performance commands have one additional, pinned Python prerequisite. Install
-it after initializing the submodule and before the first `./dev perf:*` run:
-
-```bash
-git submodule update --init --recursive
-python3 -m pip install -r vendor/punch/requirements.txt
-```
-
----
-
-## Quick Start (5 minutes)
-
-From a freshly cloned repo, in the repo root:
-
-```bash
-cp .env.example .env       # one-time setup — gitignored local config
-git submodule update --init --recursive  # initialize shared performance-testing tooling
-./dev doctor               # validate prerequisites (Docker + Python ≥ 3.9)
-./dev up                   # postgres + otel-collector + bff
-./dev smoke                # hit every BFF endpoint, assert 200/201, and check an SSE frame
+cp .env.example .env                     # gitignored local config
+git submodule update --init --recursive  # vendor/punch performance tooling
+./dev doctor                             # check Docker, Python, ports
+./dev up                                 # postgres + otel-collector + bff (migrate + seed)
+./dev smoke                              # hit every BFF endpoint + one SSE frame
 ```
 
 Expected final line:
@@ -75,209 +32,26 @@ Expected final line:
 All 23 smoke checks passed.
 ```
 
-If you got that, the stack is live at <http://localhost:3001>. Open the
-health endpoint to confirm:
+Add more of the stack with `./dev up web`, `./dev up viz`, `./dev up obs`, or
+`./dev up full`. Stop with `./dev down`.
+
+| URL                     | Service                             | Started by     |
+| ----------------------- | ----------------------------------- | -------------- |
+| <http://localhost:3000> | Web app (single-page shell)         | `./dev up web` |
+| <http://localhost:3001> | BFF API (`/health`, `/products`, …) | `./dev up`     |
+| <http://localhost:3002> | 3D visualizer (standalone)          | `./dev up viz` |
+| <http://localhost:3030> | Grafana (admin/admin)               | `./dev up obs` |
+
+Performance commands (`./dev perf:*`) also need Punch's pinned Python
+dependency and the k6 image:
 
 ```bash
-curl -s http://localhost:3001/health | jq
-```
-
----
-
-## Walkthrough (≈ 20 minutes)
-
-Each step builds on the previous one. Run them in order; nothing
-requires Node, pnpm, or any host language runtime.
-
-### Step 1 — Start the core stack
-
-```bash
-./dev up
-```
-
-This brings up three containers:
-
-| Service          | Port | Role                                    |
-| ---------------- | ---- | --------------------------------------- |
-| `postgres`       | 5432 | Catalog and orders persistence          |
-| `otel-collector` | 4317 | OTLP gRPC ingest (placeholder pipeline) |
-| `bff`            | 3001 | NestJS API (`/health`, `/products*`, …) |
-
-On first run, `./dev up` also runs `prisma migrate deploy` and
-`prisma db seed` **inside the BFF container** — no host Prisma needed.
-
-Verify with the browser at <http://localhost:3001/health> or:
-
-```bash
-curl -s http://localhost:3001/health | jq
-```
-
-### Step 2 — Explore the BFF via curl
-
-The BFF speaks the catalog → cart → checkout → orders flow over HTTP.
-Run these one by one; each prints the response you'll see in subsequent
-steps.
-
-```bash
-# Catalog
-curl -s http://localhost:3001/products | jq
-curl -s http://localhost:3001/products/prod_espresso | jq
-
-# Cart (per-session, in-process — resets on BFF restart). The BFF sets an
-# anonymous session cookie; reuse one cookie jar for cart, checkout and
-# /orders?owner=session so they all belong to the same session.
-curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/cart/items \
-  -H 'Content-Type: application/json' \
-  -d '{"productId":"prod_espresso","quantity":1}' | jq
-# Copy the cartId from this response; checkout requires it.
-CART_ID=$(curl -s -c cookies.txt -b cookies.txt http://localhost:3001/cart | jq -r '.cartId')
-echo "Cart: $CART_ID"
-
-# Checkout — returns the new orderId
-ORDER_ID=$(curl -s -c cookies.txt -b cookies.txt -X POST http://localhost:3001/orders \
-  -H 'Content-Type: application/json' \
-  -d "{\"cartId\":\"$CART_ID\"}" | jq -r '.orderId')
-echo "Created order: $ORDER_ID"
-
-# Orders
-curl -s http://localhost:3001/orders | jq
-curl -s "http://localhost:3001/orders/$ORDER_ID" | jq
-# Orders are final once placed; hot until ORDER_COOL_DOWN_SECONDS after placedAt, then cold
-curl -s "http://localhost:3001/orders/$ORDER_ID/status" | jq
-# The caller's own orders need the same session cookie (the jar from above)
-curl -s -c cookies.txt -b cookies.txt http://localhost:3001/orders?owner=session | jq
-
-# Visualization feed (read-only aggregator used by the 3D scene)
-curl -s http://localhost:3001/visualization | jq '.items | length'
-```
-
-The cart is intentionally in-process and clears on BFF restart. Orders
-are persisted in Postgres and survive restarts.
-
-### Step 3 — Add the web app
-
-```bash
-./dev up web
-```
-
-Then open <http://localhost:3000> and walk this path:
-
-| #   | Route               | Action                                   | Expected result                                              |
-| --- | ------------------- | ---------------------------------------- | ------------------------------------------------------------ |
-| 1   | `/`                 | Browse the seeded catalog                | 1 product: Cup of Coffee                                     |
-| 2   | `/` → product card  | Click **Add to cart**                    | Cart counter increments                                      |
-| 3   | `/cart`             | Review items + totals                    | Line items, EUR subtotal, **Proceed to checkout** CTA        |
-| 4   | `/checkout`         | Click **Place Order** (no name required) | Redirect to `/orders/<orderId>`                              |
-| 5   | `/orders/<orderId>` | Review the placed order (read-only)      | Hot badge, flips to Cold after the cool-down                 |
-| 6   | `/orders`           | My orders / All orders tabs              | My orders: the new order; All orders: plus seeded `ord_demo` |
-| 7   | `/visualizer`       | Embedded 3D scene                        | Iframe loads the standalone visualizer                       |
-| 8   | `/performance`      | Explore simulated load scenarios         | Mock-data KPIs and request-flow visualization                |
-| 9   | `/dev`              | Dev-only diagnostics                     | API client wiring, demo-mode toggle, and Performance link    |
-
-### Step 4 — Add the 3D visualizer
-
-```bash
-./dev up viz       # only the visualizer
-./dev up full      # visualizer + Prisma Studio + observability
-```
-
-Open <http://localhost:3002>. The visualizer connects to SSE for live
-domain-state updates; the HUD reports `live (sse) · N items` or falls
-back to polling if the SSE stream is unavailable.
-
-The visualizer reads only `GET /visualization` and `GET /visualization/events`;
-it never connects to Postgres directly. This boundary is load-bearing for the
-Phase 3 service extraction — see
-[`docs/architecture/bff-modules.md`](./docs/architecture/bff-modules.md).
-
-### Step 5 — Add the observability stack (optional)
-
-```bash
-./dev up obs
-./dev hack trace GET /products    # span tree from Tempo
-```
-
-Open <http://localhost:3030> (admin/admin) for Grafana with the `BFF
-Overview` dashboard. Topology and current limits are in
-[`docs/architecture/observability.md`](./docs/architecture/observability.md).
-
-### Step 6 — Inner-loop development with hot reload
-
-```bash
-./dev dev
-```
-
-This switches the BFF and web containers to their `dev` Docker stages
-and starts `docker compose watch`. Editing `apps/bff/src/**` syncs
-into the container, where `nest start --watch` rebuilds. Editing
-`apps/web/app/**` or `apps/web/src/**` triggers `next dev` HMR.
-
-Try it: open `apps/bff/src/modules/health/health.controller.ts`, change
-the response shape, save, then re-hit the endpoint:
-
-```bash
-curl -s http://localhost:3001/health | jq
-```
-
-`Ctrl+C` to exit watch mode (containers keep running).
-
-### Step 7 — Run one purchase journey
-
-```bash
+python3 -m pip install -r vendor/punch/requirements.txt
 docker compose -f infra/docker/compose.performance.yaml build k6
 ./dev perf:http-purchase --config 1-iteration
 ```
 
-`./dev perf:http-purchase` selects the repository-owned `http-purchase` YAML,
-which Punch loads and validates before issuing one Docker Compose run against
-the local BFF. Stdout/stderr are logged and the summary lands in
-`tests/performance/k6/reports/`. The journey mimics the web app end to end
-(search, add to cart, checkout, verify order). The load shape is a native
-k6 options JSON passed as `k6 run --config`: `--config 1-iteration` picks
-`tests/performance/k6/options/1-iteration.json`; pick `5-vu-5m` (or any JSON
-path) for a load profile, or omit it for the workflow's default (5
-iterations). CI runs exactly this one-iteration command. See [`tests/performance/k6/README.md`](./tests/performance/k6/README.md)
-for every workflow and what its thresholds mean.
-
-Workflows can hand data to each other through `spec.data` datasets: a
-producer writes its dataset only with `--produce <dataset>` (e.g.
-`./dev perf:http-cart --produce carts`), and a consumer such as
-`http-orders` fails before Docker until that dataset exists.
-
-```bash
-./dev perf:clean           # remove generated reports when done
-```
-
-### Step 8 — Teardown
-
-```bash
-./dev down                 # stop all containers (postgres volume preserved)
-```
-
-Re-running `./dev up` restores the same data. To wipe Postgres
-completely:
-
-```bash
-docker compose --profile web --profile viz \
-  -f infra/docker/compose.yaml down -v
-```
-
----
-
-## Troubleshooting
-
-| Symptom                                      | Fix                                                                                  |
-| -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `Cannot connect to the Docker daemon`        | Start Docker Desktop (macOS) or `sudo systemctl start docker` (Linux).               |
-| `Port 3001 still occupied`                   | `lsof -ti:3001 \| xargs kill` — or change `BFF_PORT` in `.env`.                      |
-| `./dev smoke` shows `fetch failed`           | Run `./dev status` — the bff service should be `running` + `healthy`.                |
-| Web app shows `ECONNREFUSED` calling the BFF | Set `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001` in `.env`.                      |
-| Stale containers after a crash               | `./dev down` then `./dev up`. For a full reset, use the `down -v` command in Step 8. |
-| Need to read logs                            | `./dev logs` (Ctrl+C to stop following).                                             |
-
----
-
-## What's in this repo
+## Repository layout
 
 ```
 apps/
@@ -285,48 +59,19 @@ apps/
   web/             Next.js 14 App Router frontend
   visualizer-3d/   Static Three.js scene served via nginx
 packages/          Shared TypeScript libraries
-tests/             Cross-app test suites (integration, contract, e2e, performance)
+tests/             Cross-app suites (integration, contract, e2e, performance)
 infra/             Docker Compose stacks + observability configs
-scripts/pg/        Python orchestrator package (driven by `./dev`)
-docs/              Documentation hub — start at docs/README.md
+scripts/pg/        Python orchestrator package (driven by ./dev)
+docs/              Documentation hub
 ```
 
-The current iteration is a **modular monolith**: catalog and orders are
-persisted with Prisma/PostgreSQL, while the intentionally single-user cart
-remains in process memory. The folder structure is designed so the Phase 3
-jump to distributed services is a relocation, not a rewrite. Full container
-inventory: [`docs/architecture/containers.md`](./docs/architecture/containers.md).
+## Where to go next
 
----
-
-## Further reading
-
-- [`docs/architecture/README.md`](./docs/architecture/README.md) — general
-  architecture index; start here, then follow the focused component guides.
-- [`docs/README.md`](./docs/README.md) — documentation hub (start here for
-  any non-walkthrough question).
-- [`docs/cli-reference.md`](./docs/cli-reference.md) — `./dev`, `pnpm pg:*`,
-  `task` side by side, plus the `hack` debugging affordances.
-- [`CLAUDE.md`](./CLAUDE.md) — Claude Code execution rules.
-- [`docs/ai/README.md`](./docs/ai/README.md) — which AI assistant for which job.
-
----
-
-## Optional — host-mode (Node + pnpm)
-
-If you want to run apps directly on the host (debugger attach, IDE
-integration, faster cold start for some workflows), install Node ≥ 20
-and pnpm 9, then:
-
-```bash
-pnpm install
-pnpm pg:doctor
-pnpm pg:up
-pnpm pg:dev          # docker compose watch (same as ./dev dev)
-pnpm pg:dev:host     # turbo run dev on the host (no containers for apps)
-```
-
-Every `./dev <cmd>` has a `pnpm pg:<cmd>` equivalent. The full mapping
-is in [`docs/cli-reference.md`](./docs/cli-reference.md). The same
-workflow-backed performance commands are available through `./dev` and
-`pnpm pg:*`; use the entrypoint that fits the rest of your local workflow.
+- [`docs/local-development.md`](./docs/local-development.md) — full
+  walkthrough (curl tour, web app, visualizer, hot reload, k6, teardown) and
+  troubleshooting.
+- [`docs/cli-reference.md`](./docs/cli-reference.md) — every `./dev`,
+  `pnpm pg:*`, and `task` command side by side.
+- [`docs/README.md`](./docs/README.md) — documentation hub.
+- [`CLAUDE.md`](./CLAUDE.md) and [`docs/ai/README.md`](./docs/ai/README.md) —
+  AI assistant rules.
