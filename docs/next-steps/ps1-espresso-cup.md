@@ -1,12 +1,11 @@
 # PS1 Espresso Cup — 3D Asset Milestone
 
-## Status: signed off — pending fixed camera angle
+## Status: done
 
-The owner signed off the asset artistically and it is on `main`. One item
-remains: the camera must sit at **one fixed angle and position that the user
-cannot adjust** — no orbit, zoom, or pan. Today `scene.js` creates
-`OrbitControls` around `camera.position.set(1.2, 0.65, 1.8)`, so users can
-still move it.
+The owner signed off the asset artistically and it is on `main`. The camera
+now sits at **one fixed angle and position that the user cannot adjust** —
+`(1.5, 0.8, 2.0)` → lookAt `(0, 0.30, 0)`, the art-direction default view.
+`OrbitControls` is gone, so there is no orbit, zoom, or pan (2026-10-10).
 
 File: `apps/visualizer-3d/public/objects/espresso-cup.js` (camera:
 `apps/visualizer-3d/public/scene.js`)
@@ -134,7 +133,8 @@ No magic numbers inside `buildEspressoGroup`. To iterate:
 
 1. Edit `ESPRESSO_CFG` constants
 2. Hard-reload `http://localhost:3002` (or the preview server)
-3. Orbit with mouse to evaluate silhouette from multiple angles
+3. Evaluate the silhouette per the art-direction silhouette test (the camera
+   is fixed; use the hero's idle spin and a local camera edit for top-down)
 4. Check icon readability by resizing the browser to ~200px wide
 
 ---
@@ -150,7 +150,7 @@ No magic numbers inside `buildEspressoGroup`. To iterate:
 - [x] Evaluate at 64×64 icon size — owner approved
 - [x] Artistic sign-off from project owner
 - [x] Merge to `main` after approval
-- [ ] Fix the camera: one fixed angle and position; remove user camera controls
+- [x] Fix the camera: one fixed angle and position; remove user camera controls
 
 ## Extension: future domain assets
 
