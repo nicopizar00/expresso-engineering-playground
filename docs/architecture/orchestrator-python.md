@@ -74,9 +74,9 @@ stderr remains log-only. A consumer fails before Docker until its datasets
 exist, and receives each path as `DATA_<DATASET>_CSV`. See
 [`docs/performance/orchestrator.md`](../performance/orchestrator.md#data-pipeline-specdata).
 
-For the technology-neutral architecture and a clean-room implementation path
-for restricted environments, see
-[`performance-workflow-orchestrator-reference.md`](performance-workflow-orchestrator-reference.md).
+For the engine's architecture and a clean-room implementation path for
+restricted environments, start at
+[`punch-implementation.md`](punch-implementation.md).
 
 ## Command map
 

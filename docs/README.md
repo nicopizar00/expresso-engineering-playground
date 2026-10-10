@@ -11,6 +11,7 @@ with the [root README](../README.md), then
 | What the system does today                | [project-state/current-system.md](project-state/current-system.md)                         |
 | Architecture (containers, BFF, web, OTel) | [architecture/README.md](architecture/README.md)                                           |
 | Performance workflows (`./dev perf:*`)    | [performance/orchestrator.md](performance/orchestrator.md)                                 |
+| Punch engine docs (reference guide)       | [architecture/punch-implementation.md](architecture/punch-implementation.md)               |
 | Tests, ownership, CI gates                | [quality-strategy/README.md](quality-strategy/README.md)                                   |
 | Branching, PRs, definition of done        | [lifecycle/README.md](lifecycle/README.md)                                                 |
 | Open threads and shipped iterations       | [next-steps/README.md](next-steps/README.md)                                               |
