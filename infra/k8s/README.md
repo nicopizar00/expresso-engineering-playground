@@ -40,3 +40,13 @@ After a cluster restart the API reports pre-stop pod readiness until the
 kubelet resyncs, so `rollout status` alone can pass too early. `k8s:up`
 therefore waits until every pod turns Ready after the cluster start before
 it applies anything.
+
+## Perf platform and Argo CD
+
+`./dev k8s:perf:up` adds the Punch perf platform (`perf/`: Argo Workflows,
+SeaweedFS as the S3 stand-in, the registry addon as the ECR stand-in, and
+Punch's templates). `./dev argocd:up` installs Argo CD
+(`../argocd/install/`) and syncs `perf/` plus the app
+(`../argocd/mini-commerce/`: this directory plus a PostSync smoke) from
+GitHub.
+Guide: [`docs/performance/k8s-runtime.md`](../../docs/performance/k8s-runtime.md).

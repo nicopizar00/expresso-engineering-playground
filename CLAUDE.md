@@ -35,6 +35,8 @@ cp .env.example .env
 ./dev smoke         # 23 endpoint checks (typed scene shape + order temperature + SSE frame + login + hot status)
 ./dev down          # stop
 ./dev k8s:up        # same core + web + viz stack on minikube (k8s:forward / k8s:status / k8s:down)
+./dev k8s:perf:up   # Punch perf platform on minikube (Argo Workflows + SeaweedFS + registry)
+./dev argocd:up     # Argo CD syncing perf platform + app from GitHub (PostSync smoke)
 ```
 
 Full CLI matrix (with `pnpm pg:*` and `task` equivalents and the `hack`
@@ -115,6 +117,7 @@ orchestration capability; the engine is Punch (`vendor/punch/`).
 - Scenario library: [`tests/performance/k6/README.md`](tests/performance/k6/README.md)
 - Punch boundary + docs index: [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md)
 - Run from a fresh checkout: `./dev perf:http-purchase --config 1-iteration`
+- Kubernetes runtime (Argo Workflows/Argo CD, no Python in cluster): [`docs/performance/k8s-runtime.md`](docs/performance/k8s-runtime.md) — `./dev perf:<id> --runtime k8s`
 
 Core `scripts/pg/` stays standard-library-only. Performance commands load the
 public Punch workflow engine, so initialize the submodule and install its
