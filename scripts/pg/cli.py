@@ -91,6 +91,11 @@ def _k8s_down(_a: Sequence[str]) -> int:
     return k8s.down()
 
 
+def _k8s_perf_up(args: Sequence[str]) -> int:
+    from pg import k8s_perf
+    return k8s_perf.up(args)
+
+
 def _perf(name: str) -> Callable[[Sequence[str]], int]:
     def run(args: Sequence[str]) -> int:
         from pg import perf
@@ -135,6 +140,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "k8s:forward": _k8s_forward,
     "k8s:status": _k8s_status,
     "k8s:down": _k8s_down,
+    "k8s:perf:up": _k8s_perf_up,
     **{f"perf:{name}": _perf(name) for name in WORKFLOWS},
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
