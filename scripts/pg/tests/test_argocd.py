@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -72,26 +73,48 @@ class PostSyncSmokeTests(unittest.TestCase):
 
 class SettledTests(unittest.TestCase):
     @staticmethod
-    def app(revision: str, operation_revision: str, phase: str, health: str = "Healthy") -> dict:
-        return {"status": {
-            "sync": {"status": "Synced", "revision": revision},
+    def app(started: str, phase: str, health: str = "Healthy", running: bool = False) -> dict:
+        app = {"status": {
             "health": {"status": health},
-            "operationState": {"phase": phase, "syncResult": {"revision": operation_revision}},
+            "operationState": {"phase": phase, "startedAt": started},
         }}
+        if running:
+            app["operation"] = {"sync": {}}
+        return app
 
-    def test_succeeded_and_healthy_for_the_current_revision(self) -> None:
-        self.assertTrue(argocd.app_settled(self.app("abc", "abc", "Succeeded")))
+    def test_a_finished_operation_is_the_stale_marker(self) -> None:
+        self.assertEqual(argocd.operation_marker(self.app("T1", "Failed")), "T1")
+        self.assertEqual(argocd.operation_marker(self.app("T1", "Succeeded")), "T1")
 
-    def test_failed_operation_for_the_current_revision(self) -> None:
-        self.assertFalse(argocd.app_settled(self.app("abc", "abc", "Failed")))
+    def test_a_running_operation_is_current_not_stale(self) -> None:
+        self.assertIsNone(argocd.operation_marker(self.app("T1", "Running", running=True)))
+        self.assertIsNone(argocd.operation_marker(None))
+
+    def test_new_operation_succeeded_and_healthy(self) -> None:
+        self.assertTrue(argocd.app_settled(self.app("T2", "Succeeded"), stale="T1"))
+
+    def test_new_operation_failed(self) -> None:
+        self.assertFalse(argocd.app_settled(self.app("T2", "Failed"), stale="T1"))
 
     def test_stale_operation_from_an_older_revision_is_ignored(self) -> None:
-        self.assertIsNone(argocd.app_settled(self.app("def", "abc", "Failed")))
+        # A re-run after a failed sync must not report that old failure.
+        self.assertIsNone(argocd.app_settled(self.app("T1", "Failed"), stale="T1"))
 
     def test_still_progressing(self) -> None:
-        self.assertIsNone(argocd.app_settled(self.app("abc", "abc", "Running")))
-        self.assertIsNone(argocd.app_settled(self.app("abc", "abc", "Succeeded", "Progressing")))
-        self.assertIsNone(argocd.app_settled({}))
+        self.assertIsNone(argocd.app_settled(self.app("T2", "Running", running=True), stale="T1"))
+        self.assertIsNone(argocd.app_settled(self.app("T2", "Succeeded", "Progressing"), stale="T1"))
+        self.assertIsNone(argocd.app_settled({}, stale=None))
+
+    def test_existing_idle_app_gets_an_explicit_sync_request(self) -> None:
+        # Argo CD never auto-retries a revision whose sync failed.
+        self.assertTrue(argocd.needs_sync_request(self.app("T1", "Failed")))
+        self.assertFalse(argocd.needs_sync_request(self.app("T1", "Running", running=True)))
+        self.assertFalse(argocd.needs_sync_request(None))
+
+    def test_sync_request_targets_the_revision(self) -> None:
+        patch = json.loads(argocd.sync_request("feat/x"))
+        self.assertEqual(patch["operation"]["sync"], {"revision": "feat/x"})
+        self.assertEqual(patch["operation"]["initiatedBy"], {"username": "argocd:up"})
 
 
 class ArgsTests(unittest.TestCase):

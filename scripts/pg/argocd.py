@@ -60,14 +60,39 @@ def with_revision(text: str, revision: str) -> str:
     return updated
 
 
-def app_settled(app: Mapping) -> Optional[bool]:
-    """True once the sync of the current revision (hooks included) succeeded
-    and the app is Healthy; False when that sync failed; None while it is in
-    progress. An operation for an older revision is ignored."""
+FINISHED = ("Succeeded", "Failed", "Error")
+
+
+def operation_marker(app: Optional[Mapping]) -> Optional[str]:
+    """startedAt of the app's last finished sync. A sync still running is the
+    one to wait for, so it is not a marker."""
+    if not app:
+        return None
+    operation = app.get("status", {}).get("operationState", {})
+    if operation.get("phase") in FINISHED:
+        return operation.get("startedAt")
+    return None
+
+
+def needs_sync_request(app: Optional[Mapping]) -> bool:
+    """An existing app with no sync in progress needs an explicit request:
+    Argo CD never auto-retries a revision whose sync failed, and only
+    notices a new commit on its next poll."""
+    return bool(app) and "operation" not in app
+
+
+def sync_request(revision: str) -> str:
+    return json.dumps({
+        "operation": {"initiatedBy": {"username": "argocd:up"}, "sync": {"revision": revision}}
+    })
+
+
+def app_settled(app: Mapping, stale: Optional[str]) -> Optional[bool]:
+    """True once a sync newer than `stale` (hooks included) succeeded and the
+    app is Healthy; False when that sync failed; None while it is pending."""
     status = app.get("status", {})
-    current = status.get("sync", {}).get("revision")
     operation = status.get("operationState", {})
-    if not current or operation.get("syncResult", {}).get("revision") != current:
+    if not operation or operation.get("startedAt") == stale or "operation" in app:
         return None
     phase = operation.get("phase")
     if phase in ("Failed", "Error"):
@@ -77,25 +102,37 @@ def app_settled(app: Mapping) -> Optional[bool]:
     return None
 
 
+def _get_app(name: str) -> Optional[Mapping]:
+    out = subprocess.run(
+        k8s.kubectl("-n", NAMESPACE, "get", "application", name, "-o", "json", namespaced=False),
+        capture_output=True, text=True, check=False,
+    )
+    return json.loads(out.stdout) if out.returncode == 0 else None
+
+
 def _register(name: str, revision: str) -> bool:
+    before = _get_app(name)
+    stale = operation_marker(before)
     text = (ARGOCD_DIR / "applications" / f"{name}.yaml").read_text(encoding="utf-8")
     applied = subprocess.run(k8s.kubectl("apply", "-f", "-", namespaced=False),
                              input=with_revision(text, revision), text=True, check=False)
     if applied.returncode != 0:
         fail(f"Could not create Application {name}")
         return False
+    if needs_sync_request(before):
+        subprocess.run(
+            k8s.kubectl("-n", NAMESPACE, "patch", "application", name, "--type", "merge",
+                        "-p", sync_request(revision), namespaced=False),
+            capture_output=True, check=False,
+        )
     info(f"Waiting for {name} to sync (up to {APP_TIMEOUT_S // 60} min)...")
     deadline = time.monotonic() + APP_TIMEOUT_S
     status: Mapping = {}
     while time.monotonic() < deadline:
-        out = subprocess.run(
-            k8s.kubectl("-n", NAMESPACE, "get", "application", name, "-o", "json", namespaced=False),
-            capture_output=True, text=True, check=False,
-        )
-        if out.returncode == 0:
-            app = json.loads(out.stdout)
+        app = _get_app(name)
+        if app is not None:
             status = app.get("status", {})
-            settled = app_settled(app)
+            settled = app_settled(app, stale)
             if settled is True:
                 pass_(f"{name}: synced and healthy")
                 return True

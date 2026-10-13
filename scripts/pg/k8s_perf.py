@@ -185,6 +185,8 @@ class RunResult:
     phase: str
     message: str
     datasets: Tuple[str, ...]
+    # "<step>: <message>" for each failed pod node — the actual reason.
+    details: Tuple[str, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -194,11 +196,19 @@ class RunResult:
 def run_result(workflow: Mapping) -> RunResult:
     status = workflow.get("status", {})
     datasets = set()
+    details = []
     for node in status.get("nodes", {}).values():
         for parameter in node.get("outputs", {}).get("parameters", []):
             if parameter.get("name") == "datasets":
                 datasets.update(parameter.get("value", "").split())
-    return RunResult(status.get("phase", "Unknown"), status.get("message", ""), tuple(sorted(datasets)))
+        if node.get("type") == "Pod" and node.get("phase") in ("Failed", "Error"):
+            details.append(f"{node.get('displayName', '?')}: {node.get('message', '')}".rstrip(": "))
+    return RunResult(
+        status.get("phase", "Unknown"),
+        status.get("message", ""),
+        tuple(sorted(datasets)),
+        tuple(sorted(details)),
+    )
 
 
 def main_pod(pods: Mapping) -> Optional[str]:
@@ -211,6 +221,20 @@ def main_pod(pods: Mapping) -> Optional[str]:
     return None
 
 
+# Waiting reasons worth surfacing: the run cannot start until someone acts.
+STUCK_REASONS = ("ErrImagePull", "ImagePullBackOff", "InvalidImageName", "CreateContainerConfigError")
+
+
+def waiting_reason(pods: Mapping) -> Optional[str]:
+    """Why the `main` container cannot start, when that needs attention."""
+    for pod in pods.get("items", []):
+        for container in pod.get("status", {}).get("containerStatuses", []):
+            waiting = container.get("state", {}).get("waiting", {})
+            if container.get("name") == "main" and waiting.get("reason") in STUCK_REASONS:
+                return f"{waiting['reason']}: {waiting.get('message', '')}".rstrip(": ")
+    return None
+
+
 def _phase(run: str) -> str:
     out = subprocess.run(punch("get", "workflow", run, "-o", "jsonpath={.status.phase}"),
                          capture_output=True, text=True, check=False)
@@ -220,13 +244,19 @@ def _phase(run: str) -> str:
 def _follow(name: str, run: str) -> int:
     deadline = time.monotonic() + RUN_TIMEOUT_S
     pod: Optional[str] = None
+    reported: Optional[str] = None
     while pod is None and time.monotonic() < deadline and _phase(run) not in FINISHED:
         listing = subprocess.run(
             punch("get", "pods", "-l", f"workflows.argoproj.io/workflow={run}", "-o", "json"),
             capture_output=True, text=True, check=False,
         )
         if listing.returncode == 0:
-            pod = main_pod(json.loads(listing.stdout))
+            pods = json.loads(listing.stdout)
+            pod = main_pod(pods)
+            reason = waiting_reason(pods)
+            if reason is not None and reason != reported:
+                warn(f"{run} cannot start yet — {reason}")
+                reported = reason
         if pod is None:
             time.sleep(POLL_S)
     if pod is not None:
@@ -251,6 +281,8 @@ def _follow(name: str, run: str) -> int:
         return 0
     detail = f" — {result.message}" if result.message else ""
     fail(f"k6 {name} failed on k8s ({run}): {result.phase}{detail}")
+    for line in result.details:
+        info(line)
     info(f"Inspect: kubectl --context {k8s.PROFILE} -n {NAMESPACE} get workflow {run} -o yaml")
     print()
     return 1

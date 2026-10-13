@@ -153,6 +153,27 @@ class RunResultTests(unittest.TestCase):
     def test_error_phase_is_a_failure(self) -> None:
         self.assertFalse(k8s_perf.run_result({"status": {"phase": "Error"}}).passed)
 
+    def test_failure_details_name_the_failed_pod_nodes(self) -> None:
+        workflow = {"status": {"phase": "Failed", "message": "child 'x' failed", "nodes": {
+            "a": {"type": "Steps", "phase": "Failed", "displayName": "x", "message": "child failed"},
+            "b": {"type": "Pod", "phase": "Error", "displayName": "k6",
+                  "message": "init: Error (exit code 64): s3 unreachable"},
+            "c": {"type": "Pod", "phase": "Succeeded", "displayName": "ok"},
+        }}}
+        self.assertEqual(
+            k8s_perf.run_result(workflow).details,
+            ("k6: init: Error (exit code 64): s3 unreachable",),
+        )
+
+    def test_waiting_reason_reports_image_and_config_errors(self) -> None:
+        pods = {"items": [{"metadata": {"name": "p"}, "status": {"containerStatuses": [
+            {"name": "main", "state": {"waiting": {
+                "reason": "ImagePullBackOff", "message": "Back-off pulling image"}}}]}}]}
+        self.assertEqual(k8s_perf.waiting_reason(pods), "ImagePullBackOff: Back-off pulling image")
+        creating = {"items": [{"metadata": {"name": "p"}, "status": {"containerStatuses": [
+            {"name": "main", "state": {"waiting": {"reason": "ContainerCreating"}}}]}}]}
+        self.assertIsNone(k8s_perf.waiting_reason(creating))
+
     def test_main_pod_waits_for_the_main_container_to_start(self) -> None:
         waiting = {"items": [{"metadata": {"name": "p"}, "status": {"containerStatuses": [
             {"name": "main", "state": {"waiting": {"reason": "ImagePullBackOff"}}}]}}]}
