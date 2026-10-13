@@ -82,8 +82,9 @@ docs/              Documentation hub
   troubleshooting.
 - [`docs/cli-reference.md`](./docs/cli-reference.md) — every `./dev`,
   `pnpm pg:*`, and `task` command side by side.
-- [`docs/minikube-runbook.md`](./docs/minikube-runbook.md) — run the stack on
-  minikube (`./dev k8s:up`), monitor it, and troubleshoot.
+- [`docs/minikube-runbook.md`](./docs/minikube-runbook.md) — step-by-step
+  `minikube` / `kubectl` instructions to run, monitor, and troubleshoot the
+  stack on minikube.
 - [`docs/architecture/punch-implementation.md`](./docs/architecture/punch-implementation.md)
   — Punch integration and documentation index.
 - [`docs/README.md`](./docs/README.md) — documentation hub.
