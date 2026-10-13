@@ -1,0 +1,645 @@
+#!/usr/bin/env bash
+# ./k8s — the Kubernetes side of the playground in plain bash + kubectl.
+#
+# Same manifests and names as ./dev k8s:*, ./dev k8s:perf:up, ./dev argocd:up
+# and ./dev perf:<id> --runtime k8s (infra/k8s, infra/k8s/perf,
+# infra/argocd), with no Python: minikube, the Punch perf platform (Argo
+# Workflows, SeaweedFS as S3, the registry addon as ECR), Argo CD, Punch
+# workflow runs, the POC verification, and evidence. Run ./k8s help.
+#
+# Requires: docker, minikube, kubectl. Works with macOS's bash 3.2.
+# scripts/pg/tests/test_k8s_cli.py keeps the facts below in step with the
+# Python orchestrator (images, cluster size, registry, S3 credentials).
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROFILE=mini-commerce
+MEMORY_MB=4608
+CPUS=4
+REGISTRY=localhost:5000
+BUCKET=punch-artifacts
+# Local-only SeaweedFS defaults (infra/k8s/perf/aws-local). Not real credentials.
+S3_ACCESS_KEY=punch
+S3_SECRET_KEY=punch-local-only
+AWS_CLI_IMAGE=amazon/aws-cli:2.37.13
+OPTIONS_DIR="$ROOT/tests/performance/k6/options"
+ROLLOUT_TIMEOUT=300s
+RUN_TIMEOUT_S=1200 # the template's 900 s timeout plus scheduling slack
+APP_TIMEOUT_S=900
+POLL_S=3
+
+# ── output ──────────────────────────────────────────────────────────────────
+if [ -t 1 ]; then
+  B=$'\033[1m' G=$'\033[32m' Y=$'\033[33m' R=$'\033[31m' C=$'\033[36m' N=$'\033[0m'
+else
+  B='' G='' Y='' R='' C='' N=''
+fi
+title() { printf '\n%s%s%s\n\n' "$B" "$*" "$N"; }
+say() { printf '  %s→%s %s\n' "$C" "$N" "$*"; }
+ok() { printf '  %s✓%s %s\n' "$G" "$N" "$*"; }
+warn() { printf '  %s!%s %s\n' "$Y" "$N" "$*" >&2; }
+bad() { printf '  %s✗%s %s\n' "$R" "$N" "$*" >&2; }
+die() {
+  bad "$*"
+  exit 1
+}
+
+# ── cluster helpers ─────────────────────────────────────────────────────────
+kc() { kubectl --context "$PROFILE" "$@"; }
+
+need() {
+  local tool
+  for tool in "$@"; do
+    command -v "$tool" >/dev/null 2>&1 || die "missing on PATH: $tool"
+  done
+}
+
+running() { minikube -p "$PROFILE" status >/dev/null 2>&1; }
+
+require_cluster() {
+  need kubectl minikube
+  running || die "cluster '$PROFILE' is not running — ./k8s up"
+}
+
+render() {
+  kubectl kustomize --load-restrictor LoadRestrictionsNone "$1" ||
+    die "kustomize render failed: $1"
+}
+
+# Server-side apply (Argo's CRDs exceed the client-side annotation limit).
+# Custom resources that race their just-created CRDs fail the first pass;
+# wait for those CRDs (space-separated in $2) and apply again.
+apply_server_side() {
+  local dir=$1 crds=$2 rendered crd
+  rendered=$(render "$dir")
+  if printf '%s\n' "$rendered" | kc apply --server-side --force-conflicts -f - >/dev/null 2>&1; then
+    return 0
+  fi
+  for crd in $crds; do
+    kc wait --for=condition=Established "crd/$crd" --timeout=120s >/dev/null
+  done
+  printf '%s\n' "$rendered" | kc apply --server-side --force-conflicts -f - >/dev/null ||
+    die "kubectl apply --server-side failed: $dir"
+}
+
+wait_rollouts() {
+  local ns=$1 resource
+  shift
+  for resource in "$@"; do
+    kc -n "$ns" rollout status "$resource" --timeout="$ROLLOUT_TIMEOUT" >/dev/null ||
+      die "$ns/$resource did not become ready — kubectl --context $PROFILE -n $ns describe $resource"
+  done
+}
+
+# build_image <tag> <dockerfile|-> <target|-> <context> [--build-arg K=V ...]
+# Runs inside a subshell that already points at the node's Docker daemon.
+build_image() {
+  local tag=$1 dockerfile=$2 target=$3 context=$4
+  shift 4
+  local cmd="docker build -t $tag"
+  [ "$dockerfile" = - ] || cmd="$cmd -f $dockerfile"
+  [ "$target" = - ] || cmd="$cmd --target $target"
+  say "Building $tag..."
+  # shellcheck disable=SC2086 # cmd is built from fixed, space-free words
+  (cd "$ROOT" && $cmd "$@" "$context") >/dev/null || die "build failed: $tag"
+}
+
+node_docker() { eval "$(minikube -p "$PROFILE" docker-env --shell bash)"; }
+
+json_str() {
+  local s=${1//\\/\\\\}
+  s=${s//\"/\\\"}
+  printf '"%s"' "$s"
+}
+
+s3() {
+  kc -n aws-local run "s3-$RANDOM$RANDOM" --rm -i --restart=Never --quiet \
+    --image="$AWS_CLI_IMAGE" \
+    --env="AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY" --env="AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY" \
+    --env=AWS_DEFAULT_REGION=us-east-1 \
+    -- --endpoint-url http://seaweedfs:8333 "$@"
+}
+
+# ── commands ────────────────────────────────────────────────────────────────
+cmd_up() {
+  local build=1 arg memory
+  for arg in "$@"; do
+    case $arg in
+      --no-build) build=0 ;;
+      *) die "unknown argument '$arg' — ./k8s up [--no-build]" ;;
+    esac
+  done
+  need docker minikube kubectl
+  title "Deploying core + web + viz to minikube"
+  if running; then
+    ok "cluster '$PROFILE' is running"
+    memory=$(docker inspect "$PROFILE" --format '{{.HostConfig.Memory}}' 2>/dev/null || echo 0)
+    if [ "$memory" -gt 0 ] && [ $((memory / 1048576)) -lt "$MEMORY_MB" ]; then
+      warn "cluster has $((memory / 1048576)) MB; the perf platform needs $MEMORY_MB MB"
+      warn "recreate it (destructive: Postgres data and images): minikube delete -p $PROFILE"
+    fi
+  else
+    say "Starting minikube cluster '$PROFILE'..."
+    minikube start -p "$PROFILE" --driver=docker --container-runtime=docker \
+      --cpus="$CPUS" --memory="$MEMORY_MB" || die "minikube start failed"
+  fi
+  if [ "$build" = 1 ]; then
+    (
+      node_docker
+      build_image mini-commerce/bff:local apps/bff/Dockerfile - .
+      build_image mini-commerce/bff-dev:local apps/bff/Dockerfile dev .
+      build_image mini-commerce/web:local apps/web/Dockerfile - . \
+        --build-arg BFF_INTERNAL_URL=http://bff:3001 \
+        --build-arg VISUALIZER_INTERNAL_URL=http://visualizer-3d:80 \
+        --build-arg "NEXT_PUBLIC_VISUALIZER_URL=http://localhost:${VIZ_PORT:-3002}"
+      build_image mini-commerce/visualizer-3d:local - - apps/visualizer-3d
+    )
+    ok "images built into the cluster"
+  fi
+  render "$ROOT/infra/k8s" | kc apply -f - >/dev/null || die "kubectl apply failed"
+  ok "manifests applied"
+  if [ "$build" = 1 ]; then
+    kc -n mini-commerce rollout restart deployment/bff deployment/web deployment/visualizer-3d >/dev/null
+  fi
+  say "Waiting for rollouts..."
+  wait_rollouts mini-commerce statefulset/postgres deployment/otel-collector \
+    deployment/bff deployment/web deployment/visualizer-3d
+  ok "stack is running in minikube — next: ./k8s perf:up"
+}
+
+cmd_perf_up() {
+  local build=1 arg
+  for arg in "$@"; do
+    case $arg in
+      --no-build) build=0 ;;
+      *) die "unknown argument '$arg' — ./k8s perf:up [--no-build]" ;;
+    esac
+  done
+  need docker
+  require_cluster
+  title "Deploying the Punch perf platform"
+  if [ "$build" = 1 ]; then
+    minikube -p "$PROFILE" addons enable registry >/dev/null || die "could not enable the registry addon"
+    kc -n kube-system wait --for=condition=Ready pod -l kubernetes.io/minikube-addons=registry \
+      --timeout=180s >/dev/null || die "the registry addon did not become ready"
+    (
+      node_docker
+      build_image $REGISTRY/mini-commerce/k6:local infra/docker/k6.Dockerfile - .
+      build_image $REGISTRY/mini-commerce/k6-browser:local infra/docker/k6-browser.Dockerfile - .
+      docker push -q "$REGISTRY/mini-commerce/k6:local" >/dev/null || die "push failed: k6"
+      docker push -q "$REGISTRY/mini-commerce/k6-browser:local" >/dev/null || die "push failed: k6-browser"
+    ) || die "image build or push failed"
+    ok "k6 images pushed to $REGISTRY"
+  fi
+  apply_server_side "$ROOT/infra/k8s/perf" "workflowtemplates.argoproj.io workflows.argoproj.io"
+  ok "perf platform applied"
+  say "Waiting for rollouts..."
+  wait_rollouts argo deployment/workflow-controller deployment/argo-server
+  wait_rollouts aws-local deployment/seaweedfs
+  echo
+  kc -n punch get workflowtemplates
+  echo
+  ok "Punch is ready — ./k8s run http-purchase --config 1-iteration"
+}
+
+# Apply one Application, ask for a sync when it already existed (Argo CD never
+# auto-retries a failed revision and only polls git every few minutes), then
+# wait for an operation newer than the last finished one.
+register_app() {
+  local app=$1 rev=$2 file="$ROOT/infra/argocd/applications/$1.yaml"
+  local existed=0 stale="" phase started health operation deadline
+  if kc -n argocd get application "$app" >/dev/null 2>&1; then
+    existed=1
+    phase=$(kc -n argocd get application "$app" -o jsonpath='{.status.operationState.phase}')
+    operation=$(kc -n argocd get application "$app" -o jsonpath='{.operation}')
+    case $phase in
+      Succeeded | Failed | Error)
+        stale=$(kc -n argocd get application "$app" -o jsonpath='{.status.operationState.startedAt}')
+        ;;
+    esac
+  fi
+  sed "s|^\([[:space:]]*targetRevision:\).*|\1 $rev|" "$file" | kc apply -f - >/dev/null ||
+    die "could not create Application $app"
+  if [ "$existed" = 1 ] && [ -z "${operation:-}" ]; then
+    kc -n argocd patch application "$app" --type merge -p \
+      "{\"operation\":{\"initiatedBy\":{\"username\":\"k8s-cli\"},\"sync\":{\"revision\":$(json_str "$rev")}}}" \
+      >/dev/null
+  fi
+  say "Waiting for $app to sync (up to $((APP_TIMEOUT_S / 60)) min)..."
+  deadline=$((SECONDS + APP_TIMEOUT_S))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    operation=$(kc -n argocd get application "$app" -o jsonpath='{.operation}' 2>/dev/null || true)
+    started=$(kc -n argocd get application "$app" -o jsonpath='{.status.operationState.startedAt}' 2>/dev/null || true)
+    phase=$(kc -n argocd get application "$app" -o jsonpath='{.status.operationState.phase}' 2>/dev/null || true)
+    health=$(kc -n argocd get application "$app" -o jsonpath='{.status.health.status}' 2>/dev/null || true)
+    if [ -z "$operation" ] && [ -n "$started" ] && [ "$started" != "$stale" ]; then
+      case $phase in
+        Succeeded)
+          if [ "$health" = Healthy ]; then
+            ok "$app: synced and healthy"
+            return 0
+          fi
+          ;;
+        Failed | Error)
+          bad "$app: sync $phase — $(kc -n argocd get application "$app" -o jsonpath='{.status.operationState.message}')"
+          return 1
+          ;;
+      esac
+    fi
+    sleep 5
+  done
+  bad "$app: no finished sync after ${APP_TIMEOUT_S}s (operation=${phase:-none}, health=${health:-?})"
+  return 1
+}
+
+cmd_argocd_up() {
+  local rev=main
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --revision)
+        [ $# -ge 2 ] || die "usage: ./k8s argocd:up [--revision <branch>]"
+        rev=$2
+        shift 2
+        ;;
+      --revision=*)
+        rev=${1#--revision=}
+        shift
+        ;;
+      *) die "unknown argument '$1' — ./k8s argocd:up [--revision <branch>]" ;;
+    esac
+  done
+  case $rev in
+    "" | *[!A-Za-z0-9._/-]*) die "invalid revision '$rev' (letters, digits, . _ / - only)" ;;
+  esac
+  require_cluster
+  title "Argo CD — syncing $rev from GitHub"
+  say "Argo CD syncs manifests only: images come from ./k8s perf:up, and only pushed commits sync."
+  apply_server_side "$ROOT/infra/argocd/install" "applications.argoproj.io appprojects.argoproj.io"
+  wait_rollouts argocd deployment/argocd-redis deployment/argocd-repo-server deployment/argocd-server \
+    statefulset/argocd-application-controller
+  ok "Argo CD is running"
+  register_app punch-platform "$rev" || exit 1
+  register_app mini-commerce "$rev" || exit 1
+  ok "punch-platform and mini-commerce are synced; the PostSync smoke passed"
+  say "UI: ./k8s ui argocd"
+}
+
+# Workflow status field (jsonpath) for run $1.
+wf() { kc -n punch get workflow "$1" -o jsonpath="$2" 2>/dev/null || true; }
+
+# Follow run $1 to the end: stream the k6 log, then report the result.
+follow_run() {
+  local run=$1 id=$2 deadline pod="" phase="" reason="" reported="" datasets="" entry=""
+  deadline=$((SECONDS + RUN_TIMEOUT_S))
+  while [ -z "$pod" ] && [ "$SECONDS" -lt "$deadline" ]; do
+    phase=$(wf "$run" '{.status.phase}')
+    case $phase in Succeeded | Failed | Error) break ;; esac
+    if kc -n punch get pods -l "workflows.argoproj.io/workflow=$run" \
+      -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="main")].state}' 2>/dev/null |
+      grep -qE '"(running|terminated)"'; then
+      pod=$(kc -n punch get pods -l "workflows.argoproj.io/workflow=$run" -o jsonpath='{.items[0].metadata.name}')
+      break
+    fi
+    reason=$(kc -n punch get pods -l "workflows.argoproj.io/workflow=$run" \
+      -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="main")].state.waiting.reason}' 2>/dev/null || true)
+    case $reason in
+      ErrImagePull | ImagePullBackOff | InvalidImageName | CreateContainerConfigError)
+        if [ "$reason" != "$reported" ]; then
+          warn "$run cannot start yet — $reason"
+          reported=$reason
+        fi
+        ;;
+    esac
+    sleep "$POLL_S"
+  done
+  if [ -n "$pod" ]; then
+    kc -n punch logs -f "$pod" -c main || true
+  fi
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    phase=$(wf "$run" '{.status.phase}')
+    case $phase in Succeeded | Failed | Error) break ;; esac
+    sleep "$POLL_S"
+  done
+  echo
+  case $phase in
+    Succeeded)
+      ok "k6 $id completed on k8s ($run)"
+      datasets=$(wf "$run" '{.status.nodes.*.outputs.parameters[?(@.name=="datasets")].value}')
+      for entry in $datasets; do
+        say "Published ${entry#*=} ${entry%%=*} rows to s3://$BUCKET/datasets/${entry%%=*}.csv"
+      done
+      say "Evidence: ./k8s evidence $run"
+      return 0
+      ;;
+    Failed | Error)
+      bad "k6 $id failed on k8s ($run): $phase — $(wf "$run" '{.status.message}')"
+      kc -n punch get workflow "$run" \
+        -o jsonpath='{range .status.nodes.*}{.type}{"\t"}{.phase}{"\t"}{.displayName}{"\t"}{.message}{"\n"}{end}' |
+        awk -F'\t' '$1 == "Pod" && ($2 == "Failed" || $2 == "Error") { printf "    %s: %s\n", $3, $4 }' >&2 || true
+      say "Inspect: ./k8s evidence $run"
+      return 1
+      ;;
+    *)
+      warn "$run still ${phase:-pending} after ${RUN_TIMEOUT_S}s; it keeps running — ./k8s evidence $run"
+      return 1
+      ;;
+  esac
+}
+
+cmd_run() {
+  local usage="usage: ./k8s run <workflow> [--config PRESET] [--produce DATASET]... [--base-url URL]"
+  [ $# -ge 1 ] && [ "${1#-}" = "$1" ] || die "$usage"
+  local id=$1 config="" produce="" base_url="" forward name value extra="" params="" manifest run
+  shift
+  while [ $# -gt 0 ]; do
+    [ $# -ge 2 ] || die "$usage"
+    case $1 in
+      --config) config=$2 ;;
+      --produce) produce="${produce:+$produce,}$2" ;;
+      --base-url) base_url=$2 ;;
+      *) die "unknown argument '$1' — $usage" ;;
+    esac
+    shift 2
+  done
+  if [ -n "$config" ]; then
+    case $config in
+      */* | *.json) die "--config takes a preset name from tests/performance/k6/options/, not a path: $config" ;;
+    esac
+    [ -f "$OPTIONS_DIR/$config.json" ] || die "unknown preset \"$config\" (tests/performance/k6/options/)"
+  fi
+  require_cluster
+  kc -n punch get workflowtemplate "$id" >/dev/null 2>&1 ||
+    die "no workflow '$id' in namespace punch — ./k8s perf:up, or one of: $(kc -n punch get workflowtemplates -o name 2>/dev/null | sed 's|.*/||' | grep -v '^punch-k6-run$' | tr '\n' ' ')"
+  # Forward the template's declared names that are set in this shell, as
+  # compose forwards host environment variables.
+  forward=$(kc -n punch get workflowtemplate "$id" \
+    -o jsonpath='{.spec.templates[0].steps[0][0].arguments.parameters[?(@.name=="forward")].value}')
+  for name in $forward; do
+    value=$(printenv "$name" || true)
+    [ -n "$value" ] || continue
+    case $value in *[[:space:]]*) die "$name contains whitespace, which k8s runs cannot forward" ;; esac
+    extra="${extra:+$extra }$name=$value"
+  done
+  [ -z "$config" ] || params="$params{\"name\":\"config\",\"value\":$(json_str "$config")},"
+  [ -z "$produce" ] || params="$params{\"name\":\"produce\",\"value\":$(json_str "$produce")},"
+  [ -z "$extra" ] || params="$params{\"name\":\"extra-env\",\"value\":$(json_str "$extra")},"
+  [ -z "$base_url" ] || params="$params{\"name\":\"base-url\",\"value\":$(json_str "$base_url")},"
+  manifest="{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",
+    \"metadata\":{\"generateName\":\"$id-\",\"namespace\":\"punch\"},
+    \"spec\":{\"workflowTemplateRef\":{\"name\":\"$id\"},\"arguments\":{\"parameters\":[${params%,}]}}}"
+
+  title "Punch on Kubernetes — $id (Argo Workflows)"
+  say "Config  : ${config:-template default}"
+  [ -z "$produce" ] || say "Produce : $produce → s3://$BUCKET/datasets/"
+  run=$(printf '%s' "$manifest" | kc create -f - -o jsonpath='{.metadata.name}') ||
+    die "could not submit $id"
+  say "Submitted $run"
+  trap 'kc -n punch patch workflow "$run" --type merge -p "{\"spec\":{\"shutdown\":\"Stop\"}}" >/dev/null 2>&1; echo; warn "stopped $run"; exit 130' INT
+  follow_run "$run" "$id"
+}
+
+# The POC check: data handoff through S3, preflight, atomic publish.
+cmd_verify() {
+  [ $# -eq 0 ] || die "usage: ./k8s verify"
+  require_cluster
+  local logs failures=0 before after
+  logs=$(mktemp -d)
+  title "Verifying the Punch k8s POC (resets s3://$BUCKET/datasets/)"
+  step() { printf '\n%s%s%s\n' "$B" "$*" "$N"; }
+  check() { if [ "$1" = pass ]; then ok "$2"; else bad "$2"; failures=$((failures + 1)); fi; }
+  outcome() { if eval "$1"; then echo pass; else echo fail; fi; }
+
+  step "1/7 Clean datasets"
+  s3 s3 rm "s3://$BUCKET/datasets/" --recursive >/dev/null 2>&1 || true
+  ok "datasets cleared"
+
+  step "2/7 A consumer with no data stops before k6"
+  (cmd_run http-orders) >"$logs/2.log" 2>&1 && check fail "http-orders passed without carts" ||
+    check "$(outcome "grep -q 'requires \"carts\"; produce it with:' '$logs/2.log'")" \
+      "$(grep -o 'http-orders requires.*' "$logs/2.log" | head -1)"
+
+  step "3/7 Producer publishes carts"
+  (cmd_run http-cart --produce carts) >"$logs/3.log" 2>&1 || true
+  check "$(outcome "grep -q 'Published [1-9][0-9]* carts rows' '$logs/3.log'")" \
+    "$(grep -oE 'Published [0-9]+ carts rows' "$logs/3.log" || echo 'http-cart did not publish carts')"
+
+  step "4/7 Consumer reads carts and publishes orders"
+  (cmd_run http-orders --produce orders) >"$logs/4.log" 2>&1 || true
+  check "$(outcome "grep -q 'Published [1-9][0-9]* orders rows' '$logs/4.log'")" \
+    "$(grep -oE 'Published [0-9]+ orders rows' "$logs/4.log" || echo 'http-orders did not publish orders')"
+
+  step "5/7 Last link reads orders"
+  (cmd_run http-orders-status) >"$logs/5.log" 2>&1 || true
+  check "$(outcome "grep -q 'completed on k8s' '$logs/5.log'")" "http-orders-status completed"
+
+  step "6/7 A failed producer leaves the previous dataset untouched"
+  before=$(s3 s3api head-object --bucket "$BUCKET" --key datasets/carts.csv --query ETag --output text 2>/dev/null || true)
+  (cmd_run http-cart --produce carts --base-url http://nowhere.invalid:3001) >"$logs/6.log" 2>&1 &&
+    check fail "the bad producer passed" ||
+    {
+      after=$(s3 s3api head-object --bucket "$BUCKET" --key datasets/carts.csv --query ETag --output text 2>/dev/null || true)
+      check "$( [ -n "$before" ] && [ "$before" = "$after" ] && echo pass || echo fail)" \
+        "carts.csv ETag unchanged ($before)"
+    }
+
+  step "7/7 Evidence"
+  s3 s3 ls "s3://$BUCKET/datasets/" 2>/dev/null | sed 's/^/    /' || true
+  grep -ho 'Submitted [a-z0-9-]*' "$logs"/*.log | sed 's/^/    /' || true
+
+  echo
+  if [ "$failures" = 0 ]; then
+    ok "POC verified: all 7 steps passed (logs: $logs)"
+  else
+    die "$failures step(s) failed (logs: $logs)"
+  fi
+}
+
+cmd_evidence() {
+  [ $# -eq 1 ] || die "usage: ./k8s evidence <run>"
+  local run=$1 template
+  require_cluster
+  kc -n punch get workflow "$run" >/dev/null 2>&1 || die "no run '$run' in namespace punch (./k8s status lists runs)"
+  template=$(wf "$run" '{.spec.workflowTemplateRef.name}')
+  title "Evidence — $run"
+  printf '  phase      %s\n' "$(wf "$run" '{.status.phase}')"
+  printf '  started    %s\n' "$(wf "$run" '{.status.startedAt}')"
+  printf '  finished   %s\n' "$(wf "$run" '{.status.finishedAt}')"
+  printf '  arguments  %s\n' "$(wf "$run" '{range .spec.arguments.parameters[*]}{.name}={.value} {end}')"
+  printf '  steps      %s\n' "$(wf "$run" '{range .status.nodes.*}{.type}:{.displayName}:{.phase}:exit={.outputs.exitCode} {end}' |
+    tr ' ' '\n' | grep '^Pod:' | sed 's/^Pod://' | tr '\n' ' ')"
+  printf '  datasets   %s\n' "$(wf "$run" '{.status.nodes.*.outputs.parameters[?(@.name=="datasets")].value}')"
+  printf '  message    %s\n' "$(wf "$run" '{.status.message}')"
+  echo
+  say "s3://$BUCKET/runs/$run/"
+  s3 s3 ls "s3://$BUCKET/runs/$run/" --recursive 2>/dev/null | sed 's/^/    /'
+  echo
+  say "summary ($template-summary.json)"
+  s3 s3 cp "s3://$BUCKET/runs/$run/reports/$template-summary.json" - 2>/dev/null | sed 's/^/    /' ||
+    echo "    (no summary: k6 did not reach handleSummary)"
+  echo
+  say "HTML report: ./k8s ui s3, then /buckets/$BUCKET/runs/$run/reports/"
+}
+
+cmd_s3() {
+  [ $# -ge 1 ] || die "usage: ./k8s s3 <aws-cli args>   e.g. ./k8s s3 s3 ls s3://$BUCKET --recursive"
+  require_cluster
+  s3 "$@"
+}
+
+# Port-forward $1 (resource) $2 (local:remote) in namespace $3, open $4.
+open_ui() {
+  local resource=$1 ports=$2 ns=$3 url=$4 pid i
+  kc -n "$ns" port-forward "$resource" "$ports" >/dev/null 2>&1 &
+  pid=$!
+  trap 'kill "$pid" 2>/dev/null; exit 0' INT TERM
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    curl -sk -o /dev/null "$url" && break
+    sleep 1
+  done
+  ok "$url  (Ctrl+C stops the port-forward)"
+  if command -v open >/dev/null 2>&1; then open "$url"; elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$url"; fi
+  wait "$pid"
+}
+
+cmd_ui() {
+  [ $# -eq 1 ] || die "usage: ./k8s ui argo|argocd|s3"
+  case $1 in
+    argo | argocd | s3) ;;
+    *) die "usage: ./k8s ui argo|argocd|s3" ;;
+  esac
+  require_cluster
+  case $1 in
+    argo)
+      say "Argo Workflows UI — self-signed certificate, no login"
+      open_ui svc/argo-server 2746:2746 argo "https://localhost:2746/workflows/punch"
+      ;;
+    argocd)
+      say "Argo CD UI — user admin, password: $(kc -n argocd get secret argocd-initial-admin-secret \
+        -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)"
+      open_ui svc/argocd-server 8080:443 argocd "https://localhost:8080"
+      ;;
+    s3)
+      say "SeaweedFS file browser for s3://$BUCKET"
+      open_ui deployment/seaweedfs 8888:8888 aws-local "http://localhost:8888/buckets/$BUCKET/"
+      ;;
+  esac
+}
+
+cmd_forward() {
+  [ $# -eq 0 ] || die "usage: ./k8s forward"
+  require_cluster
+  title "Port-forwarding the app (Ctrl+C stops)"
+  local pids=""
+  kc -n mini-commerce port-forward svc/web "${WEB_PORT:-3000}:3000" >/dev/null 2>&1 &
+  pids="$pids $!"
+  kc -n mini-commerce port-forward svc/bff "${BFF_PORT:-3001}:3001" >/dev/null 2>&1 &
+  pids="$pids $!"
+  kc -n mini-commerce port-forward svc/visualizer-3d "${VIZ_PORT:-3002}:80" >/dev/null 2>&1 &
+  pids="$pids $!"
+  # shellcheck disable=SC2086 # pids is a list of numbers
+  trap 'kill $pids 2>/dev/null; exit 0' INT TERM
+  ok "web            http://localhost:${WEB_PORT:-3000}"
+  ok "bff            http://localhost:${BFF_PORT:-3001}"
+  ok "visualizer-3d  http://localhost:${VIZ_PORT:-3002}"
+  say "./dev k8s:forward is the resilient variant (re-forwards when pods restart)"
+  wait
+}
+
+cmd_status() {
+  [ $# -eq 0 ] || die "usage: ./k8s status"
+  need minikube
+  title "Kubernetes status ($PROFILE)"
+  if ! running; then
+    say "cluster '$PROFILE' is not running — ./k8s up"
+    return 0
+  fi
+  docker stats --no-stream --format '  node memory {{.MemUsage}}' "$PROFILE" 2>/dev/null || true
+  echo
+  kc get pods -n mini-commerce 2>/dev/null || true
+  echo
+  local ns
+  for ns in argo aws-local argocd; do
+    kc get pods -n "$ns" --no-headers 2>/dev/null | sed "s|^|$ns  |" || true
+  done
+  echo
+  kc -n argocd get applications 2>/dev/null || true
+  echo
+  say "latest Punch runs"
+  kc -n punch get workflows --sort-by=.metadata.creationTimestamp 2>/dev/null | tail -10 || true
+}
+
+cmd_down() {
+  [ $# -eq 0 ] || die "usage: ./k8s down"
+  need minikube
+  if ! running; then
+    say "cluster '$PROFILE' is not running — nothing to stop"
+    return 0
+  fi
+  minikube stop -p "$PROFILE" >/dev/null || die "minikube stop failed"
+  ok "cluster stopped; images, Postgres data and S3 datasets are kept"
+  say "remove everything (destructive): minikube delete -p $PROFILE"
+}
+
+cmd_help() {
+  cat <<EOF
+
+${B}./k8s — Kubernetes + Argo in bash + kubectl${N} (Python-free counterpart of ./dev k8s:*)
+
+Usage: ./k8s <command> [args]
+
+Cluster
+  up [--no-build]           start minikube ($MEMORY_MB MB), build app images, deploy core + web + viz
+  forward                   port-forward web/bff/visualizer to localhost:3000/3001/3002
+  status                    pods, Argo CD apps, latest Punch runs, node memory
+  down                      stop minikube (data kept)
+
+Punch on Kubernetes
+  perf:up [--no-build]      registry + k6 images, Argo Workflows, SeaweedFS (S3), Punch templates
+  run <workflow> [opts]     run one workflow and follow it; same ids as ./dev perf:<id>
+                              --config PRESET     tests/performance/k6/options/<PRESET>.json
+                              --produce DATASET   publish to s3://$BUCKET/datasets/ (repeatable, or all)
+                              --base-url URL      in-cluster target (default: the template's)
+  verify                    the POC check: preflight, cart → orders → status through S3,
+                            atomic publish (resets s3://$BUCKET/datasets/)
+  evidence <run>            a run's status, S3 artifacts, and k6 summary
+  s3 <aws-cli args>         aws-cli against SeaweedFS, e.g. ./k8s s3 s3 ls s3://$BUCKET --recursive
+
+GitOps
+  argocd:up [--revision R]  install Argo CD and sync punch-platform + mini-commerce from GitHub
+                            (default R: main; only pushed commits sync)
+
+UIs
+  ui argo|argocd|s3         port-forward and open Argo Workflows, Argo CD, or the S3 file browser
+
+  help                      this text
+
+First time:  ./k8s up && ./k8s perf:up && ./k8s verify
+Guide:       docs/performance/k8s-runtime.md
+EOF
+}
+
+main() {
+  local command=${1:-help}
+  [ $# -eq 0 ] || shift
+  case $command in
+    up) cmd_up "$@" ;;
+    perf:up) cmd_perf_up "$@" ;;
+    argocd:up) cmd_argocd_up "$@" ;;
+    run) cmd_run "$@" ;;
+    verify) cmd_verify "$@" ;;
+    evidence) cmd_evidence "$@" ;;
+    s3) cmd_s3 "$@" ;;
+    ui) cmd_ui "$@" ;;
+    forward) cmd_forward "$@" ;;
+    status) cmd_status "$@" ;;
+    down) cmd_down "$@" ;;
+    help | -h | --help) cmd_help ;;
+    *)
+      cmd_help >&2
+      die "unknown command '$command'"
+      ;;
+  esac
+}
+
+main "$@"
