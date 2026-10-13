@@ -34,6 +34,7 @@ cp .env.example .env
 ./dev dev           # docker compose watch (BFF + web hot reload)
 ./dev smoke         # 23 endpoint checks (typed scene shape + order temperature + SSE frame + login + hot status)
 ./dev down          # stop
+./dev k8s:up        # same core + web + viz stack on minikube (k8s:forward / k8s:status / k8s:down)
 ```
 
 Full CLI matrix (with `pnpm pg:*` and `task` equivalents and the `hack`

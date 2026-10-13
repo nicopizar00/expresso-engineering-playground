@@ -1,0 +1,50 @@
+# Static nginx visualizer. Embedded use goes through web's /viz proxy (and
+# /api/bff for data). VIZ_API_BASE_URL only serves the standalone page, which
+# the host browser loads via the localhost port-forward to the BFF.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: visualizer-3d
+spec:
+  selector:
+    app: visualizer-3d
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: visualizer-3d
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: visualizer-3d
+  template:
+    metadata:
+      labels:
+        app: visualizer-3d
+    spec:
+      containers:
+        - name: visualizer-3d
+          image: mini-commerce/visualizer-3d:local
+          imagePullPolicy: Never
+          env:
+            - name: VIZ_API_BASE_URL
+              value: http://localhost:3001
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 16Mi
+            limits:
+              memory: 64Mi

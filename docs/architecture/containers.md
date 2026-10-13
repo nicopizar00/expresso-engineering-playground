@@ -94,6 +94,13 @@ flowchart LR
 | `infra/docker/compose.dev.yaml` | Dev override — `bff` + `web` swap to dev stages under their own `mini-commerce/*:dev` tags, `docker compose watch` |
 | `infra/docker/compose.performance.yaml` | k6 stack — separate file so it never mutates the main one |
 
+## Kubernetes (minikube)
+
+`infra/k8s/` deploys the `core` + `web` + `viz` profiles to minikube with
+Kustomize, keeping the compose service names. Driven by `./dev k8s:up` /
+`k8s:forward` / `k8s:status` / `k8s:down`; details in
+[`infra/k8s/README.md`](../../infra/k8s/README.md).
+
 ## Browser request topology
 
 The **web app is the single browser-facing entry point**. The browser only
