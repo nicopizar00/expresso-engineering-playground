@@ -10,7 +10,7 @@ Amended 2026-10-13 during planning: SeaweedFS replaces MinIO (MinIO stopped
 publishing images in October 2025 and archived its repository in April 2026;
 its quay.io images now return 401), the template gains `workflow` and
 `forward` parameters, `requires-hint` uses the `produces` syntax, and runs get
-a 900 s deadline.
+a 900 s deadline. The Argo CD files moved to `infra/argocd/{install,applications,mini-commerce}/`: kustomize rejects an overlay inside `infra/k8s/` that includes its own parent directory (cycle).
 
 ## Problem
 
@@ -219,7 +219,6 @@ The `argo` CLI is optional.
 
 ```text
 infra/k8s/                    app base — unchanged
-infra/k8s/argocd-app/         overlay: ../ + postsync-smoke.yaml
 infra/k8s/perf/
   kustomization.yaml          resources: argo-workflows/, aws-local/, punch/
   argo-workflows/             ns argo: pinned v4.1.5 install URL + argo-server --auth-mode=server
@@ -232,11 +231,12 @@ infra/k8s/perf/
                                   → localhost:5000/mini-commerce/k6[-browser]:local
     artifact-repositories.yaml  default S3 repository: SeaweedFS endpoint, bucket punch-artifacts
     workflows/*.yaml            nine thin templates
-infra/k8s/argocd/
-  kustomization.yaml          Argo CD install (pinned remote), argocd-cm patch,
+infra/argocd/
+  install/                    Argo CD install (pinned remote), argocd-cm patch,
                               scale-to-0 patches (dex, notifications, ApplicationSet)
   applications/               punch-platform (path infra/k8s/perf),
-                              mini-commerce (path infra/k8s/argocd-app)
+                              mini-commerce (path infra/argocd/mini-commerce)
+  mini-commerce/              overlay: ../../k8s + postsync-smoke.yaml
 ```
 
 The options ConfigMap reads files outside `infra/k8s/perf/`, so every render
@@ -285,7 +285,7 @@ bucket, and IRSA instead of access keys.
 
 ### Argo CD
 
-`./dev argocd:up [--revision <branch>]` applies `infra/k8s/argocd`, waits for
+`./dev argocd:up [--revision <branch>]` applies `infra/argocd/install`, waits for
 Argo CD, then creates `punch-platform`, waits for it to be Healthy, then
 creates `mini-commerce`.
 
@@ -297,7 +297,7 @@ creates `mini-commerce`.
 - Sync policy: automated, `selfHeal: false` (so `k8s:up`'s
   `rollout restart` does not fight Argo CD), `prune: false`; sync options
   `ServerSideApply=true`, `SkipDryRunOnMissingResource=true`.
-- PostSync hook (`infra/k8s/argocd-app/postsync-smoke.yaml`): a `Workflow` in
+- PostSync hook (`infra/argocd/mini-commerce/postsync-smoke.yaml`): a `Workflow` in
   namespace `punch`, `generateName: postsync-smoke-`,
   `workflowTemplateRef: http-purchase`, `config=1-iteration`, annotations
   `argocd.argoproj.io/hook: PostSync` and
@@ -342,7 +342,7 @@ least 6 GB.
   (dataset + columns). Every thin template has a Punch YAML.
 - **CI job `k8s-manifests`:** `kubectl kustomize --load-restrictor
 LoadRestrictionsNone` for `infra/k8s`, `infra/k8s/perf`,
-  `infra/k8s/argocd-app`, `infra/k8s/argocd`, validated with a pinned
+  `infra/argocd/mini-commerce`, `infra/argocd/install`, validated with a pinned
   `kubeconform` plus Argo CRD schemas.
 - **Local acceptance** (evidence in the PR):
   1. `./dev k8s:up` + `./dev k8s:perf:up`: controller and SeaweedFS ready, nine
