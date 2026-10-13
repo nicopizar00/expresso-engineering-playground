@@ -1,0 +1,24 @@
+# Argo Workflows, SeaweedFS (S3 stand-in), and Punch's templates
+# (infra/k8s/perf). Created first: the mini-commerce Application's PostSync
+# smoke needs these templates. ./dev argocd:up --revision <branch> rewrites
+# targetRevision before applying.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: punch-platform
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nicopizar00/expresso-engineering-playground.git
+    targetRevision: main
+    path: infra/k8s/perf
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

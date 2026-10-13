@@ -63,6 +63,9 @@ for the dispatch diagram.
 | Port-forward minikube services to localhost:3000/3001/3002 | `./dev k8s:forward` | `pnpm pg:k8s:forward` | `task k8s:forward` |
 | minikube pods + services      | `./dev k8s:status`    | `pnpm pg:k8s:status`    | `task k8s:status`   |
 | Stop minikube (data kept)     | `./dev k8s:down`      | `pnpm pg:k8s:down`      | `task k8s:down`     |
+| Punch perf platform on minikube: registry + k6 images, Argo Workflows, SeaweedFS (`--no-build` skips images) | `./dev k8s:perf:up` | `pnpm pg:k8s:perf:up` | `task k8s:perf:up` |
+| Argo CD syncing the perf platform + app from GitHub, PostSync smoke (`--revision <branch>`) | `./dev argocd:up` | `pnpm pg:argocd:up` | `task argocd:up` |
+| Run any `perf:<id>` on Argo Workflows instead of compose (`--config <preset>`, `--produce`, `--base-url`) | `./dev perf:<id> --runtime k8s` | `pnpm pg:perf:<id> --runtime k8s` | — |
 | Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
 | k6 http-purchase (search → cart → checkout; load shape via `--config <preset\|path>`, default 5 iterations; CI runs `--config 1-iteration`) | `./dev perf:http-purchase` | `pnpm pg:perf:http-purchase` | `task perf:http-purchase` |
 | k6 http-purchase driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly); `--config` needs a `*-browser` preset | `./dev perf:browser-purchase` | `pnpm pg:perf:browser-purchase` | `task perf:browser-purchase` |

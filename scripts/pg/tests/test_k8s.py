@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import sys
 import unittest
@@ -138,6 +139,60 @@ class UpTests(unittest.TestCase):
     def test_rejects_unknown_argument(self) -> None:
         with mock.patch("builtins.print"):
             self.assertEqual(k8s.up(["--fresh"]), 1)
+
+
+
+class ClusterSizingTests(unittest.TestCase):
+    def test_cluster_memory_fits_the_perf_platform(self) -> None:
+        self.assertGreaterEqual(k8s.CLUSTER_MEMORY_MB, 4608)
+
+    def test_profile_memory_reads_the_named_profile(self) -> None:
+        listing = json.dumps({
+            "invalid": [],
+            "valid": [
+                {"Name": "other", "Config": {"Memory": 8192}},
+                {"Name": "mini-commerce", "Config": {"Memory": 3072}},
+            ],
+        })
+        self.assertEqual(k8s.profile_memory_mb(listing, "mini-commerce"), 3072)
+
+    def test_profile_memory_is_none_for_unknown_profile_or_garbage(self) -> None:
+        self.assertIsNone(k8s.profile_memory_mb('{"valid": []}', "mini-commerce"))
+        self.assertIsNone(k8s.profile_memory_mb("not json", "mini-commerce"))
+
+
+class ServerSideApplyTests(unittest.TestCase):
+    @mock.patch("pg.k8s.subprocess.run")
+    def test_first_pass_success_needs_no_retry(self, run) -> None:
+        run.return_value = mock.Mock(returncode=0)
+        self.assertTrue(k8s.apply_server_side("kind: X", ("crd.example.io",)))
+        self.assertEqual(run.call_count, 1)
+        self.assertIn("--server-side", run.call_args.args[0])
+        self.assertIn("--force-conflicts", run.call_args.args[0])
+
+    @mock.patch("pg.k8s.subprocess.run")
+    def test_crd_race_waits_for_crds_then_applies_again(self, run) -> None:
+        run.side_effect = [mock.Mock(returncode=1), mock.Mock(returncode=0), mock.Mock(returncode=0)]
+        self.assertTrue(k8s.apply_server_side("kind: X", ("crd.example.io",)))
+        self.assertEqual(run.call_count, 3)
+        self.assertIn("crd/crd.example.io", run.call_args_list[1].args[0])
+
+    @mock.patch("pg.k8s.fail")
+    @mock.patch("pg.k8s.subprocess.run")
+    def test_second_failure_is_reported(self, run, _fail) -> None:
+        run.return_value = mock.Mock(returncode=1)
+        self.assertFalse(k8s.apply_server_side("kind: X", ()))
+        self.assertEqual(run.call_count, 2)
+
+
+class RolloutWaitTests(unittest.TestCase):
+    @mock.patch("pg.k8s.subprocess.run")
+    def test_waits_in_the_given_namespace(self, run) -> None:
+        run.return_value = mock.Mock(returncode=0)
+        self.assertTrue(k8s.wait_rollouts("argo", ("deployment/workflow-controller",)))
+        cmd = run.call_args.args[0]
+        self.assertEqual(cmd[:5], ["kubectl", "--context", k8s.PROFILE, "-n", "argo"])
+        self.assertIn("deployment/workflow-controller", cmd)
 
 
 if __name__ == "__main__":

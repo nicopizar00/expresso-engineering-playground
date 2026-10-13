@@ -1,0 +1,29 @@
+# Argo Workflows v4.1.5 (controller + UI server), cluster-wide, in namespace
+# argo. Minimal CRDs, not the release install.yaml's full-validation ones:
+# those ~12 MB of schemas pushed kube-apiserver and Argo CD's application
+# controller (which parses every CRD schema for diffs) into OOM churn on a
+# 4.5 GB minikube. CRDs still apply server-side.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - https://github.com/argoproj/argo-workflows//manifests/base/crds/minimal?ref=v4.1.5
+  - https://github.com/argoproj/argo-workflows//manifests/cluster-install-no-crds?ref=v4.1.5
+
+# The kustomize bases reference :latest; pin them to the release.
+images:
+  - name: quay.io/argoproj/argocli
+    newTag: v4.1.5
+  - name: quay.io/argoproj/workflow-controller
+    newTag: v4.1.5
+
+patches:
+  # Local cluster only: the UI needs no login token.
+  - target:
+      kind: Deployment
+      name: argo-server
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --auth-mode=server

@@ -118,6 +118,16 @@ tasks:
     cmds:
       - pnpm pg:k8s:down
 
+  k8s:perf:up:
+    desc: Deploy the Punch perf platform (Argo Workflows, SeaweedFS, registry, k6 images)
+    cmds:
+      - pnpm pg:k8s:perf:up {{.CLI_ARGS}}
+
+  argocd:up:
+    desc: Install Argo CD and sync the perf platform + app from GitHub (--revision <branch>)
+    cmds:
+      - pnpm pg:argocd:up {{.CLI_ARGS}}
+
   # ── Build / test / typecheck ────────────────────────────────────────────
   build:
     desc: Build all packages (turbo)

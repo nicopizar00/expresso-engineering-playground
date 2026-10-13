@@ -1,0 +1,24 @@
+# Default artifact repository for namespace punch: datasets/ and runs/ in the
+# SeaweedFS bucket. Real AWS: the same shape with endpoint s3.amazonaws.com,
+# a real bucket, and useSDKCreds (IRSA) instead of the secret
+# (vendor/punch/k8s/examples/artifact-repositories.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: artifact-repositories
+  annotations:
+    workflows.argoproj.io/default-artifact-repository: seaweedfs
+data:
+  seaweedfs: |
+    s3:
+      endpoint: seaweedfs.aws-local.svc.cluster.local:8333
+      bucket: punch-artifacts
+      insecure: true
+      region: us-east-1
+      keyFormat: "runs/{{workflow.name}}/{{pod.name}}"
+      accessKeySecret:
+        name: s3-credentials
+        key: accessKey
+      secretKeySecret:
+        name: s3-credentials
+        key: secretKey

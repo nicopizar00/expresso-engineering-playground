@@ -224,6 +224,14 @@ thresholds remain generated from the validated campaign descriptor. Direct
 Compose commands are debugging escape hatches only, not an alternative
 consumer execution path.
 
+## Kubernetes runtime
+
+The same nine workflows also run natively on Kubernetes: `./dev
+perf:<id> --runtime k8s` submits the matching thin template in
+`infra/k8s/perf/punch/workflows/` to Argo Workflows (no Python in the
+cluster; datasets and evidence in S3). The invariants below describe the
+compose runtime. Guide: [`k8s-runtime.md`](k8s-runtime.md).
+
 ## Invariants
 
 1. k6 runs in Docker; no host k6 install is required for `./dev perf:*`.
@@ -243,3 +251,4 @@ consumer execution path.
   — Punch boundary and index of Punch's docs.
 - [`../../tests/performance/k6/README.md`](../../tests/performance/k6/README.md)
   — scenario library and usage.
+- [`k8s-runtime.md`](k8s-runtime.md) — Punch on Kubernetes (Argo Workflows, Argo CD).

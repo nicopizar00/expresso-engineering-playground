@@ -11,6 +11,8 @@ it never restates Punch's contracts.
 | [Reference Architecture and Implementation Guide](../../vendor/punch/docs/architecture/reference-architecture-and-implementation-guide.md) | The solution, design decisions, and how to reproduce its core independently |
 | [Architectural Boundaries](../../vendor/punch/docs/architecture/punch-boundaries.md)                                                       | Punch's layer ownership map                                                 |
 | [README](../../vendor/punch/README.md)                                                                                                     | `punch run` / `punch menu` usage and flags                                  |
+| [Kubernetes runtime](../../vendor/punch/k8s/README.md)                                                                                     | `punch-k6-run` WorkflowTemplate contract and consumer setup                 |
+| [ADR 0006](../../vendor/punch/docs/decisions/0006-kubernetes-runtime.md)                                                                   | Why the second runtime is Argo Workflows and Python-free                    |
 | [Workflow Validation](../../vendor/punch/docs/workflows/validation.md)                                                                     | Run evidence contract (`reports/state/punch-run.json`)                      |
 | [Spec: native k6 config](../../vendor/punch/docs/specs/spec-native-k6-config.md)                                                           | Load shape via `k6 run --config`                                            |
 | [Spec: consumer/producer switch](../../vendor/punch/docs/specs/spec-consumer-producer-switch.md)                                           | Data-source pickers and producer switching                                  |
@@ -44,7 +46,8 @@ then maps Punch's typed result to `./dev` output and exit codes.
 
 ## Integration invariants
 
-- One `perf:*` command → one workflow → at most one Compose run.
+- One `perf:*` command → one workflow → at most one Compose run (compose
+  runtime) or one Argo Workflow (`--runtime k8s`).
 - Command names live in the Expresso registry, not in Punch.
 - Workflow YAML and native k6 configs are the only source of execution facts.
 - The adapter reads Punch's typed result, never its terminal output.

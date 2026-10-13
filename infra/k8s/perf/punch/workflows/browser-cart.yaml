@@ -1,0 +1,31 @@
+# Punch workflow browser-cart on Kubernetes; mirrors
+# tests/performance/k6/workflows/browser-cart.yaml (test_k8s_workflows.py).
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: browser-cart
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - { name: config, value: 5-iterations-browser }
+      - { name: produce, value: "" }
+      - { name: base-url, value: "http://web.mini-commerce.svc.cluster.local:3000" }
+      - { name: extra-env, value: "" }
+  templates:
+    - name: main
+      steps:
+        - - name: k6
+            templateRef: { name: punch-k6-run, template: k6-browser }
+            arguments:
+              parameters:
+                - { name: workflow, value: browser-cart }
+                - { name: script, value: /scripts/scenarios/browser-cart/browser-cart.js }
+                - { name: config, value: "{{workflow.parameters.config}}" }
+                - { name: base-url, value: "{{workflow.parameters.base-url}}" }
+                - { name: forward, value: "" }
+                - { name: extra-env, value: "{{workflow.parameters.extra-env}}" }
+                - { name: requires, value: "" }
+                - { name: requires-hint, value: "" }
+                - { name: produces, value: "carts=cartId,productId,sid" }
+                - { name: produce, value: "{{workflow.parameters.produce}}" }

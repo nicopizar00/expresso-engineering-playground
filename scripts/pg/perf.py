@@ -4,21 +4,50 @@ Dataset produce/require behavior lives in each workflow's spec.data and is
 handled by Punch; these commands only pick the workflow and target port.
 `--produce <dataset>`, `--data <dataset>=<path>`, and `--config <preset|path>`
 (the k6 options JSON for `k6 run --config`) pass straight through.
+`--runtime k8s` runs the same workflow on Argo Workflows instead (pg.k8s_perf).
 """
 
 from __future__ import annotations
 
 import shutil
-from typing import Sequence
+from typing import List, Sequence, Tuple
 
-from pg.ansi import dim, header, info, pass_, warn
+from pg.ansi import dim, fail, header, info, pass_, warn
 from pg.k6runner import run_k6
 from pg.paths import PERF_REPORTS_DIR
 from pg.workflows import WORKFLOWS
 
+RUNTIMES = ("compose", "k8s")
+
+
+def split_runtime(args: Sequence[str]) -> Tuple[str, List[str]]:
+    """Pull `--runtime <compose|k8s>` out of a perf command's arguments."""
+    runtime = "compose"
+    rest: List[str] = []
+    items = list(args)
+    while items:
+        arg = items.pop(0)
+        if arg == "--runtime" and items:
+            runtime = items.pop(0)
+        elif arg.startswith("--runtime="):
+            runtime = arg.split("=", 1)[1]
+        else:
+            rest.append(arg)
+    if runtime not in RUNTIMES:
+        raise ValueError(f"unknown runtime '{runtime}' (use: {', '.join(RUNTIMES)})")
+    return runtime, rest
+
 
 def run(name: str, args: Sequence[str]) -> int:
-    return run_k6(name, args, default_port=WORKFLOWS[name])
+    try:
+        runtime, rest = split_runtime(args)
+    except ValueError as error:
+        fail(str(error))
+        return 1
+    if runtime == "k8s":
+        from pg import k8s_perf
+        return k8s_perf.run_workflow(name, rest)
+    return run_k6(name, rest, default_port=WORKFLOWS[name])
 
 
 def open_report() -> int:

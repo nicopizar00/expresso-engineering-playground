@@ -1,0 +1,40 @@
+# Argo CD for the local minikube cluster: pinned v3.5.5, non-HA. dex,
+# notifications, and the ApplicationSet controller are scaled to 0 to save
+# memory. The Applications in ../applications/ are applied separately, in
+# order, by ./dev argocd:up (manual steps: docs/performance/k8s-runtime.md).
+# Apply server-side — Argo CD's CRDs exceed the client-side annotation limit:
+#
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone infra/argocd/install \
+#     | kubectl apply --server-side --force-conflicts -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - namespace.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.5/manifests/install.yaml
+
+patches:
+  - path: argocd-cm.yaml
+  - target:
+      kind: Deployment
+      name: argocd-dex-server
+    patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 0
+  - target:
+      kind: Deployment
+      name: argocd-notifications-controller
+    patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 0
+  - target:
+      kind: Deployment
+      name: argocd-applicationset-controller
+    patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 0

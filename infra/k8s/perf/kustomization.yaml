@@ -1,0 +1,17 @@
+# Punch perf platform on minikube: Argo Workflows (namespace argo), SeaweedFS
+# as the S3 stand-in (aws-local), and Punch's templates (punch). Apply with
+# ./dev k8s:perf:up, or by hand (repeat once if the first pass races the new
+# CRDs):
+#
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone infra/k8s/perf \
+#     | kubectl apply --server-side --force-conflicts -f -
+#
+# Argo CD syncs this directory as the punch-platform Application.
+# Operation guide: docs/performance/k8s-runtime.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - argo-workflows
+  - aws-local
+  - punch

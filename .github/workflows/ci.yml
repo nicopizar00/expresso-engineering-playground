@@ -148,6 +148,34 @@ jobs:
         with:
           dockerfile: apps/visualizer-3d/Dockerfile
 
+  k8s-manifests:
+    name: Kubernetes manifests (kustomize + kubeconform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install kubeconform
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C "$RUNNER_TEMP/bin" kubeconform
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Render and validate
+        # Argo CRD schemas come from the datree CRDs catalog; kubeconform has no
+        # schema for CustomResourceDefinition itself, so the CRDs (verbatim
+        # from pinned upstream releases) are skipped. The perf and
+        # Argo CD kustomizations fetch pinned upstream installs over HTTPS.
+        run: |
+          schemas=(-schema-location default -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json')
+          for dir in infra/k8s infra/k8s/perf infra/argocd/mini-commerce infra/argocd/install; do
+            echo "::group::$dir"
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "$dir" > "$RUNNER_TEMP/rendered.yaml"
+            kubeconform -summary -strict -skip CustomResourceDefinition "${schemas[@]}" "$RUNNER_TEMP/rendered.yaml"
+            echo "::endgroup::"
+          done
+          kubeconform -summary -strict -skip CustomResourceDefinition "${schemas[@]}" infra/argocd/applications/
+
   contract:
     name: Contract verification
     needs: build
