@@ -157,6 +157,7 @@ def _usage() -> None:
     print("  python3 -m pip install -r vendor/punch/requirements.txt")
     print("Data-producing workflows write their dataset only with --produce <dataset> (e.g. perf:http-cart --produce carts).")
     print("perf:* take their k6 load shape from --config <preset|path> (e.g. perf:http-purchase --config 5-vu-5m).")
+    print("perf:* --runtime k8s runs the workflow on Argo Workflows (after ./dev k8s:perf:up).")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()
