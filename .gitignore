@@ -175,3 +175,9 @@ __pycache__/
 .playwright-mcp/
 graphify-out/
 .worktrees/
+
+# Local k6 agent integrations
+/.claude/skills/k6-*/
+/.codex/skills/k6-*/
+/.mcp.json
+/.codex/mcp.json
