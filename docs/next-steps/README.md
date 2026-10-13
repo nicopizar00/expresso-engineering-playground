@@ -24,6 +24,9 @@ git grep -n "TODO(next-steps/"
    SSE push is a follow-up.
 6. **[Observability follow-ups](observability-grafana.md)** — Loki, BFF
    metrics reader, alert rules.
+7. **[Punch on Kubernetes](punch-k8s.md)** — POC shipped (Argo Workflows +
+   Argo CD, local S3/ECR stand-ins); next: on-demand GitHub job against real
+   AWS, browser and auth chains.
 
 ## Done
 

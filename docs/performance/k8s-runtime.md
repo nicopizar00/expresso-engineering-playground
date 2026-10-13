@@ -12,7 +12,7 @@ Punch's contract: [`vendor/punch/k8s/README.md`](../../vendor/punch/k8s/README.m
 | Namespace       | Holds                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------- |
 | `mini-commerce` | The app (`infra/k8s`)                                                                                       |
-| `argo`          | Argo Workflows v4.1.5 controller + UI (`--auth-mode=server`)                                                |
+| `argo`          | Argo Workflows v4.1.5 controller + UI (`--auth-mode=server`, minimal CRDs)                                  |
 | `punch`         | `punch-k6-run`, nine thin templates (`infra/k8s/perf/punch/workflows/`), runs, presets, artifact repository |
 | `aws-local`     | SeaweedFS 4.48 — S3 stand-in, bucket `punch-artifacts`                                                      |
 | `kube-system`   | minikube `registry` addon — ECR stand-in at `localhost:5000`                                                |
@@ -41,8 +41,8 @@ Punch's contract: [`vendor/punch/k8s/README.md`](../../vendor/punch/k8s/README.m
 `tests/performance/k6/options/`, not paths), `--produce <dataset>` (repeatable
 or `all`), and `--base-url <in-cluster URL>`. Forwarded names set in your
 shell (e.g. `EXPECT_TEMPERATURE=hot`) are passed through as on compose;
-values cannot contain spaces. `--data`, `--size-for`, prompts, and the menu
-are compose-only. Ctrl+C stops the run (`spec.shutdown: Stop`).
+values cannot contain spaces. A workflow reads at most one required dataset
+on k8s. `--data`, `--size-for`, prompts, and the menu are compose-only. Ctrl+C stops the run (`spec.shutdown: Stop`).
 
 ## Without `./dev` (kubectl only)
 
@@ -132,10 +132,12 @@ The on-demand GitHub job is the next step: [`../next-steps/punch-k8s.md`](../nex
 
 ## Troubleshooting
 
-| Symptom                                            | Fix                                                                     |
-| -------------------------------------------------- | ----------------------------------------------------------------------- |
-| `no matches for kind "WorkflowTemplate"` on apply  | CRDs were still registering; apply again (`k8s:perf:up` does this).     |
-| Run `Failed` after ~15 min, pod `ImagePullBackOff` | Images not in the registry: `./dev k8s:perf:up` (without `--no-build`). |
-| `requires "carts"; produce it with: ...`           | Run the named producer with `--produce carts` first.                    |
-| `unknown preset`                                   | `--config` takes a preset name on k8s, not a path.                      |
-| Pods `OOMKilled` / evicted                         | The cluster is undersized: see Prerequisites.                           |
+| Symptom                                                  | Fix                                                                                                                                    |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `no matches for kind "WorkflowTemplate"` on apply        | CRDs were still registering; apply again (`k8s:perf:up` does this).                                                                    |
+| Run `Failed` after ~15 min, pod `ImagePullBackOff`       | Images not in the registry: `./dev k8s:perf:up` (without `--no-build`).                                                                |
+| `requires "carts"; produce it with: ...`                 | Run the named producer with `--produce carts` first.                                                                                   |
+| `unknown preset`                                         | `--config` takes a preset name on k8s, not a path.                                                                                     |
+| Pods `OOMKilled` / evicted                               | The cluster is undersized: see Prerequisites.                                                                                          |
+| API timeouts / controller restarts after an Argo CD sync | Memory pressure. The platform uses Argo's minimal CRDs because the full ones (~12 MB) overloaded the 4.5 GB cluster; keep it that way. |
+| `mini-commerce` shows OutOfSync but Healthy              | Benign: the `postgres` StatefulSet and the hook Workflow differ in server-filled fields.                                               |

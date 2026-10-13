@@ -12,6 +12,12 @@ its quay.io images now return 401), the template gains `workflow` and
 `forward` parameters, `requires-hint` uses the `produces` syntax, and runs get
 a 900 s deadline. The Argo CD files moved to `infra/argocd/{install,applications,mini-commerce}/`: kustomize rejects an overlay inside `infra/k8s/` that includes its own parent directory (cycle).
 
+Amended 2026-10-13 during acceptance: pods run as the k6 image user (uid 12345) so Argo's executor writes readable inputs; the required dataset loads
+as one file (`datasets/<requires>.csv`), so `requires` holds at most one
+dataset on k8s (an empty `datasets/` folder broke the directory input); and
+Argo Workflows installs with its minimal CRDs (the full ones overloaded the
+4.5 GB cluster under Argo CD).
+
 ## Problem
 
 Punch runs one k6 workflow as exactly one `docker compose run`, driven by
