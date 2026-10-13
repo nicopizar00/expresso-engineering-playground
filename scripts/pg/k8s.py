@@ -17,6 +17,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from pg import compose
@@ -27,7 +28,9 @@ from pg.ports import pid_on_port, port_in_use
 PROFILE = "mini-commerce"
 NAMESPACE = "mini-commerce"
 CLUSTER_CPUS = 4
-CLUSTER_MEMORY_MB = 3072
+# Core + web + viz (~1.2 GB) plus the perf platform (Argo Workflows, Argo CD,
+# SeaweedFS, registry addon, k6 pods). Docker Desktop needs >= 6 GB.
+CLUSTER_MEMORY_MB = 4608
 ROLLOUT_TIMEOUT = "300s"
 RESTART_SETTLE_TIMEOUT_S = 300
 FORWARD_RETRY_S = 3
@@ -191,7 +194,7 @@ def _run(cmd: Sequence[str], **kwargs) -> int:
     return subprocess.run(list(cmd), check=False, **kwargs).returncode
 
 
-def _require_tools() -> bool:
+def require_tools() -> bool:
     missing = [tool for tool in ("docker", "minikube", "kubectl") if not shutil.which(tool)]
     if missing:
         fail(f"Missing on PATH: {', '.join(missing)}")
@@ -223,7 +226,8 @@ def _start_cluster() -> bool:
     return rc == 0
 
 
-def _build_images() -> bool:
+def cluster_docker_env() -> Optional[Dict[str, str]]:
+    """Host environment pointed at the cluster node's Docker daemon."""
     env_out = subprocess.run(
         ["minikube", "-p", PROFILE, "docker-env", "--shell", "none"],
         capture_output=True,
@@ -233,8 +237,14 @@ def _build_images() -> bool:
     if env_out.returncode != 0:
         fail("minikube docker-env failed — is the cluster on the docker runtime?")
         print(env_out.stderr.strip())
+        return None
+    return {**os.environ, **parse_docker_env(env_out.stdout)}
+
+
+def _build_images() -> bool:
+    env = cluster_docker_env()
+    if env is None:
         return False
-    env = {**os.environ, **parse_docker_env(env_out.stdout)}
     for image in IMAGES:
         info(f"Building {image.tag}...")
         if _run(build_cmd(image), cwd=REPO_ROOT, env=env) != 0:
@@ -244,19 +254,78 @@ def _build_images() -> bool:
     return True
 
 
-def _apply() -> bool:
+def render(directory: Path) -> Optional[str]:
+    """`kubectl kustomize` with the load restrictor off: infra/k8s reads the
+    otel config from infra/observability/, infra/k8s/perf reads the k6 option
+    presets and vendor/punch/k8s."""
     rendered = subprocess.run(
-        # The otel config lives in infra/observability/, outside infra/k8s/.
-        ["kubectl", "kustomize", "--load-restrictor", "LoadRestrictionsNone", str(K8S_DIR)],
+        ["kubectl", "kustomize", "--load-restrictor", "LoadRestrictionsNone", str(directory)],
         capture_output=True,
         text=True,
         check=False,
     )
     if rendered.returncode != 0:
-        fail("kustomize render failed")
+        fail(f"kustomize render failed: {directory}")
         print(rendered.stderr.strip())
+        return None
+    return rendered.stdout
+
+
+def apply_server_side(rendered: str, crds: Sequence[str]) -> bool:
+    """Server-side apply: Argo's CRDs exceed the client-side annotation limit.
+    Custom resources that race their just-created CRDs fail the first pass;
+    wait for those CRDs, then apply again."""
+    cmd = kubectl("apply", "--server-side", "--force-conflicts", "-f", "-", namespaced=False)
+    if _run(cmd, input=rendered, text=True, capture_output=True) == 0:
+        return True
+    for crd in crds:
+        _run(kubectl("wait", "--for=condition=Established", f"crd/{crd}", "--timeout=120s",
+                     namespaced=False))
+    if _run(cmd, input=rendered, text=True) != 0:
+        fail("kubectl apply --server-side failed")
         return False
-    if _run(kubectl("apply", "-f", "-", namespaced=False), input=rendered.stdout, text=True) != 0:
+    return True
+
+
+def wait_rollouts(namespace: str, resources: Sequence[str]) -> bool:
+    for resource in resources:
+        cmd = kubectl("-n", namespace, "rollout", "status", resource,
+                      f"--timeout={ROLLOUT_TIMEOUT}", namespaced=False)
+        if _run(cmd) != 0:
+            fail(f"{namespace}/{resource} did not become ready")
+            info(f"Inspect: kubectl --context {PROFILE} -n {namespace} describe {resource}")
+            return False
+    return True
+
+
+def profile_memory_mb(listing: str, profile: str) -> Optional[int]:
+    """Memory (MB) of `profile` in `minikube profile list -o json` output."""
+    try:
+        valid = json.loads(listing).get("valid") or []
+    except ValueError:
+        return None
+    for entry in valid:
+        if entry.get("Name") == profile:
+            return entry.get("Config", {}).get("Memory")
+    return None
+
+
+def _warn_if_undersized() -> None:
+    listing = subprocess.run(
+        ["minikube", "profile", "list", "-o", "json"], capture_output=True, text=True, check=False
+    )
+    memory = profile_memory_mb(listing.stdout, PROFILE) if listing.returncode == 0 else None
+    if memory is not None and memory < CLUSTER_MEMORY_MB:
+        warn(f"Cluster '{PROFILE}' has {memory} MB; the perf platform needs {CLUSTER_MEMORY_MB} MB.")
+        print(yellow(f"  Recreate it (destructive: Postgres data and built images): "
+                     f"minikube delete -p {PROFILE}"))
+
+
+def _apply() -> bool:
+    rendered = render(K8S_DIR)
+    if rendered is None:
+        return False
+    if _run(kubectl("apply", "-f", "-", namespaced=False), input=rendered, text=True) != 0:
         fail("kubectl apply failed")
         return False
     pass_("Manifests applied")
@@ -280,12 +349,13 @@ def up(args: Sequence[str]) -> int:
             return 1
 
     header("Deploying to minikube (core + web + viz)...")
-    if not _require_tools():
+    if not require_tools():
         return 1
     _warn_if_compose_running()
 
     if cluster_running():
         pass_(f"Cluster '{PROFILE}' is running")
+        _warn_if_undersized()
     else:
         started_at = _cluster_clock_now()
         if not _start_cluster():
@@ -302,11 +372,8 @@ def up(args: Sequence[str]) -> int:
         _run(kubectl("rollout", "restart", *(f"deployment/{d}" for d in APP_DEPLOYMENTS)))
 
     info("Waiting for rollouts...")
-    for resource in ROLLOUTS:
-        if _run(kubectl("rollout", "status", resource, f"--timeout={ROLLOUT_TIMEOUT}")) != 0:
-            fail(f"{resource} did not become ready")
-            info(f"Inspect: kubectl --context {PROFILE} -n {NAMESPACE} describe {resource}")
-            return 1
+    if not wait_rollouts(NAMESPACE, ROLLOUTS):
+        return 1
 
     print()
     pass_("Stack is running in minikube")
@@ -329,7 +396,7 @@ def forward() -> int:
     # Long-running: outage notices must show up even when piped to a log.
     sys.stdout.reconfigure(line_buffering=True)
     header("Port-forwarding minikube services...")
-    if not _require_tools():
+    if not require_tools():
         return 1
     if not cluster_running():
         fail(f"Cluster '{PROFILE}' is not running. Run ./dev k8s:up first.")
