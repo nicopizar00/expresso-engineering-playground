@@ -1,0 +1,19 @@
+# Runs after a sync of the mini-commerce Application once all its resources
+# are Healthy. Argo CD's built-in Workflow health check fails the sync when
+# the smoke fails. BeforeHookCreation removes the previous run only when the
+# next sync starts, so the last result stays inspectable.
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: postsync-smoke
+  namespace: punch
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  workflowTemplateRef:
+    name: http-purchase
+  arguments:
+    parameters:
+      - name: config
+        value: 1-iteration
