@@ -1,0 +1,21 @@
+# Local AWS stand-ins. The ECR stand-in is the minikube registry addon
+# (enabled by ./dev k8s:perf:up), not a manifest here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aws-local
+
+resources:
+  - namespace.yaml
+  - seaweedfs.yaml
+
+# Local-only defaults, mirrored in ../punch for Argo's artifact repository.
+# Not real credentials.
+secretGenerator:
+  - name: s3-credentials
+    literals:
+      - accessKey=punch
+      - secretKey=punch-local-only
+
+generatorOptions:
+  disableNameSuffixHash: true

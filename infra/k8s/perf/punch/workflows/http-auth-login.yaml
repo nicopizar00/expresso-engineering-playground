@@ -1,0 +1,33 @@
+# Punch workflow http-auth-login on Kubernetes; mirrors
+# tests/performance/k6/workflows/http-auth-login.yaml (test_k8s_workflows.py).
+# Its optional owned-orders dataset is not wired on k8s (POC): the scenario
+# falls back to the seeded demo users.
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: http-auth-login
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - { name: config, value: 5-iterations }
+      - { name: produce, value: "" }
+      - { name: base-url, value: "http://bff.mini-commerce.svc.cluster.local:3001" }
+      - { name: extra-env, value: "" }
+  templates:
+    - name: main
+      steps:
+        - - name: k6
+            templateRef: { name: punch-k6-run, template: k6 }
+            arguments:
+              parameters:
+                - { name: workflow, value: http-auth-login }
+                - { name: script, value: /scripts/scenarios/http-auth-login/http-auth-login.js }
+                - { name: config, value: "{{workflow.parameters.config}}" }
+                - { name: base-url, value: "{{workflow.parameters.base-url}}" }
+                - { name: forward, value: DEMO_PASSWORD }
+                - { name: extra-env, value: "{{workflow.parameters.extra-env}}" }
+                - { name: requires, value: "" }
+                - { name: requires-hint, value: "" }
+                - { name: produces, value: "auth-tokens=username,authToken" }
+                - { name: produce, value: "{{workflow.parameters.produce}}" }

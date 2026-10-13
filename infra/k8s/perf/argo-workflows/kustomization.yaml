@@ -1,0 +1,19 @@
+# Argo Workflows v4.1.5 (controller + UI server), cluster-wide. The release
+# manifest pins namespace argo itself and ships full CRDs, which need
+# server-side apply.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - https://github.com/argoproj/argo-workflows/releases/download/v4.1.5/install.yaml
+
+patches:
+  # Local cluster only: the UI needs no login token.
+  - target:
+      kind: Deployment
+      name: argo-server
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --auth-mode=server

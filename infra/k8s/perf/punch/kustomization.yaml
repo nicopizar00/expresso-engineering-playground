@@ -1,0 +1,59 @@
+# Punch's runtime in namespace punch: the generic punch-k6-run template
+# (vendor/punch/k8s), one thin template per
+# tests/performance/k6/workflows/*.yaml (pinned by
+# scripts/pg/tests/test_k8s_workflows.py), the k6 option presets, and the S3
+# artifact repository on SeaweedFS.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: punch
+
+resources:
+  - namespace.yaml
+  - ../../../../vendor/punch/k8s
+  - artifact-repositories.yaml
+  - workflows/browser-cart.yaml
+  - workflows/browser-purchase.yaml
+  - workflows/http-auth-login.yaml
+  - workflows/http-cart.yaml
+  - workflows/http-me-hot-status.yaml
+  - workflows/http-orders.yaml
+  - workflows/http-orders-status.yaml
+  - workflows/http-purchase.yaml
+  - workflows/http-purchase-registered.yaml
+
+configurations:
+  - ../../../../vendor/punch/k8s/kustomizeconfig.yaml
+
+# ECR stand-in: the minikube registry addon. ./dev k8s:perf:up builds and
+# pushes these tags.
+# TODO(next-steps/punch-k8s): sha-tagged ECR images from the on-demand GitHub job.
+images:
+  - name: k6-scenarios
+    newName: localhost:5000/mini-commerce/k6
+    newTag: local
+  - name: k6-scenarios-browser
+    newName: localhost:5000/mini-commerce/k6-browser
+    newTag: local
+
+configMapGenerator:
+  - name: punch-k6-options
+    files:
+      - ../../../../tests/performance/k6/options/1-iteration.json
+      - ../../../../tests/performance/k6/options/1-iteration-browser.json
+      - ../../../../tests/performance/k6/options/1-vu-5m.json
+      - ../../../../tests/performance/k6/options/5-iterations.json
+      - ../../../../tests/performance/k6/options/5-iterations-browser.json
+      - ../../../../tests/performance/k6/options/5-vu-5m.json
+
+# Same local-only literals as ../aws-local. Not real credentials.
+secretGenerator:
+  - name: s3-credentials
+    literals:
+      - accessKey=punch
+      - secretKey=punch-local-only
+
+# punch-k6-run and artifact-repositories reference these by name inside
+# custom resources and ConfigMap data, which kustomize does not rewrite.
+generatorOptions:
+  disableNameSuffixHash: true

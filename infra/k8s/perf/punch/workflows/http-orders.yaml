@@ -1,0 +1,31 @@
+# Punch workflow http-orders on Kubernetes; mirrors
+# tests/performance/k6/workflows/http-orders.yaml (test_k8s_workflows.py).
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: http-orders
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - { name: config, value: 5-iterations }
+      - { name: produce, value: "" }
+      - { name: base-url, value: "http://bff.mini-commerce.svc.cluster.local:3001" }
+      - { name: extra-env, value: "" }
+  templates:
+    - name: main
+      steps:
+        - - name: k6
+            templateRef: { name: punch-k6-run, template: k6 }
+            arguments:
+              parameters:
+                - { name: workflow, value: http-orders }
+                - { name: script, value: /scripts/scenarios/http-orders/http-orders.js }
+                - { name: config, value: "{{workflow.parameters.config}}" }
+                - { name: base-url, value: "{{workflow.parameters.base-url}}" }
+                - { name: forward, value: "" }
+                - { name: extra-env, value: "{{workflow.parameters.extra-env}}" }
+                - { name: requires, value: carts }
+                - { name: requires-hint, value: "carts=browser-cart,http-cart" }
+                - { name: produces, value: "orders=orderId" }
+                - { name: produce, value: "{{workflow.parameters.produce}}" }
