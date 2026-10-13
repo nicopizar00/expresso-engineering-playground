@@ -20,6 +20,32 @@ class PerfPlatformContractTests(unittest.TestCase):
         mapped = {f"{i['newName']}:{i['newTag']}" for i in kustomization["images"]}
         self.assertEqual(mapped, {image.tag for image in k8s_perf.PERF_IMAGES})
 
+    def test_argo_workflows_installs_minimal_crds(self) -> None:
+        # The release install.yaml ships ~12 MB of full-validation CRDs; on a
+        # 4.5 GB minikube they pushed kube-apiserver and Argo CD's application
+        # controller (which parses every CRD schema for diffs) into OOM churn.
+        resources = yaml.safe_load(
+            (k8s_perf.PERF_DIR / "argo-workflows" / "kustomization.yaml").read_text(encoding="utf-8")
+        )["resources"]
+        self.assertIn(
+            "https://github.com/argoproj/argo-workflows//manifests/base/crds/minimal?ref=v4.1.5",
+            resources,
+        )
+        self.assertIn(
+            "https://github.com/argoproj/argo-workflows//manifests/cluster-install-no-crds?ref=v4.1.5",
+            resources,
+        )
+        self.assertFalse([r for r in resources if r.endswith("install.yaml")])
+
+    def test_argo_workflows_images_are_pinned_to_the_release(self) -> None:
+        kustomization = yaml.safe_load(
+            (k8s_perf.PERF_DIR / "argo-workflows" / "kustomization.yaml").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            {i["name"]: i["newTag"] for i in kustomization["images"]},
+            {"quay.io/argoproj/argocli": "v4.1.5", "quay.io/argoproj/workflow-controller": "v4.1.5"},
+        )
+
     def test_images_live_in_the_registry_addon(self) -> None:
         for image in k8s_perf.PERF_IMAGES:
             self.assertTrue(image.tag.startswith(f"{k8s_perf.REGISTRY}/"))
