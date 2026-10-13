@@ -1,0 +1,44 @@
+# Kubernetes deployment for minikube — core + web + viz.
+#
+# Mirrors the compose `core`, `web`, and `viz` profiles. Service names match
+# compose (postgres, bff, otel-collector, web, visualizer-3d) so the shared
+# observability config and the web proxy rewrites work unchanged.
+#
+# The otel-collector config lives in infra/observability/ (single source of
+# truth), outside this directory, so render with the load restrictor off:
+#
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone infra/k8s \
+#     | kubectl apply -f -
+#
+# Full workflow (cluster, image builds, port-forwards): README.md here.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mini-commerce
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: mini-commerce
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - otel-collector.yaml
+  - bff.yaml
+  - web.yaml
+  - visualizer-3d.yaml
+
+configMapGenerator:
+  - name: otel-collector-config
+    files:
+      - otel-collector-config.yaml=../observability/otel-collector-config.yaml
+
+# Local-dev defaults, identical to the compose fallbacks in
+# infra/docker/compose.yaml. Not real credentials.
+secretGenerator:
+  - name: postgres
+    literals:
+      - POSTGRES_USER=playground
+      - POSTGRES_PASSWORD=playground
+      - POSTGRES_DB=mini_commerce_playground

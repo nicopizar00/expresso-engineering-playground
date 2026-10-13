@@ -30,6 +30,7 @@ ENV_BOOTSTRAPPED: bool = load_root_env(ENV_PATH, ENV_EXAMPLE_PATH)
 COMPOSE_FILE: Path = REPO_ROOT / "infra" / "docker" / "compose.yaml"
 COMPOSE_DEV_FILE: Path = REPO_ROOT / "infra" / "docker" / "compose.dev.yaml"
 COMPOSE_PERF_FILE: Path = REPO_ROOT / "infra" / "docker" / "compose.performance.yaml"
+K8S_DIR: Path = REPO_ROOT / "infra" / "k8s"
 PERF_REPORTS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "reports"
 PERF_DATA_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "data"
 PERF_WORKFLOWS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "workflows"

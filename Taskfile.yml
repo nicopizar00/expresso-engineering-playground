@@ -97,6 +97,27 @@ tasks:
     cmds:
       - pnpm pg:seed
 
+  # ── Kubernetes (minikube) ───────────────────────────────────────────────
+  k8s:up:
+    desc: Deploy core + web + viz to minikube (start cluster, build, apply)
+    cmds:
+      - pnpm pg:k8s:up {{.CLI_ARGS}}
+
+  k8s:forward:
+    desc: Port-forward minikube web/bff/visualizer to the compose localhost ports
+    cmds:
+      - pnpm pg:k8s:forward
+
+  k8s:status:
+    desc: Show minikube pods and services
+    cmds:
+      - pnpm pg:k8s:status
+
+  k8s:down:
+    desc: Stop the minikube cluster (images and data kept)
+    cmds:
+      - pnpm pg:k8s:down
+
   # ── Build / test / typecheck ────────────────────────────────────────────
   build:
     desc: Build all packages (turbo)

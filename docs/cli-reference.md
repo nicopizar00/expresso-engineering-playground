@@ -59,6 +59,10 @@ for the dispatch diagram.
 | Stop services                 | `./dev down`          | `pnpm pg:down`          | `task down`         |
 | Restart                       | `./dev restart`       | `pnpm pg:restart`       | `task restart`      |
 | Print local URLs              | `./dev open`          | `pnpm pg:open`          | `task open`         |
+| Deploy core + web + viz to minikube (`--no-build` skips image builds) | `./dev k8s:up` | `pnpm pg:k8s:up` | `task k8s:up` |
+| Port-forward minikube services to localhost:3000/3001/3002 | `./dev k8s:forward` | `pnpm pg:k8s:forward` | `task k8s:forward` |
+| minikube pods + services      | `./dev k8s:status`    | `pnpm pg:k8s:status`    | `task k8s:status`   |
+| Stop minikube (data kept)     | `./dev k8s:down`      | `pnpm pg:k8s:down`      | `task k8s:down`     |
 | Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
 | k6 http-purchase (search → cart → checkout; load shape via `--config <preset\|path>`, default 5 iterations; CI runs `--config 1-iteration`) | `./dev perf:http-purchase` | `pnpm pg:perf:http-purchase` | `task perf:http-purchase` |
 | k6 http-purchase driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly); `--config` needs a `*-browser` preset | `./dev perf:browser-purchase` | `pnpm pg:perf:browser-purchase` | `task perf:browser-purchase` |
