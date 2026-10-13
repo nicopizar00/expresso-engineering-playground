@@ -8,6 +8,7 @@ with the [root README](../README.md), then
 | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Run the stack, walkthrough, troubleshoot  | [local-development.md](local-development.md)                                               |
 | Look up a command                         | [cli-reference.md](cli-reference.md)                                                       |
+| Run on minikube, monitor, troubleshoot    | [minikube-runbook.md](minikube-runbook.md)                                                 |
 | What the system does today                | [project-state/current-system.md](project-state/current-system.md)                         |
 | Architecture (containers, BFF, web, OTel) | [architecture/README.md](architecture/README.md)                                           |
 | Performance workflows (`./dev perf:*`)    | [performance/orchestrator.md](performance/orchestrator.md)                                 |

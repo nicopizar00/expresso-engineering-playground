@@ -8,6 +8,8 @@ and the web proxy rewrites are reused unchanged. The observability backends
 
 Port-forwards reuse the compose host ports, so stop compose first
 (`./dev down`) — and `./dev smoke` runs against the cluster unchanged.
+Day-to-day use, monitoring, and troubleshooting:
+[`docs/minikube-runbook.md`](../../docs/minikube-runbook.md).
 
 ## Prerequisites
 
