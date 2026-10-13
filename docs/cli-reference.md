@@ -65,6 +65,7 @@ for the dispatch diagram.
 | Stop minikube (data kept)     | `./dev k8s:down`      | `pnpm pg:k8s:down`      | `task k8s:down`     |
 | Punch perf platform on minikube: registry + k6 images, Argo Workflows, SeaweedFS (`--no-build` skips images) | `./dev k8s:perf:up` | `pnpm pg:k8s:perf:up` | `task k8s:perf:up` |
 | Argo CD syncing the perf platform + app from GitHub, PostSync smoke (`--revision <branch>`) | `./dev argocd:up` | `pnpm pg:argocd:up` | `task argocd:up` |
+| Same k8s + Argo work in bash + kubectl only (`up`, `perf:up`, `run`, `verify`, `evidence`, `ui`, `argocd:up`, `status`, `down`) | `./k8s <command>` (`./k8s help`) | — | — |
 | Run any `perf:<id>` on Argo Workflows instead of compose (`--config <preset>`, `--produce`, `--base-url`) | `./dev perf:<id> --runtime k8s` | `pnpm pg:perf:<id> --runtime k8s` | — |
 | Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
 | k6 http-purchase (search → cart → checkout; load shape via `--config <preset\|path>`, default 5 iterations; CI runs `--config 1-iteration`) | `./dev perf:http-purchase` | `pnpm pg:perf:http-purchase` | `task perf:http-purchase` |

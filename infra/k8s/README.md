@@ -50,3 +50,6 @@ Punch's templates). `./dev argocd:up` installs Argo CD
 (`../argocd/mini-commerce/`: this directory plus a PostSync smoke) from
 GitHub.
 Guide: [`docs/performance/k8s-runtime.md`](../../docs/performance/k8s-runtime.md).
+
+`./k8s` (repository root) does the same in bash + kubectl only, plus
+`./k8s verify` (the POC check) and `./k8s evidence <run>`.

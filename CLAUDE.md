@@ -37,6 +37,7 @@ cp .env.example .env
 ./dev k8s:up        # same core + web + viz stack on minikube (k8s:forward / k8s:status / k8s:down)
 ./dev k8s:perf:up   # Punch perf platform on minikube (Argo Workflows + SeaweedFS + registry)
 ./dev argocd:up     # Argo CD syncing perf platform + app from GitHub (PostSync smoke)
+./k8s verify        # bash + kubectl only: same k8s/Argo work, POC check (./k8s help)
 ```
 
 Full CLI matrix (with `pnpm pg:*` and `task` equivalents and the `hack`

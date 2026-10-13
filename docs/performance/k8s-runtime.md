@@ -28,6 +28,9 @@ Punch's contract: [`vendor/punch/k8s/README.md`](../../vendor/punch/k8s/README.m
 
 ## Quick start
 
+Two front ends drive the same manifests: `./dev` (Python, below) and
+[`./k8s`](#bash-only-k8s) (bash + kubectl only).
+
 ```bash
 ./dev k8s:up                                   # app on minikube
 ./dev k8s:perf:up                              # registry + k6 images, Argo Workflows, SeaweedFS, templates
@@ -43,6 +46,28 @@ or `all`), and `--base-url <in-cluster URL>`. Forwarded names set in your
 shell (e.g. `EXPECT_TEMPERATURE=hot`) are passed through as on compose;
 values cannot contain spaces. A workflow reads at most one required dataset
 on k8s. `--data`, `--size-for`, prompts, and the menu are compose-only. Ctrl+C stops the run (`spec.shutdown: Stop`).
+
+## Bash only: `./k8s`
+
+`./k8s` at the repository root does the same Kubernetes and Argo work in
+plain bash + kubectl (no Python), for machines or CI jobs without the
+orchestrator. It uses the same manifests and names; `./k8s help` lists
+everything.
+
+```bash
+./k8s up                      # minikube + app images + core/web/viz
+./k8s perf:up                 # registry + k6 images, Argo Workflows, SeaweedFS, templates
+./k8s verify                  # the POC check: preflight, cart → orders → status through S3,
+                              # atomic publish (resets s3://punch-artifacts/datasets/)
+./k8s run http-cart --produce carts
+./k8s evidence <run>          # status, S3 artifacts, k6 summary of one run
+./k8s ui argo|argocd|s3       # port-forward and open a UI
+./k8s argocd:up --revision main
+./k8s status | forward | s3 <aws-cli args> | down
+```
+
+`scripts/pg/tests/test_k8s_cli.py` keeps its images, cluster size, registry,
+and S3 credentials in step with the Python orchestrator.
 
 ## Without `./dev` (kubectl only)
 
