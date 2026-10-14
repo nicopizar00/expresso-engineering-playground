@@ -10,6 +10,8 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 - **English** for committed content. Conversation with the owner may be
   Spanish.
 - **No credentials or secrets** in committed content.
+- Load the `technical-writing` skill before writing or revising technical
+  documentation.
 
 ## What this repo is
 
@@ -68,14 +70,14 @@ pnpm --filter @mini-commerce/web dev
 
 ## Architecture pointers
 
-| For | Read |
-|---|---|
-| Container map across compose profiles | [`docs/architecture/containers.md`](docs/architecture/containers.md) |
-| BFF module pattern, dependency rules, invariants | [`docs/architecture/bff-modules.md`](docs/architecture/bff-modules.md) |
-| Browser → web → BFF/visualizer proxy | [`docs/architecture/web-entry-point.md`](docs/architecture/web-entry-point.md) |
-| OTel pipeline | [`docs/architecture/observability.md`](docs/architecture/observability.md) |
-| Local orchestrator (`./dev` / `pnpm pg:*` / `task`) | [`docs/architecture/orchestrator-python.md`](docs/architecture/orchestrator-python.md) |
-| Punch performance engine + its docs index | [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md) |
+| For                                                 | Read                                                                                     |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Container map across compose profiles               | [`docs/architecture/containers.md`](docs/architecture/containers.md)                     |
+| BFF module pattern, dependency rules, invariants    | [`docs/architecture/bff-modules.md`](docs/architecture/bff-modules.md)                   |
+| Browser → web → BFF/visualizer proxy                | [`docs/architecture/web-entry-point.md`](docs/architecture/web-entry-point.md)           |
+| OTel pipeline                                       | [`docs/architecture/observability.md`](docs/architecture/observability.md)               |
+| Local orchestrator (`./dev` / `pnpm pg:*` / `task`) | [`docs/architecture/orchestrator-python.md`](docs/architecture/orchestrator-python.md)   |
+| Punch performance engine + its docs index           | [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md) |
 
 ## Phase context
 
@@ -118,7 +120,7 @@ orchestration capability; the engine is Punch (`vendor/punch/`).
 - Scenario library: [`tests/performance/k6/README.md`](tests/performance/k6/README.md)
 - Punch boundary + docs index: [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md)
 - Run from a fresh checkout: `./dev perf:http-purchase --config 1-iteration`
-- Kubernetes runtime (Argo Workflows/Argo CD, no Python in cluster): [`docs/performance/k8s-runtime.md`](docs/performance/k8s-runtime.md) — `./dev perf:<id> --runtime k8s`
+- Kubernetes runtime (Argo Workflows/Argo CD, no Python in cluster): [`docs/performance/k8s-runtime.md`](docs/performance/k8s-runtime.md); `./dev perf:<id> --runtime k8s`
 
 Core `scripts/pg/` stays standard-library-only. Performance commands load the
 public Punch workflow engine, so initialize the submodule and install its

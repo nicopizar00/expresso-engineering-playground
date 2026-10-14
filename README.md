@@ -1,10 +1,9 @@
 # Mini Commerce Engineering Playground
 
 A small, runnable mini-commerce store (catalog → cart → checkout → orders →
-3D visualizer) used as a sandbox for software engineering, testing,
-observability, and performance practices. Today it is a modular monolith
-(NestJS BFF + Next.js web + Three.js visualizer on Postgres); Phase 3 extracts
-modules into services.
+3D visualizer) used for software engineering, testing, observability, and
+performance practice. The committed system has a NestJS modular-monolith BFF,
+a single-page Next.js web app, a static Three.js visualizer, and PostgreSQL.
 
 ## Prerequisites
 
@@ -13,7 +12,7 @@ modules into services.
 - **Python ≥ 3.9** on `PATH` (runs the `./dev` orchestrator).
 - **jq** (optional, for the curl examples).
 
-Node and pnpm are only needed for host-mode development — see
+Node and pnpm are only needed for host-mode development. See
 [`docs/local-development.md`](./docs/local-development.md#host-mode-node--pnpm).
 
 ## Quick start
@@ -23,7 +22,7 @@ cp .env.example .env                     # gitignored local config
 git submodule update --init --recursive  # vendor/punch performance tooling
 ./dev doctor                             # check Docker, Python, ports
 ./dev up                                 # postgres + otel-collector + bff (migrate + seed)
-./dev smoke                              # hit every BFF endpoint + one SSE frame
+./dev smoke                              # run 23 smoke checks, including one SSE frame
 ```
 
 Expected final line:
@@ -77,15 +76,17 @@ docs/              Documentation hub
 
 ## Where to go next
 
-- [`docs/local-development.md`](./docs/local-development.md) — full
+- [`docs/project-state/current-system.md`](./docs/project-state/current-system.md):
+  current behavior, boundaries, and runtime topologies.
+- [`docs/local-development.md`](./docs/local-development.md): full
   walkthrough (curl tour, web app, visualizer, hot reload, k6, teardown) and
   troubleshooting.
-- [`docs/cli-reference.md`](./docs/cli-reference.md) — every `./dev`,
-  `pnpm pg:*`, and `task` command side by side.
-- [`docs/minikube-runbook.md`](./docs/minikube-runbook.md) — step-by-step
+- [`docs/cli-reference.md`](./docs/cli-reference.md): the `./dev` command and
+  flag inventory, wrapper entry points, and separate `./k8s` commands.
+- [`docs/minikube-runbook.md`](./docs/minikube-runbook.md): step-by-step
   `minikube` / `kubectl` instructions to run, monitor, and troubleshoot the
   stack on minikube.
-- [`docs/architecture/punch-implementation.md`](./docs/architecture/punch-implementation.md)
-  — Punch integration and documentation index.
-- [`docs/README.md`](./docs/README.md) — documentation hub.
-- [`CLAUDE.md`](./CLAUDE.md) — Claude Code project guide.
+- [`docs/architecture/punch-implementation.md`](./docs/architecture/punch-implementation.md):
+  Punch integration and documentation index.
+- [`docs/README.md`](./docs/README.md): documentation hub.
+- [`CLAUDE.md`](./CLAUDE.md): Claude Code project guide.

@@ -1,131 +1,63 @@
-# Web App as Entry Point + Internal Service Proxy
+# Browser entry point and service proxy
 
-> Current-state architecture. Captured 2026-05-29. For the feature/UX inventory
-> see [../project-state/current-system.md](../project-state/current-system.md).
+> Status: Reviewed against HEAD 800ac16 by a fresh reader.
+> Drift anchors: `apps/web/app/page.tsx`, `apps/web/src/components/system/SectionProvider.tsx`, `apps/web/src/components/system/AppShell.tsx`, `apps/web/src/components/visualizer/VisualizerEmbed.tsx`, `apps/web/src/lib/api/expresso-api.ts`, `apps/web/next.config.mjs`, `apps/web/Dockerfile`, `apps/visualizer-3d/public/index.html`, `apps/visualizer-3d/public/scene.js`, `apps/visualizer-3d/public/transport.js`, `apps/bff/src/core/session/session.service.ts`, `apps/bff/src/core/auth/auth-session.service.ts`, `infra/docker/compose.yaml`.
 
-## Principle
-
-The web app is the **single browser-facing entry point**. The browser only
-talks to the web app's own origin. The web **server** (Next.js) proxies to the
-other containers over the internal Docker network. This keeps the BFF and
-visualizer reachable without exposing them to the browser as dependencies and
-removes the CORS requirement for the main app.
+The browser enters the product through `/`. That page keeps four workspace sections addressable with `?tab=`, while the Next.js server proxies application API and embedded visualizer requests to their services. The standalone visualizer instead uses a browser-reachable BFF address.
 
 ## Request topology
 
 ```mermaid
 flowchart LR
-  Browser["Host browser"]
-  subgraph net["Docker internal network"]
-    Web["web (Next.js :3000)"]
-    BFF["bff (NestJS :3001)"]
-    Viz["visualizer-3d (nginx :80)"]
-    DB[("PostgreSQL :5432")]
-  end
-
-  Browser -->|"UI routes /, /cart, /orders…"| Web
-  Browser -->|"/api/bff/*"| Web
-  Browser -->|"/viz/* (iframe)"| Web
-  Web -->|"rewrite → BFF_INTERNAL_URL"| BFF
-  Web -->|"rewrite → VISUALIZER_INTERNAL_URL"| Viz
-  BFF --> DB
-
-  Browser -. "standalone link / visualizer data fetch (host :3001, :3002)" .-> BFF
-  Browser -. "Open Standalone (host :3002)" .-> Viz
+  Browser[Browser]
+  Web[Next.js web app]
+  BFF[BFF]
+  Viz[Visualizer static app]
+  Browser -->|/ and ?tab=| Web
+  Browser -->|/api/bff/*| Web
+  Browser -->|/viz/* iframe and assets| Web
+  Web -->|rewrite, strips /api/bff| BFF
+  Web -->|rewrite, strips /viz| Viz
+  Browser -.->|Open Standalone link| Viz
+  Browser -.->|standalone visualization data| BFF
 ```
 
-Solid edges are the primary product path (browser → web → internal service).
-Dashed edges are preserved secondary paths: the standalone visualizer view and
-the visualizer's own browser → BFF data fetch still use host ports.
+The web server is the browser-facing boundary for `/api/bff` and `/viz` assets. Embedded visualizer data also travels through `/api/bff`, using its own transport independently of the web API client. The standalone link opens the visualizer at its separately configured browser-reachable address.
 
-## `/api/bff` proxy (web → BFF)
+## Workspace routing
 
-- `apps/web/next.config.mjs` rewrites `/api/bff/:path*` → `${BFF_INTERNAL_URL}/:path*`.
-- `apps/web/src/lib/api/expresso-api.ts` resolves the base URL:
-  - Browser → same-origin `/api/bff` (no CORS, web app is the entry point).
-  - Server-side code → `BFF_INTERNAL_URL` (or `http://localhost:3001` fallback).
-  - `NEXT_PUBLIC_API_BASE_URL`, if set, is an explicit override of both.
+`/` is the only workspace route. `?tab=catalog`, `?tab=orders`, `?tab=performance`, and `?tab=dev` select Catalog, Orders, Performance, and API sections. Missing or unrecognized values resolve to Catalog. Section changes push a URL into browser history, so refresh, copy, and back or forward navigation preserve the selected section.
 
-## Session cookie (cart/session evolution)
+The visualizer remains mounted beside the selected section. The homepage iframe loads `/viz/index.html?embed=1`; the embed flag hides the visualizer HUD while leaving its scene behavior active. The path keeps relative scripts and styles under `/viz/`, where the web rewrite can serve them. The Open Standalone link uses the configured standalone URL when present and otherwise opens the iframe URL.
 
-- The BFF mints and reads an `HttpOnly`, `SameSite=Lax`, `Path=/` cookie
-  named `sid` on every cart/checkout request (`SessionService` in
-  `apps/bff/src/core/session/`). Each session id keys its own cart in
-  `CartService`'s in-memory `Map` — carts are no longer a single global
-  singleton.
-- The cookie's `Secure` attribute is derived from the inbound request's
-  actual protocol (`req.protocol === 'https'`), not from `NODE_ENV`. The
-  BFF's Docker image hardcodes `NODE_ENV=production` for every build,
-  including local `./dev up`, so an env-based check would always be true
-  and silently break cookie delivery over the plain HTTP this playground
-  serves locally.
-- No code in `apps/web` sets, reads, or forwards this cookie explicitly.
-  Because the browser only ever talks to its own origin (`/api/bff/*`,
-  same-origin through the proxy), `fetch()`'s default `credentials:
-  'same-origin'` mode carries it automatically in both directions — the
-  `Set-Cookie` the BFF issues reaches the browser, and the browser sends
-  `Cookie` back on every subsequent `/api/bff/*` call, with zero
-  configuration on the web app's side.
-- Direct callers that bypass the proxy (`scripts/pg/smoke.py`, the `/dev`
-  console's own fetches — which still go through the same-origin proxy,
-  so this doesn't apply to them — and k6) see the BFF's bare route paths
-  (`/cart/items`, not `/api/bff/cart/items`), which is exactly why the
-  cookie's `Path` is `/` rather than a proxy-shaped prefix: a narrower
-  path would silently stop matching for anyone not going through
-  Next.js's rewrite.
-- k6 does not currently maintain a cookie jar across requests within a
-  scenario, so each of its calls lands in a fresh, empty session — a
-  known, accepted gap tracked under the spec's CUP-009 (k6 stays out of
-  this repo's scope; see `docs/superpowers/specs/2026-09-08-cart-session-evolution-design.md`).
+The web app and iframe share the browser origin. The parent sends the current cart selection or just-placed order to the iframe with `postMessage`, using the page origin as the target. The iframe accepts selection messages only from its parent window and the same origin, then sends a same-origin ready message so the parent can resend the current selection if initial message delivery raced iframe startup. The standalone visualizer has no parent and receives no selection message.
 
-## `/viz` proxy (web → visualizer)
+## API base selection and rewrites
 
-- `next.config.mjs` rewrites `/viz/:path*` → `${VISUALIZER_INTERNAL_URL}/:path*`.
-- The `/visualizer` page embeds the iframe at **`/viz/index.html`** (not the
-  bare `/viz/`). Next.js strips trailing slashes (`/viz/` → 308 → `/viz`), which
-  would make the visualizer's _relative_ asset paths resolve to `/scene.js`.
-  Pointing at `/viz/index.html` keeps the document base under `/viz/`, so
-  `./scene.js` resolves to `/viz/scene.js` and is proxied correctly.
-- The visualizer serves no `X-Frame-Options`/CSP frame headers, so same-origin
-  embedding works.
-- **Homepage embed:** the unified workspace at `/` also mounts the visualizer,
-  using `/viz/index.html?embed=1`. The `?embed=1` flag is consumed inside
-  `apps/visualizer-3d/public/index.html` and hides the HUD via a CSS-only
-  `body.embed` rule — `scene.js` is untouched and the SSE/polling contract is
-  unchanged. The standalone `/visualizer` route omits the flag and keeps the
-  HUD visible for direct inspection.
+The API client selects its base at call time. In browser code it uses `/api/bff`, which Next.js rewrites to the BFF with the proxy prefix removed. Server-side code calls the configured internal BFF address directly, with `http://localhost:3001` as its fallback. A non-empty `NEXT_PUBLIC_API_BASE_URL` overrides either choice.
 
-## Environment variable matrix
+Rewrite destinations are resolved when Next.js loads its configuration. A production standalone build therefore needs `BFF_INTERNAL_URL` and `VISUALIZER_INTERNAL_URL` at build time. The development server reads them when it starts. Compose supplies these values as build arguments for the production image and as runtime environment values for its development stage. Their defaults target local host ports, which supports running the web app outside Docker; Compose uses service addresses for container-to-container traffic.
 
-`NEXT_PUBLIC_*` values are inlined into the client bundle at build time. Rewrite
-targets are resolved when `next.config.mjs` loads (build time for the standalone
-server, server start for `next dev`). So the production image needs build args,
-and the dev/watch stage needs runtime env — both are set in
-`infra/docker/compose.yaml`.
+The browser uses `/viz` for the embedded static app and its relative assets. The rewrite removes the prefix before forwarding to the visualizer service. `NEXT_PUBLIC_VISUALIZER_URL` controls the standalone link; it does not change the iframe proxy destination.
 
-| Variable                     | Scope                    | Default                   | Used for                       |
-| ---------------------------- | ------------------------ | ------------------------- | ------------------------------ |
-| `BFF_INTERNAL_URL`           | server (build arg + env) | `http://bff:3001`         | `/api/bff` rewrite target      |
-| `VISUALIZER_INTERNAL_URL`    | server (build arg + env) | `http://visualizer-3d:80` | `/viz` rewrite target          |
-| `NEXT_PUBLIC_VISUALIZER_URL` | client (build arg)       | `http://localhost:3002`   | "Open Standalone" link only    |
-| `NEXT_PUBLIC_API_BASE_URL`   | client (optional)        | unset                     | Explicit override of the proxy |
+The visualizer transport chooses `/api/bff` when its pathname starts with `/viz`. Otherwise it uses the config shim generated from `VIZ_API_BASE_URL`, falling back to `http://localhost:3001`. Both modes use SSE with polling as a fallback.
 
-For host dev without Docker (`pnpm pg:dev:host`), leave the internal URLs unset
-so they fall back to `localhost`. Compose sets the in-container service names
-automatically; `.env.example` keeps them commented for this reason.
+See [configuration reference](../reference/configuration.md) for the configuration inventory and [HTTP API reference](../reference/http-api.md) for the HTTP contract.
 
-## Boundary rules
+## Session and authentication cookies
 
-- Visual components never call `fetch` directly — they go through
-  `expresso-api.ts`, which targets the proxy.
-- The web frontend owns no Three.js or visualization-transformation code; the
-  visualizer reads `GET /visualization` only.
-- `@mini-commerce/contracts` is the shared wire-format boundary; the proxy does
-  not reshape payloads.
-- The Next.js standalone server entrypoint in a pnpm monorepo is
-  `apps/web/server.js` (the Docker `CMD` reflects this).
+Cart sessions use the `sid` cookie, and signed-in accounts use the `auth` cookie. Both are HTTP-only, same-site lax cookies scoped to `/`. The BFF sets `Secure` from the inbound request protocol, so plain HTTP local use does not receive a cookie marked secure solely because the container runs in production mode.
 
-## Related
+For proxied calls, the browser sends same-origin cookies automatically. Next.js forwards the request cookie to the BFF and returns the BFF response, including `Set-Cookie`, to the browser. The proxy removes the `/api/bff` prefix before the BFF handles the request, so the BFF sees its normal route paths. The root cookie path also covers direct BFF clients that do not use the web proxy.
 
-- Current features and UX: [../project-state/current-system.md](../project-state/current-system.md)
-- Architecture index: [README.md](README.md)
+## Demo mode and service failures
+
+Demo mode switches the web API client from live BFF requests to in-browser mock implementations. `NEXT_PUBLIC_DEMO_MODE=true` enables it at build time, and the user-facing toggle can also enable it through local storage. The toggle cannot disable a build-time setting of `true`.
+
+This bypasses the BFF for the web application's API operations. It does not reconfigure the iframe transport, which continues requesting live scene data through `/api/bff`.
+
+When the web server is unavailable, the browser cannot load the workspace or either same-origin proxy. If the BFF is unavailable or its rewrite target is wrong, live API requests fail; demo mode can continue using mock API data.
+
+The iframe shows an error with a retry action on an iframe error event or after 12 seconds without a load event. Proxy HTTP failures can still fire a load event, so this indicator does not prove visualizer health. The standalone link only helps when its configured address is reachable from the browser.
+
+A failed scene-data connection prevents live updates even when the iframe loads. The transport shows a fallback scene on an initial fetch failure and retains existing scene objects on later fetch failures.

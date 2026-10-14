@@ -1,164 +1,98 @@
-# BFF Modules — C4 Level 3
+# BFF modules
 
-> Current-state component view of the NestJS BFF (`apps/bff/`). The canonical
-> home of the **module pattern** and **inter-module dependency rules**. Other
-> docs (CLAUDE.md, copilot, AI playbooks) link here instead of restating them.
+> Status: Reviewed against HEAD 800ac16 by a fresh reader.
 
-## Module graph
+The BFF is a NestJS modular monolith. Eight feature modules own HTTP entry points and domain behavior; shared providers handle persistence, authentication, anonymous sessions, and in-process change notifications. Prisma is registered globally, while feature and core module dependencies are otherwise visible through Nest module imports and exports.
+
+Drift anchors at HEAD 800ac16506b91b3d69ca852f9098a106e865692e: `apps/bff/src/app.module.ts`, `apps/bff/src/prisma.module.ts`, `apps/bff/src/core/`, `apps/bff/src/modules/`, `apps/bff/src/main.ts`.
+
+## Module dependencies
+
+The graph shows explicit `imports` relationships from each consumer to its provider. The root app composes every feature module and Prisma. `PrismaModule` is global, so modules that inject `PrismaService` do not declare a module import edge for it. Core modules are not global and consumers import them explicitly.
 
 ```mermaid
 flowchart TD
-  classDef infra fill:#eef6ff,stroke:#2a6fc4,color:#000;
-  classDef domain fill:#fff5e6,stroke:#c47a2a,color:#000;
+  App[AppModule]
+  Prisma[PrismaModule<br/>global]
+  Health[HealthModule]
+  Auth[AuthModule]
+  Catalog[CatalogModule]
+  Cart[CartModule]
+  Checkout[CheckoutModule]
+  Orders[OrdersModule]
+  Assets[AssetsModule]
+  Viz[VisualizationModule]
+  AuthCore[AuthCoreModule]
+  Session[SessionModule]
+  Events[DomainEventsModule]
 
-  Prisma["PrismaModule<br/>(core/)"]:::infra
-  Events["DomainEventsModule<br/>(core/)"]:::infra
-  AuthCore["AuthCoreModule<br/>(core/auth)"]:::infra
-
-  Health["HealthModule"]:::domain
-  Catalog["CatalogModule"]:::domain
-  Cart["CartModule"]:::domain
-  Checkout["CheckoutModule"]:::domain
-  Orders["OrdersModule"]:::domain
-  Auth["AuthModule"]:::domain
-  Viz["VisualizationModule"]:::domain
-
-  AuthCore --> Prisma
+  App --> Prisma
+  App --> Health
+  App --> Auth
+  App --> Catalog
+  App --> Cart
+  App --> Checkout
+  App --> Orders
+  App --> Assets
+  App --> Viz
   Auth --> AuthCore
-  Checkout --> AuthCore
-  Orders --> AuthCore
-  Catalog --> Prisma
-  Orders  --> Prisma
-  Orders  --> Events
-  Cart    --> Catalog
-  Cart    --> Events
+  Catalog --> Events
+  Cart --> Catalog
+  Cart --> Session
+  Cart --> Events
   Checkout --> Cart
   Checkout --> Orders
+  Checkout --> Session
+  Checkout --> AuthCore
   Checkout --> Events
+  Orders --> Session
+  Orders --> AuthCore
+  Orders --> Events
   Viz --> Catalog
-  Viz --> Cart
   Viz --> Orders
+  Viz --> Assets
   Viz --> Events
 ```
 
-Edges point from consumer → provider. **All edges are `imports: [Module]`
-declarations**; no module reaches into another's internal files.
+Edges point from consumer to provider and reflect module declarations. `CatalogModule`, `CartModule`, `CheckoutModule`, `OrdersModule`, `AssetsModule`, and `VisualizationModule` export their primary service. `AuthModule` and `HealthModule` export no providers. `AuthCoreModule`, `SessionModule`, and `DomainEventsModule` export their respective service. `PrismaModule` exports `PrismaService` and is marked `@Global()`.
 
-## Module file pattern
+## Feature ownership
 
-Every domain module lives in `apps/bff/src/modules/<domain>/` with **four
-files, no more**:
+Each feature module owns its controllers and application service. The services form these boundaries:
 
-| File | Role |
-|---|---|
-| `<domain>.module.ts` | `@Module` — `providers`, `imports`, `exports` only |
-| `<domain>.service.ts` | Business logic — `@Injectable` |
-| `<domain>.controller.ts` | HTTP routes — `@Controller` |
-| `<domain>.types.ts` | DTOs / wire-format types (consumed by `@mini-commerce/contracts` when they cross the wire) |
+- `HealthModule` serves the BFF health check.
+- `AuthModule` handles account registration, login, logout, and the current-user response. It delegates signed-in session operations to `AuthSessionService`.
+- `CatalogModule` reads and creates products. It provides the product lookup used by cart and the product records used by visualization.
+- `CartModule` owns cart operations for an anonymous browser session. It uses the catalog service for product identity and price, and publishes change signals.
+- `CheckoutModule` coordinates the current cart and order creation. It resolves both anonymous session and optional signed-in account context, then clears the cart after a successful order.
+- `OrdersModule` owns order reads, creation, account order views, and temperature status. It also publishes change signals.
+- `AssetsModule` serves asset configuration and primary model references used to decorate visualization products.
+- `VisualizationModule` builds visualization responses from catalog, orders, and assets. It serves both a snapshot and an SSE stream of snapshots.
 
-Tests sit beside source as `*.spec.ts`.
-
-## Dependency rules (load-bearing)
-
-1. **Cross-module access is through the barrel only.** Never
-   `import { OrdersService } from '../orders/orders.service'`. If you need it,
-   the providing module must `exports: [OrdersService]` and the consumer must
-   `imports: [OrdersModule]`.
-2. **`DomainEventsModule` is not `@Global()`.** Modules that publish or
-   subscribe declare it explicitly. This keeps test isolation clean —
-   `Test.createTestingModule` builds the minimum graph.
-3. **Future domains start with an ADR, not an empty module.** Customer and
-   notification capabilities remain planned namespaces. Add their source
-   modules only when the matching domain ships with behavior and tests.
-
-## Auth and account orders
-
-- **`auth`** (`modules/auth/`) — public surface: `POST /auth/register`
-  (creates the user and signs in; 409 `{field}` on conflict),
-  `POST /auth/login` (username or email; generic 401), `POST /auth/logout`
-  (idempotent, 204), `GET /me` (`{user}` or `{user: null}`).
-- **`core/auth`** — `AuthCoreModule` exports `AuthSessionService`, which
-  resolves the signed-in user from the httpOnly `auth` cookie. It is
-  imported by `auth`, `checkout`, and `orders`.
-- **`orders`** also serves `GET /me/orders` (`AccountController`):
-  `{items, latest}` for the signed-in user, newest first.
-- **`orders`** also serves `GET /me/hot-status` (`AccountController` →
-  `HotStatusService`): hot count and next `coolsAt` for the signed-in user,
-  one aggregate query, never order rows.
-
-**Dependency rule:** modules read the signed-in user only through
-`AuthSessionService`, never through `AuthService`.
+The HTTP route inventory is maintained in the [HTTP API reference](../reference/http-api.md). The [data and state reference](../reference/data-and-state.md) owns the schema and exhaustive state details.
 
 ## Shared route prefixes
 
-Two path prefixes are served by controllers in different modules. Nest
-merges them by method and sub-path; nothing collides.
+Controllers in separate modules share `/orders` and `/me` prefixes. Checkout owns order submission under `/orders`; Orders owns order reads and status. Auth owns the current-user endpoint under `/me`; Orders owns account order and hot-status views under the same prefix. The route reference lists the full method and path mapping.
 
-- **`/orders`** — `POST /orders` is the `checkout` module's
-  `CheckoutController` (cart → order orchestration). `GET /orders`,
-  `GET /orders?owner=session`, `GET /orders/:id`, and
-  `GET /orders/:id/status` are the `orders` module's `OrdersController`.
-- **`/me`** — `GET /me` is the `auth` module's `MeController`.
-  `GET /me/orders` and `GET /me/hot-status` are the `orders` module's
-  `AccountController`.
+## State ownership and caching
 
-The full route table is pinned by `apps/bff/src/routes.spec.ts`.
+Postgres is the durable store for users, authentication sessions, products, assets, and orders. The global Prisma provider gives services database access; it does not imply that every read goes to the database.
 
-Feature record: [`../next-steps/login.md`](../next-steps/login.md).
+Catalog, orders, and assets warm in-memory read structures during module initialization. Catalog listing and product lookup read the warmed cache; product creation writes to Postgres and appends the returned product to that cache. Orders warm the order list and session and idempotency indexes; ordinary list and item reads use those structures, while account listing and order status query Postgres directly. Asset configuration and primary model lookups use caches replaced together by an explicit refresh.
 
-## Cross-cutting concerns
+Cart state lives in a process-local map keyed by the anonymous `sid` cookie. A cart permits one item with quantity one. The one-hour reservation expires lazily when a cart is accessed, and successful checkout clears that session's cart. A BFF restart loses carts; Postgres-backed orders and other persisted records remain durable. Signing in uses a separate `auth` cookie and does not change the anonymous cart session.
 
-Applied globally in `apps/bff/src/main.ts`:
+`SessionModule` resolves or mints the `sid` cookie. `AuthCoreModule` resolves the signed-in user from a database-backed session represented by the `auth` cookie. Both cookies are HTTP-only, use `SameSite=Lax` and root path, and set `Secure` based on the incoming request protocol. Invalid or expired auth sessions are treated as signed out; expired rows are removed when encountered.
 
-| Concern | Mechanism |
-|---|---|
-| Request logging | `LoggingInterceptor` |
-| Error normalization | `HttpExceptionFilter` |
-| DTO validation | `ValidationPipe` (`class-validator`) |
-| Telemetry | `initTelemetry()` — OTLP HTTP exporter when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
+## Change notifications and visualization
 
-See [`observability.md`](observability.md) for the trace pipeline downstream
-of `initTelemetry`.
+`DomainEventsModule` provides a process-local RxJS subject that carries a coarse change signal without a payload. Catalog creation, cart addition, checkout, and order creation emit it. Cart clearing and lazy reservation expiry do not emit independently. `VisualizationController` sends a full snapshot immediately to each SSE subscriber, then rebuilds and sends a snapshot after a change signal. A 50 millisecond debounce coalesces bursts such as order creation followed by checkout completion.
 
-## Data-model invariants
+The visualization snapshot aggregates catalog products and orders and decorates products with asset data. The service has no request context, so its snapshot does not contain a session-specific cart. The SSE signal is in-process: it reaches subscribers connected to the same BFF process and is not a cross-instance event transport. See the [data and state reference](../reference/data-and-state.md) for response state and persistence ownership.
 
-- **Money** is always `{ amountMinor: number, currency: string }` — integer
-  cents, never floats.
-- **Branded types** live in `@mini-commerce/shared-types`: `ProductId`,
-  `CartItemId`, `OrderId`, `CustomerId`. Use them; don't substitute plain
-  `string`.
-- **Cart** is single-user, in-process, resets on BFF restart. Intentional for
-  Phase 1.
+## Startup behavior
 
-## Visualization endpoint as a Phase-3 boundary
+Bootstrap calls telemetry initialization before creating the Nest application. When `OTEL_EXPORTER_OTLP_ENDPOINT` is set, the initializer starts the OpenTelemetry NodeSDK with an HTTP trace exporter and auto-instrumentations; without it, initialization returns immediately. This call order does not prove instrumentation coverage because application modules are statically imported before bootstrap runs.
 
-`GET /visualization` and `GET /visualization/events` (SSE) are
-read-only aggregators: `VisualizationService` pulls from `CatalogService`,
-`CartService`, and `OrdersService` and emits a **semantic** payload
-(`VisualizationScene`) describing meaning, not representation. The
-`visualizer-3d` frontend **never reads the database directly** — all data
-flows through this endpoint. This boundary is load-bearing for the Phase-3
-service extraction.
-
-**Contract split (EOC-2):**
-
-- BFF owns meaning: `scene.products`, `scene.recentOrders` (capped at the
-  most recent 10), `scene.orderAggregates` (`totalCount`, `olderCount`,
-  `temperatureCounts { hot, cold }`), `scene.cart` (null when empty), `scene.latestActivityAt`.
-- Visualizer owns representation: mesh choice, color, position, animation.
-  The PS1 builders compose from `buildSquareFrustum`, `makePsxTexture`,
-  and `clearGroup` primitives only.
-- Legacy `items[]` (with `type: "cube" | "sphere" | "marker"`) remains on
-  the response as a back-compat surface until smoke, k6, and scene
-  consumers have all migrated to `scene`. It is scheduled for removal in
-  a follow-up iteration.
-- `CatalogService.create()` emits the same `DomainEventsService.changed$`
-  signal as cart/orders/checkout so new products propagate through the SSE
-  stream without waiting for an unrelated mutation.
-
-## Related
-
-- Web entry point + proxy: [`web-entry-point.md`](web-entry-point.md)
-- Container view: [`containers.md`](containers.md)
-- Observability pipeline: [`observability.md`](observability.md)
-- Current-state feature inventory: [`../project-state/current-system.md`](../project-state/current-system.md)
+Bootstrap then installs a strict transforming validation pipe, request logging interceptor, and HTTP exception filter globally. It configures CORS from `CORS_ORIGIN` (default `*`) and listens on `PORT` (default `3001`). Invalid auth-session TTL and order cool-down configuration fail during provider initialization rather than serving with an invalid duration.

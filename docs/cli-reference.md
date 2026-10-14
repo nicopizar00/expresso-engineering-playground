@@ -1,134 +1,127 @@
 # CLI reference
 
-The playground ships three parallel CLIs. They cover the same operations
-with different host prerequisites — pick the one that matches what you
-have installed.
+> Status: Reviewed against HEAD 800ac16 by a fresh reader.
 
-| CLI            | Host prerequisites          | Best for                                        |
-| -------------- | --------------------------- | ----------------------------------------------- |
-| `./dev`        | Docker + Python ≥ 3.9       | The local walkthrough. Zero Node on the host.   |
-| `pnpm pg:*`    | + Node ≥ 20 + pnpm 9        | Contributors already running pnpm.              |
-| `task`         | + `go-task` (Homebrew)      | Optional convenience wrapper over `pnpm pg:*`.  |
+`./dev` dispatches 30 commands: 18 stack, Kubernetes, and Argo CD commands; nine workflow commands generated from the performance workflow catalog; `perf:open-report`; `perf:clean`; and `hack`. The standalone `./k8s` script is a related Bash CLI with its own command set. `pnpm pg:*` and selected `task` commands wrap `./dev`; they do not add dispatcher commands.
 
-**Note:** This repo uses a git submodule (`vendor/punch/`) for shared
-performance-testing tooling. After cloning, initialize it with `git submodule
-update --init --recursive` before running `./dev perf:*` commands. Core
-`scripts/pg/` remains standard-library-only; performance commands load
-Punch's pinned PyYAML dependency, while its interactive menu also needs
-`simple-term-menu` and `rich`. Install them from Punch's requirements:
+The command and flag behavior below is pinned to commit `800ac16506b91b3d69ca852f9098a106e865692e`. Primary implementation sources are [`scripts/pg/cli.py`](../scripts/pg/cli.py), [`scripts/pg/workflows.py`](../scripts/pg/workflows.py), the `scripts/pg` command modules, [`scripts/pg/hack.py`](../scripts/pg/hack.py), and the root [`k8s`](../k8s) script.
 
-```bash
-python3 -m venv .cache/punch-venv
-. .cache/punch-venv/bin/activate
-python3 -m pip install -r vendor/punch/requirements.txt
-```
+## Entry points
 
-The virtual environment works with externally managed Python installations,
-including Homebrew. In a new shell, reactivate it or launch the menu with
-`PATH=".cache/punch-venv/bin:$PATH" ./bin/punch`. The launcher checks for
-these dependencies before offering the optional image build.
+| Entry point         | Usage                      | Behavior                                                                                                                                                                      |
+| ------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Python CLI          | `./dev <command> [args]`   | Requires Python 3.9 or later; stack operations require Docker. Dispatches the commands listed below. No command, `help`, `-h`, or `--help` prints usage.                      |
+| pnpm wrappers       | `pnpm pg:<command> [args]` | Package scripts invoke `./dev`; pass command-specific arguments after the script name where the wrapper supports them. Node 20 or later and pnpm 9 are project prerequisites. |
+| Task wrappers       | `task <task> [-- <args>]`  | Optional `go-task` wrappers for selected `pnpm pg:*` scripts. Task names and support are listed in the Taskfile; this is not a second dispatcher.                             |
+| Bash Kubernetes CLI | `./k8s <command> [args]`   | Python-free related CLI for Kubernetes and Argo operations. See its command table below.                                                                                      |
 
-Build the image separately before a fresh or changed performance run:
+Performance commands additionally load the vendored Punch tooling and its pinned Python dependencies. Initialize the `vendor/punch` submodule before use. The interactive `./bin/punch` launcher also needs its menu dependencies. See [`performance/k8s-runtime.md`](performance/k8s-runtime.md) for Kubernetes runtime details.
 
-```bash
-docker compose -f infra/docker/compose.performance.yaml build k6
-```
+## `./dev` commands
 
-All three converge on `python3 -m pg` under the hood. Prisma migrate and seed
-run inside the BFF dev-stage container — no host Node/Prisma needed even on the
-`pnpm pg:*` path. See [`architecture/orchestrator-python.md`](architecture/orchestrator-python.md)
-for the dispatch diagram.
+The 18 stack and deployment commands are listed first. The nine `perf:<workflow>` commands come from the catalog in `scripts/pg/workflows.py`, whose IDs match YAML stems in `tests/performance/k6/workflows/`.
 
-## Command matrix
+| Command                         | Purpose                                                                                                     | Usage                                                    |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `doctor`                        | Check local prerequisites and environment recommendations.                                                  | `./dev doctor`                                           |
+| `up`                            | Start the core stack, or add the `web`, `viz`, `admin`, `obs`, or `full` target. Target defaults to `core`. | `./dev up [core\|web\|viz\|admin\|obs\|full] [--fresh]`  |
+| `down`                          | Stop the Compose services.                                                                                  | `./dev down`                                             |
+| `reset`                         | Stop containers while preserving volumes.                                                                   | `./dev reset`                                            |
+| `restart`                       | Stop services, then start the selected target; default target is `full`.                                    | `./dev restart [target]`                                 |
+| `dev`                           | Start Compose watch for the development loop.                                                               | `./dev dev`                                              |
+| `dev:host`                      | Start the host-based hot-reload development loop.                                                           | `./dev dev:host`                                         |
+| `smoke`                         | Run HTTP endpoint smoke checks.                                                                             | `./dev smoke`                                            |
+| `seed`                          | Seed the database.                                                                                          | `./dev seed`                                             |
+| `status`                        | Show Compose service status.                                                                                | `./dev status`                                           |
+| `logs`                          | Follow Compose logs.                                                                                        | `./dev logs`                                             |
+| `open`                          | Print local service URLs.                                                                                   | `./dev open`                                             |
+| `k8s:up`                        | Start minikube and deploy the core app, web, and visualizer.                                                | `./dev k8s:up [--no-build]`                              |
+| `k8s:forward`                   | Forward minikube web, BFF, and visualizer services to the local ports.                                      | `./dev k8s:forward`                                      |
+| `k8s:status`                    | Show minikube pods and services.                                                                            | `./dev k8s:status`                                       |
+| `k8s:down`                      | Stop minikube while retaining its images and data.                                                          | `./dev k8s:down`                                         |
+| `k8s:perf:up`                   | Deploy the Punch performance platform, including registry, k6 images, Argo Workflows, and SeaweedFS.        | `./dev k8s:perf:up [--no-build]`                         |
+| `argocd:up`                     | Install Argo CD and sync the `punch-platform` and `mini-commerce` applications from GitHub.                 | `./dev argocd:up [--revision BRANCH]`                    |
+| `perf:browser-cart`             | Run the browser cart workflow against the web app.                                                          | `./dev perf:browser-cart [workflow options]`             |
+| `perf:browser-purchase`         | Run the browser purchase workflow against the web app.                                                      | `./dev perf:browser-purchase [workflow options]`         |
+| `perf:http-auth-login`          | Run the BFF login workflow.                                                                                 | `./dev perf:http-auth-login [workflow options]`          |
+| `perf:http-cart`                | Run the BFF cart workflow.                                                                                  | `./dev perf:http-cart [workflow options]`                |
+| `perf:http-me-hot-status`       | Run the authenticated hot-status workflow.                                                                  | `./dev perf:http-me-hot-status [workflow options]`       |
+| `perf:http-orders`              | Create orders using cart dataset rows.                                                                      | `./dev perf:http-orders [workflow options]`              |
+| `perf:http-orders-status`       | Read status for orders dataset rows.                                                                        | `./dev perf:http-orders-status [workflow options]`       |
+| `perf:http-purchase`            | Run the BFF purchase workflow.                                                                              | `./dev perf:http-purchase [workflow options]`            |
+| `perf:http-purchase-registered` | Run the registered-user purchase workflow.                                                                  | `./dev perf:http-purchase-registered [workflow options]` |
+| `perf:open-report`              | List generated report artifacts and print a JSON inspection hint.                                           | `./dev perf:open-report`                                 |
+| `perf:clean`                    | Remove generated performance reports.                                                                       | `./dev perf:clean`                                       |
+| `hack`                          | Dispatch the `exec`, `env`, `sql`, or `trace` debugging subcommand.                                         | `./dev hack <subcommand> [args]`                         |
 
-| Goal                          | `./dev` (Docker-only) | `pnpm pg:*`             | `task` wrapper      |
-| ----------------------------- | --------------------- | ----------------------- | ------------------- |
-| Validate prerequisites        | `./dev doctor`        | `pnpm pg:doctor`        | `task doctor`       |
-| Start core stack              | `./dev up`            | `pnpm pg:up`            | `task up`           |
-| Start + web app               | `./dev up web`        | `pnpm pg:up web`        | `task up:web`       |
-| Start + visualizer            | `./dev up viz`        | `pnpm pg:up viz`        | `task up:viz`       |
-| Start + Prisma Studio         | `./dev up admin`      | `pnpm pg:up admin`      | `task up:admin`     |
-| Start + observability         | `./dev up obs`        | `pnpm pg:up obs`        | `task up:obs`       |
-| Start everything              | `./dev up full`       | `pnpm pg:up full`       | `task up:full`      |
-| Hot-reload dev (compose watch)| `./dev dev`           | `pnpm pg:dev`           | `task dev`          |
-| Hot-reload dev on host        | — (host only)         | `pnpm pg:dev:host`      | `task dev:host`     |
-| Service status                | `./dev status`        | `pnpm pg:status`        | `task status`       |
-| Follow logs                   | `./dev logs`          | `pnpm pg:logs`          | `task logs`         |
-| Endpoint smoke test (23 checks + SSE) | `./dev smoke`  | `pnpm pg:smoke`         | `task smoke`        |
-| Seed database                 | `./dev seed`          | `pnpm pg:seed`          | `task seed`         |
-| Stop services                 | `./dev down`          | `pnpm pg:down`          | `task down`         |
-| Restart                       | `./dev restart`       | `pnpm pg:restart`       | `task restart`      |
-| Print local URLs              | `./dev open`          | `pnpm pg:open`          | `task open`         |
-| Deploy core + web + viz to minikube (`--no-build` skips image builds) | `./dev k8s:up` | `pnpm pg:k8s:up` | `task k8s:up` |
-| Port-forward minikube services to localhost:3000/3001/3002 | `./dev k8s:forward` | `pnpm pg:k8s:forward` | `task k8s:forward` |
-| minikube pods + services      | `./dev k8s:status`    | `pnpm pg:k8s:status`    | `task k8s:status`   |
-| Stop minikube (data kept)     | `./dev k8s:down`      | `pnpm pg:k8s:down`      | `task k8s:down`     |
-| Punch perf platform on minikube: registry + k6 images, Argo Workflows, SeaweedFS (`--no-build` skips images) | `./dev k8s:perf:up` | `pnpm pg:k8s:perf:up` | `task k8s:perf:up` |
-| Argo CD syncing the perf platform + app from GitHub, PostSync smoke (`--revision <branch>`) | `./dev argocd:up` | `pnpm pg:argocd:up` | `task argocd:up` |
-| Same k8s + Argo work in bash + kubectl only (`up`, `perf:up`, `run`, `verify`, `evidence`, `ui`, `argocd:up`, `status`, `down`) | `./k8s <command>` (`./k8s help`) | — | — |
-| Run any `perf:<id>` on Argo Workflows instead of compose (`--config <preset>`, `--produce`, `--base-url`) | `./dev perf:<id> --runtime k8s` | `pnpm pg:perf:<id> --runtime k8s` | — |
-| Python orchestrator tests     | —                     | `pnpm pg:test`          | `task pg:test`      |
-| k6 http-purchase (search → cart → checkout; load shape via `--config <preset\|path>`, default 5 iterations; CI runs `--config 1-iteration`) | `./dev perf:http-purchase` | `pnpm pg:perf:http-purchase` | `task perf:http-purchase` |
-| k6 http-purchase driven by a real browser (Chromium via k6/browser, web app UI — not the BFF directly); `--config` needs a `*-browser` preset | `./dev perf:browser-purchase` | `pnpm pg:perf:browser-purchase` | `task perf:browser-purchase` |
-| k6 http-cart (search → add to cart, stops before checkout, emits `[DATA carts]` rows), writes `data/carts.csv` only with `--produce carts` | `./dev perf:http-cart` | `pnpm pg:perf:http-cart` | `task perf:http-cart` |
-| k6 http-cart driven by a real browser (Chromium via k6/browser, web app UI), stops before Place Order, emits `[DATA carts]` rows into the same `carts` dataset, writes it only with `--produce carts` | `./dev perf:browser-cart` | `pnpm pg:perf:browser-cart` | `task perf:browser-cart` |
-| k6 http-orders (checks out carts reserved by http-cart or browser-cart via the `carts` dataset, verifies order + visualizer), fails before Docker if `carts` is missing; `--data carts=<path>` reads another file | `./dev perf:http-orders` | `pnpm pg:perf:http-orders` | `task perf:http-orders` |
-| k6 http-orders-status (reads `GET /orders/:id/status` for each row of the `orders` dataset produced by http-orders / http-purchase / browser-purchase with `--produce orders`), `EXPECT_TEMPERATURE` (`auto`\|`hot`\|`cold`)/`ORDER_COOL_DOWN_SECONDS` env, fails before Docker if `orders` is missing | `./dev perf:http-orders-status` | `pnpm pg:perf:http-orders-status` | `task perf:http-orders-status` |
-| k6 http-purchase-registered (anonymous orders for seeded demo users; produces `owned-orders` with `--produce owned-orders`), `USERS` env | `./dev perf:http-purchase-registered` | `pnpm pg:perf:http-purchase-registered` | `task perf:http-purchase-registered` |
-| k6 http-auth-login (owners of `owned-orders` when present, else the seeded demo users; produces `auth-tokens` with `--produce auth-tokens`), `DEMO_PASSWORD` env | `./dev perf:http-auth-login` | `pnpm pg:perf:http-auth-login` | `task perf:http-auth-login` |
-| k6 http-me-hot-status (`GET /me/hot-status` per `auth-tokens` row; shape checks), fails before Docker if `auth-tokens` is missing | `./dev perf:http-me-hot-status` | `pnpm pg:perf:http-me-hot-status` | `task perf:http-me-hot-status` |
-| Open k6 HTML report           | `./dev perf:open-report` | `pnpm pg:perf:open-report` | `task perf:open-report` |
-| Clear k6 reports              | `./dev perf:clean`    | `pnpm pg:perf:clean`    | `task perf:clean`   |
-| Interactive k6 workflow picker | `./bin/punch` | — | — |
+This table has 30 entries: 18 fixed commands, nine workflow-generated commands, two report commands, and `hack`.
 
-### Debugging (`hack`)
+### Performance workflow options
 
-Daily-driver affordances over the live container stack. Require the relevant
-profiles up. See [`architecture/orchestrator-python.md`](architecture/orchestrator-python.md#pg-hack).
+All nine `perf:<workflow>` commands accept `--runtime` and can run on Compose or Kubernetes. Compose runs accept `--config`, `--produce`, and `--data`; Kubernetes runs accept `--config`, `--produce`, and `--base-url`. The dispatcher extracts `--runtime` before invoking the workflow-specific parser. On Kubernetes, `--data` is unsupported, and `--config` accepts a preset name only.
 
-| Goal | Command |
-|---|---|
-| Shell into a service | `./dev hack exec <svc>` (e.g. `bff`, `web`, `postgres`) |
-| Diff container env vs root `.env` | `./dev hack env <svc>` |
-| One-shot SQL against postgres | `./dev hack sql --query 'SELECT count(*) FROM "Product";'` |
-| Trace a BFF request via Tempo | `./dev hack trace GET /products` (needs `up obs`) |
+The [flag inventory](#scriptspg-user-facing-flags) specifies values, defaults, and repetition behavior for these options.
 
-Each `perf:*` command selects one repository-owned YAML workflow. Punch
-loads, validates, preflights any required dataset, confirms the Docker
-Compose run itself (interactive terminals only — CI proceeds automatically),
-then performs exactly one Docker Compose run, printing the k6 metrics from
-`outputs.summary` on success. Do not replace that path with an ad-hoc Compose
-command except while debugging the container itself; that is an escape hatch,
-not the supported workflow path.
+Compose workflows use `BASE_URL` from the environment when nonempty; otherwise they target `http://host.docker.internal:3000` for browser workflows or `http://host.docker.internal:3001` for BFF workflows. `--produce` explicitly selects outputs and suppresses the interactive Docker run confirmation. With no output selection, declared datasets are not written. Kubernetes datasets are published to the configured S3 dataset location.
 
-Workflows that produce a dataset (`spec.data.produces`) write it only when
-the run passes `--produce <dataset>` (or `--produce all`), e.g.
-`./dev perf:http-cart --produce carts`; an explicit `--produce` also skips
-the Docker prompt. Consumers fail before Docker until their datasets exist and
-accept `--data <dataset>=<path>` for an alternate file under
-`tests/performance/k6/data/`.
+### `hack` subcommands
 
-`./bin/punch` first offers to run `docker compose build k6 k6-browser` (both
-images, since the menu can select either service and hasn't picked a
-workflow yet at that point). Answering No skips only the build and still
-opens the interactive menu; answering Yes builds before workflow selection.
-The menu picks and runs exactly one
-workflow per invocation (no "run another?" loop). The launcher requires a
-terminal and does not build when one is unavailable; use `./dev perf:*` for
-non-interactive runs.
+| Subcommand | Purpose                                                                                                                                    | Usage                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `exec`     | Open an interactive shell in a running service, or execute a command there. Without an explicit shell, probe for bash and fall back to sh. | `./dev hack exec <service> [--shell SHELL] [-- command args...]` |
+| `env`      | Compare a running container's environment with root `.env`.                                                                                | `./dev hack env <service>`                                       |
+| `sql`      | Run psql against the local Postgres service, from a query, a file, or interactively.                                                       | `./dev hack sql [--query QUERY \| --file FILE] [--json]`         |
+| `trace`    | Send an HTTP request with a generated traceparent and retrieve its spans from Tempo.                                                       | `./dev hack trace <METHOD> <path> [--body JSON]`                 |
 
-## Defaults
+For `exec`, place `--` before the command and arguments to pass them to the container. For `sql`, `--query` and `--file` are mutually exclusive; without either, psql is interactive. `--json` requires `--query` and prints the aggregated query result as JSON. `trace` requires the observability services to be running. These commands act on running local services; an explicit SQL query can change database state.
 
-- `BFF_PORT=3001`, `WEB_PORT=3000`, `VIZ_PORT=3002`, `POSTGRES` on `5432`.
-- All three CLIs honour the same env vars from the root `.env`.
-- `compose.yaml` uses `${VAR:-default}` so the stack runs without a
-  `.env` file (`./dev up` works on a clean clone). `./dev doctor` and
-  `pnpm pg:doctor` still surface `.env` as a recommendation; create it
-  with `cp .env.example .env`.
+## `scripts/pg` user-facing flags
 
-## Picking a CLI
+The table covers 13 operational flag names. The `--` token is a positional separator, documented separately below. The SQL aliases `-q` and `-f` are additional spellings for their long flags.
 
-- Following the [local walkthrough](local-development.md) → `./dev`.
-- Contributing patches that touch host-side scripts → `pnpm pg:*`.
-- Power user with `brew install go-task` → `task` (it just shells out
-  to `pnpm pg:*`, so the prerequisites are the same as that path).
+Help options are separate: `-h` and `--help` print usage at the dispatcher, after `hack`, and in the workflow parsers. `./dev help` and `./dev hack help` also print usage.
+
+| Flag            | Target and accepted values                                                                                                                                                                  | Default                                                                                                                                        | Repeatable                                    | Usage                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `--fresh`       | `up`; no value. Remove Compose volumes, including database data, before starting.                                                                                                           | Off.                                                                                                                                           | Yes, though repeated use has the same effect. | `./dev up --fresh`                                                                              |
+| `--no-build`    | `k8s:up` and `k8s:perf:up`; no value. Skip the corresponding image builds.                                                                                                                  | Build enabled.                                                                                                                                 | Yes, though repeated use has the same effect. | `./dev k8s:up --no-build`                                                                       |
+| `--revision`    | `argocd:up`; branch/revision string. Accepts separated or equals form.                                                                                                                      | `main`.                                                                                                                                        | Yes; last occurrence wins.                    | `./dev argocd:up --revision feature-branch`                                                     |
+| `--runtime`     | `perf:<workflow>`; `compose` or `k8s`. Accepts separated or equals form.                                                                                                                    | `compose`.                                                                                                                                     | Yes; last occurrence wins.                    | `./dev perf:http-purchase --runtime=k8s`                                                        |
+| `--config`      | Compose workflow: preset name in `tests/performance/k6/options/` or valid k6 options JSON path. Kubernetes workflow: preset name only.                                                      | `5-iterations-browser` for browser workflows; `5-iterations` for HTTP workflows.                                                               | Yes; last occurrence wins.                    | `./dev perf:http-purchase --config 1-iteration`                                                 |
+| `--produce`     | Performance workflows; declared dataset or `all`.                                                                                                                                           | Empty selection.                                                                                                                               | Yes.                                          | `./dev perf:http-cart --produce carts`                                                          |
+| `--data`        | Compose workflow; `DATASET=PATH` for a required or optional dataset. Resolve PATH from the workflow working directory (repository root); it must stay beneath `tests/performance/k6/data/`. | `tests/performance/k6/data/<dataset>.csv`.                                                                                                     | Yes; last override for each dataset wins.     | `./dev perf:http-orders --data carts=tests/performance/k6/data/alternate.csv`                   |
+| `--base-url`    | Kubernetes performance workflow; URL reachable inside the cluster.                                                                                                                          | `http://web.mini-commerce.svc.cluster.local:3000` for browser workflows; `http://bff.mini-commerce.svc.cluster.local:3001` for HTTP workflows. | Yes; last occurrence wins.                    | `./dev perf:http-cart --runtime k8s --base-url http://bff.mini-commerce.svc.cluster.local:3001` |
+| `--shell`       | `hack exec`; executable name or path in the container, such as `sh` or `bash`. Used only without a container command.                                                                       | Probe for bash, then fall back to sh.                                                                                                          | Yes; last occurrence wins.                    | `./dev hack exec bff --shell bash`                                                              |
+| `--query`, `-q` | `hack sql`; SQL string. Long and short forms are aliases.                                                                                                                                   | No query; interactive psql unless `--file` is supplied.                                                                                        | Yes; last occurrence wins.                    | `./dev hack sql -q 'SELECT 1'`                                                                  |
+| `--file`, `-f`  | `hack sql`; path to SQL file. Long and short forms are aliases.                                                                                                                             | No file.                                                                                                                                       | Yes; last occurrence wins.                    | `./dev hack sql --file query.sql`                                                               |
+| `--json`        | `hack sql`; no value, requires `--query`.                                                                                                                                                   | Off.                                                                                                                                           | Yes, with the same effect.                    | `./dev hack sql --query 'SELECT 1 AS value' --json`                                             |
+| `--body`        | `hack trace`; JSON request body.                                                                                                                                                            | No body.                                                                                                                                       | Yes; last occurrence wins.                    | `./dev hack trace POST /orders --body '{"items":[]}'`                                           |
+
+Value-taking options accept space-separated values. `--runtime`, `--revision`, and the workflow parser options (`--config`, `--produce`, `--data`, `--base-url`) also accept equals forms such as `--config=1-iteration`. The hand-written `hack` parsers accept separated values only.
+
+The `./dev` launcher changes directory to `scripts/` before dispatch. Relative Compose `--config` file paths and `hack sql --file` paths resolve from that directory. Dataset override paths instead resolve from the workflow working directory, as specified above.
+
+The `--` separator ends `hack exec` option parsing and passes the remaining arguments into its positional list. The first positional argument is the service; later arguments form the container command. A command may also follow the service without the separator, but `--` protects its arguments from `hack exec` parsing.
+
+## Standalone `./k8s` CLI
+
+`./k8s` is the Bash and kubectl counterpart for Kubernetes operations. Its commands are separate from the 30 `./dev` dispatcher keys. It shares workflow IDs with `./dev perf:<id>`, but `run` is a command of its own.
+
+| Command     | Purpose                                                                                    | Usage                                                                            |
+| ----------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `up`        | Start minikube, build app images, and deploy core, web, and visualizer.                    | `./k8s up [--no-build]`                                                          |
+| `forward`   | Forward app services to localhost ports 3000, 3001, and 3002.                              | `./k8s forward`                                                                  |
+| `status`    | Show pods, Argo CD apps, latest Punch runs, and node memory.                               | `./k8s status`                                                                   |
+| `down`      | Stop minikube while retaining images and data.                                             | `./k8s down`                                                                     |
+| `perf:up`   | Deploy registry, k6 images, Argo Workflows, SeaweedFS, and Punch templates.                | `./k8s perf:up [--no-build]`                                                     |
+| `run`       | Run one named workflow and follow it.                                                      | `./k8s run <workflow> [--config PRESET] [--produce DATASET]... [--base-url URL]` |
+| `verify`    | Run the POC verification flow, including dataset reset and cart, order, and status checks. | `./k8s verify`                                                                   |
+| `evidence`  | Show run status, S3 artifacts, and k6 summary for a run.                                   | `./k8s evidence <run>`                                                           |
+| `s3`        | Pass arguments to the AWS CLI configured for SeaweedFS.                                    | `./k8s s3 <aws-cli args>`                                                        |
+| `argocd:up` | Install Argo CD and sync the two GitHub applications.                                      | `./k8s argocd:up [--revision BRANCH]`                                            |
+| `ui`        | Forward and open the Argo Workflows, Argo CD, or S3 browser UI.                            | `./k8s ui argo\|argocd\|s3`                                                      |
+| `help`      | Print command help. Also the default when no command is supplied.                          | `./k8s help`                                                                     |
+
+For `./k8s run`, `--config` accepts a preset name and `--base-url` sets the in-cluster target URL; both inherit template defaults and use the last occurrence when repeated. `--produce` accepts declared dataset names or `all`, is repeatable, and defaults to an empty selection. These three options accept separated values only.
+
+For both `./k8s up` and `./k8s perf:up`, `--no-build` skips image builds and accepts repeated use. `./k8s argocd:up` accepts `--revision` in separated or equals form, defaults to `main`, and uses the last occurrence when repeated. Bash revision values must be nonempty and contain only letters, digits, periods, underscores, slashes, or hyphens.

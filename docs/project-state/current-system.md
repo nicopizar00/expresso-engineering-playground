@@ -1,164 +1,185 @@
-# Current System — Features and UX State
+# Current system
 
-> Authoritative current-state snapshot captured on 2026-05-29.
-> This document describes what the system _does today_. For request topology and
-> proxy mechanics see [../architecture/web-entry-point.md](../architecture/web-entry-point.md).
-> For _why_ decisions were made, see [../adr/README.md](../adr/README.md).
+> Status: Reviewed against HEAD 800ac16 by a fresh reader.
 
-## 1. Runtime topology
+Expresso is a local-first mini-commerce playground with three application
+runtimes: a Next.js web app, a NestJS backend-for-frontend (BFF), and a static
+Three.js visualizer. PostgreSQL owns durable commerce and identity data. The
+BFF keeps carts and several read caches in process memory.
 
-The **web app is the single browser-facing entry point**. The browser only ever
-talks to the web app's origin; the web server proxies to the other containers
-over the internal Docker network.
+Source anchors: `apps/web/app/page.tsx`, `apps/bff/src/app.module.ts`,
+`apps/visualizer-3d/public/scene.js`, `apps/visualizer-3d/public/transport.js`,
+`apps/bff/src/modules/checkout/checkout.service.ts`,
+`apps/bff/src/modules/orders/orders.service.ts`,
+`apps/bff/src/modules/cart/cart.service.ts`, `apps/bff/prisma/seed.ts`,
+`apps/bff/src/core/session/session.service.ts`,
+`apps/bff/src/core/auth/auth-session.service.ts`,
+`apps/web/src/lib/api/expresso-api.ts`,
+`apps/web/src/components/sections/PerformanceSection.tsx`,
+`apps/bff/src/modules/assets/assets.service.ts`,
+`apps/bff/src/modules/visualization/visualization.service.ts`,
+`apps/bff/src/modules/health/health.service.ts`, `apps/bff/src/common/telemetry.ts`,
+`infra/docker/compose.yaml`, `infra/k8s/kustomization.yaml`,
+`infra/k8s/perf/punch/kustomization.yaml`, `infra/argocd/applications/`,
+`vercel.json`, `scripts/pg/perf.py`, `scripts/pg/k8s_perf.py`,
+`infra/observability/otel-collector-config.yaml`, and `tests/performance/k6/workflows/`.
 
-| Service        | Tech                                 | Host URL                              | Profile | Role                                                        |
-| -------------- | ------------------------------------ | ------------------------------------- | ------- | ----------------------------------------------------------- |
-| Web app        | Next.js (App Router, standalone)     | `http://localhost:3000`               | `web`   | Product shell + browser entry point                         |
-| BFF / API      | NestJS                               | `http://localhost:3001`               | core    | Domain API (catalog, cart, checkout, orders, visualization) |
-| 3D visualizer  | nginx + vanilla Three.js             | `http://localhost:3002`               | `viz`   | Standalone scene; embedded via proxy                        |
-| PostgreSQL     | Postgres 16                          | `localhost:5432`                      | core    | Catalog + orders persistence                                |
-| OTel Collector | OpenTelemetry (`otel-contrib:0.110`) | `localhost:4317/4318`                 | core    | OTLP ingest → Tempo + Prometheus exporter                   |
-| Prisma Studio  | Prisma Studio                        | `http://localhost:5555`               | `admin` | DB admin (direct writes — bypasses domain events)           |
-| Tempo          | Grafana Tempo 2.6                    | `http://localhost:3200`               | `obs`   | Trace storage                                               |
-| Prometheus     | Prometheus 2.55                      | `http://localhost:9090`               | `obs`   | Metrics scrape + storage                                    |
-| Grafana        | Grafana 11.3                         | `http://localhost:3030` (admin/admin) | `obs`   | Dashboards, Tempo + Prom datasources pre-provisioned        |
+This page owns the system summary. HTTP contracts live in the
+[system reference](../reference/README.md), and implementation mechanisms live
+in the [architecture index](../architecture/README.md).
 
-For the full container map see [`../architecture/containers.md`](../architecture/containers.md).
+## System boundary
 
-Browser-facing request paths, all same-origin to the web app:
+The web app is the main browser entry point. Its only application route is
+`/`; the `?tab=` query parameter selects the Catalog, Orders, Performance, or
+API section without adding server routes.
 
-- `/` and feature routes — the Next.js UI.
-- `/api/bff/*` — rewritten by the web server to the internal BFF (`bff:3001`).
-- `/viz/*` — rewritten by the web server to the internal visualizer (`visualizer-3d:80`).
+| Runtime    | Default host address    | Responsibility                                                                                         |
+| ---------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Web        | `http://localhost:3000` | User interface, same-origin BFF proxy, visualizer proxy, and frontend demo mode                        |
+| BFF        | `http://localhost:3001` | HTTP contracts, session carts, authentication, checkout, orders, assets, and visualization projections |
+| Visualizer | `http://localhost:3002` | Static 3D scene that consumes visualization snapshots and events                                       |
 
-The BFF stays published on `:3001` for smoke tests, the `/dev` console, and the
-standalone visualizer's own browser → BFF data fetch. The main web app does not
-depend on that host exposure.
+The browser normally reaches the BFF through `/api/bff/*` and the embedded
+visualizer through `/viz/*`. The standalone visualizer reaches the BFF at its
+configured API base. The [container map](../architecture/containers.md) owns
+the complete Compose service and profile inventory.
 
-## 2. Feature inventory by domain
+## Product behavior
 
-### Catalog (persisted, single product)
+| Area                | Current behavior                                                                                                                                                   | Durable state                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| Catalog             | The public API lists products and reads one product by ID. Seeding retains one product named Cup of Coffee.                                                        | PostgreSQL, then a BFF read cache              |
+| Cart                | Each anonymous `sid` session can hold one product with quantity `1`. Update and removal requests for an existing item return a conflict.                           | BFF process memory                             |
+| Authentication      | Registration and login create a database-backed `auth` session. Logout removes the presented session.                                                              | PostgreSQL and an HTTP-only cookie             |
+| Checkout            | Checkout validates the cart reservation, optionally deduplicates by idempotency key, creates an order, and clears the cart. It performs no payment.                | PostgreSQL plus BFF read indexes               |
+| Orders              | Callers can list all orders, list the anonymous session's orders, read an order, or read its temperature. Signed-in users have account order and hot-status views. | PostgreSQL plus a BFF list cache               |
+| Assets              | Asset configuration and primary 3D model references load at BFF startup. A public refresh endpoint reloads those caches.                                           | PostgreSQL plus BFF caches                     |
+| Visualization       | The BFF returns a full scene snapshot and an SSE stream. The scene carries all products, the 10 most recent orders, aggregate order counts, and asset metadata.    | Derived from BFF caches                        |
+| Performance section | The web app animates local mock metrics and scenarios. It does not start k6 or read Grafana data.                                                                  | Browser process memory                         |
+| API section         | The web app exposes developer controls and API diagnostics.                                                                                                        | Browser and BFF state, depending on the action |
 
-- The catalog exposes exactly one product, **Cup of Coffee**, on `/`. The
-  category filter UI still exists but is vestigial against a one-product
-  catalog.
-- Product detail via quick view (no quantity control — quantity is always 1).
-- Endpoints: `GET /products`, `GET /products/:id`. The
-  product-creation route (`POST /products`) is unreachable — the
-  controller no longer registers it.
+The cart reservation lasts one hour. Expiration is checked when that cart is
+accessed, so no background timer or scheduled job removes expired carts.
+Restarting the BFF removes all carts.
 
-### Cart (in-memory, one-cup invariant)
+Checkout accepts an optional `orderFor` choice. A signed-in caller can order
+for self, any caller can create a guest order, and a caller can name a user by
+normalized username or email. The recipient does not need to be registered at
+checkout time.
 
-- Single-user, in-process cart that resets on BFF restart (intentional).
-- **Create** — add the one Cup of Coffee (`POST /cart/items`). A second add
-  while the cart is occupied is rejected (409).
-- **Read** — cart drawer and `/cart` page (`GET /cart`).
-- **Update/Delete** — rejected (409) once a cup is selected. There are no
-  quantity steppers or a remove control in the cart drawer or `/cart` page;
-  the only normal action after selecting is Place Order.
+Order temperature is derived from `placedAt`. An order remains hot for
+`ORDER_COOL_DOWN_SECONDS`, which defaults to 300 seconds, and then reads as
+cold. No scheduled process changes stored rows.
 
-### Checkout (anonymous, persists an order)
+## Browser and session behavior
 
-- Place the order anonymously on `/checkout` (`POST /orders`) — there is
-  no name field, and a request that supplies `customerName` is rejected
-  (400). A successful checkout drains the cart and persists the order.
+The BFF uses two independent cookies. The `sid` cookie identifies an anonymous
+cart and session-owned orders. The `auth` cookie contains a random sign-in
+token whose SHA-256 hash is stored in PostgreSQL.
 
-### Orders (persisted)
+Signing in does not replace or clear the anonymous cart. Signing out removes
+the presented authentication session and leaves the cart unchanged. Expired
+authentication rows are removed when their token is presented; no periodic
+session sweep runs.
 
-- My orders / All orders lists (`GET /orders?owner=session`, `GET /orders`).
-- Read-only order detail (`GET /orders/:id`, `GET /orders/:id/status`).
-- Placing an order is final; an order is Hot until `ORDER_COOL_DOWN_SECONDS`
-  after `placedAt`, then Cold.
-- Orders survive BFF restarts.
+Frontend demo mode replaces BFF calls with local fixtures. A public build-time
+setting can force the mode, and the browser can store a local override. The
+performance section uses separate local mock data regardless of demo mode.
 
-### 3D visualizer (standalone, proxied embed)
+## Checkout and visualization flow
 
-- Embedded on `/visualizer` through the same-origin `/viz/index.html` proxy,
-  which reaches the visualizer container over the internal network.
-- A separate "Open Standalone" link opens the host visualizer
-  (`NEXT_PUBLIC_VISUALIZER_URL`, default `http://localhost:3002`) in a new tab.
-- The visualizer reads `GET /visualization`; the web frontend owns no
-  Three.js code.
+The cart issues a UUID reservation when the caller adds the one allowed item.
+Checkout requires that UUID and rejects an empty, expired, or mismatched cart.
+An optional UUID idempotency key returns the first order created for that key,
+including after the original checkout cleared the cart.
 
-### Performance Playground (mock-only)
+A successful checkout writes the order and its lines in one database call,
+clears the session cart, and emits an in-process domain change. The
+visualization SSE endpoint coalesces nearby changes and sends a complete
+snapshot after each event.
 
-- `/performance` renders simulated request activity for design evaluation.
-- It does **not** consume live telemetry, Grafana data, or k6 output.
-- The underlying infra Grafana stack now exists separately under `./dev up obs`
-  (Tempo + Prometheus + Grafana). The `/performance` page is intentionally
-  decoupled from it; see [`../architecture/observability.md`](../architecture/observability.md).
+The visualizer opens SSE directly and receives its initial snapshot on that stream. If the stream
+fails, it falls back to snapshot polling and retries the stream every five
+seconds. The embedded web view also sends the current cart selection to the
+visualizer with same-origin browser messaging.
 
-### Developer diagnostics
+The [process guide](../architecture/processes.md) traces checkout,
+visualization refresh, and performance execution across their boundaries.
 
-- `/dev` provides an API debug console (including Cart Update/Remove and `GET /orders?owner=session` cards),
-  demo-mode and mock-scenario controls, and a frontend-readiness panel.
+## State consistency
 
-## 3. UX state per route
+The catalog, order list, asset configuration, and primary model references are
+cached in the BFF. Startup populates these caches from PostgreSQL. Normal BFF
+writes update the relevant cache before emitting visualization changes.
 
-| Route              | UX state                                                 | Data source         |
-| ------------------ | -------------------------------------------------------- | ------------------- |
-| `/`                | Catalog grid, category filter, add to cart               | BFF (proxy) or mock |
-| `/cart`            | Line list, read-only quantity, order summary              | BFF (proxy) or mock |
-| `/checkout`        | Anonymous Place Order, places a persisted order           | BFF (proxy) or mock |
-| `/orders`          | My orders / All orders lists, Hot/Cold badges            | BFF (proxy) or mock |
-| `/orders/:orderId` | Read-only order detail with Hot/Cold badge              | BFF (proxy) or mock |
-| `/visualizer`      | Iframe embed of the proxied visualizer + standalone link | `/viz` proxy        |
-| `/performance`     | Mock load scenarios and KPI strip (clearly labeled mock) | Mock only           |
-| `/dev`             | API debug console, demo controls, readiness              | BFF (proxy) or mock |
+Direct database writes bypass domain events and most caches. Account-order and
+hot-status and individual order-status queries read PostgreSQL directly, while the general order list and
+visualization projection read the order cache. Asset refresh reloads only the
+asset caches and emits no visualization event. Browser reloads and snapshot
+requests do not reload the catalog or order caches; those require a BFF restart.
 
-A cart drawer is available from every route via the header cart button.
+The health endpoint reports BFF process status and uptime. Its database check
+is always `skipped`, so container readiness does not prove that PostgreSQL is
+reachable after startup.
 
-## 4. Backend HTTP surface
+## Runtime topologies
 
-All paths are reached from the browser through the `/api/bff` proxy. Status is
-the web-frontend consumer state.
+The local Compose core contains PostgreSQL, the BFF, and the OpenTelemetry
+Collector. Optional profiles add the web app, visualizer, Prisma Studio, or the
+Tempo, Prometheus, and Grafana observability stack.
 
-| Method + path                | Behavior                                                                                                                                                                                       | Consumer status         |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `GET /health`                | Runtime status                                                                                                                                                                                 | Wired                   |
-| `GET /products`      | Reads persisted catalog                                                                                                                                                                        | Wired                   |
-| `GET /products/:id`  | Reads persisted product                                                                                                                                                                        | Wired                   |
-| `GET /cart`                  | Reads transient cart                                                                                                                                                                           | Wired                   |
-| `POST /cart/items`           | Adds the one allowed line; rejects a second add                                                                                                                                                | Wired                   |
-| `PATCH /cart/items/:itemId`  | Rejected (409) — quantity can never change once selected                                                                                                                                       | Wired                   |
-| `DELETE /cart/items/:itemId` | Rejected (409) — only Place Order clears the cart                                                                                                                                              | Wired                   |
-| `POST /orders`             | Anonymous; drains cart, persists order; rejects a supplied `customerName`                                                                                                                      | Wired                   |
-| `GET /orders`                | Lists all persisted orders                                                                                                                                                                     | Wired                   |
-| `GET /orders?owner=session`           | The caller's orders (session cookie), newest first                                                                                                                                             | Wired                   |
-| `GET /orders/:id`            | Reads persisted order                                                                                                                                                                          | Wired                   |
-| `GET /visualization`    | Projects current domain state; carries the semantic `scene` payload (products, recentOrders capped at 10, orderAggregates, cart, latestActivityAt) plus a deprecated `items[]` for back-compat | Visualizer consumer     |
+The minikube application deployment contains PostgreSQL, the BFF, web app,
+visualizer, and collector. A separate performance base installs Argo
+Workflows, SeaweedFS as an S3-compatible artifact store, and nine Punch
+workflow templates. The setup command separately enables minikube's registry
+addon when it builds performance images.
 
-## 5. Demo mode
+Argo CD has two Applications. One syncs the performance platform, and the
+other syncs the application overlay with a post-sync performance smoke run.
+The repository also contains a web-only Vercel configuration; the CI workflow
+does not deploy it.
 
-- Toggle in the app header or on `/dev`; persisted in `localStorage`, or forced
-  with `NEXT_PUBLIC_DEMO_MODE=true`.
-- In demo mode every call returns local fixtures (mock scenarios: happy,
-  loading, empty, error, cart-filled, checkout-failure), so the full UI is
-  explorable without a backend.
+## Observability and performance
 
-## 6. Validation status
+The BFF starts OpenTelemetry instrumentation only when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. It configures Node auto-instrumentation
+and an OTLP HTTP trace exporter; order creation and status reads add manual spans.
+The local collector forwards traces to
+Tempo and exposes metrics for Prometheus when those optional services run.
 
-- BFF smoke: **13/13** checks pass (`./dev smoke` / `pnpm pg:smoke`), including
-  `POST`, `PATCH`, `DELETE` cart operations and an SSE frame assertion against
-  `/visualization/events`.
-- Typecheck passes for `@mini-commerce/web`, `@mini-commerce/bff`, and contracts.
-- The web production build (Next.js standalone) builds and runs in Docker; all
-  feature routes and both proxies return `200` from the host.
-- Cart CRUD verified end-to-end through the `/api/bff` proxy (add → update →
-  delete) and via the UI controls.
+Performance tests are separate from the web performance section. Nine
+repository-owned workflow definitions select k6 HTTP or browser scenarios.
+Punch runs them through Docker Compose or submits them to Argo Workflows on
+Kubernetes.
 
-## 7. Known gaps and non-goals (current)
+Local performance runs write datasets and reports under the test tree.
+Kubernetes runs store datasets and run artifacts in the configured S3 bucket.
+The [performance orchestrator guide](../performance/orchestrator.md) owns the
+workflow and dataset contract.
 
-- Cart is not keyed by customer or session; it is single-user and resets with
-  the BFF process. This is intentional for the current phase.
-- No authentication or payment processing.
-- The visualizer's own browser → BFF fetch still targets the host BFF
-  (`http://localhost:3001`, CORS `*`); only the embed transport is proxied.
-- Contract provider verification, Playwright E2E coverage, and production
-  observability dashboards remain follow-up work
-  (see [../next-steps/README.md](../next-steps/README.md)).
+## Deliberate limits and exposed quirks
 
-## Related
+- The catalog has no public create route even though an internal create method
+  exists.
+- Cart state is local to one BFF process and has no shared store. Checkout
+  awaits persistence without locking the reservation, so concurrent requests
+  with different or missing idempotency keys can create multiple orders.
+- Idempotency keys are global rather than scoped to a session or account.
+  Replay occurs before recipient and cart validation and echoes the requesting
+  cart ID rather than a stored reservation ID.
+- The anonymous session accepts any nonempty presented `sid` without checking
+  its format or a server-side session registry.
+- Cart responses carry a fixed `updatedAt` value rather than the mutation time.
+- Checkout records an order without contacting a payment provider.
+- The `POST /assets/refresh` route has no authentication guard.
+- Authentication has no registration or login rate limit.
+- No queue consumer, message broker, or scheduled application job is wired.
+- Prisma Studio writes directly to PostgreSQL and bypasses BFF events.
+- The visualizer loads Three.js from a public module CDN at browser runtime.
+- The Punch source is a pinned Git submodule and is outside the parent commit's
+  file tree.
 
-- Architecture: [../architecture/web-entry-point.md](../architecture/web-entry-point.md)
-- Run it: [../local-development.md](../local-development.md)
+Potential defects and documentation conflicts are recorded in
+[findings.md](../findings.md). Evidence gaps are recorded in
+[unknowns.md](../unknowns.md).

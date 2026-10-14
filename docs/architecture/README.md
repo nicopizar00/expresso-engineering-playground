@@ -1,61 +1,59 @@
 # Architecture
 
-This is the general architecture index. Begin here, then follow the focused
-spoke for the system or reusable pattern you need.
+> Status: Reviewed against HEAD 800ac16 by a fresh reader.
 
-> Current-state architecture of the mini-commerce engineering playground.
-> Keep documentation **just ahead** of the code, not behind it.
+The architecture tree explains the current system's boundaries, mechanisms,
+and end-to-end processes. Start with the container map for runtime topology or
+the process guide for a request that crosses several components.
 
-## C4 map
+## Architecture map
 
 ```mermaid
 flowchart TD
-  subgraph L2["C4 L2 — Containers"]
-    Containers["containers.md"]
-    Web["web-entry-point.md"]
-    Obs["observability.md"]
-    Orch["orchestrator-python.md"]
-  end
-  subgraph L3["C4 L3 — Components"]
-    BFF["bff-modules.md"]
-  end
-  L2 --> L3
-  classDef now fill:#dff7df,stroke:#2a8a2a,color:#000;
-  class Containers,Web,Obs,Orch,BFF now;
+  Containers[Container topology]
+  Web[Browser and web entry point]
+  BFF[BFF modules]
+  Observability[Telemetry pipeline]
+  Orchestrator[Local orchestration]
+  Processes[End-to-end processes]
+  Containers --> Web
+  Containers --> BFF
+  Containers --> Observability
+  Orchestrator --> Containers
+  Web --> Processes
+  BFF --> Processes
 ```
 
-## Current spokes
+| Document                                          | Scope                                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [Container topology](containers.md)               | Compose services, CLI targets, host addresses, and Kubernetes application boundary |
+| [Browser and web entry point](web-entry-point.md) | Same-origin BFF and visualizer proxies, cookies, and browser routing               |
+| [BFF modules](bff-modules.md)                     | Module dependencies, shared route prefixes, and domain invariants                  |
+| [Observability](observability.md)                 | BFF telemetry, collector pipelines, Tempo, Prometheus, and Grafana                 |
+| [Local orchestrator](orchestrator-python.md)      | `./dev` dispatch and Docker orchestration mechanisms                               |
+| [End-to-end processes](processes.md)              | Checkout, visualization refresh, and performance execution across boundaries       |
 
-| Doc                                                | View                                                             |
-| -------------------------------------------------- | ---------------------------------------------------------------- |
-| [`containers.md`](containers.md)                   | C4 L2 — container map across all Compose profiles                |
-| [`web-entry-point.md`](web-entry-point.md)         | Browser → web → BFF/visualizer proxy topology                    |
-| [`bff-modules.md`](bff-modules.md)                 | C4 L3 — BFF module graph + invariants                            |
-| [`observability.md`](observability.md)             | OTel SDK → collector → Tempo + Prometheus + Grafana              |
-| [`orchestrator-python.md`](orchestrator-python.md) | Local orchestrator — `./dev` → `python -m pg` → `docker compose` |
+## Performance engine boundary
 
-## Performance engine (Punch)
+The [Punch integration index](punch-implementation.md) describes how this
+repository selects the vendored performance engine and routes readers to the
+engine's own documentation. The parent repository pins Punch as a gitlink, so
+internal engine behavior belongs to the pinned submodule documentation.
 
-[`punch-implementation.md`](punch-implementation.md) — Expresso ↔ Punch boundary
-and the index into Punch's docs, including its Reference Architecture and
-Implementation Guide.
+## Reference and decision boundaries
 
-## Planned
+The [reference index](../reference/README.md) owns exhaustive HTTP,
+configuration, data, integration, build, and deployment inventories. These
+architecture pages explain mechanisms and consequences without repeating
+those inventories.
 
-- `context.md` — C4 L1 system context (actors).
-- `data-model.md` — domain entities and relationships.
-- `events.md` — domain events crossing module boundaries.
-- `security.md` — trust boundaries, auth model (fictional).
+The [ADR index](../adr/README.md) records accepted decisions. Architecture
+pages describe current behavior; an ADR remains historical evidence when the
+implementation later changes.
 
 ## Authoring rules
 
-- No credentials or secrets.
-- Diagrams are Mermaid, authored inline in the markdown — keep the source
-  diff-able.
-- Each spoke owns its facts once. Other docs link instead of restating.
-
-## Relationship to ADRs
-
-This folder describes **the current state**. ADRs in
-[`../adr/`](../adr/README.md) describe **why we got here**. If a decision is
-reversed, both must be updated.
+- Keep diagrams as Mermaid source in Markdown.
+- Give each fact one owner and link to it elsewhere.
+- Update descriptive architecture when behavior changes.
+- Preserve accepted ADRs and applied migration history.
