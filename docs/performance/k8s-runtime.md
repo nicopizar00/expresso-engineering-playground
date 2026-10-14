@@ -11,7 +11,10 @@ GitOps, evidence, troubleshooting, and how it works. The compose runtime
 (`./dev perf:<id>`) is unchanged and stays the default.
 
 - Design: [spec](../superpowers/specs/2026-10-13-punch-k8s-native-design.md)
-- Punch's runtime contract: [`vendor/punch/k8s/README.md`](../../vendor/punch/k8s/README.md)
+- Punch's runtime contract and generic operation (consumer image, workflow
+  mapping, runs, datasets, Argo CD, AWS, the CI design, troubleshooting):
+  [`vendor/punch/k8s/README.md`](../../vendor/punch/k8s/README.md). This
+  guide covers only this repository's setup on minikube.
 - Open follow-ups: [`../next-steps/punch-k8s.md`](../next-steps/punch-k8s.md)
 
 ## Two ways to drive it
@@ -202,13 +205,9 @@ To read the HTML report, open the S3 file browser:
 and follow `runs/<run>/reports/`. For ad-hoc queries, `./k8s s3` runs
 aws-cli against the bucket, e.g. `./k8s s3 s3 ls s3://punch-artifacts --recursive`.
 
-Without `./k8s`:
-
-```bash
-kubectl --context mini-commerce -n punch get workflows
-kubectl --context mini-commerce -n punch get workflow <run> -o yaml
-kubectl --context mini-commerce -n punch logs -l workflows.argoproj.io/workflow=<run> -c main
-```
+Without `./k8s`, run the queries in Punch's
+[Follow a run and read its evidence](../../vendor/punch/k8s/README.md#follow-a-run-and-read-its-evidence)
+with `--context mini-commerce -n punch`.
 
 ## Step 5 — Watch runs in the Argo UI
 
@@ -245,19 +244,13 @@ What each run prints:
 4  ✓ k6 http-orders-status completed on k8s (http-orders-status-bwf96).
 ```
 
-The rules:
-
-- **Opt-in publishing.** Rows are published only with `--produce`; without
-  it the `[DATA]` lines stay in the log.
-- **All or nothing.** A dataset is replaced only after k6 succeeded and every
-  row passed its column check. A failed producer leaves the previous file
-  untouched.
-- **Preflight.** A consumer whose dataset is missing or empty stops before
-  k6 starts, and names the workflows that produce it.
-- **One input per workflow on k8s.** A workflow reads at most one required
-  dataset (true of every workflow today).
-- **Separate stores.** The k8s datasets live in S3; the compose runtime's
-  datasets stay in `tests/performance/k6/data/`.
+Publishing is opt-in and all-or-nothing, a consumer with no rows stops in
+preflight, and a workflow on k8s reads at most one required dataset. Punch
+owns these rules:
+[Behavior](../../vendor/punch/k8s/README.md#behavior) and
+[Chain workflows through datasets](../../vendor/punch/k8s/README.md#chain-workflows-through-datasets).
+Here the k8s datasets live in `s3://punch-artifacts/datasets/`, and the
+compose runtime's stay in `tests/performance/k6/data/`.
 
 | Dataset        | Producers                                          | Consumer             |
 | -------------- | -------------------------------------------------- | -------------------- |
@@ -362,25 +355,16 @@ flowchart LR
   ArgoCD["Argo CD"] -->|syncs from GitHub| Thin
 ```
 
-- **`punch-k6-run`** (Punch, `vendor/punch/k8s/punch-k6-run.yaml`) is one
-  generic Argo step, with two templates: `k6` and `k6-browser`. It runs the consumer's k6
-  image with `k6-run.sh` mounted from a ConfigMap. Pods run as the k6 image
-  user (uid 12345) and end within 900 s, including time spent Pending.
-- **`k6-run.sh`** (POSIX shell) does, in order: validate inputs → check the
-  required dataset → `k6 run <script> --config <preset>` → harvest
-  `[DATA <dataset>]` lines from stdout only → publish files after every check
-  passes.
-- **Thin templates** (Expresso, `infra/k8s/perf/punch/workflows/`) supply one
-  workflow's facts: script, default preset, target, forwarded names, the
-  required dataset and its producers, and the produced datasets.
-  `scripts/pg/tests/test_k8s_workflows.py` fails CI if one drifts from its
-  Punch YAML.
-- **Artifacts:** Argo's executor moves files between the pod and S3 (the
-  `artifact-repositories` ConfigMap in `punch`). The input is one optional
-  file, `datasets/<requires>.csv`; outputs are `datasets/` and
-  `runs/<run>/reports/`; logs are archived under `runs/<run>/`.
-- **Evidence:** the Workflow status (phase, step exit codes, failure
-  messages, the `datasets` row counts) plus the S3 files.
+Punch owns the generic step `punch-k6-run`, its shell step `k6-run.sh`, the
+artifact layout, and the evidence: see the
+[Punch runtime contract](../../vendor/punch/k8s/README.md). This repository
+supplies the nine thin templates in `infra/k8s/perf/punch/workflows/`, one
+per workflow YAML in `tests/performance/k6/workflows/`, built by Punch's
+[mapping](../../vendor/punch/k8s/README.md#from-a-workflow-yaml-to-a-thin-template).
+`scripts/pg/tests/test_k8s_workflows.py` fails CI when a thin template drifts
+from its workflow YAML. The artifact repository is the
+`artifact-repositories` ConfigMap in namespace `punch`
+(`infra/k8s/perf/punch/artifact-repositories.yaml`).
 
 | Namespace       | Holds                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
@@ -409,18 +393,11 @@ Every step has a plain kubectl equivalent.
 # Perf platform (repeat once if the first pass reports "no matches for kind WorkflowTemplate")
 kubectl kustomize --load-restrictor LoadRestrictionsNone infra/k8s/perf \
   | kubectl --context mini-commerce apply --server-side --force-conflicts -f -
-
-# One run
-kubectl --context mini-commerce -n punch create -f - <<'EOF'
-apiVersion: argoproj.io/v1alpha1
-kind: Workflow
-metadata: { generateName: http-cart- }
-spec:
-  workflowTemplateRef: { name: http-cart }
-  arguments: { parameters: [ { name: produce, value: carts } ] }
-EOF
-# or: argo -n punch submit --from workflowtemplate/http-cart -p produce=carts --wait --log
 ```
+
+For one run, create a Workflow as in Punch's
+[Run a workflow](../../vendor/punch/k8s/README.md#run-a-workflow), with
+`--context mini-commerce -n punch` in place of `-n perf`.
 
 The images must exist first: `minikube -p mini-commerce addons enable registry`,
 then build `infra/docker/k6.Dockerfile` and `k6-browser.Dockerfile` after
@@ -432,29 +409,31 @@ after editing its `targetRevision`.
 
 ## Porting to AWS
 
-| Local                                          | AWS                                                                                                               |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `localhost:5000/mini-commerce/k6:local`        | `<acct>.dkr.ecr.<region>.amazonaws.com/mini-commerce/k6:<sha>` via `kustomize edit set image k6-scenarios=...`    |
-| SeaweedFS + `s3-credentials`, `insecure: true` | S3 bucket + IRSA, TLS; `artifact-repositories` shaped like `vendor/punch/k8s/examples/artifact-repositories.yaml` |
-| Argo server `--auth-mode=server`               | `--auth-mode=client` or SSO                                                                                       |
-| minikube                                       | EKS; Argo CD or a GitHub job applies the same kustomizations                                                      |
-
-The on-demand GitHub job that does this is the next step:
-[`../next-steps/punch-k8s.md`](../next-steps/punch-k8s.md).
+Punch's [Run on AWS](../../vendor/punch/k8s/README.md#run-on-aws) lists the
+three pieces that change, and
+[Trigger from CI](../../vendor/punch/k8s/README.md#trigger-from-ci) holds the
+on-demand job design. In this repository those pieces are the k6 images
+(`localhost:5000/mini-commerce/k6[-browser]:local` today), the SeaweedFS
+repository in `infra/k8s/perf/punch/artifact-repositories.yaml`, and the
+Argo server's `--auth-mode=server` patch in
+`infra/k8s/perf/argo-workflows/kustomization.yaml`. The job is an open
+follow-up: [`../next-steps/punch-k8s.md`](../next-steps/punch-k8s.md).
 
 ## Troubleshooting
 
-| Symptom                                            | Cause and fix                                                                                                    |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `cluster 'mini-commerce' is not running`           | `./k8s up`.                                                                                                      |
-| `no workflow '<id>' in namespace punch`            | The perf platform isn't deployed: `./k8s perf:up`.                                                               |
-| `no matches for kind "WorkflowTemplate"` on apply  | CRDs were still registering; apply again (`perf:up` does this).                                                  |
-| `<run> cannot start yet — ImagePullBackOff`        | The k6 images aren't in the registry: `./k8s perf:up` without `--no-build`. The run fails after 900 s otherwise. |
-| `requires "carts"; produce it with: ...`           | Run one of the named producers with `--produce carts` first.                                                     |
-| `--config takes a preset name` / `unknown preset`  | On k8s, `--config` takes a name from `tests/performance/k6/options/`, not a path.                                |
-| `k6: main: Error (exit code 99)`                   | k6 thresholds failed; read the log (`./k8s evidence <run>` or the Argo UI).                                      |
-| `does not forward "NAME"` / `contains whitespace`  | Only the workflow's declared names are forwarded, and values cannot contain spaces.                              |
-| API timeouts, controllers restarting, pods evicted | Memory pressure. Check `./k8s status`; Docker needs ≥ 6 GB and the cluster 4.5 GB.                               |
-| Argo CD app shows `Unknown` sync                   | It tracks a branch that no longer exists: `./k8s argocd:up --revision main`.                                     |
-| `mini-commerce` shows OutOfSync but Healthy        | Benign: the `postgres` StatefulSet and the hook Workflow differ in server-filled fields.                         |
-| Argo CD sync failed on `postsync-smoke`            | The smoke failed; open it in the Argo UI (`punch` namespace), fix, push, and re-run `./k8s argocd:up`.           |
+Errors from the step itself (preflight, `[DATA]` harvest, invalid
+parameters, k6 exit 99) and the CRD race on apply are in Punch's
+[Troubleshooting](../../vendor/punch/k8s/README.md#troubleshooting). This
+table covers this repository's CLIs and cluster.
+
+| Symptom                                                     | Cause and fix                                                                                                    |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `cluster 'mini-commerce' is not running`                    | `./k8s up`.                                                                                                      |
+| `no workflow '<id>' in namespace punch`                     | The perf platform isn't deployed: `./k8s perf:up`.                                                               |
+| `<run> cannot start yet — ImagePullBackOff`                 | The k6 images aren't in the registry: `./k8s perf:up` without `--no-build`. The run fails after 900 s otherwise. |
+| `--config takes a preset name` / `unknown preset`           | On k8s, `--config` takes a name from `tests/performance/k6/options/`, not a path.                                |
+| `<NAME> contains whitespace, which k8s runs cannot forward` | `./k8s run` and `./dev perf:<id> --runtime k8s` forward a shell variable only when its value has no spaces.      |
+| API timeouts, controllers restarting, pods evicted          | Memory pressure. Check `./k8s status`; Docker needs ≥ 6 GB and the cluster 4.5 GB.                               |
+| Argo CD app shows `Unknown` sync                            | It tracks a branch that no longer exists: `./k8s argocd:up --revision main`.                                     |
+| `mini-commerce` shows OutOfSync but Healthy                 | Benign: the `postgres` StatefulSet and the hook Workflow differ in server-filled fields.                         |
+| Argo CD sync failed on `postsync-smoke`                     | The smoke failed; open it in the Argo UI (`punch` namespace), fix, push, and re-run `./k8s argocd:up`.           |
