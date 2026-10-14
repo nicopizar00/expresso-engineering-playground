@@ -15,7 +15,7 @@ The command and flag behavior below is pinned to commit `800ac16506b91b3d69ca852
 | Task wrappers       | `task <task> [-- <args>]`  | Optional `go-task` wrappers for selected `pnpm pg:*` scripts. Task names and support are listed in the Taskfile; this is not a second dispatcher.                             |
 | Bash Kubernetes CLI | `./k8s <command> [args]`   | Python-free related CLI for Kubernetes and Argo operations. See its command table below.                                                                                      |
 
-Performance commands additionally load the vendored Punch tooling and its pinned Python dependencies. Initialize the `vendor/punch` submodule before use. The interactive `./bin/punch` launcher also needs its menu dependencies. See [`performance/k8s-runtime.md`](performance/k8s-runtime.md) for Kubernetes runtime details.
+Performance commands additionally load the vendored Punch tooling and its pinned Python dependencies. Before the first performance command, initialize the submodule with `git submodule update --init --recursive` and install its pinned dependencies with `python3 -m pip install -r vendor/punch/requirements.txt`. The interactive `./bin/punch` launcher also needs its menu dependencies. See [`performance/k8s-runtime.md`](performance/k8s-runtime.md) for Kubernetes runtime details.
 
 ## `./dev` commands
 
