@@ -27,7 +27,7 @@ configurations:
 
 # ECR stand-in: the minikube registry addon. ./dev k8s:perf:up builds and
 # pushes these tags.
-# TODO(next-steps/punch-k8s): sha-tagged ECR images from the on-demand GitHub job.
+# TODO(next-steps/punch-k8s): commit-tagged ECR images for the perf-run and perf-chain GitHub workflows.
 images:
   - name: k6-scenarios
     newName: localhost:5000/mini-commerce/k6

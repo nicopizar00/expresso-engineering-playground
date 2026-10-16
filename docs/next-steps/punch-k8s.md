@@ -1,17 +1,21 @@
 # Punch on Kubernetes
 
-Status: POC shipped on branch `feat/punch-k8s-native` — Punch workflows run
-natively on Argo Workflows in minikube, with SeaweedFS (S3) and the minikube
-registry (ECR) as local stand-ins, synced by Argo CD with a PostSync smoke.
+Status: POC on `main` (merge `b194a40`). Punch workflows run natively on Argo
+Workflows in minikube, with SeaweedFS (S3) and the minikube registry (ECR) as
+local stand-ins, synced by Argo CD with a PostSync smoke.
 Operation: [`../performance/k8s-runtime.md`](../performance/k8s-runtime.md).
-Design: [spec](../superpowers/specs/2026-10-13-punch-k8s-native-design.md).
+POC design: [spec](../superpowers/specs/2026-10-13-punch-k8s-native-design.md).
+Target CI design (GitHub workflows for single runs and chains, per-run
+artifacts, what is not possible, weak points):
+[Punch guide](../../vendor/punch/docs/architecture/orchestrator-to-kubernetes.md).
 Anchor: `git grep -n "TODO(next-steps/punch-k8s)"`.
 
 ## Verified
 
 - `http-purchase` (and as the PostSync smoke).
 - `http-cart --produce carts` → `http-orders --produce orders` →
-  `http-orders-status`, through `s3://punch-artifacts/datasets/`.
+  `http-orders-status`, through `s3://punch-artifacts/datasets/`. These are
+  manual runs; the CI design chains inside one Argo Workflow instead.
 - Preflight failure naming producers; a failed producer leaves the previous
   dataset untouched.
 - `./dev argocd:up`: both Applications healthy, PostSync smoke passes; a
@@ -34,20 +38,55 @@ Anchor: `git grep -n "TODO(next-steps/punch-k8s)"`.
 
 ## Follow-ups
 
-1. **On-demand GitHub job against real AWS** — `workflow_dispatch` with
-   inputs `workflow`, `config`, `produce`: OIDC → AWS role; build and push
-   sha-tagged k6 images to ECR; `kustomize edit set image`; EKS kubeconfig;
-   artifact repository on a real bucket with IRSA; create the Workflow, wait,
-   upload the run's evidence.
-2. **Browser workflows on k8s** — `browser-cart`, `browser-purchase`
-   (Chromium in a pod, `/dev/shm` 512 Mi) are rendered but unverified.
-3. **Auth chain and optional datasets** — `http-purchase-registered` →
-   `http-auth-login` → `http-me-hot-status`; wire optional `owned-orders`.
-4. **Chain DAGs** — one Workflow running a producer → consumer chain.
-5. **App images in the registry** — move `bff`/`web`/`visualizer-3d` off
-   node-local `:local` tags.
-6. **Sizing on k8s** — `--size-for` equivalent (generated preset).
-7. **Argo CD diff noise** — `ignoreDifferences` for the `postgres`
-   StatefulSet so `mini-commerce` reports Synced.
-8. **Second required dataset** — a second input artifact slot in
-   `punch-k6-run` if a workflow ever needs two.
+In dependency order. Items 1 to 6 build the target CI design; the guide's
+"Not possible as stated, and the redesign" table holds the reasons.
+
+1. **Chain-ready templates** (Punch and the thin templates): read
+   `inputs.parameters` instead of `workflow.parameters`; declare the dataset
+   input and expose the step's outputs; write outputs under `runs/<run>/`
+   instead of the shared `datasets/` key; rename the template parameter
+   `workflow` to `punch-workflow`.
+2. **Chain WorkflowTemplates**: one Argo DAG per chain, named
+   `<first>-to-<last>`, each step passing its dataset with `from:` and
+   producing the next step's dataset. Generated from the catalog and pinned
+   by a drift test beside `scripts/pg/tests/test_k8s_workflows.py`. The
+   catalog has 9 chains today.
+3. **Dropdown generator**: write the `choice` options for `perf-run.yml`
+   (the 6 workflows without `requires`) and `perf-chain.yml` (the 9 chains)
+   from the catalog; a test fails on drift. GitHub reads the options as
+   literal YAML.
+4. **GitHub workflows** `perf-run.yml` and `perf-chain.yml`: dispatch and
+   schedule (each cron line selects its entry through
+   `github.event.schedule`); size producers on the runner; OIDC to an AWS
+   role and the EKS kubeconfig; wait until the Argo CD Application's
+   `status.sync.revision` equals the commit and is `Healthy`; create the
+   Argo Workflow; poll; job summary and evidence, with artifact names that
+   carry the entry; one `concurrency` group per target environment. CI never
+   applies manifests.
+5. **Commit-tagged images**: replace `localhost:5000/...:local`. Decide
+   between committing the tag for Argo CD to sync and passing the image as an
+   Argo Workflow parameter (any submitter could then run any image).
+6. **Real bucket and lifetime**: an S3 bucket through IRSA; a lifecycle rule
+   on `runs/`; Argo `ttlStrategy` and `podGC: OnPodCompletion`; no
+   `artifactGC`, so evidence outlives the Argo Workflow object.
+7. **Sizing on k8s**: the runner sizes each producer for its next step and
+   passes the generated k6 config as a parameter that `k6-run.sh` writes to a
+   file.
+8. **Optional datasets**: an optional input slot to wire `owned-orders`.
+   It unblocks the 2 chains through `http-purchase-registered`
+   (`→ http-auth-login → http-me-hot-status`).
+9. **Name limits in Punch**: cap the loader at 57 characters (Argo's 63 minus
+   `generateName`'s 6) and reserve the `punch-` prefix for Punch's templates.
+10. **Browser workflows on k8s**: `browser-cart`, `browser-purchase`
+    (Chromium in a pod, `/dev/shm` 512 Mi) are rendered but unverified.
+11. **k6 practice gaps**: the guide's "Weak points against k6 practice"
+    table: CPU and memory requests and limits, dedicated nodes for k6 pods,
+    streamed metrics, the 900 s cap against soak tests,
+    `net.ipv4.ip_local_port_range`, `safe-to-evict`, and a `base-url` that
+    skips ingress.
+12. **App images in the registry**: move `bff`/`web`/`visualizer-3d` off
+    node-local `:local` tags.
+13. **Argo CD diff noise**: `ignoreDifferences` for the `postgres`
+    StatefulSet so `mini-commerce` reports Synced.
+14. **Second required dataset**: a second input slot in `punch-k6-run` if a
+    workflow ever needs two; no chain needs one today.
