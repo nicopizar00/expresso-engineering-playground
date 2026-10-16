@@ -238,6 +238,10 @@ jobs:
         env:
           BASE_URL: http://host.docker.internal:3001
         run: ./dev perf:http-purchase --config 1-iteration
+      - name: Run k6 chain
+        # Each step reads the rows the step before it wrote; auto sizes
+        # http-cart and http-orders for the step after them.
+        run: ./dev perf:chain http-cart http-orders http-orders-status:1-iteration
       - name: Tear down stack
         if: always()
         run: docker compose -f infra/docker/compose.yaml down --volumes

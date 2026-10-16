@@ -28,7 +28,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
             steps,
         )
 
-    def test_performance_ci_builds_then_selects_the_purchase_workflow(self) -> None:
+    def test_performance_ci_builds_then_runs_the_purchase_workflow_and_a_chain(self) -> None:
         """Bypassing ./dev would duplicate the repository YAML execution contract."""
         ci = yaml.safe_load(
             (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -62,10 +62,19 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
             }
         )
 
+        run_chain = step_index(
+            next(step for step in steps if step.get("name") == "Run k6 chain")
+        )
+
         self.assertLess(setup_python, install_punch)
         self.assertLess(install_punch, start_bff)
         self.assertLess(start_bff, build_k6)
         self.assertLess(build_k6, run_workflow)
+        self.assertLess(run_workflow, run_chain)
+        self.assertEqual(
+            steps[run_chain]["run"],
+            "./dev perf:chain http-cart http-orders http-orders-status:1-iteration",
+        )
         self.assertEqual(
             sum(step.get("run", "").startswith("./dev perf:http-purchase") for step in steps), 1
         )

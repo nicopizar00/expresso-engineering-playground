@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.k6runner import run_k6  # noqa: E402
+from pg.k6runner import execute_k6, run_k6  # noqa: E402
 from pg import cli, perf  # noqa: E402
 from pg.paths import REPO_ROOT  # noqa: E402
 from punch.execution import ExecutionResult  # noqa: E402
@@ -104,6 +104,25 @@ class RunK6Tests(unittest.TestCase):
         self.assertEqual(kwargs["data_overrides"], {})
         self.assertEqual(kwargs["producers_of"]("carts"), ("browser-cart", "http-cart"))
 
+    @patch("pg.k6runner.execute_workflow")
+    def test_data_default_skips_an_optional_dataset(self, execute_mock) -> None:
+        execute_mock.return_value = ExecutionResult("http-auth-login", (), 0, True, None)
+        with patch("pg.k6runner.confirm_docker_run", return_value=True):
+            self.assertEqual(run_k6("http-auth-login", ["--data", "owned-orders=default"]), 0)
+        self.assertEqual(execute_mock.call_args.kwargs["optional_choices"], {"owned-orders": False})
+
+    @patch("pg.k6runner.confirm_delete_consumed")
+    @patch("pg.k6runner.confirm_docker_run", return_value=True)
+    @patch("pg.k6runner.execute_workflow")
+    def test_execute_k6_without_interaction_never_prompts(
+        self, execute_mock, confirm_run, confirm_delete
+    ) -> None:
+        result = ExecutionResult("http-purchase", (), 0, True, None)
+        execute_mock.return_value = result
+        self.assertEqual(execute_k6("http-purchase", interactive=False), (0, result))
+        self.assertTrue(confirm_run.call_args.kwargs["assume_yes"])
+        confirm_delete.assert_not_called()
+
     def test_run_k6_rejects_undeclared_produce_before_docker(self) -> None:
         with patch("pg.k6runner.execute_workflow") as execute_mock:
             self.assertEqual(run_k6("http-orders-status", ["--produce", "carts"]), 1)
@@ -193,7 +212,7 @@ class WorkflowRegistryTests(unittest.TestCase):
 
         perf_commands = {
             c for c in cli.COMMANDS
-            if c.startswith("perf:") and c not in ("perf:open-report", "perf:clean")
+            if c.startswith("perf:") and c not in ("perf:chain", "perf:open-report", "perf:clean")
         }
         self.assertEqual(perf_commands, {f"perf:{name}" for name in WORKFLOWS})
         for name in WORKFLOWS:

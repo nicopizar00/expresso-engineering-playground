@@ -7,7 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_, warn
 from pg.paths import BFF_PORT, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, WEB_PORT
@@ -20,9 +20,10 @@ from punch.execution import (
     confirm_delete_consumed,
     confirm_docker_run,
     data_environment,
+    ExecutionResult,
     execute_workflow,
     required_data_paths,
-    resolve_data_overrides,
+    resolve_data_args,
     validate_produce,
 )
 from punch.workflow import K6Workflow, WorkflowError, load_workflow, read_k6_config
@@ -68,8 +69,9 @@ def _parse_data_args(workflow_name: str, args: Sequence[str]) -> argparse.Namesp
         help="Write a declared dataset (repeatable, or 'all').",
     )
     parser.add_argument(
-        "--data", action="append", default=[], metavar="DATASET=PATH",
-        help="Read a required dataset from PATH (beneath the workflow's data directory).",
+        "--data", action="append", default=[], metavar="DATASET=PATH|default",
+        help="Read a dataset from PATH (beneath the workflow's data directory), or "
+             "'default' to skip an optional dataset and use the scenario's built-in data.",
     )
     parser.add_argument(
         "--config", default=None, metavar="PRESET|PATH",
@@ -116,17 +118,37 @@ def run_k6(
     default_port: int = BFF_PORT,
 ) -> int:
     """Load and execute one named, repository-owned k6 workflow."""
+    exit_code, _result = execute_k6(
+        workflow_name, args, extra_env=extra_env, default_port=default_port
+    )
+    return exit_code
+
+
+def execute_k6(
+    workflow_name: str,
+    args: Sequence[str] = (),
+    *,
+    extra_env: Optional[Dict[str, str]] = None,
+    default_port: int = BFF_PORT,
+    interactive: bool = True,
+) -> Tuple[int, Optional[ExecutionResult]]:
+    """run_k6 plus Punch's execution result (None when the workflow, its
+    arguments, or its config could not be loaded).
+
+    `interactive=False` never prompts: no Docker confirmation and no offer to
+    delete consumed data, which a later chain step may still read.
+    """
     parsed = _parse_data_args(workflow_name, args)
     workflow_path = PERF_WORKFLOWS_DIR / f"{workflow_name}.yaml"
     try:
         workflow = load_workflow(workflow_path)
         catalog = load_catalog(PERF_WORKFLOWS_DIR)
         produce = validate_produce(workflow, parsed.produce)
-        overrides = resolve_data_overrides(workflow, parsed.data)
+        overrides, choices = resolve_data_args(workflow, parsed.data)
         config = resolve_config(parsed.config) or workflow.k6_config
     except (WorkflowError, CatalogError, ValueError) as error:
         fail(f"Could not prepare k6 workflow {workflow_name}: {error}")
-        return 1
+        return 1, None
 
     header(f"Punch orchestrator — {workflow.name} (k6)")
     base_url = default_base_url(default_port)
@@ -147,13 +169,16 @@ def run_k6(
 
     _announce_data(workflow, catalog, produce)
     command = build_compose_run_command(
-        workflow, environment, data_env=data_environment(workflow, overrides), config=config
+        workflow,
+        environment,
+        data_env=data_environment(workflow, overrides, choices),
+        config=config,
     )
     # An explicit --produce is already a deliberate, scripted choice, so it
     # also skips the Docker prompt.
     docker_run_confirmed = confirm_docker_run(
         command,
-        assume_yes=bool(produce),
+        assume_yes=bool(produce) or not interactive,
         stdin=sys.stdin,
         stdout=sys.stdout,
     )
@@ -162,6 +187,7 @@ def run_k6(
         environment=environment,
         produce=produce,
         data_overrides=overrides,
+        optional_choices=choices,
         producers_of=catalog.producers_of,
         docker_run_confirmed=docker_run_confirmed,
         stdout=sys.stdout,
@@ -170,7 +196,7 @@ def run_k6(
         config=config,
     )
     print()
-    if result.child_exit_code is not None:
+    if result.child_exit_code is not None and interactive:
         confirm_delete_consumed(
             required_data_paths(workflow, overrides), stdin=sys.stdin, stdout=sys.stdout
         )
@@ -181,11 +207,11 @@ def run_k6(
         print()
         if workflow.summary_output is not None:
             _print_metrics(workflow.summary_output.path)
-        return 0
+        return 0, result
 
     if result.child_exit_code:
         fail(f"k6 {workflow.name} failed (exit code {result.child_exit_code}).")
-        return result.child_exit_code
+        return result.child_exit_code, result
 
     fail(f"k6 {workflow.name} failed: {result.failure}")
-    return 1
+    return 1, result

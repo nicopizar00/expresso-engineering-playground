@@ -30,9 +30,13 @@ design itself is in [`orchestrator.md`](orchestrator.md).
   > `http_req_failed = 0%`. Summary at
   > `tests/performance/k6/reports/http-purchase-summary.json`.
 
+- **Chains**: `./dev perf:chain` writes its evidence record to
+  `tests/performance/k6/reports/chain/chain.json`, with each step's log and
+  k6 summary copied beside it.
 - **CI**: the `perf-smoke` job runs one `http-purchase` iteration
-  (`./dev perf:http-purchase --config 1-iteration`); its thresholds fail the
-  job. Gating any other scenario is an explicit, owner-approved follow-up, so
+  (`./dev perf:http-purchase --config 1-iteration`) and the chain
+  `./dev perf:chain http-cart http-orders http-orders-status:1-iteration`;
+  the thresholds of every run fail the job. Gating any other scenario is an explicit, owner-approved follow-up, so
   for everything else local evidence is the gate.
 
 ## What "good" evidence looks like

@@ -262,6 +262,19 @@ Load-tests `GET /me/hot-status` with real login tokens.
 - Thresholds for all three: `http_req_failed` < 10%, checks > 90%,
   p(90) < 1000 ms (500 ms for http-me-hot-status).
 
+### Run a chain in one command
+
+`./dev perf:chain` runs the steps above in order, writes only the datasets a
+later step reads, and sizes each writer for its reader by default. On GitHub,
+the `perf` workflow runs the same command from the Actions tab. Rules and
+evidence: [`orchestrator.md`](../../../docs/performance/orchestrator.md#chains-perfchain).
+
+```bash
+./dev perf:chain http-cart http-orders http-orders-status:1-iteration
+./dev perf:chain http-purchase-registered http-auth-login http-me-hot-status:1-vu-5m
+./dev perf:chain --plan browser-purchase http-orders-status:5-vu-5m   # rejected: 81 browser VUs
+```
+
 ## Reports and current-run evidence
 
 The report volume has this stable layout:
@@ -270,6 +283,7 @@ The report volume has this stable layout:
 reports/
   <id>-report.html / <id>-summary.json         # scenario HTML/JSON output
   logs/k6-<id>.log                             # selected workflow stdout/stderr
+  chain/                                       # ./dev perf:chain evidence (chain.json, summary.md)
 ```
 
 Inspect or remove those generated files with:
