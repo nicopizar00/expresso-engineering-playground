@@ -234,6 +234,10 @@ jobs:
           }
       - name: Build k6 image
         run: docker compose -f infra/docker/compose.performance.yaml build k6
+      - name: Let k6 write its reports
+        # k6 runs as uid 12345 in its container; the checkout belongs to the
+        # runner user, so handleSummary() could not write here.
+        run: chmod a+w tests/performance/k6/reports
       - name: Run k6 purchase workflow
         env:
           BASE_URL: http://host.docker.internal:3001

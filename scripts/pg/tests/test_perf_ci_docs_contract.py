@@ -70,6 +70,13 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertLess(install_punch, start_bff)
         self.assertLess(start_bff, build_k6)
         self.assertLess(build_k6, run_workflow)
+        writable_reports = step_index(
+            next(step for step in steps if step.get("name") == "Let k6 write its reports")
+        )
+        self.assertEqual(
+            steps[writable_reports]["run"], "chmod a+w tests/performance/k6/reports"
+        )
+        self.assertLess(writable_reports, run_workflow)
         self.assertLess(run_workflow, run_chain)
         self.assertEqual(
             steps[run_chain]["run"],

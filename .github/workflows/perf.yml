@@ -156,6 +156,10 @@ jobs:
         run: |
           read -ra services <<< "$SERVICES"
           docker compose -f infra/docker/compose.performance.yaml build "${services[@]}"
+      - name: Let k6 write its reports
+        # k6 runs as uid 12345 in its container; the checkout belongs to the
+        # runner user, so handleSummary() could not write here.
+        run: chmod a+w tests/performance/k6/reports
       - name: Run the chain
         run: |
           read -ra steps <<< "$CHAIN"
