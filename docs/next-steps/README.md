@@ -27,6 +27,9 @@ git grep -n "TODO(next-steps/"
 7. **[Punch on Kubernetes](punch-k8s.md)** — POC shipped (Argo Workflows +
    Argo CD, local S3/ECR stand-ins); next: on-demand GitHub job against real
    AWS, browser and auth chains.
+8. **[Running Punch workflows on Expresso](perf-run-ux.md)**: chains run
+   locally and from the `perf` GitHub workflow; next: evaluate the open
+   questions so a person can run a workflow from one page.
 
 ## Done
 
