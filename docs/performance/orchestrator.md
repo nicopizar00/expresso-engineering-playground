@@ -2,7 +2,8 @@
 
 The repository-owned performance layer selects k6 workflows; Punch owns the
 generic workflow engine. This is the canonical design for `./dev perf:*`,
-`tests/performance/k6/workflows/`, and CI's k6 gate (one `http-purchase` iteration).
+`tests/performance/k6/workflows/`, and CI's k6 gate (one `http-purchase` iteration and one
+three-step chain).
 
 ## Prerequisites and ownership
 
@@ -39,8 +40,8 @@ one docker compose run -> stdout/stderr log + existing HTML/JSON + opted-in data
 For a selected workflow, Punch constructs exactly one explicit `docker compose
 --project-directory ... -f ... run --rm k6 k6 run ...` command. Building the
 image, starting the BFF, collecting logs, and cleanup are separate operations.
-CI therefore builds the `k6` image first, then invokes `./dev perf:http-purchase`; it
-does not recreate the Compose command in workflow YAML.
+CI therefore builds the `k6` image first, then invokes `./dev perf:http-purchase` and
+`./dev perf:chain`; it does not recreate the Compose command in workflow YAML.
 
 The baked image contains compiled scenario code. Existing scenario
 `handleSummary` behavior continues to write the HTML and JSON reports under
@@ -137,7 +138,8 @@ spec:
   `http-orders requires "carts"; produce it with: http-cart,
   browser-cart (--produce carts)`). Punch injects
   `DATA_<DATASET>_CSV=<container path>`; `--data <dataset>=<path>` reads an
-  alternate file beneath `directory`. After the run, an interactive terminal is
+  alternate file beneath `directory`, and `--data <dataset>=default` leaves an
+  optional dataset on the scenario's built-in data. After the run, an interactive terminal is
   asked whether to delete each consumed file; non-interactive runs keep it.
 - **Links are checked.** All workflow YAMLs in `workflows/` form one catalog:
   every target must exist and require the dataset, every required dataset
@@ -178,6 +180,54 @@ config with `⌈rows × (1 + margin)⌉` shared iterations and enough VUs to fit
 `Size for a target workflow` mode and `punch run --size-for <target>
 [--config <target config>]`.
 Contract: `vendor/punch/docs/specs/spec-target-data-sizing.md`.
+
+## Chains (`perf:chain`)
+
+`./dev perf:chain` runs workflows in order as one command; each step reads the
+datasets that earlier steps wrote. The `perf` GitHub workflow
+(`.github/workflows/perf.yml`) runs the same command on demand against the
+stack on its runner, with up to four steps picked in the Actions form. CI's
+`perf-smoke` job runs `http-cart`, `http-orders`, and `http-orders-status` as
+a chain on pushes and pull requests to `main`.
+
+```bash
+./dev perf:chain http-cart http-orders:5-vu-5m       # http-cart sized for http-orders
+./dev perf:chain --plan browser-cart http-orders     # validate and size, no Docker
+```
+
+A step is `<workflow>[:<shape>]`. The shape is a preset stem from
+`tests/performance/k6/options/` or `auto`, the default. The whole chain is
+planned before Docker starts (`scripts/pg/perf_chain.py`):
+
+- Steps fill from step 1; `none` marks an empty step and may only trail. A
+  gap fails the plan.
+- A step reads each required dataset from the latest earlier step that
+  writes it. With no earlier writer the plan fails and names the producers.
+- Only a writer whose dataset a later step reads runs with `--produce`.
+- An optional dataset that no earlier step writes uses the scenario's
+  built-in data (`--data <dataset>=default`).
+- `auto` sizes a writer for the first later step that reads its data and is
+  one of its `targets`, resolving from the last step back; any other `auto`
+  step runs its `spec.k6.config`. When Punch cannot size a pair, the plan
+  warns and keeps the workflow's config.
+- A browser step runs the preset's `-browser` variant; a shape without one
+  (`1-vu-5m`, `5-vu-5m`) fails the plan.
+- A sized browser step needs at most 4 VUs, or the plan fails and asks for a
+  smaller shape on the reading step. The cap is a starting value for a
+  4-vCPU runner that also runs the app; it is not measured.
+
+Because every dataset a step reads was written earlier in the same chain or
+comes from the built-in default, a chain never reads a file left by an
+earlier run. Steps run non-interactively: no Docker prompt and no offer to
+delete consumed data. The chain stops at the first failed step. A writer that
+wrote fewer rows than its reader reads prints a warning, and the reader
+repeats rows.
+
+`tests/performance/k6/reports/chain/` holds the chain's evidence record,
+`chain.json` (each step's plan, status, exit code, rows written, sizing, and
+k6 summary metrics), `summary.md` (the GitHub job summary), each sized step's
+generated k6 config, and `step-<n>-<workflow>/` with the log and k6 summary
+each step wrote during this run.
 
 ## Summary output and Docker Compose confirmation
 

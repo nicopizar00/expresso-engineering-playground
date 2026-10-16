@@ -121,6 +121,7 @@ orchestration capability; the engine is Punch (`vendor/punch/`).
 - Punch boundary + docs index: [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md)
 - Run from a fresh checkout: `./dev perf:http-purchase --config 1-iteration`
 - Kubernetes runtime (Argo Workflows/Argo CD, no Python in cluster): [`docs/performance/k8s-runtime.md`](docs/performance/k8s-runtime.md); `./dev perf:<id> --runtime k8s`
+- Chains: `./dev perf:chain http-cart http-orders:5-vu-5m` runs workflows in order, each step reading the previous steps' datasets; the `perf` GitHub workflow runs it on demand ([`docs/performance/orchestrator.md`](docs/performance/orchestrator.md#chains-perfchain))
 
 Core `scripts/pg/` stays standard-library-only. Performance commands load the
 public Punch workflow engine, so initialize the submodule and install its

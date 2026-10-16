@@ -29,6 +29,7 @@ scripts/pg/
   http.py         # urllib + http.client helpers (incl. SSE reader)
   doctor.py up.py down.py dev.py smoke.py seed.py
   status.py logs.py open_cmd.py perf.py k6runner.py hack.py
+  perf_chain.py   # perf:chain: plan, size, and run workflows in order
   k8s.py          # minikube deploy of infra/k8s/ (k8s:up/forward/status/down)
   tests/          # unittest smoke tests
 ```
@@ -93,6 +94,7 @@ restricted environments, start at
 | `seed`                   | `prisma db seed`                               |
 | `status` / `logs` / `open` | Inspection                                   |
 | `perf:browser-cart` / `perf:browser-purchase` / `perf:http-purchase` / `perf:http-cart` / `perf:http-orders` / `perf:http-orders-status` / `perf:http-purchase-registered` / `perf:http-auth-login` / `perf:http-me-hot-status` | named k6 YAML workflows in Docker (load shape from a native k6 options JSON, `--config <preset|path>` → `k6 run --config`, default `spec.k6.config`; target via `BASE_URL`; `browser-purchase` mirrors `http-purchase` via a real Chromium browser against the web app; `http-cart` stops before checkout and produces the `carts` dataset with `--produce carts`; `http-orders` requires `carts` — Punch fails it fast when the dataset is missing/empty and offers to delete it once done; `http-orders` and both `http-purchase` variants produce the `orders` dataset with `--produce orders`, which `http-orders-status` consumes to check hot/cold temperature via `EXPECT_TEMPERATURE`; the hot-status load chain runs `http-purchase-registered --produce owned-orders` → `http-auth-login --produce auth-tokens` (optional `owned-orders`, falls back to the seeded demo users) → `http-me-hot-status`) |
+| `perf:chain <workflow>[:<shape>] ...` | Run workflows in order, each step reading the datasets earlier steps wrote; see [`../performance/orchestrator.md`](../performance/orchestrator.md#chains-perfchain) |
 | `perf:open-report` / `perf:clean` | Manage k6 report artefacts             |
 | `k8s:up [--no-build]` / `k8s:forward` / `k8s:status` / `k8s:down` | Same core + web + viz stack on minikube — see [`infra/k8s/README.md`](../../infra/k8s/README.md) |
 | `hack {exec,env,sql,trace}` | Debugging affordances (see below)            |
