@@ -286,8 +286,10 @@ class DispatchFormTests(unittest.TestCase):
         chain_index = next(
             i for i, run in enumerate(runs) if "./dev perf:chain" in run and "--plan" not in run
         )
+        reports_index = runs.index("chmod a+w tests/performance/k6/reports")
         self.assertLess(plan_index, up_index)
         self.assertLess(up_index, chain_index)
+        self.assertLess(reports_index, chain_index)
         self.assertFalse(any("${{" in run for run in runs), "inputs must reach run: through env")
 
 
