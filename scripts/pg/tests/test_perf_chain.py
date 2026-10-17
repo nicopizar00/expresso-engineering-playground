@@ -13,7 +13,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import perf_chain  # noqa: E402
-from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
+from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR  # noqa: E402
 from pg.perf_chain import (  # noqa: E402
     MAX_BROWSER_VUS,
     RUNNER_WARNING,
@@ -23,6 +23,7 @@ from pg.perf_chain import (  # noqa: E402
     render_summary,
     run_chain,
     shapes,
+    write_evidence,
 )
 from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
@@ -53,6 +54,7 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(orders.reads, {"carts": 1})
         self.assertEqual(orders.produce, [])
         self.assertEqual(orders.run_args(), ["--config", "5-vu-5m"])
+        self.assertEqual(orders.shape_label(), "5 users for 5 minutes (5-vu-5m)")
 
     def test_sizing_resolves_from_the_last_step_back(self) -> None:
         result = plan("http-cart", "http-orders", "http-orders-status:1-iteration")
@@ -102,11 +104,13 @@ class PlanTests(unittest.TestCase):
         [cart] = plan("browser-cart:1-iteration").steps
         self.assertEqual(cart.config_path, PERF_OPTIONS_DIR / "1-iteration-browser.json")
         self.assertEqual(cart.run_args(), ["--config", "1-iteration-browser"])
+        self.assertEqual(cart.shape_label(), "1 journey (1-iteration-browser)")
         self.assertEqual(
             plan("browser-cart:5-vu-5m").errors,
             [
-                "step 1 browser-cart: a browser workflow has no 5-vu-5m preset; "
-                "use auto or one of: 1-iteration, 5-iterations"
+                "step 1 browser-cart: a browser workflow has no 5 users for 5 minutes "
+                "(5-vu-5m) preset; use auto or one of: 1 journey (1-iteration), "
+                "5 journeys (5-iterations)"
             ],
         )
 
@@ -120,8 +124,12 @@ class PlanTests(unittest.TestCase):
     def test_a_sized_browser_step_over_the_cap_is_rejected(self) -> None:
         result = plan("browser-purchase", "http-orders-status:5-vu-5m")
         self.assertEqual(len(result.errors), 1)
-        self.assertIn("it needs 81 browser VUs; the cap is 4", result.errors[0])
-        self.assertIn("Pick a smaller shape for step 2", result.errors[0])
+        self.assertEqual(
+            result.errors[0],
+            "step 1 browser-purchase: sized for step 2 http-orders-status at 5 users for "
+            "5 minutes (5-vu-5m), it needs 81 browser VUs; the cap is 4. Pick a smaller load "
+            "for step 2",
+        )
 
     def test_the_latest_writer_wins_and_only_read_data_is_produced(self) -> None:
         result = plan("http-cart", "browser-cart", "http-orders", "http-orders")
@@ -469,6 +477,12 @@ class RunTests(unittest.TestCase):
         summary = (self.reports / "summary.md").read_text(encoding="utf-8")
         self.assertIn("| not emitted | not emitted | not emitted | 100.00% | held (1) |", summary)
 
+    def test_a_planned_step_reads_planned_until_the_run_ends_without_it(self) -> None:
+        write_evidence(plan("http-purchase"), None, self.reports)
+        evidence = self.evidence()
+        self.assertIn("| none | planned | — |", render_summary(evidence))
+        self.assertIn("| none | not run | — |", render_summary(evidence, outcome="failed"))
+
     def test_the_runner_warning_appears_only_when_asked(self) -> None:
         evidence = {
             "outcome": "planned", "sequence": ["http-purchase"], "steps": [],
@@ -506,13 +520,6 @@ class RunTests(unittest.TestCase):
         evidence = self.evidence()
         self.assertEqual(evidence["outcome"], "rejected")
         self.assertRegex(evidence["errors"][0], r"^spec .*spec\.json: spec version must be 1$")
-
-    def test_a_relative_spec_path_is_read_from_the_repository_root(self) -> None:
-        self.assertEqual(
-            perf_chain._spec_path("tests/performance/k6/reports/dispatch/spec.json"),
-            REPO_ROOT / "tests/performance/k6/reports/dispatch/spec.json",
-        )
-        self.assertEqual(perf_chain._spec_path("/abs/spec.json"), Path("/abs/spec.json"))
 
     def test_steps_and_spec_are_mutually_exclusive(self) -> None:
         with patch("sys.stderr", StringIO()):

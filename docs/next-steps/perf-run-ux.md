@@ -59,7 +59,8 @@ Measured on GitHub on 2026-10-17 with the `perf-run` and `perf-chain` forms
   recipes.
 - **Local shapes are terse.** `auto`, `1-iteration`, `5-iterations`,
   `1-vu-5m`, `5-vu-5m` on the CLI. The GitHub forms use labels such as
-  `1 journey`, but their rejection messages still name the presets.
+  `1 journey`; plans and rejections name both, as in
+  `1 journey (1-iteration)`.
 - **Sizing has three entry points:** `perf:chain` with `auto`, Punch's menu,
   and `punch run --size-for`. `./dev perf:<workflow>` has none.
 - **Single runs read leftover data.** `./dev perf:http-orders` reads whatever

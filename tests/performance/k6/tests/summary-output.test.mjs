@@ -140,7 +140,12 @@ test("the JSON summary records every threshold result and the metrics k6 emitted
       },
     },
   };
-  const outputs = report.buildSummaryOutputs(data, meta, "/r/x.html", "/r/x.json");
+  const outputs = report.buildSummaryOutputs(
+    data,
+    meta,
+    "/r/x.html",
+    "/r/x.json",
+  );
   const json = JSON.parse(outputs["/r/x.json"]);
 
   assert.deepEqual(json.thresholds, [
@@ -156,7 +161,12 @@ test("the JSON summary records every threshold result and the metrics k6 emitted
 });
 
 test("a run without thresholds records an empty list, not a missing field", () => {
-  const outputs = report.buildSummaryOutputs(summaryData, meta, "/r/y.html", "/r/y.json");
+  const outputs = report.buildSummaryOutputs(
+    summaryData,
+    meta,
+    "/r/y.html",
+    "/r/y.json",
+  );
   const json = JSON.parse(outputs["/r/y.json"]);
   assert.deepEqual(json.thresholds, []);
   assert.deepEqual(json.emittedMetrics, ["iterations"]);

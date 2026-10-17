@@ -43,6 +43,7 @@ from pg.perf_spec import (
     StepRequest,
     custom_config_path,
     load_spec,
+    preset_name,
 )
 from pg.paths import (
     BFF_PORT,
@@ -50,6 +51,7 @@ from pg.paths import (
     PERF_REPORTS_DIR,
     PERF_WORKFLOWS_DIR,
     REPO_ROOT,
+    repo_path,
 )
 from pg.workflows import WORKFLOWS
 
@@ -156,6 +158,8 @@ class Step:
     def shape_label(self) -> str:
         if self.shape == CUSTOM:
             return f"custom: {self.custom}"
+        if self.shape != AUTO:
+            return preset_name(self.shape, self.config_path.stem if self.config_path else None)
         if not self.resolved:
             return self.shape
         if self.sizing is not None:
@@ -164,7 +168,7 @@ class Step:
                 f"({_count(self.sizing.iterations, 'iteration')}, {_count(self.sizing.vus, 'VU')})"
             )
         config = self.config_path.stem if self.config_path is not None else "script options"
-        return f"auto: {config}" if self.shape == AUTO else config
+        return f"auto: {config}"
 
     def data_label(self) -> str:
         parts = [f"reads {dataset} from step {writer}" for dataset, writer in self.reads.items()]
@@ -245,8 +249,9 @@ def _select_steps(
             step.config_path = _preset_path(workflow, entry.value, options_dir)
             if step.config_path is None:
                 plan.errors.append(
-                    f"step {number} {name}: a browser workflow has no {entry.value} preset; "
-                    f"use auto or one of: {', '.join(browser_shapes(options_dir))}"
+                    f"step {number} {name}: a browser workflow has no "
+                    f"{preset_name(entry.value)} preset; use auto or one of: "
+                    f"{', '.join(preset_name(shape) for shape in browser_shapes(options_dir))}"
                 )
                 continue
         elif entry.mode == CUSTOM:
@@ -340,8 +345,8 @@ def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
                 if step.browser and sizing.vus > MAX_BROWSER_VUS:
                     plan.errors.append(
                         f"step {step.number} {step.name}: sized for step {reader.number} "
-                        f"{reader.name} ({reader.shape_label()}) it needs {sizing.vus} browser "
-                        f"VUs; the cap is {MAX_BROWSER_VUS}. Pick a smaller shape for step "
+                        f"{reader.name} at {reader.shape_label()}, it needs {sizing.vus} browser "
+                        f"VUs; the cap is {MAX_BROWSER_VUS}. Pick a smaller load for step "
                         f"{reader.number}"
                     )
                 continue
@@ -616,7 +621,8 @@ def _gate_cell(step: Dict[str, Any]) -> str:
 def _status_cell(step: Dict[str, Any], outcome: str) -> str:
     status = step.get("status")
     if status is None:
-        return "rejected" if outcome == "rejected" else "planned"
+        # A planned step that the finished run never reached did not run.
+        return outcome if outcome in ("rejected", "planned") else "not run"
     if status == "skipped":
         return "skipped: an earlier step failed"
     if status == "failed":
@@ -780,12 +786,6 @@ def _print_plan(plan: Plan) -> None:
     print()
 
 
-def _spec_path(raw: str) -> Path:
-    """`./dev` runs from scripts/, so a relative spec path is read from the repository root."""
-    path = Path(raw)
-    return path if path.is_absolute() else REPO_ROOT / path
-
-
 def _plan_spec(path: Path, catalog: WorkflowCatalog) -> Plan:
     try:
         entries = load_spec(path)
@@ -821,7 +821,7 @@ def run(args: Sequence[str]) -> int:
     try:
         catalog = load_catalog(PERF_WORKFLOWS_DIR)
         if parsed.spec:
-            plan = _plan_spec(_spec_path(parsed.spec), catalog)
+            plan = _plan_spec(repo_path(parsed.spec), catalog)
         else:
             plan = plan_chain(parse_steps(parsed.steps), catalog)
     except (CatalogError, WorkflowError) as error:

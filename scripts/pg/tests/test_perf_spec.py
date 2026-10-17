@@ -17,6 +17,7 @@ from pg.perf_spec import (  # noqa: E402
     custom_config_path,
     load_spec,
     parse_spec,
+    preset_name,
     spec_document,
     write_spec,
 )
@@ -58,6 +59,18 @@ class CustomConfigPathTests(unittest.TestCase):
     def test_a_symlink_that_escapes_the_options_directory_is_rejected(self) -> None:
         os.symlink(self.root / "outside.json", self.options / "custom" / "link.json")
         self.reject("custom/link.json", "resolves outside tests/performance/k6/options/")
+
+
+class PresetNameTests(unittest.TestCase):
+    def test_a_preset_reads_as_its_form_label_then_its_file(self) -> None:
+        self.assertEqual(preset_name("1-iteration"), "1 journey (1-iteration)")
+        self.assertEqual(preset_name("5-vu-5m"), "5 users for 5 minutes (5-vu-5m)")
+        self.assertEqual(
+            preset_name("1-iteration", "1-iteration-browser"), "1 journey (1-iteration-browser)"
+        )
+
+    def test_a_preset_without_a_form_label_keeps_its_stem(self) -> None:
+        self.assertEqual(preset_name("9-vu-1h"), "9-vu-1h")
 
 
 class SpecDocumentTests(unittest.TestCase):

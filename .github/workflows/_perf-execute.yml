@@ -107,8 +107,8 @@ jobs:
           ./dev perf:dispatch --stage stack
           ./dev up ${TARGET:+"$TARGET"} || {
             echo "::error title=Punch stack::./dev up failed; Compose diagnostics are in the artifact"
-            docker compose -f infra/docker/compose.yaml ps 2>&1 | tee "$DISPATCH_DIR/compose-ps.txt"
-            docker compose -f infra/docker/compose.yaml logs --tail=200 2>&1 | tee "$DISPATCH_DIR/compose-logs.txt"
+            docker compose -f infra/docker/compose.yaml ps 2>&1 | tee "$DISPATCH_DIR/compose-ps.txt" || true
+            docker compose -f infra/docker/compose.yaml logs --tail=200 2>&1 | tee "$DISPATCH_DIR/compose-logs.txt" || true
             exit 1
           }
       - name: Build the k6 images
@@ -131,6 +131,8 @@ jobs:
         if: always()
         env:
           PERF_JOB_STATUS: ${{ job.status }}
+          # Names the run in the summary even if the job failed before perf:dispatch.
+          PERF_SELECTION: ${{ inputs.selection }}
         run: ./dev perf:dispatch --finalize
       - name: Upload evidence
         id: upload

@@ -214,7 +214,7 @@ planned before Docker starts (`scripts/pg/perf_chain.py`):
 - A browser step runs the preset's `-browser` variant; a shape without one
   (`1-vu-5m`, `5-vu-5m`) fails the plan.
 - A sized browser step needs at most 4 VUs, or the plan fails and asks for a
-  smaller shape on the reading step. The cap is a starting value for a
+  smaller load on the reading step. The cap is a starting value for a
   4-vCPU runner that also runs the app; it is not measured.
 - Every other browser step's resolved config (preset, custom, or the
   workflow's own) must also peak at 4 VUs or fewer. The planner sums the
@@ -239,7 +239,9 @@ summary metrics, each threshold's expression and result, and the metrics k6
 emitted), `summary.md` (rendered from `chain.json`), each sized step's
 generated k6 config, and `step-<n>-<workflow>/` with the log, JSON summary,
 and HTML report each step wrote during this run. The summary shows a metric
-k6 did not emit as "not emitted", not as zero.
+k6 did not emit as "not emitted", not as zero. The summary and the plan's
+messages name a preset by its GitHub form label and its file, such as
+`5 users for 5 minutes (5-vu-5m)`.
 
 ## GitHub Actions (`perf-run` and `perf-chain`)
 
@@ -248,10 +250,10 @@ stack on one GitHub-hosted runner. Both call `_perf-execute.yml`, which
 validates the form values, plans before Docker, runs that exact plan, and
 uploads one artifact.
 
-| Workflow file    | Inputs                                                     | Runs                                                                      |
-| ---------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `perf-run.yml`   | Workflow, load, custom config                              | One workflow that requires no dataset                                     |
-| `perf-chain.yml` | Sequence, then a load and a custom config for steps 1 to 4 | One recipe: a producer and the consumers that read its data, 2 to 4 steps |
+| Workflow file    | Title in the Actions tab     | Inputs                                                     | Runs                                                                      |
+| ---------------- | ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `perf-run.yml`   | `Punch performance — single` | Workflow, load, custom config                              | One workflow that requires no dataset                                     |
+| `perf-chain.yml` | `Punch performance — chain`  | Sequence, then a load and a custom config for steps 1 to 4 | One recipe: a producer and the consumers that read its data, 2 to 4 steps |
 
 The workflow and sequence lists come from the catalog. A recipe is an acyclic
 path of two to four workflows that starts at a workflow requiring no dataset,
@@ -301,8 +303,9 @@ otherwise pass while a passed step left no k6 summary. The whole `reports/`
 directory is uploaded once as `perf-<run id>-<attempt>`; the job summary then
 gets the artifact's URL and SHA-256 digest. The summary starts with `Passed`,
 `Failed`, or `Rejected`, shows one row per step (load, data, status,
-duration, requests, error rate, p90, checks, threshold gate), lists every
-threshold expression and result, and always says:
+duration, requests, error rate, p90, checks, threshold gate; a step the job
+never reached reads `not run`), lists every threshold expression and result,
+and always says:
 
 > The app and k6 share one GitHub-hosted runner. Use these results for
 > regression evidence, not capacity claims. Compare only runs with the same

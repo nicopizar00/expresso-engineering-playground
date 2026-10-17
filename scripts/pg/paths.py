@@ -37,6 +37,13 @@ PERF_WORKFLOWS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "workflo
 PERF_OPTIONS_DIR: Path = REPO_ROOT / "tests" / "performance" / "k6" / "options"
 
 
+def repo_path(raw: str) -> Path:
+    """A path a command reads, relative to the repository root unless absolute:
+    `./dev` runs from scripts/, so the working directory would mislead."""
+    path = Path(raw)
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
 def _port(name: str, default: int) -> int:
     raw = os.environ.get(name)
     if not raw:

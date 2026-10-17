@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from pg.ansi import fail, info, pass_, warn
 from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
 from pg.perf_chain import plan_chain
-from pg.perf_spec import AUTO, CUSTOM, MAX_STEPS, PRESET, StepRequest
+from pg.perf_spec import AUTO, CUSTOM, LOAD_LABELS, MAX_STEPS, PRESET, StepRequest
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
@@ -36,16 +36,6 @@ FORM_FILES = (
     REPO_ROOT / ".github" / "workflows" / "perf-chain.yml",
 )
 SEQUENCE_SEPARATOR = " -> "
-CUSTOM_LABEL = "Custom config"
-# Form label -> internal load value; every value but auto and custom is a preset stem.
-LOAD_LABELS: Tuple[Tuple[str, str], ...] = (
-    ("Auto (data-size producer; default otherwise)", AUTO),
-    ("1 journey", "1-iteration"),
-    ("5 journeys", "5-iterations"),
-    ("1 user for 5 minutes", "1-vu-5m"),
-    ("5 users for 5 minutes", "5-vu-5m"),
-    (CUSTOM_LABEL, CUSTOM),
-)
 BLOCK = re.compile(
     r"^(?P<indent>[ \t]*)# BEGIN perf:forms (?P<id>[\w-]+)\n"
     r"(?P<body>.*?)"
