@@ -168,9 +168,10 @@ class ExecuteTests(unittest.TestCase):
 
     def test_stack_failure_keeps_compose_diagnostics(self) -> None:
         run = self.step("Start the stack")["run"]
-        self.assertIn('"$DISPATCH_DIR/compose-ps.txt"', run)
         self.assertIn("logs --tail=200", run)
-        self.assertIn('"$DISPATCH_DIR/compose-logs.txt"', run)
+        # Under pipefail a failed capture would exit before the next one and the error line.
+        self.assertIn('"$DISPATCH_DIR/compose-ps.txt" || true', run)
+        self.assertIn('"$DISPATCH_DIR/compose-logs.txt" || true', run)
 
     def test_evidence_steps_always_run_and_upload_once(self) -> None:
         order = [
@@ -189,9 +190,10 @@ class ExecuteTests(unittest.TestCase):
             "path": "tests/performance/k6/reports/",
             "if-no-files-found": "error",
         })
+        # The selection names the run even when the job failed before perf:dispatch.
         self.assertEqual(
             self.step("Finalize the dispatch record")["env"],
-            {"PERF_JOB_STATUS": "${{ job.status }}"},
+            {"PERF_JOB_STATUS": "${{ job.status }}", "PERF_SELECTION": "${{ inputs.selection }}"},
         )
         self.assertEqual(self.step("Job summary")["env"], {
             "PERF_ARTIFACT_URL": "${{ steps.upload.outputs.artifact-url }}",

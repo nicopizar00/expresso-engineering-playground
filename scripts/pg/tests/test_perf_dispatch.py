@@ -12,7 +12,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import cli, perf_dispatch  # noqa: E402
 from pg.paths import PERF_WORKFLOWS_DIR  # noqa: E402
-from pg.perf_chain import StepRecord, parse_steps, plan_chain, write_evidence  # noqa: E402
+from pg.perf_chain import (  # noqa: E402
+    RUNNER_WARNING,
+    StepRecord,
+    parse_steps,
+    plan_chain,
+    write_evidence,
+)
 from pg.perf_dispatch import INPUTS, env_name, normalize  # noqa: E402
 from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
@@ -298,9 +304,22 @@ class DispatchTests(unittest.TestCase):
         )
 
     def test_a_job_that_failed_before_dispatch_still_gets_a_record(self) -> None:
-        self.assertEqual(self.finalize("failure"), 0)
+        # Only what _perf-execute.yml gives the finalize step: no form record exists yet.
+        env = {
+            "GITHUB_ACTOR": "octo", "PERF_JOB_STATUS": "failure", "PERF_SELECTION": "http-purchase",
+        }
+        self.assertEqual(perf_dispatch.finalize(env, self.dir, self.chain), 0)
         record = self.read("dispatch.json")
         self.assertEqual((record["stage"], record["status"]), ("setup", "failed"))
+        self.assertTrue(self.summary().startswith("## Failed: `http-purchase`"))
+        self.assertIn("- The job stopped at the setup stage before any step ran.", self.summary())
+
+    def test_finalize_reads_the_chain_directory_that_dispatch_clears(self) -> None:
+        self.dispatch_single()
+        self.chain_evidence(passed=False)
+        env = environ(request("single", "http-purchase", ("1 journey", "")), PERF_JOB_STATUS="failure")
+        self.assertEqual(perf_dispatch.finalize(env, self.dir), 0)
+        self.assertTrue(self.summary().startswith("## Failed at step 1 http-purchase"))
 
     # --- publish ----------------------------------------------------------
 
@@ -332,6 +351,13 @@ class DispatchTests(unittest.TestCase):
         self.assertTrue(text.startswith("## Failed: http-purchase"))
         self.assertIn("- The evidence artifact was not uploaded.", text)
         self.assertNotIn("## Passed", text)
+
+    def test_a_missing_job_summary_still_carries_the_runner_warning(self) -> None:
+        env = environ({}, GITHUB_STEP_SUMMARY=str(self.step_summary))
+        perf_dispatch.publish(env, self.dir)
+        text = self.step_summary.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("## Failed: no job summary was written\n\n"))
+        self.assertIn(RUNNER_WARNING, text)
 
     def test_publish_without_an_artifact_fails(self) -> None:
         env = environ({}, GITHUB_STEP_SUMMARY=str(self.step_summary))

@@ -27,7 +27,13 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_
 from pg.paths import PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
-from pg.perf_chain import BROWSER_SERVICE, CHAIN_REPORTS_DIR, annotate, render_summary
+from pg.perf_chain import (
+    BROWSER_SERVICE,
+    CHAIN_REPORTS_DIR,
+    RUNNER_WARNING,
+    annotate,
+    render_summary,
+)
 from pg.perf_forms import load_mode, recipes, sequence_label, standalone
 from pg.perf_spec import (
     CUSTOM,
@@ -325,10 +331,11 @@ def _job_summary(
 def finalize(
     environ: Mapping[str, str],
     dispatch_dir: Path = DISPATCH_DIR,
-    chain_dir: Path = CHAIN_REPORTS_DIR,
+    chain_dir: Optional[Path] = None,
 ) -> int:
     """Set dispatch.json's final status and write summary.md. Exits 1 only when the
     job would otherwise pass without evidence; an already failed job stays failed."""
+    chain_dir = chain_dir or CHAIN_REPORTS_DIR
     dispatch_dir.mkdir(parents=True, exist_ok=True)
     path = dispatch_dir / "dispatch.json"
     record = _read_json(path) or _metadata(environ, "setup")
@@ -355,7 +362,7 @@ def publish(environ: Mapping[str, str], dispatch_dir: Path = DISPATCH_DIR) -> in
     text = (
         summary.read_text(encoding="utf-8")
         if summary.is_file()
-        else "## Failed: no job summary was written\n\n"
+        else f"## Failed: no job summary was written\n\n{RUNNER_WARNING}\n\n"
     )
     url, digest = environ.get("PERF_ARTIFACT_URL", ""), environ.get("PERF_ARTIFACT_DIGEST", "")
     if url:
