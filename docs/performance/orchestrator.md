@@ -272,7 +272,10 @@ A custom config path is relative to `tests/performance/k6/options/`, for
 example `custom/status-regression.json`. Absolute paths, `..`, non-JSON
 files, missing files, and paths that resolve outside that directory are
 rejected, as is `Custom config` without a path or a path with any other
-load. Step slots past the sequence's last workflow are ignored.
+load. A browser step's custom config must declare `scenarios` and set
+`options.browser.type` on each one, as
+`tests/performance/k6/options/1-iteration-browser.json` does. Step slots past
+the sequence's last workflow are ignored.
 
 `./dev perf:dispatch` is the boundary. It reads the form values from
 environment variables, derives the lists from the catalog again (so an API
@@ -289,8 +292,9 @@ dispatch cannot run a sequence the form does not offer), and writes
 - `compose-ps.txt` and `compose-logs.txt` when `./dev up` fails, and
   `k6-build.log`.
 
-A new dispatch first removes `dispatch/` and `chain/`, so no evidence from an
-earlier run survives into the new one. The job rebuilds the k6 images every
+A new dispatch first removes `dispatch/` and `chain/`, so its record and chain
+evidence never mix with an earlier run's. A chain copies only the logs and
+summaries its own steps wrote. The job rebuilds the k6 images every
 run, so it never executes scenarios baked into an older image. With
 `if: always()`, `--finalize` sets the status, and fails a job that would
 otherwise pass while a passed step left no k6 summary. The whole `reports/`

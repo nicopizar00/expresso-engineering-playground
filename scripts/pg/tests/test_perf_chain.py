@@ -222,20 +222,41 @@ class LoadTests(unittest.TestCase):
         ramping = self.custom("ramp.json", {"scenarios": {"default": {
             "executor": "ramping-vus", "startVUs": 1,
             "stages": [{"duration": "30s", "target": 3}, {"duration": "30s", "target": 8}],
+            "options": {"browser": {"type": "chromium"}},
         }}})
-        shortcut = self.custom("stages.json", {"stages": [{"duration": "1m", "target": 5}]})
-        for path, peak in ((ramping, 8), (shortcut, 5)):
-            with self.subTest(path=path):
-                result = plan_chain(
-                    [StepRequest("browser-purchase", CUSTOM, path)], CATALOG, self.options
+        result = plan_chain(
+            [StepRequest("browser-purchase", CUSTOM, ramping)], CATALOG, self.options
+        )
+        self.assertEqual(len(result.errors), 1)
+        self.assertIn("runs up to 8 browser VUs; the cap is 4", result.errors[0])
+
+    def test_a_custom_browser_config_without_chromium_options_is_rejected(self) -> None:
+        cases = {
+            "flat.json": {"vus": 2, "iterations": 4},
+            "stages.json": {"stages": [{"duration": "1m", "target": 2}]},
+            "bare.json": {"scenarios": {"default": {
+                "executor": "shared-iterations", "vus": 1, "iterations": 1,
+            }}},
+            "mixed.json": {"scenarios": {
+                "a": {"executor": "shared-iterations", "vus": 1, "iterations": 1,
+                      "options": {"browser": {"type": "chromium"}}},
+                "b": {"executor": "shared-iterations", "vus": 1, "iterations": 1},
+            }},
+        }
+        for name, config in cases.items():
+            with self.subTest(config=name):
+                path = self.custom(name, config)
+                result = plan_chain([StepRequest("browser-cart", CUSTOM, path)], CATALOG, self.options)
+                self.assertEqual(
+                    result.errors,
+                    [f"step 1 browser-cart: custom: {path} must set options.browser.type on "
+                     "every scenario; see tests/performance/k6/options/1-iteration-browser.json"],
                 )
-                self.assertEqual(len(result.errors), 1)
-                self.assertIn(f"runs up to {peak} browser VUs; the cap is 4", result.errors[0])
 
     def test_a_browser_config_whose_peak_cannot_be_calculated_is_rejected(self) -> None:
-        odd = self.custom(
-            "odd.json", {"scenarios": {"default": {"executor": "externally-controlled"}}}
-        )
+        odd = self.custom("odd.json", {"scenarios": {"default": {
+            "executor": "externally-controlled", "options": {"browser": {"type": "chromium"}},
+        }}})
         result = plan_chain([StepRequest("browser-cart", CUSTOM, odd)], CATALOG, self.options)
         self.assertEqual(len(result.errors), 1)
         self.assertIn("cannot tell how many browser VUs", result.errors[0])

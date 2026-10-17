@@ -396,11 +396,32 @@ def peak_vus(config: Dict[str, Any]) -> int:
     return _whole(config, "vus", 1)
 
 
+def _runs_chromium(config: Dict[str, Any]) -> bool:
+    """k6/browser needs options.browser.type on every scenario; top-level
+    shortcuts (vus, iterations, stages) have nowhere to set it."""
+    scenarios = config.get("scenarios")
+    if not isinstance(scenarios, dict) or not scenarios:
+        return False
+    for scenario in scenarios.values():
+        options = scenario.get("options") if isinstance(scenario, dict) else None
+        browser = options.get("browser") if isinstance(options, dict) else None
+        if not isinstance(browser, dict) or not isinstance(browser.get("type"), str):
+            return False
+    return True
+
+
 def _check_browser_vus(plan: Plan) -> None:
-    """Every browser step's resolved config stays within MAX_BROWSER_VUS."""
+    """Every browser step's resolved config runs Chromium within MAX_BROWSER_VUS."""
     for step in plan.steps:
         if not step.browser or step.sizing is not None:
             continue  # a sized step was checked when it was sized
+        if step.shape == CUSTOM and not _runs_chromium(step.config):
+            plan.errors.append(
+                f"step {step.number} {step.name}: {step.shape_label()} must set "
+                "options.browser.type on every scenario; see "
+                "tests/performance/k6/options/1-iteration-browser.json"
+            )
+            continue
         try:
             peak = peak_vus(step.config)
         except ValueError as error:

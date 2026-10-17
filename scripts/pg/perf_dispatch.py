@@ -294,6 +294,11 @@ def _job_summary(
     notes: List[str] = list(record.get("problems") or [])
     if status == "cancelled":
         notes.insert(0, "The run was cancelled.")
+    elif status == "failed" and record.get("stage") == "execute" and chain is None:
+        notes.append(
+            "The job stopped during the execute stage before the chain wrote its result; "
+            "files from steps that ran are under `chain/step-<n>-<workflow>/`."
+        )
     elif status == "failed" and (chain is None or chain.get("passed") is None):
         notes.append(f"The job stopped at the {record.get('stage')} stage before any step ran.")
     evidence = chain or {
@@ -355,6 +360,11 @@ def publish(environ: Mapping[str, str], dispatch_dir: Path = DISPATCH_DIR) -> in
         name = record.get("artifact") or "evidence"
         text += f"- Artifact: [{name}]({url}), SHA-256 `{digest}`\n"
     else:
+        # A run without its evidence is not a passed run.
+        if text.startswith("## Passed"):
+            heading, _, rest = text.partition("\n")
+            text = "## Failed" + heading[len("## Passed"):] + "\n\n" \
+                + "- The evidence artifact was not uploaded.\n" + rest
         text += "- Artifact: not uploaded; the job log is the only evidence\n"
     target = environ.get("GITHUB_STEP_SUMMARY")
     if target:

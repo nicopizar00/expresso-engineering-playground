@@ -283,6 +283,17 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(self.read("dispatch.json")["status"], "failed")
         self.assertIn("- The job stopped at the stack stage before any step ran.", self.summary())
 
+    def test_a_job_that_stopped_during_execution_does_not_claim_no_step_ran(self) -> None:
+        self.dispatch_single()
+        perf_dispatch.stage("execute", self.dir)
+        self.assertEqual(self.finalize("failure"), 0)
+        self.assertNotIn("before any step ran", self.summary())
+        self.assertIn(
+            "- The job stopped during the execute stage before the chain wrote its result; "
+            "files from steps that ran are under `chain/step-<n>-<workflow>/`.",
+            self.summary(),
+        )
+
     def test_a_job_that_failed_before_dispatch_still_gets_a_record(self) -> None:
         self.assertEqual(self.finalize("failure"), 0)
         record = self.read("dispatch.json")
@@ -307,6 +318,17 @@ class DispatchTests(unittest.TestCase):
             "SHA-256 `deadbeef`",
             text,
         )
+
+    def test_a_passed_run_without_an_uploaded_artifact_is_not_reported_as_passed(self) -> None:
+        self.dispatch_single()
+        self.chain_evidence(passed=True)
+        self.finalize("success")
+        env = environ({}, GITHUB_STEP_SUMMARY=str(self.step_summary))
+        self.assertEqual(perf_dispatch.publish(env, self.dir), 1)
+        text = self.step_summary.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("## Failed: http-purchase"))
+        self.assertIn("- The evidence artifact was not uploaded.", text)
+        self.assertNotIn("## Passed", text)
 
     def test_publish_without_an_artifact_fails(self) -> None:
         env = environ({}, GITHUB_STEP_SUMMARY=str(self.step_summary))
