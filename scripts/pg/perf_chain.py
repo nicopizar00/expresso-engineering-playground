@@ -2,6 +2,7 @@
 the steps after it.
 
     ./dev perf:chain <workflow>[:<shape>] [<workflow>[:<shape>] ...] [--plan]
+    ./dev perf:chain --spec <spec.json> [--plan]
 
 The whole chain is planned before Docker starts; then each step runs through
 the same Punch path as `./dev perf:<workflow>` (pg.k6runner.execute_k6). A
@@ -17,8 +18,8 @@ A step reads each dataset from the latest earlier step that writes it. Only
 those writers run with --produce, and an optional dataset that no earlier step
 writes uses the scenario's built-in data, so a chain never reads a file left
 by an earlier run. The chain stops at the first failed step. Evidence lands
-in tests/performance/k6/reports/chain/: chain.json, summary.md, and each
-step's log and k6 summary.
+in tests/performance/k6/reports/chain/: chain.json, summary.md (rendered from
+it by render_summary), and each step's log, k6 summary, and HTML report.
 """
 
 from __future__ import annotations
@@ -34,7 +35,15 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from pg.ansi import bold, fail, header, info, pass_, warn
 from pg.k6runner import execute_k6
-from pg.perf_spec import AUTO, CUSTOM, PRESET, SpecError, StepRequest, custom_config_path
+from pg.perf_spec import (
+    AUTO,
+    CUSTOM,
+    PRESET,
+    SpecError,
+    StepRequest,
+    custom_config_path,
+    load_spec,
+)
 from pg.paths import (
     BFF_PORT,
     PERF_OPTIONS_DIR,
@@ -60,6 +69,19 @@ FIXED_VU_EXECUTORS = ("shared-iterations", "per-vu-iterations", "constant-vus")
 ARRIVAL_RATE_EXECUTORS = ("constant-arrival-rate", "ramping-arrival-rate")
 CHAIN_REPORTS_DIR = PERF_REPORTS_DIR / "chain"
 METRIC_KEYS = ("totalRequests", "errorRate", "p90Ms", "checkPassRate", "durationMs")
+OUTCOME_HEADINGS = {
+    "passed": "Passed", "failed": "Failed", "rejected": "Rejected", "planned": "Planned",
+}
+RUNNER_WARNING = (
+    "> The app and k6 share one GitHub-hosted runner. Use these results for\n"
+    "> regression evidence, not capacity claims. Compare only runs with the same\n"
+    "> workload, test data, and environment."
+)
+# k6 metric names behind each summary column; a browser run reports browser_http_*.
+REQUEST_METRICS = ("http_reqs", "browser_http_req_failed")
+ERROR_METRICS = ("http_req_failed", "browser_http_req_failed")
+LATENCY_METRICS = ("http_req_duration", "browser_http_req_duration")
+CHECK_METRICS = ("checks",)
 
 
 def shapes(options_dir: Path = PERF_OPTIONS_DIR) -> Tuple[str, ...]:
@@ -420,6 +442,11 @@ class StepRecord:
     failure: Optional[str] = None
     rows: Dict[str, int] = field(default_factory=dict)
     metrics: Dict[str, Any] = field(default_factory=dict)
+    # The k6 summary's threshold results ({metric, expression, ok}) and emitted metric names.
+    thresholds: List[Dict[str, Any]] = field(default_factory=list)
+    emitted: Optional[List[str]] = None
+    # The copied k6 summary (relative to the repository root when inside it); None if none.
+    summary: Optional[str] = None
     seconds: float = 0.0
 
 
@@ -435,8 +462,10 @@ def _fresh(path: Path, started: float) -> bool:
     return path.is_file() and path.stat().st_mtime >= started - 1
 
 
-def _collect_evidence(step: Step, started: float, reports_dir: Path) -> Dict[str, Any]:
-    """Copy this step's log and k6 summary into the chain directory; return its metrics."""
+def _collect_evidence(record: StepRecord, started: float, reports_dir: Path) -> None:
+    """Copy the step's log, k6 summary, and HTML report into the chain directory,
+    then read the summary's metrics, threshold results, and emitted metric names."""
+    step = record.step
     target = reports_dir / f"step-{step.number}-{step.name}"
     sources = [PERF_REPORTS_DIR / "logs" / f"k6-{step.name}.log"]
     summary = step.workflow.summary_output.path if step.workflow.summary_output else None
@@ -447,12 +476,18 @@ def _collect_evidence(step: Step, started: float, reports_dir: Path) -> Dict[str
             target.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target / source.name)
     if summary is None or not _fresh(summary, started):
-        return {}
+        return
     try:
         values = json.loads(summary.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {}
-    return {key: values[key] for key in METRIC_KEYS if key in values}
+        return
+    if not isinstance(values, dict):
+        return
+    record.summary = _relative(target / summary.name)
+    record.metrics = {key: values[key] for key in METRIC_KEYS if key in values}
+    record.thresholds = [item for item in values.get("thresholds", []) if isinstance(item, dict)]
+    emitted = values.get("emittedMetrics")
+    record.emitted = [str(name) for name in emitted] if isinstance(emitted, list) else None
 
 
 def _record(step: Step, code: int, result: Optional[ExecutionResult]) -> StepRecord:
@@ -504,7 +539,7 @@ def run_chain(plan: Plan, reports_dir: Path = CHAIN_REPORTS_DIR) -> int:
         )
         record = _record(step, code, result)
         record.seconds = round(time.time() - started, 1)
-        record.metrics = _collect_evidence(step, started, reports_dir)
+        _collect_evidence(record, started, reports_dir)
         if record.status == "passed":
             _shortfall(record, plan)
         records.append(record)
@@ -521,54 +556,127 @@ def run_chain(plan: Plan, reports_dir: Path = CHAIN_REPORTS_DIR) -> int:
     return exit_code
 
 
-def _metrics_text(metrics: Dict[str, Any]) -> str:
-    parts = []
-    if "totalRequests" in metrics:
-        parts.append(_count(metrics["totalRequests"], "request"))
-    if "errorRate" in metrics:
-        parts.append(f"errors {metrics['errorRate'] * 100:.2f}%")
-    if "p90Ms" in metrics:
-        parts.append(f"p90 {metrics['p90Ms']:.0f} ms")
-    if "checkPassRate" in metrics:
-        parts.append(f"checks {metrics['checkPassRate'] * 100:.2f}%")
-    return ", ".join(parts)
+def _md(text: Any) -> str:
+    """Table-safe text: a pipe would end the cell."""
+    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
-def _result_text(record: Optional[StepRecord], planned: str) -> str:
-    if record is None:
-        return planned
-    if record.status == "skipped":
+def _ran(step: Dict[str, Any]) -> bool:
+    return step.get("status") in ("passed", "failed")
+
+
+def _metric_cell(step: Dict[str, Any], key: str, names: Sequence[str], text) -> str:
+    if not _ran(step):
+        return "—"
+    if not step.get("summary"):
+        return "no summary"
+    emitted, metrics = step.get("emittedMetrics"), step.get("metrics") or {}
+    if key not in metrics or (emitted is not None and not any(n in emitted for n in names)):
+        return "not emitted"
+    return text(metrics[key])
+
+
+def _gate_cell(step: Dict[str, Any]) -> str:
+    if not _ran(step):
+        return "—"
+    if not step.get("summary"):
+        return "no summary"
+    thresholds = step.get("thresholds") or []
+    if not thresholds:
+        return "none defined"
+    failed = [item for item in thresholds if not item.get("ok")]
+    if failed:
+        return "failed: " + ", ".join(
+            f"`{_md(item.get('metric'))}` {_md(item.get('expression'))}" for item in failed
+        )
+    return f"held ({len(thresholds)})"
+
+
+def _status_cell(step: Dict[str, Any], outcome: str) -> str:
+    status = step.get("status")
+    if status is None:
+        return "rejected" if outcome == "rejected" else "planned"
+    if status == "skipped":
         return "skipped: an earlier step failed"
-    parts = [_count(rows, f"{dataset} row") for dataset, rows in record.rows.items()]
-    metrics = _metrics_text(record.metrics)
-    if metrics:
-        parts.append(metrics)
-    detail = "; ".join(parts)
-    if record.status == "failed":
-        reason = record.failure or f"exit code {record.exit_code}"
-        return f"**failed**: {reason}" + (f"; {detail}" if detail else "")
-    return "passed" + (f": {detail}" if detail else "")
+    if status == "failed":
+        reason = step.get("failure") or "exit code {}".format(step.get("exitCode"))
+        return f"**failed**: {_md(reason)}"
+    return "passed"
 
 
-def summary_markdown(plan: Plan, records: Optional[List[StepRecord]], title: str) -> str:
-    by_step = {record.step.number: record for record in records or []}
-    planned = "rejected" if plan.errors else "planned"
-    lines = [f"## {title}", ""]
-    if plan.steps:
+def _data_cell(step: Dict[str, Any]) -> str:
+    rows = step.get("rows") or {}
+    written = [_count(count, f"{dataset} row") for dataset, count in rows.items()]
+    return _md("; ".join([step.get("data") or "none", *written]))
+
+
+def _step_row(step: Dict[str, Any], outcome: str) -> str:
+    cells = [
+        str(step["step"]),
+        f"`{step['workflow']}`",
+        _md(step.get("config", "")),
+        _data_cell(step),
+        _status_cell(step, outcome),
+        "{:.1f} s".format(step.get("seconds", 0.0)) if _ran(step) else "—",
+        _metric_cell(step, "totalRequests", REQUEST_METRICS, lambda v: f"{v:,}"),
+        _metric_cell(step, "errorRate", ERROR_METRICS, lambda v: f"{v * 100:.2f}%"),
+        _metric_cell(step, "p90Ms", LATENCY_METRICS, lambda v: f"{v:.0f} ms"),
+        _metric_cell(step, "checkPassRate", CHECK_METRICS, lambda v: f"{v * 100:.2f}%"),
+        _gate_cell(step),
+    ]
+    return "| " + " | ".join(cells) + " |"
+
+
+def _details(evidence: Dict[str, Any]) -> List[str]:
+    lines: List[str] = []
+    thresholds = [
+        f"- Step {step['step']} `{step['workflow']}`: `{item.get('metric')}` "
+        f"{item.get('expression')} {'held' if item.get('ok') else 'failed'}"
+        for step in evidence.get("steps", [])
+        for item in step.get("thresholds") or []
+    ]
+    if thresholds:
+        lines += ["Thresholds:", "", *thresholds, ""]
+    warnings = evidence.get("warnings") or []
+    if warnings:
+        lines += ["Warnings:", "", *[f"- {message}" for message in warnings], ""]
+    return lines or ["- No thresholds evaluated and no warnings.", ""]
+
+
+def render_summary(
+    evidence: Dict[str, Any],
+    *,
+    outcome: Optional[str] = None,
+    notes: Sequence[str] = (),
+    runner_warning: bool = False,
+) -> str:
+    """Markdown for a chain evidence record (chain.json): the heading names the
+    outcome, one row per step, then errors, the runner warning, and details."""
+    outcome = outcome or evidence["outcome"]
+    steps = evidence.get("steps", [])
+    names = evidence.get("sequence") or [step["workflow"] for step in steps]
+    sequence = " → ".join(names) or "no workflow"
+    heading = OUTCOME_HEADINGS[outcome]
+    failed = next((step for step in steps if step.get("status") == "failed"), None)
+    if outcome == "failed" and failed is not None:
+        heading += f" at step {failed['step']} {failed['workflow']}"
+    lines = [f"## {heading}: {_md(sequence)}", ""]
+    if notes:
+        lines += [*[f"- {note}" for note in notes], ""]
+    if steps:
         lines += [
-            "| Step | Workflow | Shape | Data | Result |",
-            "| --- | --- | --- | --- | --- |",
+            "| Step | Workflow | Load | Data | Status | Duration | Requests | Errors | p90 "
+            "| Checks | Thresholds |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            *[_step_row(step, outcome) for step in steps],
+            "",
         ]
-        for step in plan.steps:
-            lines.append(
-                f"| {step.number} | `{step.name}` | {step.shape_label()} | "
-                f"{step.data_label()} | {_result_text(by_step.get(step.number), planned)} |"
-            )
-        lines.append("")
-    if plan.errors:
-        lines += ["Errors:", "", *[f"- {error}" for error in plan.errors], ""]
-    if plan.warnings:
-        lines += ["Warnings:", "", *[f"- {message}" for message in plan.warnings], ""]
+    errors = evidence.get("errors") or []
+    if errors:
+        lines += ["Errors:", "", *[f"- {error}" for error in errors], ""]
+    if runner_warning:
+        lines += [RUNNER_WARNING, ""]
+    lines += ["### Details", "", *_details(evidence)]
     return "\n".join(lines)
 
 
@@ -577,8 +685,10 @@ def _step_evidence(step: Step, record: Optional[StepRecord]) -> Dict[str, Any]:
         "step": step.number,
         "workflow": step.name,
         "shape": step.shape,
+        "customConfig": step.custom,
         "config": step.shape_label(),
         "k6Config": step.config,
+        "data": step.data_label(),
         "produce": step.produce,
         "reads": step.reads,
         "defaults": step.defaults,
@@ -590,6 +700,9 @@ def _step_evidence(step: Step, record: Optional[StepRecord]) -> Dict[str, Any]:
             failure=record.failure,
             rows=record.rows,
             metrics=record.metrics,
+            thresholds=record.thresholds,
+            emittedMetrics=record.emitted,
+            summary=record.summary,
             seconds=record.seconds,
         )
         if step.sizing is not None and record.status != "skipped":
@@ -597,41 +710,42 @@ def _step_evidence(step: Step, record: Optional[StepRecord]) -> Dict[str, Any]:
     return entry
 
 
-def write_evidence(plan: Plan, records: Optional[List[StepRecord]], reports_dir: Path) -> None:
-    """chain.json (the chain's evidence record) and summary.md (the job summary)."""
-    by_step = {record.step.number: record for record in records or []}
+def _outcome(plan: Plan, records: Optional[List[StepRecord]]) -> str:
+    if plan.errors:
+        return "rejected"
     if records is None:
-        title = "Punch chain rejected" if plan.errors else "Punch chain plan"
-        passed = None
-    else:
-        failed = next((r for r in records if r.status == "failed"), None)
-        passed = failed is None
-        title = (
-            "Punch chain passed"
-            if passed
-            else f"Punch chain failed at step {failed.step.number} {failed.step.name}"
-        )
-    reports_dir.mkdir(parents=True, exist_ok=True)
+        return "planned"
+    return "failed" if any(record.status == "failed" for record in records) else "passed"
+
+
+def write_evidence(plan: Plan, records: Optional[List[StepRecord]], reports_dir: Path) -> None:
+    """chain.json (the chain's evidence record) and summary.md (rendered from it)."""
+    by_step = {record.step.number: record for record in records or []}
+    outcome = _outcome(plan, records)
     evidence = {
-        "passed": passed,
+        "outcome": outcome,
+        "passed": None if records is None else outcome == "passed",
+        "sequence": plan.requested,
         "steps": [_step_evidence(step, by_step.get(step.number)) for step in plan.steps],
         "errors": plan.errors,
         "warnings": plan.warnings,
     }
+    reports_dir.mkdir(parents=True, exist_ok=True)
     (reports_dir / "chain.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     (reports_dir / "summary.md").write_text(
-        summary_markdown(plan, records, title), encoding="utf-8"
+        render_summary(evidence, runner_warning=os.environ.get("GITHUB_ACTIONS") == "true"),
+        encoding="utf-8",
     )
 
 
-def _annotate(plan: Plan) -> None:
-    """GitHub Actions annotations, so a rejected plan shows on the run page."""
+def annotate(errors: Sequence[str], warnings: Sequence[str], title: str) -> None:
+    """GitHub Actions annotations, so a rejected run shows on the run page."""
     if os.environ.get("GITHUB_ACTIONS") != "true":
         return
-    for level, messages in (("error", plan.errors), ("warning", plan.warnings)):
+    for level, messages in (("error", errors), ("warning", warnings)):
         for message in messages:
             escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-            print(f"::{level} title=Punch chain::{escaped}")
+            print(f"::{level} title={title}::{escaped}")
 
 
 def _print_plan(plan: Plan) -> None:
@@ -645,30 +759,56 @@ def _print_plan(plan: Plan) -> None:
     print()
 
 
+def _spec_path(raw: str) -> Path:
+    """`./dev` runs from scripts/, so a relative spec path is read from the repository root."""
+    path = Path(raw)
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
+def _plan_spec(path: Path, catalog: WorkflowCatalog) -> Plan:
+    try:
+        entries = load_spec(path)
+    except SpecError as error:
+        return Plan(steps=[], errors=[f"spec {_relative(path)}: {error}"])
+    return plan_chain(entries, catalog)
+
+
 def run(args: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="./dev perf:chain",
         description="Run k6 workflows in order; each step's datasets feed the steps after it.",
     )
     parser.add_argument(
-        "steps", nargs="+", metavar="WORKFLOW[:SHAPE]",
+        "steps", nargs="*", metavar="WORKFLOW[:SHAPE]",
         help=f"A workflow and its shape ({', '.join(shapes())}; default auto). "
              f"'{EMPTY}' marks an empty trailing step.",
+    )
+    parser.add_argument(
+        "--spec", metavar="PATH",
+        help="Plan and run a spec.json (what perf:dispatch writes) instead of positional "
+             "steps; a relative PATH is read from the repository root.",
     )
     parser.add_argument(
         "--plan", action="store_true",
         help="Validate and size the chain, write its summary, and stop before Docker.",
     )
     parsed = parser.parse_args(list(args))
+    if parsed.spec and parsed.steps:
+        parser.error("--spec replaces positional steps; give one or the other")
+    if not parsed.spec and not parsed.steps:
+        parser.error("give at least one WORKFLOW[:SHAPE], or --spec PATH")
     try:
         catalog = load_catalog(PERF_WORKFLOWS_DIR)
-        plan = plan_chain(parse_steps(parsed.steps), catalog)
+        if parsed.spec:
+            plan = _plan_spec(_spec_path(parsed.spec), catalog)
+        else:
+            plan = plan_chain(parse_steps(parsed.steps), catalog)
     except (CatalogError, WorkflowError) as error:
         fail(f"Could not plan the chain: {error}")
         return 1
     shutil.rmtree(CHAIN_REPORTS_DIR, ignore_errors=True)
     _print_plan(plan)
-    _annotate(plan)
+    annotate(plan.errors, plan.warnings, "Punch chain")
     if plan.errors or parsed.plan:
         write_evidence(plan, None, CHAIN_REPORTS_DIR)
         return 1 if plan.errors else 0

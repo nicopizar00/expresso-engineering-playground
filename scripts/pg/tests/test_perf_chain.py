@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import sys
@@ -17,15 +18,18 @@ from pg import perf_chain  # noqa: E402
 from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
 from pg.perf_chain import (  # noqa: E402
     MAX_BROWSER_VUS,
+    RUNNER_WARNING,
     parse_steps,
     peak_vus,
     plan_chain,
+    render_summary,
     run_chain,
     shapes,
 )
-from pg.perf_spec import CUSTOM, PRESET, StepRequest  # noqa: E402
+from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 from punch.execution import DatasetResult, ExecutionResult  # noqa: E402
+from punch.workflow import SummaryOutput  # noqa: E402
 
 CATALOG = load_catalog(PERF_WORKFLOWS_DIR)
 
@@ -347,7 +351,9 @@ class RunTests(unittest.TestCase):
         self.assertEqual(evidence["steps"][0]["rows"], {"carts": 3})
         self.assertEqual(evidence["steps"][0]["sizing"]["producedRows"], {"carts": 3})
         summary = (self.reports / "summary.md").read_text(encoding="utf-8")
-        self.assertIn("## Punch chain failed at step 2 http-orders", summary)
+        self.assertIn(
+            "## Failed at step 2 http-orders: http-cart → http-orders → http-orders-status", summary
+        )
         self.assertIn("skipped: an earlier step failed", summary)
 
     @patch("pg.perf_chain.execute_k6")
@@ -371,7 +377,8 @@ class RunTests(unittest.TestCase):
         execute.assert_not_called()
         self.assertIsNone(self.evidence()["passed"])
         self.assertIn(
-            "## Punch chain plan", (self.reports / "summary.md").read_text(encoding="utf-8")
+            "## Planned: http-cart → http-orders",
+            (self.reports / "summary.md").read_text(encoding="utf-8"),
         )
 
     @patch("pg.perf_chain.execute_k6")
@@ -384,8 +391,116 @@ class RunTests(unittest.TestCase):
             "::error title=Punch chain::step 1 http-orders reads carts", sys.stdout.getvalue()
         )
         self.assertIn(
-            "## Punch chain rejected", (self.reports / "summary.md").read_text(encoding="utf-8")
+            "## Rejected: http-orders → http-cart",
+            (self.reports / "summary.md").read_text(encoding="utf-8"),
         )
+
+
+    def summary_writer(self, chain, summaries: dict):
+        """Point each step's k6 summary at a temp file the fake k6 run writes."""
+        for step in chain.steps:
+            path = Path(self.temporary_directory.name) / f"{step.name}-summary.json"
+            step.workflow = dataclasses.replace(step.workflow, summary_output=SummaryOutput(path))
+
+        def execute(name, _args, **_kwargs):
+            step = next(s for s in chain.steps if s.name == name)
+            payload = summaries[name]
+            step.workflow.summary_output.path.write_text(json.dumps(payload), encoding="utf-8")
+            return (0 if payload["passed"] else 99), _result(name, payload["passed"])
+
+        return execute
+
+    @patch("pg.perf_chain.execute_k6")
+    def test_threshold_results_and_emitted_metrics_reach_the_evidence(self, execute) -> None:
+        chain = plan("http-purchase")
+        execute.side_effect = self.summary_writer(chain, {"http-purchase": {
+            "passed": False, "totalRequests": 12, "errorRate": 0, "p90Ms": 1200.4,
+            "checkPassRate": 1, "durationMs": 9000,
+            "thresholds": [
+                {"metric": "http_req_duration", "expression": "p(95)<1000", "ok": False},
+                {"metric": "http_req_failed", "expression": "rate<0.01", "ok": True},
+            ],
+            "emittedMetrics": ["checks", "http_req_duration", "http_req_failed", "http_reqs"],
+        }})
+
+        self.assertEqual(run_chain(chain, self.reports), 99)
+
+        [step] = self.evidence()["steps"]
+        self.assertEqual(step["thresholds"][0]["expression"], "p(95)<1000")
+        self.assertTrue(
+            step["summary"].endswith("step-1-http-purchase/http-purchase-summary.json")
+        )
+        summary = (self.reports / "summary.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "| 12 | 0.00% | 1200 ms | 100.00% | failed: `http_req_duration` p(95)<1000 |", summary
+        )
+        self.assertIn("- Step 1 `http-purchase`: `http_req_duration` p(95)<1000 failed", summary)
+        self.assertIn("- Step 1 `http-purchase`: `http_req_failed` rate<0.01 held", summary)
+
+    @patch("pg.perf_chain.execute_k6")
+    def test_metrics_k6_did_not_emit_read_not_emitted_not_zero(self, execute) -> None:
+        chain = plan("browser-cart:1-iteration")
+        execute.side_effect = self.summary_writer(chain, {"browser-cart": {
+            "passed": True, "totalRequests": 0, "errorRate": 1, "p90Ms": 0,
+            "checkPassRate": 1, "durationMs": 3000,
+            "thresholds": [{"metric": "checks", "expression": "rate>0.95", "ok": True}],
+            "emittedMetrics": ["checks", "iterations"],
+        }})
+        self.assertEqual(run_chain(chain, self.reports), 0)
+        summary = (self.reports / "summary.md").read_text(encoding="utf-8")
+        self.assertIn("| not emitted | not emitted | not emitted | 100.00% | held (1) |", summary)
+
+    def test_the_runner_warning_appears_only_when_asked(self) -> None:
+        evidence = {
+            "outcome": "planned", "sequence": ["http-purchase"], "steps": [],
+            "errors": [], "warnings": [],
+        }
+        self.assertNotIn(RUNNER_WARNING, render_summary(evidence))
+        self.assertIn(RUNNER_WARNING, render_summary(evidence, runner_warning=True))
+        self.assertTrue(
+            render_summary(evidence).endswith(
+                "### Details\n\n- No thresholds evaluated and no warnings.\n"
+            )
+        )
+
+    @patch("pg.perf_chain.execute_k6")
+    def test_a_spec_file_plans_the_same_steps_as_positional_arguments(self, execute) -> None:
+        spec = Path(self.temporary_directory.name) / "spec.json"
+        spec.write_text(
+            json.dumps(spec_document(parse_steps(["http-cart", "http-orders:5-vu-5m"]))),
+            encoding="utf-8",
+        )
+        with patch("pg.perf_chain.CHAIN_REPORTS_DIR", self.reports):
+            self.assertEqual(perf_chain.run(["--plan", "--spec", str(spec)]), 0)
+        execute.assert_not_called()
+        steps = self.evidence()["steps"]
+        self.assertEqual([s["workflow"] for s in steps], ["http-cart", "http-orders"])
+        self.assertEqual(steps[0]["config"], "auto: sized for step 2 (1569 iterations, 7 VUs)")
+
+    @patch("pg.perf_chain.execute_k6")
+    def test_an_invalid_spec_is_rejected_with_evidence(self, execute) -> None:
+        spec = Path(self.temporary_directory.name) / "spec.json"
+        spec.write_text(json.dumps({"version": 9, "steps": []}), encoding="utf-8")
+        with patch("pg.perf_chain.CHAIN_REPORTS_DIR", self.reports):
+            self.assertEqual(perf_chain.run(["--spec", str(spec)]), 1)
+        execute.assert_not_called()
+        evidence = self.evidence()
+        self.assertEqual(evidence["outcome"], "rejected")
+        self.assertRegex(evidence["errors"][0], r"^spec .*spec\.json: spec version must be 1$")
+
+    def test_a_relative_spec_path_is_read_from_the_repository_root(self) -> None:
+        self.assertEqual(
+            perf_chain._spec_path("tests/performance/k6/reports/dispatch/spec.json"),
+            REPO_ROOT / "tests/performance/k6/reports/dispatch/spec.json",
+        )
+        self.assertEqual(perf_chain._spec_path("/abs/spec.json"), Path("/abs/spec.json"))
+
+    def test_steps_and_spec_are_mutually_exclusive(self) -> None:
+        with patch("sys.stderr", StringIO()):
+            for args in (["--spec", "x.json", "http-cart"], []):
+                with self.subTest(args=args), self.assertRaises(SystemExit) as caught:
+                    perf_chain.run(args)
+                self.assertEqual(caught.exception.code, 2)
 
 
 class DispatchFormTests(unittest.TestCase):
