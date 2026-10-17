@@ -28,15 +28,17 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from pg.ansi import fail, header, info, pass_
 from pg.paths import PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
 from pg.perf_chain import BROWSER_SERVICE, CHAIN_REPORTS_DIR, annotate, render_summary
-from pg.perf_forms import (
+from pg.perf_forms import load_mode, recipes, sequence_label, standalone
+from pg.perf_spec import (
+    CUSTOM,
     CUSTOM_LABEL,
     LOAD_LABELS,
-    load_mode,
-    recipes,
-    sequence_label,
-    standalone,
+    MAX_STEPS,
+    SpecError,
+    StepRequest,
+    custom_config_path,
+    write_spec,
 )
-from pg.perf_spec import CUSTOM, MAX_STEPS, SpecError, StepRequest, custom_config_path, write_spec
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
