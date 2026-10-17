@@ -1,10 +1,9 @@
 # Running Punch workflows on Expresso
 
-Status: open. Chains run locally and on demand from GitHub Actions (Expresso
-`8276cd0`, Punch `3e7141f`). The GitHub Actions design below is implemented on
-branch `feat/perf-github-forms` (`perf-run.yml`, `perf-chain.yml`,
-`_perf-execute.yml`); live verification on GitHub is pending. Local setup and
-the start page still need decisions.
+Status: open. Chains run locally and on demand from GitHub Actions. The
+GitHub Actions design below is implemented and verified on GitHub on
+2026-10-17 (Expresso `a8f7460`, Punch `3e7141f`). Local setup and the start
+page still need decisions.
 
 Goal: a person who has never run a Punch workflow on Expresso picks the right
 entry point, runs one workflow or a chain, and reads the result, from one
@@ -31,6 +30,18 @@ Measured on GitHub on 2026-10-16:
 | `browser-cart` → `http-orders:1-iteration`                                   | 3 min 2 s  | 2 min 16 s (with web) | 8 s        |
 | `http-cart` → `http-orders:5-vu-5m`                                          | 11 min 9 s | 1 min 52 s            | 8 min 48 s |
 
+Measured on GitHub on 2026-10-17 with the `perf-run` and `perf-chain` forms
+(`a8f7460`), all thresholds held:
+
+| Form run                                                                                                                                           | Job time   | Stack start           | Run                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------- | -------------------------------------------------------- |
+| `perf-run`: `http-purchase`, `1 journey`                                                                                                           | 2 min 27 s | 1 min 52 s            | 1 s                                                      |
+| `perf-chain`: `http-cart` → `http-orders`, step 2 `5 users for 5 minutes`                                                                          | 11 min 1 s | 1 min 47 s            | 8 min 48 s                                               |
+| `perf-chain`: `http-cart` → `http-orders` → `http-orders-status`, step 3 `custom/status-regression.json` (producers sized to 27 and 23 iterations) | 3 min 18 s | 1 min 52 s            | 57 s                                                     |
+| `perf-chain`: `browser-cart` → `http-orders` → `http-orders-status`                                                                                | 3 min 24 s | 2 min 24 s (with web) | 31 s                                                     |
+| `perf-chain`: `http-purchase-registered` → `http-auth-login` → `http-me-hot-status`                                                                | 2 min 44 s | 1 min 54 s            | 20 s                                                     |
+| `perf-chain`: `http-orders -> http-cart` through the API                                                                                           | none       | not started           | rejected by GitHub (HTTP 422: not in the allowed values) |
+
 ## Friction found so far
 
 - **Setup is four manual steps, and the docs disagree.** Submodule, Python
@@ -38,28 +49,26 @@ Measured on GitHub on 2026-10-16:
   the dependency in a venv; `README.md`, `CLAUDE.md`, and
   `tests/performance/k6/README.md` use a bare `pip install`, which Homebrew
   Python refuses with `externally-managed-environment`.
-- **The k6 image bakes the compiled scenarios.** After a scenario change,
-  `./dev perf:*` runs the old code until someone rebuilds the image by hand.
-- **Picking a workflow needs the README.** Nine names; what each reads,
-  writes, and targets lives in README tables. The CLI lists no workflows,
-  and the GitHub form shows bare names, so an impossible chain is caught
-  only after dispatch.
-- **Shapes are terse.** `auto`, `1-iteration`, `5-iterations`, `1-vu-5m`,
-  `5-vu-5m`; the form does not say that a browser step gets the `-browser`
-  preset or that the 5-minute shapes are refused for browser steps.
+- **Local runs use the k6 image as last built.** The image bakes the
+  compiled scenarios, so after a scenario change `./dev perf:*` runs the old
+  code until someone rebuilds it by hand. The GitHub forms rebuild it every
+  run.
+- **Picking a local workflow needs the README.** Nine names; what each
+  reads, writes, and targets lives in README tables, and the CLI lists no
+  workflows. The GitHub forms offer only standalone workflows and valid
+  recipes.
+- **Local shapes are terse.** `auto`, `1-iteration`, `5-iterations`,
+  `1-vu-5m`, `5-vu-5m` on the CLI. The GitHub forms use labels such as
+  `1 journey`, but their rejection messages still name the presets.
 - **Sizing has three entry points:** `perf:chain` with `auto`, Punch's menu,
   and `punch run --size-for`. `./dev perf:<workflow>` has none.
 - **Single runs read leftover data.** `./dev perf:http-orders` reads whatever
   `data/carts.csv` holds; a chain never does.
-- **Results are partial.** The GitHub summary shows requests, error rate,
-  p90, and checks per step, not which thresholds held; HTML reports sit
-  inside the artifact zip.
-- **Every GitHub run is titled `perf`.**
-- **Nothing says runner numbers are not capacity.** App and k6 share the
-  runner's 4 vCPUs.
+- **HTML reports sit inside the artifact zip.** The job summary shows each
+  threshold's result; the HTML report needs a download.
 - **The browser VU cap (4) is unmeasured.**
-- **About 1,300 lines across five docs** (k6 README 348, `orchestrator.md`
-  304, `k8s-runtime.md` 439, `cli-reference.md` 131, `validation.md` 106),
+- **About 1,400 lines across five docs** (k6 README 349, `orchestrator.md`
+  385, `k8s-runtime.md` 439, `cli-reference.md` 134, `validation.md` 106),
   plus Punch's README. No page maps "I want to do X" to "run Y".
 
 ## GitHub Actions design

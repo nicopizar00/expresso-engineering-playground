@@ -28,9 +28,9 @@ git grep -n "TODO(next-steps/"
    Argo CD, local S3/ECR stand-ins); next: chain-ready templates, then the
    `perf-run`/`perf-chain` GitHub workflows against real AWS.
 8. **[Running Punch workflows on Expresso](perf-run-ux.md)**: single runs and
-   chains run locally and from the `perf-run` and `perf-chain` GitHub forms;
-   next: verify the forms on GitHub, then settle the open questions so a
-   person can run a workflow from one page.
+   chains run locally and from the `perf-run` and `perf-chain` GitHub forms
+   (verified on GitHub); next: settle the open questions so a person can run
+   a workflow from one page.
 
 ## Done
 
