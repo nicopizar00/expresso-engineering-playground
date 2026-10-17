@@ -212,7 +212,8 @@ class WorkflowRegistryTests(unittest.TestCase):
 
         perf_commands = {
             c for c in cli.COMMANDS
-            if c.startswith("perf:") and c not in ("perf:chain", "perf:open-report", "perf:clean")
+            if c.startswith("perf:")
+            and c not in ("perf:chain", "perf:forms", "perf:dispatch", "perf:open-report", "perf:clean")
         }
         self.assertEqual(perf_commands, {f"perf:{name}" for name in WORKFLOWS})
         for name in WORKFLOWS:
