@@ -184,15 +184,16 @@ Contract: `vendor/punch/docs/specs/spec-target-data-sizing.md`.
 ## Chains (`perf:chain`)
 
 `./dev perf:chain` runs workflows in order as one command; each step reads the
-datasets that earlier steps wrote. The `perf` GitHub workflow
-(`.github/workflows/perf.yml`) runs the same command on demand against the
-stack on its runner, with up to four steps picked in the Actions form. CI's
+datasets that earlier steps wrote. The `perf-run` and `perf-chain` GitHub
+workflows run the same planner on demand against the stack on their runner
+([GitHub Actions](#github-actions-perf-run-and-perf-chain)). CI's
 `perf-smoke` job runs `http-cart`, `http-orders`, and `http-orders-status` as
 a chain on pushes and pull requests to `main`.
 
 ```bash
 ./dev perf:chain http-cart http-orders:5-vu-5m       # http-cart sized for http-orders
 ./dev perf:chain --plan browser-cart http-orders     # validate and size, no Docker
+./dev perf:chain --plan --spec tests/performance/k6/reports/dispatch/spec.json   # a spec from perf:dispatch
 ```
 
 A step is `<workflow>[:<shape>]`. The shape is a preset stem from
@@ -215,6 +216,15 @@ planned before Docker starts (`scripts/pg/perf_chain.py`):
 - A sized browser step needs at most 4 VUs, or the plan fails and asks for a
   smaller shape on the reading step. The cap is a starting value for a
   4-vCPU runner that also runs the app; it is not measured.
+- Every other browser step's resolved config (preset, custom, or the
+  workflow's own) must also peak at 4 VUs or fewer. The planner sums the
+  scenarios' peak VUs as if they ran at once, and rejects a config whose peak
+  it cannot calculate.
+- `--spec <path>` reads the steps from a versioned spec file instead of the
+  arguments; a relative path is read from the repository root. A spec step's
+  load is `auto`, a preset, or a custom k6 options JSON beneath
+  `tests/performance/k6/options/`. `scripts/pg/perf_spec.py` defines the
+  format and the path rules.
 
 Because every dataset a step reads was written earlier in the same chain or
 comes from the built-in default, a chain never reads a file left by an
@@ -224,10 +234,79 @@ wrote fewer rows than its reader reads prints a warning, and the reader
 repeats rows.
 
 `tests/performance/k6/reports/chain/` holds the chain's evidence record,
-`chain.json` (each step's plan, status, exit code, rows written, sizing, and
-k6 summary metrics), `summary.md` (the GitHub job summary), each sized step's
-generated k6 config, and `step-<n>-<workflow>/` with the log and k6 summary
-each step wrote during this run.
+`chain.json` (each step's plan, status, exit code, rows written, sizing, k6
+summary metrics, each threshold's expression and result, and the metrics k6
+emitted), `summary.md` (rendered from `chain.json`), each sized step's
+generated k6 config, and `step-<n>-<workflow>/` with the log, JSON summary,
+and HTML report each step wrote during this run. The summary shows a metric
+k6 did not emit as "not emitted", not as zero.
+
+## GitHub Actions (`perf-run` and `perf-chain`)
+
+Two manual forms in the Actions tab run Punch workflows against the Expresso
+stack on one GitHub-hosted runner. Both call `_perf-execute.yml`, which
+validates the form values, plans before Docker, runs that exact plan, and
+uploads one artifact.
+
+| Workflow file    | Inputs                                                     | Runs                                                                      |
+| ---------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `perf-run.yml`   | Workflow, load, custom config                              | One workflow that requires no dataset                                     |
+| `perf-chain.yml` | Sequence, then a load and a custom config for steps 1 to 4 | One recipe: a producer and the consumers that read its data, 2 to 4 steps |
+
+The workflow and sequence lists come from the catalog. A recipe is an acyclic
+path of two to four workflows that starts at a workflow requiring no dataset,
+where each link is a dataset the producer writes for that consumer (named in
+its `targets`) and the consumer requires or reads optionally, and that
+`perf:chain` plans with every step on `auto`. `./dev perf:forms --write`
+rewrites the generated option blocks; `--check` fails when they differ from
+the catalog, and the Python tests run the same check.
+
+| Load label                                      | Meaning                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------ |
+| `Auto (data-size producer; default otherwise)`  | `auto`: sized for the step that reads its data, else `spec.k6.config`    |
+| `1 journey`, `5 journeys`                       | Presets `1-iteration`, `5-iterations`; browser steps run `-browser` ones |
+| `1 user for 5 minutes`, `5 users for 5 minutes` | Presets `1-vu-5m`, `5-vu-5m`; refused for browser steps                  |
+| `Custom config`                                 | The committed JSON at the step's custom config path                      |
+
+A custom config path is relative to `tests/performance/k6/options/`, for
+example `custom/status-regression.json`. Absolute paths, `..`, non-JSON
+files, missing files, and paths that resolve outside that directory are
+rejected, as is `Custom config` without a path or a path with any other
+load. A browser step's custom config must declare `scenarios` and set
+`options.browser.type` on each one, as
+`tests/performance/k6/options/1-iteration-browser.json` does. Step slots past
+the sequence's last workflow are ignored.
+
+`./dev perf:dispatch` is the boundary. It reads the form values from
+environment variables, derives the lists from the catalog again (so an API
+dispatch cannot run a sequence the form does not offer), and writes
+`tests/performance/k6/reports/dispatch/`:
+
+- `request.json`: the ten form values as received;
+- `spec.json`: the normalized spec, written once and read-only, which both
+  `perf:chain --spec --plan` and `perf:chain --spec` read;
+- `dispatch.json`: event ref and commit SHA, actor, run id and attempt,
+  artifact name, runner label, the stage reached, and the final status
+  (`passed`, `failed`, `rejected`, or `cancelled`);
+- `summary.md`: the job summary;
+- `compose-ps.txt` and `compose-logs.txt` when `./dev up` fails, and
+  `k6-build.log`.
+
+A new dispatch first removes `dispatch/` and `chain/`, so its record and chain
+evidence never mix with an earlier run's. A chain copies only the logs and
+summaries its own steps wrote. The job rebuilds the k6 images every
+run, so it never executes scenarios baked into an older image. With
+`if: always()`, `--finalize` sets the status, and fails a job that would
+otherwise pass while a passed step left no k6 summary. The whole `reports/`
+directory is uploaded once as `perf-<run id>-<attempt>`; the job summary then
+gets the artifact's URL and SHA-256 digest. The summary starts with `Passed`,
+`Failed`, or `Rejected`, shows one row per step (load, data, status,
+duration, requests, error rate, p90, checks, threshold gate), lists every
+threshold expression and result, and always says:
+
+> The app and k6 share one GitHub-hosted runner. Use these results for
+> regression evidence, not capacity claims. Compare only runs with the same
+> workload, test data, and environment.
 
 ## Summary output and Docker Compose confirmation
 
@@ -237,7 +316,9 @@ JSON file each scenario's `handleSummary()` already writes (e.g.
 this is read-only and needs no opt-in flag — after a passing run,
 any `./dev perf:<id>` and `./bin/punch`'s interactive
 menu print its `totalRequests`, `errorRate`, `p90Ms`, `checkPassRate`, and
-`durationMs` fields.
+`durationMs` fields. The file also lists every threshold k6 evaluated
+(`thresholds`: metric, expression, `ok`) and the metric names k6 emitted
+(`emittedMetrics`), both added by `tests/performance/k6/support/report.ts`.
 
 Before Docker Compose runs (which may build images), the workflow runner prints
 a "Punch orchestrator" banner and asks for confirmation — but only on a real

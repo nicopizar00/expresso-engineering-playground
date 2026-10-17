@@ -113,6 +113,16 @@ def _perf_chain(args: Sequence[str]) -> int:
     return perf_chain.run(args)
 
 
+def _perf_forms(args: Sequence[str]) -> int:
+    from pg import perf_forms
+    return perf_forms.run(args)
+
+
+def _perf_dispatch(args: Sequence[str]) -> int:
+    from pg import perf_dispatch
+    return perf_dispatch.run(args)
+
+
 def _perf_open_report(_a: Sequence[str]) -> int:
     from pg import perf
     return perf.open_report()
@@ -154,6 +164,8 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "argocd:up": _argocd_up,
     **{f"perf:{name}": _perf(name) for name in WORKFLOWS},
     "perf:chain": _perf_chain,
+    "perf:forms": _perf_forms,
+    "perf:dispatch": _perf_dispatch,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,
@@ -171,6 +183,8 @@ def _usage() -> None:
     print("perf:* take their k6 load shape from --config <preset|path> (e.g. perf:http-purchase --config 5-vu-5m).")
     print("perf:* --runtime k8s runs the workflow on Argo Workflows (after ./dev k8s:perf:up).")
     print("perf:chain <workflow>[:<shape>] ... runs workflows in order; each step's data feeds the next (e.g. perf:chain http-cart http-orders:5-vu-5m).")
+    print("perf:chain --spec <spec.json> runs a spec written by perf:dispatch (the GitHub perf forms' boundary).")
+    print("perf:forms --write|--check derives the perf-run/perf-chain GitHub form options from the catalog.")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()

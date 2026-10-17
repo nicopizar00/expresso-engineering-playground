@@ -54,7 +54,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm format
       - run: pnpm typecheck
-      - run: cd tests/performance/k6 && npm ci && npm run typecheck
+      - run: cd tests/performance/k6 && npm ci && npm run typecheck && npm test
 
   test-unit:
     name: Unit + integration tests

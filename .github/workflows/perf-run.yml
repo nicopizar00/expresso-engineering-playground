@@ -1,0 +1,57 @@
+name: Punch performance — single
+
+# Run one Punch workflow that reads no earlier step's data, against the
+# Expresso stack on this runner. ./dev perf:forms --write generates the marked
+# option blocks from the workflow catalog; _perf-execute.yml validates, runs,
+# and records the run:
+# docs/performance/orchestrator.md#github-actions-perf-run-and-perf-chain.
+
+run-name: "perf-run: ${{ inputs.workflow }} (${{ inputs.load }}) by @${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      workflow:
+        description: Workflow
+        type: choice
+        default: http-purchase
+        options:
+          # BEGIN perf:forms workflows
+          - "browser-cart"
+          - "browser-purchase"
+          - "http-auth-login"
+          - "http-cart"
+          - "http-purchase"
+          - "http-purchase-registered"
+          # END perf:forms workflows
+      load:
+        description: Load (browser workflows run the -browser preset and refuse the 5-minute loads)
+        type: choice
+        default: 1 journey
+        options:
+          # BEGIN perf:forms loads
+          - "Auto (data-size producer; default otherwise)"
+          - "1 journey"
+          - "5 journeys"
+          - "1 user for 5 minutes"
+          - "5 users for 5 minutes"
+          - "Custom config"
+          # END perf:forms loads
+      config:
+        description: Custom config, a JSON path relative to tests/performance/k6/options/ (only with Custom config)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: Punch run
+    uses: ./.github/workflows/_perf-execute.yml
+    with:
+      kind: single
+      selection: ${{ inputs.workflow }}
+      load-1: ${{ inputs.load }}
+      config-1: ${{ inputs.config }}

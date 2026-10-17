@@ -266,8 +266,8 @@ Load-tests `GET /me/hot-status` with real login tokens.
 
 `./dev perf:chain` runs the steps above in order, writes only the datasets a
 later step reads, and sizes each writer for its reader by default. On GitHub,
-the `perf` workflow runs the same command from the Actions tab. Rules and
-evidence: [`orchestrator.md`](../../../docs/performance/orchestrator.md#chains-perfchain).
+the `perf-run` and `perf-chain` workflows run single workflows and chains from
+the Actions tab. Rules and evidence: [`orchestrator.md`](../../../docs/performance/orchestrator.md#chains-perfchain).
 
 ```bash
 ./dev perf:chain http-cart http-orders http-orders-status:1-iteration
@@ -284,6 +284,7 @@ reports/
   <id>-report.html / <id>-summary.json         # scenario HTML/JSON output
   logs/k6-<id>.log                             # selected workflow stdout/stderr
   chain/                                       # ./dev perf:chain evidence (chain.json, summary.md)
+  dispatch/                                    # GitHub run record (request.json, spec.json, dispatch.json, summary.md)
 ```
 
 Inspect or remove those generated files with:

@@ -120,3 +120,44 @@ test("protocol http_* metrics still win when present", () => {
   assert.equal(json.errorRate, 0);
   assert.equal(json.p90Ms, 16.5);
 });
+
+test("the JSON summary records every threshold result and the metrics k6 emitted", () => {
+  const data = {
+    ...summaryData,
+    metrics: {
+      ...summaryData.metrics,
+      http_req_failed: {
+        type: "rate",
+        contains: "default",
+        values: { rate: 0, passes: 0, fails: 4 },
+        thresholds: { "rate<0.01": { ok: true } },
+      },
+      http_req_duration: {
+        type: "trend",
+        contains: "time",
+        values: { "p(90)": 1200, "p(95)": 1500 },
+        thresholds: { "p(95)<1000": { ok: false } },
+      },
+    },
+  };
+  const outputs = report.buildSummaryOutputs(data, meta, "/r/x.html", "/r/x.json");
+  const json = JSON.parse(outputs["/r/x.json"]);
+
+  assert.deepEqual(json.thresholds, [
+    { metric: "http_req_duration", expression: "p(95)<1000", ok: false },
+    { metric: "http_req_failed", expression: "rate<0.01", ok: true },
+  ]);
+  assert.equal(json.passed, false);
+  assert.deepEqual(json.emittedMetrics, [
+    "http_req_duration",
+    "http_req_failed",
+    "iterations",
+  ]);
+});
+
+test("a run without thresholds records an empty list, not a missing field", () => {
+  const outputs = report.buildSummaryOutputs(summaryData, meta, "/r/y.html", "/r/y.json");
+  const json = JSON.parse(outputs["/r/y.json"]);
+  assert.deepEqual(json.thresholds, []);
+  assert.deepEqual(json.emittedMetrics, ["iterations"]);
+});
