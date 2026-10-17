@@ -118,6 +118,11 @@ def _perf_forms(args: Sequence[str]) -> int:
     return perf_forms.run(args)
 
 
+def _perf_dispatch(args: Sequence[str]) -> int:
+    from pg import perf_dispatch
+    return perf_dispatch.run(args)
+
+
 def _perf_open_report(_a: Sequence[str]) -> int:
     from pg import perf
     return perf.open_report()
@@ -160,6 +165,7 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     **{f"perf:{name}": _perf(name) for name in WORKFLOWS},
     "perf:chain": _perf_chain,
     "perf:forms": _perf_forms,
+    "perf:dispatch": _perf_dispatch,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,
