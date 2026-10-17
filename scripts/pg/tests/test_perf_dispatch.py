@@ -282,6 +282,9 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(self.finalize("failure"), 0)
         self.assertEqual(self.read("dispatch.json")["status"], "failed")
         self.assertIn("- The job stopped at the stack stage before any step ran.", self.summary())
+        # The plan's steps never ran: they are not "planned" any more.
+        self.assertIn("| none | not run | — |", self.summary())
+        self.assertNotIn("planned", self.summary())
 
     def test_a_job_that_stopped_during_execution_does_not_claim_no_step_ran(self) -> None:
         self.dispatch_single()

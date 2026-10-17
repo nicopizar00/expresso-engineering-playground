@@ -23,6 +23,7 @@ from pg.perf_chain import (  # noqa: E402
     render_summary,
     run_chain,
     shapes,
+    write_evidence,
 )
 from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
@@ -475,6 +476,12 @@ class RunTests(unittest.TestCase):
         self.assertEqual(run_chain(chain, self.reports), 0)
         summary = (self.reports / "summary.md").read_text(encoding="utf-8")
         self.assertIn("| not emitted | not emitted | not emitted | 100.00% | held (1) |", summary)
+
+    def test_a_planned_step_reads_planned_until_the_run_ends_without_it(self) -> None:
+        write_evidence(plan("http-purchase"), None, self.reports)
+        evidence = self.evidence()
+        self.assertIn("| none | planned | — |", render_summary(evidence))
+        self.assertIn("| none | not run | — |", render_summary(evidence, outcome="failed"))
 
     def test_the_runner_warning_appears_only_when_asked(self) -> None:
         evidence = {

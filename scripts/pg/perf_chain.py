@@ -620,7 +620,8 @@ def _gate_cell(step: Dict[str, Any]) -> str:
 def _status_cell(step: Dict[str, Any], outcome: str) -> str:
     status = step.get("status")
     if status is None:
-        return "rejected" if outcome == "rejected" else "planned"
+        # A planned step that the finished run never reached did not run.
+        return outcome if outcome in ("rejected", "planned") else "not run"
     if status == "skipped":
         return "skipped: an earlier step failed"
     if status == "failed":
