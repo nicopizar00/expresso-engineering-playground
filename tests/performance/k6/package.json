@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "esbuild scenarios/http-purchase/http-purchase.ts scenarios/browser-purchase/browser-purchase.ts scenarios/http-cart/http-cart.ts scenarios/browser-cart/browser-cart.ts scenarios/http-orders/http-orders.ts scenarios/http-orders-status/http-orders-status.ts scenarios/http-purchase-registered/http-purchase-registered.ts scenarios/http-auth-login/http-auth-login.ts scenarios/http-me-hot-status/http-me-hot-status.ts --bundle --platform=browser --target=es2017 --format=esm --external:k6 --external:'k6/*' --outbase=scenarios --outdir=dist/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
     "@types/k6": "^0.54.0",
