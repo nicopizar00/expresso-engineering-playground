@@ -10,8 +10,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-import yaml
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import perf_chain  # noqa: E402
@@ -501,52 +499,6 @@ class RunTests(unittest.TestCase):
                 with self.subTest(args=args), self.assertRaises(SystemExit) as caught:
                     perf_chain.run(args)
                 self.assertEqual(caught.exception.code, 2)
-
-
-class DispatchFormTests(unittest.TestCase):
-    """GitHub reads choice options as literal YAML; these pin them to the catalog."""
-
-    def setUp(self) -> None:
-        workflow = yaml.safe_load(
-            (REPO_ROOT / ".github" / "workflows" / "perf.yml").read_text(encoding="utf-8")
-        )
-        # PyYAML reads the bare `on` key as the boolean True.
-        self.inputs = workflow[True]["workflow_dispatch"]["inputs"]
-        self.steps = workflow["jobs"]["chain"]["steps"]
-
-    def test_step_one_offers_every_workflow_that_reads_no_required_data(self) -> None:
-        expected = sorted(
-            name for name, workflow in CATALOG.workflows.items()
-            if workflow.data is None or not workflow.data.requires
-        )
-        self.assertEqual(self.inputs["step1"]["options"], expected)
-
-    def test_later_steps_offer_none_and_every_workflow(self) -> None:
-        for number in (2, 3, 4):
-            with self.subTest(step=number):
-                step = self.inputs[f"step{number}"]
-                self.assertEqual(step["options"], ["none", *sorted(CATALOG.workflows)])
-                self.assertEqual(step["default"], "none")
-
-    def test_every_step_offers_the_chain_shapes(self) -> None:
-        for number in (1, 2, 3, 4):
-            with self.subTest(step=number):
-                shape = self.inputs[f"step{number}-shape"]
-                self.assertEqual(shape["options"], list(shapes()))
-                self.assertEqual(shape["default"], "auto")
-
-    def test_the_plan_runs_before_the_stack_starts(self) -> None:
-        runs = [step.get("run", "") for step in self.steps]
-        plan_index = next(i for i, run in enumerate(runs) if "./dev perf:chain --plan" in run)
-        up_index = next(i for i, run in enumerate(runs) if "./dev up" in run)
-        chain_index = next(
-            i for i, run in enumerate(runs) if "./dev perf:chain" in run and "--plan" not in run
-        )
-        reports_index = runs.index("chmod a+w tests/performance/k6/reports")
-        self.assertLess(plan_index, up_index)
-        self.assertLess(up_index, chain_index)
-        self.assertLess(reports_index, chain_index)
-        self.assertFalse(any("${{" in run for run in runs), "inputs must reach run: through env")
 
 
 if __name__ == "__main__":

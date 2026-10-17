@@ -1,0 +1,121 @@
+name: Punch performance — chain
+
+# Run one producer/consumer recipe against the Expresso stack on this runner;
+# each step reads the datasets earlier steps wrote. The sequence list holds only
+# recipes the catalog links and perf:chain plans: ./dev perf:forms --write
+# generates the marked option blocks. Steps past the sequence's last workflow
+# are ignored. _perf-execute.yml validates, runs, and records the run:
+# docs/performance/orchestrator.md#github-actions-perf-run-and-perf-chain.
+
+run-name: "perf-chain: ${{ inputs.sequence }} by @${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      sequence:
+        description: Sequence
+        type: choice
+        default: http-cart -> http-orders
+        options:
+          # BEGIN perf:forms sequences
+          - "browser-cart -> http-orders"
+          - "browser-cart -> http-orders -> http-orders-status"
+          - "browser-purchase -> http-orders-status"
+          - "http-auth-login -> http-me-hot-status"
+          - "http-cart -> http-orders"
+          - "http-cart -> http-orders -> http-orders-status"
+          - "http-purchase -> http-orders-status"
+          - "http-purchase-registered -> http-auth-login"
+          - "http-purchase-registered -> http-auth-login -> http-me-hot-status"
+          # END perf:forms sequences
+      step1-load:
+        description: Step 1 load (Auto sizes a producer for the step that reads its data; browser steps refuse the 5-minute loads)
+        type: choice
+        default: Auto (data-size producer; default otherwise)
+        options:
+          # BEGIN perf:forms loads
+          - "Auto (data-size producer; default otherwise)"
+          - "1 journey"
+          - "5 journeys"
+          - "1 user for 5 minutes"
+          - "5 users for 5 minutes"
+          - "Custom config"
+          # END perf:forms loads
+      step1-config:
+        description: Step 1 custom config (path relative to tests/performance/k6/options/)
+        type: string
+        required: false
+        default: ""
+      step2-load:
+        description: Step 2 load
+        type: choice
+        default: Auto (data-size producer; default otherwise)
+        options:
+          # BEGIN perf:forms loads
+          - "Auto (data-size producer; default otherwise)"
+          - "1 journey"
+          - "5 journeys"
+          - "1 user for 5 minutes"
+          - "5 users for 5 minutes"
+          - "Custom config"
+          # END perf:forms loads
+      step2-config:
+        description: Step 2 custom config
+        type: string
+        required: false
+        default: ""
+      step3-load:
+        description: Step 3 load (ignored for two-step sequences)
+        type: choice
+        default: Auto (data-size producer; default otherwise)
+        options:
+          # BEGIN perf:forms loads
+          - "Auto (data-size producer; default otherwise)"
+          - "1 journey"
+          - "5 journeys"
+          - "1 user for 5 minutes"
+          - "5 users for 5 minutes"
+          - "Custom config"
+          # END perf:forms loads
+      step3-config:
+        description: Step 3 custom config
+        type: string
+        required: false
+        default: ""
+      step4-load:
+        description: Step 4 load (ignored unless the sequence has four steps)
+        type: choice
+        default: Auto (data-size producer; default otherwise)
+        options:
+          # BEGIN perf:forms loads
+          - "Auto (data-size producer; default otherwise)"
+          - "1 journey"
+          - "5 journeys"
+          - "1 user for 5 minutes"
+          - "5 users for 5 minutes"
+          - "Custom config"
+          # END perf:forms loads
+      step4-config:
+        description: Step 4 custom config
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: Punch chain
+    uses: ./.github/workflows/_perf-execute.yml
+    with:
+      kind: chain
+      selection: ${{ inputs.sequence }}
+      load-1: ${{ inputs.step1-load }}
+      config-1: ${{ inputs.step1-config }}
+      load-2: ${{ inputs.step2-load }}
+      config-2: ${{ inputs.step2-config }}
+      load-3: ${{ inputs.step3-load }}
+      config-3: ${{ inputs.step3-config }}
+      load-4: ${{ inputs.step4-load }}
+      config-4: ${{ inputs.step4-config }}
