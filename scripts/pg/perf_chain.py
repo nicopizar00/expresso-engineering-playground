@@ -51,6 +51,7 @@ from pg.paths import (
     PERF_REPORTS_DIR,
     PERF_WORKFLOWS_DIR,
     REPO_ROOT,
+    repo_path,
 )
 from pg.workflows import WORKFLOWS
 
@@ -785,12 +786,6 @@ def _print_plan(plan: Plan) -> None:
     print()
 
 
-def _spec_path(raw: str) -> Path:
-    """`./dev` runs from scripts/, so a relative spec path is read from the repository root."""
-    path = Path(raw)
-    return path if path.is_absolute() else REPO_ROOT / path
-
-
 def _plan_spec(path: Path, catalog: WorkflowCatalog) -> Plan:
     try:
         entries = load_spec(path)
@@ -826,7 +821,7 @@ def run(args: Sequence[str]) -> int:
     try:
         catalog = load_catalog(PERF_WORKFLOWS_DIR)
         if parsed.spec:
-            plan = _plan_spec(_spec_path(parsed.spec), catalog)
+            plan = _plan_spec(repo_path(parsed.spec), catalog)
         else:
             plan = plan_chain(parse_steps(parsed.steps), catalog)
     except (CatalogError, WorkflowError) as error:

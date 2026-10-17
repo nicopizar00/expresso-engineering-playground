@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_
-from pg.paths import PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
+from pg.paths import PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, repo_path
 from pg.perf_chain import (
     BROWSER_SERVICE,
     CHAIN_REPORTS_DIR,
@@ -256,18 +256,13 @@ def stage(name: str, dispatch_dir: Path = DISPATCH_DIR) -> int:
 # --- finalize and publish ----------------------------------------------------
 
 
-def _evidence_path(raw: str) -> Path:
-    path = Path(raw)
-    return path if path.is_absolute() else REPO_ROOT / path
-
-
 def _missing_evidence(chain: Dict[str, Any]) -> List[str]:
     problems = []
     for step in chain.get("steps", []):
         if step.get("status") != "passed":
             continue
         summary = step.get("summary")
-        if not summary or not _evidence_path(summary).is_file():
+        if not summary or not repo_path(summary).is_file():
             problems.append(
                 f"step {step['step']} {step['workflow']} passed but left no k6 summary "
                 "in the evidence"

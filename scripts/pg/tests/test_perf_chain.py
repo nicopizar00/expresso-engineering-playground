@@ -13,7 +13,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import perf_chain  # noqa: E402
-from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
+from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR  # noqa: E402
 from pg.perf_chain import (  # noqa: E402
     MAX_BROWSER_VUS,
     RUNNER_WARNING,
@@ -520,13 +520,6 @@ class RunTests(unittest.TestCase):
         evidence = self.evidence()
         self.assertEqual(evidence["outcome"], "rejected")
         self.assertRegex(evidence["errors"][0], r"^spec .*spec\.json: spec version must be 1$")
-
-    def test_a_relative_spec_path_is_read_from_the_repository_root(self) -> None:
-        self.assertEqual(
-            perf_chain._spec_path("tests/performance/k6/reports/dispatch/spec.json"),
-            REPO_ROOT / "tests/performance/k6/reports/dispatch/spec.json",
-        )
-        self.assertEqual(perf_chain._spec_path("/abs/spec.json"), Path("/abs/spec.json"))
 
     def test_steps_and_spec_are_mutually_exclusive(self) -> None:
         with patch("sys.stderr", StringIO()):
