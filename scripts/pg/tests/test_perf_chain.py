@@ -18,10 +18,12 @@ from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E4
 from pg.perf_chain import (  # noqa: E402
     MAX_BROWSER_VUS,
     parse_steps,
+    peak_vus,
     plan_chain,
     run_chain,
     shapes,
 )
+from pg.perf_spec import CUSTOM, PRESET, StepRequest  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 from punch.execution import DatasetResult, ExecutionResult  # noqa: E402
 
@@ -36,7 +38,7 @@ class PlanTests(unittest.TestCase):
     def test_a_step_defaults_to_auto(self) -> None:
         self.assertEqual(
             parse_steps(["http-cart", "http-orders:5-vu-5m"]),
-            [("http-cart", "auto"), ("http-orders", "5-vu-5m")],
+            [StepRequest("http-cart"), StepRequest("http-orders", PRESET, "5-vu-5m")],
         )
 
     def test_auto_sizes_a_writer_for_the_step_that_reads_its_data(self) -> None:
@@ -149,6 +151,145 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(
             set(shapes()[1:]), {stem for stem in presets if not stem.endswith("-browser")}
         )
+
+
+STATUS_REGRESSION = "custom/status-regression.json"
+
+
+class LoadTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = TemporaryDirectory()
+        self.options = Path(self.temporary_directory.name)
+        (self.options / "custom").mkdir()
+
+    def tearDown(self) -> None:
+        self.temporary_directory.cleanup()
+
+    def custom(self, name: str, config) -> str:
+        path = self.options / "custom" / name
+        path.write_text(config if isinstance(config, str) else json.dumps(config), encoding="utf-8")
+        return f"custom/{name}"
+
+    def test_a_custom_reader_config_sizes_the_earlier_auto_producers(self) -> None:
+        result = plan_chain(
+            [
+                StepRequest("http-cart"),
+                StepRequest("http-orders"),
+                StepRequest("http-orders-status", CUSTOM, STATUS_REGRESSION),
+            ],
+            CATALOG,
+        )
+        self.assertEqual(result.errors, [])
+        cart, orders, status = result.steps
+        # 2 VUs x 10 per-VU iterations = 20 rows; +15% margin = 23; cart: 23 x 1.15 -> 27.
+        self.assertEqual((orders.sizing.iterations, orders.sized_for), (23, 3))
+        self.assertEqual(cart.sizing.iterations, 27)
+        self.assertEqual(status.shape, CUSTOM)
+        self.assertEqual(status.shape_label(), f"custom: {STATUS_REGRESSION}")
+        self.assertEqual(
+            status.run_args(),
+            ["--config", str((PERF_OPTIONS_DIR / STATUS_REGRESSION).resolve())],
+        )
+        self.assertEqual(result.requested, ["http-cart", "http-orders", "http-orders-status"])
+
+    def test_an_unsafe_or_invalid_custom_config_is_a_plan_error(self) -> None:
+        escape = plan_chain([StepRequest("http-cart", CUSTOM, "../x.json")], CATALOG, self.options)
+        self.assertEqual(
+            escape.errors, ["step 1 http-cart: custom config '../x.json' must not contain '..'"]
+        )
+        broken = self.custom("broken.json", "{nope")
+        invalid = plan_chain([StepRequest("http-cart", CUSTOM, broken)], CATALOG, self.options)
+        self.assertRegex(invalid.errors[0], r"^step 1 http-cart: could not read k6 config ")
+        array = self.custom("array.json", [])
+        not_object = plan_chain([StepRequest("http-cart", CUSTOM, array)], CATALOG, self.options)
+        self.assertRegex(not_object.errors[0], r"must be a JSON object$")
+
+    def test_a_custom_browser_config_over_the_cap_is_rejected(self) -> None:
+        big = self.custom("big.json", {"scenarios": {"default": {
+            "executor": "shared-iterations", "vus": 6, "iterations": 6,
+            "options": {"browser": {"type": "chromium"}},
+        }}})
+        result = plan_chain([StepRequest("browser-cart", CUSTOM, big)], CATALOG, self.options)
+        self.assertEqual(
+            result.errors,
+            [f"step 1 browser-cart: custom: {big} runs up to 6 browser VUs; "
+             f"the cap is {MAX_BROWSER_VUS}"],
+        )
+
+    def test_a_ramping_custom_browser_config_over_the_cap_is_rejected_with_its_peak(self) -> None:
+        ramping = self.custom("ramp.json", {"scenarios": {"default": {
+            "executor": "ramping-vus", "startVUs": 1,
+            "stages": [{"duration": "30s", "target": 3}, {"duration": "30s", "target": 8}],
+        }}})
+        shortcut = self.custom("stages.json", {"stages": [{"duration": "1m", "target": 5}]})
+        for path, peak in ((ramping, 8), (shortcut, 5)):
+            with self.subTest(path=path):
+                result = plan_chain(
+                    [StepRequest("browser-purchase", CUSTOM, path)], CATALOG, self.options
+                )
+                self.assertEqual(len(result.errors), 1)
+                self.assertIn(f"runs up to {peak} browser VUs; the cap is 4", result.errors[0])
+
+    def test_a_browser_config_whose_peak_cannot_be_calculated_is_rejected(self) -> None:
+        odd = self.custom(
+            "odd.json", {"scenarios": {"default": {"executor": "externally-controlled"}}}
+        )
+        result = plan_chain([StepRequest("browser-cart", CUSTOM, odd)], CATALOG, self.options)
+        self.assertEqual(len(result.errors), 1)
+        self.assertIn("cannot tell how many browser VUs", result.errors[0])
+        self.assertIn('uses executor "externally-controlled"', result.errors[0])
+
+    def test_a_protocol_step_is_never_checked_against_the_browser_cap(self) -> None:
+        big = self.custom("big-http.json", {"vus": 50, "duration": "1m"})
+        self.assertEqual(
+            plan_chain([StepRequest("http-purchase", CUSTOM, big)], CATALOG, self.options).errors,
+            [],
+        )
+
+    def test_an_unknown_preset_from_a_spec_is_rejected_like_an_unknown_shape(self) -> None:
+        result = plan_chain([StepRequest("http-cart", PRESET, "auto")], CATALOG)
+        self.assertRegex(result.errors[0], r"^step 1 http-cart: unknown shape 'auto'")
+
+
+class PeakVusTests(unittest.TestCase):
+    def test_peak_vus_per_executor_and_shortcut(self) -> None:
+        cases = [
+            ({}, 1),
+            ({"vus": 3, "duration": "1m"}, 3),
+            ({"iterations": 9}, 1),
+            ({"vus": 2, "stages": [{"duration": "1m", "target": 6}]}, 6),
+            ({"scenarios": {"a": {"executor": "shared-iterations", "vus": 2, "iterations": 4}}}, 2),
+            ({"scenarios": {"a": {"executor": "per-vu-iterations", "iterations": 4}}}, 1),
+            ({"scenarios": {"a": {"executor": "constant-vus", "vus": 4, "duration": "1m"}}}, 4),
+            ({"scenarios": {"a": {
+                "executor": "ramping-vus", "stages": [{"duration": "1m", "target": 0}]
+            }}}, 1),
+            ({"scenarios": {"a": {
+                "executor": "constant-arrival-rate", "preAllocatedVUs": 2, "maxVUs": 7
+            }}}, 7),
+            ({"scenarios": {"a": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 3}}}, 3),
+            ({"scenarios": {
+                "a": {"executor": "constant-vus", "vus": 2, "duration": "1m"},
+                "b": {"executor": "shared-iterations", "vus": 3, "iterations": 3},
+            }}, 5),
+        ]
+        for config, expected in cases:
+            with self.subTest(config=config):
+                self.assertEqual(peak_vus(config), expected)
+
+    def test_unreadable_vu_counts_raise(self) -> None:
+        for config in (
+            {"vus": True},
+            {"vus": "4"},
+            {"scenarios": {}},
+            {"scenarios": {"a": "x"}},
+            {"scenarios": {"a": {"executor": "ramping-vus"}}},
+            {"scenarios": {"a": {"executor": "constant-arrival-rate"}}},
+            {"stages": []},
+        ):
+            with self.subTest(config=config):
+                with self.assertRaises(ValueError):
+                    peak_vus(config)
 
 
 def _result(name: str, passed: bool, rows: dict | None = None, path: Path = Path("x.csv")):

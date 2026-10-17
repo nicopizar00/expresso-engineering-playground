@@ -5,12 +5,13 @@ the steps after it.
 
 The whole chain is planned before Docker starts; then each step runs through
 the same Punch path as `./dev perf:<workflow>` (pg.k6runner.execute_k6). A
-shape is a preset stem from tests/performance/k6/options/ or `auto`: a step
-whose data a later step reads is sized for that reader with Punch's
-size_producer (resolved from the last step back); any other step keeps its
-workflow's spec.k6.config. Browser workflows run the preset's `-browser`
-variant. `none` marks an empty step (the GitHub form's unused slots); empty
-steps may only trail.
+load is `auto`, a preset stem from tests/performance/k6/options/, or (from
+`--spec`) a custom k6 options JSON beneath that directory. A step whose data a
+later step reads is sized for that reader with Punch's size_producer when its
+load is `auto` (resolved from the last step back); any other `auto` step keeps
+its workflow's spec.k6.config. Browser workflows run a preset's `-browser`
+variant, and every browser step's resolved config must stay within
+MAX_BROWSER_VUS. `none` marks an empty step; empty steps may only trail.
 
 A step reads each dataset from the latest earlier step that writes it. Only
 those writers run with --produce, and an optional dataset that no earlier step
@@ -33,6 +34,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from pg.ansi import bold, fail, header, info, pass_, warn
 from pg.k6runner import execute_k6
+from pg.perf_spec import AUTO, CUSTOM, PRESET, SpecError, StepRequest, custom_config_path
 from pg.paths import (
     BFF_PORT,
     PERF_OPTIONS_DIR,
@@ -48,13 +50,14 @@ from punch.execution import DEFAULT_DATA, ExecutionResult
 from punch.sizing import SizingError, SizingPlan, rows_needed, size_producer, sizing_evidence
 from punch.workflow import K6Workflow, WorkflowError, read_k6_config
 
-AUTO = "auto"
 EMPTY = "none"
 BROWSER_SERVICE = "k6-browser"
 BROWSER_SUFFIX = "-browser"
 # Starting cap for a sized browser step: one Chromium per vCPU of a 4-vCPU
 # GitHub-hosted runner that also runs the app. Not measured yet.
 MAX_BROWSER_VUS = 4
+FIXED_VU_EXECUTORS = ("shared-iterations", "per-vu-iterations", "constant-vus")
+ARRIVAL_RATE_EXECUTORS = ("constant-arrival-rate", "ramping-arrival-rate")
 CHAIN_REPORTS_DIR = PERF_REPORTS_DIR / "chain"
 METRIC_KEYS = ("totalRequests", "errorRate", "p90Ms", "checkPassRate", "durationMs")
 
@@ -83,12 +86,15 @@ def _and(items: Sequence[str]) -> str:
     return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
 
 
-def parse_steps(raw: Sequence[str]) -> List[Tuple[str, str]]:
-    """`<workflow>[:<shape>]` items as (workflow, shape); the shape defaults to auto."""
-    steps: List[Tuple[str, str]] = []
+def parse_steps(raw: Sequence[str]) -> List[StepRequest]:
+    """`<workflow>[:<shape>]` items as step requests; the shape defaults to auto."""
+    steps: List[StepRequest] = []
     for item in raw:
         workflow, _, shape = item.partition(":")
-        steps.append((workflow.strip(), shape.strip() or AUTO))
+        workflow, shape = workflow.strip(), shape.strip() or AUTO
+        steps.append(
+            StepRequest(workflow) if shape == AUTO else StepRequest(workflow, PRESET, shape)
+        )
     return steps
 
 
@@ -96,7 +102,10 @@ def parse_steps(raw: Sequence[str]) -> List[Tuple[str, str]]:
 class Step:
     number: int
     workflow: K6Workflow
+    # auto, a preset stem, or "custom"
     shape: str
+    # The custom config's path beneath tests/performance/k6/options/
+    custom: Optional[str] = None
     # The preset or spec.k6.config file; None when sized or when the workflow has none.
     config_path: Optional[Path] = None
     # The k6 options this step runs with (a sized step's generated config).
@@ -123,6 +132,8 @@ class Step:
         return self.workflow.compose_service == BROWSER_SERVICE
 
     def shape_label(self) -> str:
+        if self.shape == CUSTOM:
+            return f"custom: {self.custom}"
         if not self.resolved:
             return self.shape
         if self.sizing is not None:
@@ -144,6 +155,8 @@ class Step:
         args: List[str] = []
         if sized_config is not None:
             args += ["--config", str(sized_config)]
+        elif self.shape == CUSTOM and self.config_path is not None:
+            args += ["--config", str(self.config_path)]
         elif self.shape != AUTO and self.config_path is not None:
             args += ["--config", self.config_path.stem]
         for dataset in self.produce:
@@ -158,6 +171,8 @@ class Plan:
     steps: List[Step]
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    # The workflows the run asked for, in order, including any the plan rejected.
+    requested: List[str] = field(default_factory=list)
 
 
 def _preset_path(workflow: K6Workflow, shape: str, options_dir: Path) -> Optional[Path]:
@@ -168,19 +183,21 @@ def _preset_path(workflow: K6Workflow, shape: str, options_dir: Path) -> Optiona
 
 
 def _select_steps(
-    entries: Sequence[Tuple[str, str]], catalog: WorkflowCatalog, options_dir: Path, plan: Plan
+    entries: Sequence[StepRequest], catalog: WorkflowCatalog, options_dir: Path, plan: Plan
 ) -> None:
-    """Check names, shapes, and gaps; fill plan.steps with the non-empty steps."""
-    known_shapes = shapes(options_dir)
-    last = max((index for index, (name, _) in enumerate(entries) if name != EMPTY), default=-1)
+    """Check names, loads, and gaps; fill plan.steps with the non-empty steps."""
+    presets = shapes(options_dir)[1:]
+    last = max(
+        (index for index, entry in enumerate(entries) if entry.workflow != EMPTY), default=-1
+    )
     if last < 0:
         plan.errors.append("no workflow selected; step 1 needs one")
         return
-    for index, (name, shape) in enumerate(entries):
-        number = index + 1
+    for index, entry in enumerate(entries):
+        number, name = index + 1, entry.workflow
         if index > last:
-            if shape != AUTO:
-                plan.warnings.append(f"step {number} is empty; its shape {shape} is ignored")
+            if entry.mode != AUTO:
+                plan.warnings.append(f"step {number} is empty; its shape {entry.value} is ignored")
             continue
         if name == EMPTY:
             plan.errors.append(
@@ -195,20 +212,33 @@ def _select_steps(
                 f"known: {', '.join(sorted(catalog.workflows))}"
             )
             continue
-        if shape not in known_shapes:
+        if entry.mode == PRESET and entry.value not in presets:
             plan.errors.append(
-                f"step {number} {name}: unknown shape {shape!r}; "
-                f"use one of: {', '.join(known_shapes)}"
+                f"step {number} {name}: unknown shape {entry.value!r}; "
+                f"use one of: {', '.join(shapes(options_dir))}"
             )
             continue
-        step = Step(number, workflow, shape)
-        if shape != AUTO:
-            step.config_path = _preset_path(workflow, shape, options_dir)
+        step = Step(number, workflow, entry.value if entry.mode == PRESET else entry.mode)
+        if entry.mode == PRESET:
+            step.config_path = _preset_path(workflow, entry.value, options_dir)
             if step.config_path is None:
                 plan.errors.append(
-                    f"step {number} {name}: a browser workflow has no {shape} preset; "
+                    f"step {number} {name}: a browser workflow has no {entry.value} preset; "
                     f"use auto or one of: {', '.join(browser_shapes(options_dir))}"
                 )
+                continue
+        elif entry.mode == CUSTOM:
+            step.custom = entry.value
+            try:
+                step.config_path = custom_config_path(entry.value or "", options_dir)
+            except SpecError as error:
+                plan.errors.append(f"step {number} {name}: {error}")
+                continue
+        if entry.mode != AUTO:
+            try:
+                step.config = read_k6_config(step.config_path)
+            except WorkflowError as error:
+                plan.errors.append(f"step {number} {name}: {error}")
                 continue
         plan.steps.append(step)
 
@@ -270,9 +300,7 @@ def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
     for step in reversed(plan.steps):
         step.resolved = True
         if step.shape != AUTO:
-            assert step.config_path is not None
-            step.config = read_k6_config(step.config_path)
-            continue
+            continue  # read when the step was selected
         reader = _sizing_reader(step, by_number)
         if reader is not None:
             preset = reader.config_path.stem if reader.config_path is not None else None
@@ -306,18 +334,81 @@ def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
                 pass
 
 
+def _whole(source: Dict[str, Any], key: str, default: Optional[int] = None) -> int:
+    value = source.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{key} must be a whole number")
+    return value
+
+
+def _stages_peak(stages: Any, start: int) -> int:
+    if not isinstance(stages, list) or not stages:
+        raise ValueError("stages must be a non-empty list")
+    if not all(isinstance(stage, dict) for stage in stages):
+        raise ValueError("each stage must be an object")
+    return max([start, *(_whole(stage, "target") for stage in stages)])
+
+
+def _scenario_peak(name: str, scenario: Any) -> int:
+    if not isinstance(scenario, dict):
+        raise ValueError(f"scenario {name} must be an object")
+    executor = scenario.get("executor")
+    if executor in FIXED_VU_EXECUTORS:
+        return _whole(scenario, "vus", 1)
+    if executor == "ramping-vus":
+        return _stages_peak(scenario.get("stages"), _whole(scenario, "startVUs", 1))
+    if executor in ARRIVAL_RATE_EXECUTORS:
+        return _whole(scenario, "maxVUs" if "maxVUs" in scenario else "preAllocatedVUs")
+    raise ValueError(f"scenario {name} uses executor {json.dumps(executor)}")
+
+
+def peak_vus(config: Dict[str, Any]) -> int:
+    """The most VUs `config` can run at once; scenarios count as if concurrent."""
+    scenarios = config.get("scenarios")
+    if scenarios is not None:
+        if not isinstance(scenarios, dict) or not scenarios:
+            raise ValueError("scenarios must be a non-empty object")
+        return sum(_scenario_peak(name, scenario) for name, scenario in scenarios.items())
+    if "stages" in config:
+        return _stages_peak(config["stages"], _whole(config, "vus", 1))
+    return _whole(config, "vus", 1)
+
+
+def _check_browser_vus(plan: Plan) -> None:
+    """Every browser step's resolved config stays within MAX_BROWSER_VUS."""
+    for step in plan.steps:
+        if not step.browser or step.sizing is not None:
+            continue  # a sized step was checked when it was sized
+        try:
+            peak = peak_vus(step.config)
+        except ValueError as error:
+            plan.errors.append(
+                f"step {step.number} {step.name}: cannot tell how many browser VUs "
+                f"{step.shape_label()} runs ({error}); the cap is {MAX_BROWSER_VUS}"
+            )
+            continue
+        if peak > MAX_BROWSER_VUS:
+            plan.errors.append(
+                f"step {step.number} {step.name}: {step.shape_label()} runs up to {peak} "
+                f"browser VUs; the cap is {MAX_BROWSER_VUS}"
+            )
+
+
 def plan_chain(
-    entries: Sequence[Tuple[str, str]],
+    entries: Sequence[StepRequest],
     catalog: WorkflowCatalog,
     options_dir: Path = PERF_OPTIONS_DIR,
 ) -> Plan:
-    """Validate and size a chain of (workflow, shape) entries without running it."""
-    plan = Plan(steps=[])
+    """Validate and size a chain of step requests without running it."""
+    plan = Plan(
+        steps=[], requested=[entry.workflow for entry in entries if entry.workflow != EMPTY]
+    )
     _select_steps(entries, catalog, options_dir, plan)
     if not plan.errors:
         _link_data(catalog, plan)
     if not plan.errors:
         _resolve_configs(catalog, plan)
+        _check_browser_vus(plan)
     return plan
 
 
