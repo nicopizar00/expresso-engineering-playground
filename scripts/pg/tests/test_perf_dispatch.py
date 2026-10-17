@@ -251,7 +251,7 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(self.finalize("success"), 0)
         self.assertEqual(self.read("dispatch.json")["status"], "passed")
         self.assertTrue(self.summary().startswith("## Passed: http-purchase"))
-        self.assertIn("- Ref: `refs/heads/main` at `abc123`", self.summary())
+        self.assertIn("\n\nRun:\n\n- Ref: `refs/heads/main` at `abc123`", self.summary())
 
     def test_a_passed_step_without_a_k6_summary_fails_the_job(self) -> None:
         self.dispatch_single()

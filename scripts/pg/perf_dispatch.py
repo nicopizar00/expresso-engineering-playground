@@ -308,6 +308,7 @@ def _job_summary(
     event = record.get("event") or {}
     return (
         text
+        + "\nRun:\n\n"
         + f"- Ref: `{event.get('ref')}` at `{event.get('sha')}`\n"
         + f"- Actor: @{record.get('actor')}\n"
         + f"- Stage reached: {record.get('stage')}\n"
