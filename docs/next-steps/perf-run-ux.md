@@ -1,9 +1,10 @@
 # Running Punch workflows on Expresso
 
 Status: open. Chains run locally and on demand from GitHub Actions (Expresso
-`8276cd0`, Punch `3e7141f`). The replacement GitHub Actions design below is
-complete and ready for review, but not implemented. Local setup and the start
-page still need decisions.
+`8276cd0`, Punch `3e7141f`). The GitHub Actions design below is implemented on
+branch `feat/perf-github-forms` (`perf-run.yml`, `perf-chain.yml`,
+`_perf-execute.yml`); live verification on GitHub is pending. Local setup and
+the start page still need decisions.
 
 Goal: a person who has never run a Punch workflow on Expresso picks the right
 entry point, runs one workflow or a chain, and reads the result, from one
@@ -11,14 +12,14 @@ page, without reading code.
 
 ## What is built
 
-| Entry point                                                            | Runs                                                                                                        | Stack                                                           | Result                                                                         |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `./dev perf:<workflow>`                                                | One workflow; `--config`, `--produce`, `--data`                                                             | Local Docker (`./dev up`, `./dev up web` for browser workflows) | Console metrics; `tests/performance/k6/reports/`                               |
-| `./dev perf:chain <workflow>[:<shape>] ...`                            | Workflows in order; each step reads what earlier steps wrote; `auto` sizes writers; `--plan` validates only | Local Docker                                                    | `tests/performance/k6/reports/chain/`                                          |
-| GitHub Actions, `perf` workflow                                        | The same chain, up to 4 steps picked in a form                                                              | The GitHub runner (app and k6 on one 4-vCPU VM)                 | Job summary table; artifact `perf-chain-<run id>`                              |
-| CI `perf-smoke` job                                                    | `http-purchase` once, then `http-cart`, `http-orders`, `http-orders-status` as a chain                      | The GitHub runner                                               | Job pass or fail                                                               |
-| Punch's menu and CLI (`python3 -m punch menu`, `punch run --size-for`) | One workflow, interactively or sized for a target                                                           | Local Docker                                                    | `tests/performance/k6/reports/`; run evidence in `vendor/punch/reports/state/` |
-| `./dev perf:<workflow> --runtime k8s`                                  | One workflow on Argo Workflows                                                                              | minikube                                                        | S3; see [punch-k8s.md](punch-k8s.md)                                           |
+| Entry point                                                            | Runs                                                                                                                          | Stack                                                           | Result                                                                         |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `./dev perf:<workflow>`                                                | One workflow; `--config`, `--produce`, `--data`                                                                               | Local Docker (`./dev up`, `./dev up web` for browser workflows) | Console metrics; `tests/performance/k6/reports/`                               |
+| `./dev perf:chain <workflow>[:<shape>] ...`                            | Workflows in order; each step reads what earlier steps wrote; `auto` sizes writers; `--plan` validates only                   | Local Docker                                                    | `tests/performance/k6/reports/chain/`                                          |
+| GitHub Actions, `perf-run` and `perf-chain` forms                      | One standalone workflow, or one of nine catalog recipes with a load per step (`Auto`, a preset, or a committed custom config) | The GitHub runner (app and k6 on one 4-vCPU VM)                 | Job summary with each threshold's result; artifact `perf-<run id>-<attempt>`   |
+| CI `perf-smoke` job                                                    | `http-purchase` once, then `http-cart`, `http-orders`, `http-orders-status` as a chain                                        | The GitHub runner                                               | Job pass or fail                                                               |
+| Punch's menu and CLI (`python3 -m punch menu`, `punch run --size-for`) | One workflow, interactively or sized for a target                                                                             | Local Docker                                                    | `tests/performance/k6/reports/`; run evidence in `vendor/punch/reports/state/` |
+| `./dev perf:<workflow> --runtime k8s`                                  | One workflow on Argo Workflows                                                                                                | minikube                                                        | S3; see [punch-k8s.md](punch-k8s.md)                                           |
 
 Chain rules and evidence: [`orchestrator.md`](../performance/orchestrator.md#chains-perfchain).
 
