@@ -19,7 +19,8 @@
 - Exact old-name messages: `kind K6Workflow was renamed to K6Job; change the kind line` (Punch loader); `spec version 1 is no longer read: set "version": 2 and rename each step's "workflow" to "job"` (Expresso `perf_spec`); `perf:chain was renamed to perf:workflow` (`./dev`, exit 1).
 - Unchanged: GitHub workflows and jobs; Argo `Workflow`, `WorkflowTemplate`, `{{workflow.*}}` expressions, and `kubectl get|patch workflow`; business workflows (`use-cases/`, Expresso ADR 0002, the retired `workflow-traffic` feature); generic English "workflow" for a process (`## Next-steps workflow`, "Full workflow"); job names; "step"; `target-profile` and profile labels; `PERF_KIND`, `PERF_SELECTION`, `PERF_PROFILE`.
 - Dated records are never edited: `docs/superpowers/`, Expresso `docs/specs/` and `docs/adr/`, Punch `docs/decisions/` 0001 to 0006, Punch `docs/specs/` (each says `Status: Implemented <date>`), and existing Punch `CHANGELOG.md` bullets.
-- Delivery: one Punch commit, pushed first; then one Expresso commit that bumps `vendor/punch` to that pushed SHA and carries every Expresso change. Task commits are squashed into those two before anything is pushed. One exception, ruled here: `docs/cli-reference.md` pins the commit it was reviewed against, and a commit cannot name its own SHA, so its pin line moves in a docs-only follow-up commit (Task 8 Step 3).
+- Pre-build docs (done before Task 1, 2026-10-18): Punch commit `e345bee` adds ADR 0007, rewrites `docs/architecture/reference-architecture-and-implementation-guide.md` (intent, section 9 "From a laptop to GitHub Actions", section 10 consumer migration) and `docs/architecture/orchestrator-to-kubernetes.md` in the target terms with "not built" notes, and fixes two `k8s/README.md` links; Expresso's `docs/architecture/punch-implementation.md` gains index rows. Those files carry intentional old names (the migration table, "today" notes) and never go through the rename script; Task 3 Step 4 and Task 6 flip them by hand.
+- Delivery: the docs commit `e345bee` plus one Punch rename commit, pushed first; then one Expresso commit that bumps `vendor/punch` to that pushed SHA and carries every Expresso change. Task commits are squashed into those two before anything is pushed. One exception, ruled here: `docs/cli-reference.md` pins the commit it was reviewed against, and a commit cannot name its own SHA, so its pin line moves in a docs-only follow-up commit (Task 8 Step 3).
 - Python stays 3.9-compatible: `from __future__ import annotations`, `typing` generics, no `match`, no same-quote nesting in f-strings.
 - Outward actions need the user's explicit OK at that step: any `git push` (either repo), any merge to `main`, any `gh workflow run`, any change to a running cluster beyond local minikube.
 - Shell: zsh does not split unquoted variables. Pass file lists with `xargs`, never `$FILES`.
@@ -69,11 +70,11 @@ Write Appendix A to `$T`. Create the venv if absent and run the baseline:
 ```bash
 python3 -m venv "$SCRATCH/punch-venv" && "$SCRATCH/punch-venv/bin/pip" install -q -r vendor/punch/requirements.txt
 git -C vendor/punch status --short   # must print nothing
-git -C vendor/punch rev-parse --short HEAD   # 3e7141f
+git -C vendor/punch rev-parse --short HEAD   # e345bee
 (cd vendor/punch && PYTHONPATH=src $PV -m unittest discover -s tests -p 'test_*.py' 2>&1 | tail -2)
 ```
 
-Expected: clean tree at `3e7141f`; `Ran 322 tests`, `OK`.
+Expected: clean tree at `e345bee`; `Ran 322 tests`, `OK`.
 
 - [ ] **Step 2: Rename the tests first**
 
@@ -221,7 +222,7 @@ git -C vendor/punch commit -m "refactor(k8s)!: pass the Punch job as parameter j
 
 - Rename: `vendor/punch/docs/workflows/` → `docs/jobs/`
 - Modify: `README.md`, `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/copilot-instructions.md`, `.github/instructions/*.md`, `.github/workflows/k6.yml`, `docs/architecture/*.md`, `docs/jobs/validation.md`, `k8s/README.md`, `tests/test_ci_contract.py`, `CHANGELOG.md`
-- Create: `vendor/punch/docs/decisions/0007-job-terminology.md`
+- Modify (by hand, never by the script): `vendor/punch/docs/decisions/0007-job-terminology.md`, `docs/architecture/reference-architecture-and-implementation-guide.md`, `docs/architecture/orchestrator-to-kubernetes.md`
 
 **Interfaces:**
 
@@ -234,7 +235,7 @@ git -C vendor/punch commit -m "refactor(k8s)!: pass the Punch job as parameter j
 cd vendor/punch
 git mv docs/workflows docs/jobs
 printf '%s\n' README.md CLAUDE.md AGENTS.md CONTRIBUTING.md .github/PULL_REQUEST_TEMPLATE.md .github/copilot-instructions.md .github/workflows/k6.yml k8s/README.md \
-  | cat - <(git ls-files .github/instructions docs/architecture docs/jobs) | xargs python3 $T job --docs
+  | cat - <(git ls-files .github/instructions docs/architecture docs/jobs | grep -vE 'reference-architecture-and-implementation-guide|orchestrator-to-kubernetes') | xargs python3 $T job --docs
 python3 $T job tests/test_ci_contract.py
 cd ../..
 ```
@@ -255,42 +256,52 @@ Run: `git -C vendor/punch grep -n -iE "chain|sequence of" -- README.md CLAUDE.md
 
 Rewrite each line where "chain" means jobs run in order: "a chain of them" → "a Punch workflow"; "single runs and chains" → "single jobs and workflows"; the table row `| Chain | Punch jobs linked by datasets, …` → `| Punch workflow | Punch jobs linked by datasets, …`; "thin (one Punch job) or chain" → "thin (one Punch job) or workflow". Rename headings consistently with their anchors: `## Chain jobs through datasets` → `## Run a Punch workflow through datasets`, and update `#chain-jobs-through-datasets` links to `#run-a-punch-workflow-through-datasets`.
 
-- [ ] **Step 4: Write ADR 0007**
+- [ ] **Step 4: Flip the pre-build docs to built**
 
-Create `vendor/punch/docs/decisions/0007-job-terminology.md`:
+These three files were written before the build in the target terms (Punch commit `e345bee`). Edit them by hand:
 
-```markdown
-# ADR 0007: Punch jobs and Punch workflows
+`docs/decisions/0007-job-terminology.md`: replace the `- Implementation: not built. …` bullet (three lines plus the link) with `- Implementation: built. The [reference architecture, section 10](../architecture/reference-architecture-and-implementation-guide.md#10-migrating-from-punch-workflows-to-punch-jobs) maps each old name to the new one.`
 
-- Status: Accepted
-- Date: 2026-10-18
+`docs/architecture/reference-architecture-and-implementation-guide.md`:
 
-## Context
+- Terms block: change `accepted, not built` to `accepted, built`, and delete the sentence that starts `Until the rename lands`.
+- Section 2: replace `(\`apiVersion: punch/v1\`, \`kind: K6Job\`; the loader accepts \`kind: K6Workflow\` until the rename lands)`with`(\`apiVersion: punch/v1\`, \`kind: K6Job\`; a \`kind: K6Workflow\` file fails with the rename message in section 10)`.
+- Section 10: replace the first paragraph's second and third sentences with `The rename is built. A consumer still on the old names moves from the "Before" column to the "After" column in the change that pins this Punch version. There are no aliases.`; rename the table header `Today` to `Before`; in step 1, delete `After the rename, ` and capitalize `a file`.
+- Links: `workflow.py` → `job.py` (component table and section 8), `test_workflow.py` → `test_job.py`, `test_workflow_coverage.py` → `test_job_coverage.py`, `../workflows/validation.md` → `../jobs/validation.md`.
 
-"Workflow" named a Punch YAML unit, a GitHub workflow, an Argo Workflow, and a
-consumer's ordered sequence of runs. On Kubernetes an Argo `WorkflowTemplate`
-passed a `workflow` parameter that meant a Punch YAML unit, so a reader had to
-infer the sense on almost every line.
+`docs/architecture/orchestrator-to-kubernetes.md`:
 
-## Decision
+- Replace the paragraph that starts `The terms follow [ADR 0007]` with `The terms follow [ADR 0007](../decisions/0007-job-terminology.md).`
+- Terms table: `(\`kind: K6Job\`; today \`kind: K6Workflow\`)`→`(\`kind: K6Job\`)`.
+- Name rule: delete ` (today \`workflow\`;\n ADR 0007)`so the bullet reads`A Punch job travels as the template parameter \`job\`.`
+- Step mapping row 1: `(\`job\`; today \`workflow\`)`→`(\`job\`)`.
+- Current-state row `Job terms and qualified names`: Today → `Kind \`K6Job\`, module \`punch.job\`, template parameter \`job\`; the loader still accepts 64 characters`; Status → `built (terms); design (name length)`.
+- `k8s/README.md` anchors, after Step 3 renamed those headings: `#run-a-workflow` → `#run-a-job`, `#chain-workflows-through-datasets` → `#run-a-punch-workflow-through-datasets`, `#from-a-workflow-yaml-to-a-thin-template` → `#from-a-job-yaml-to-a-thin-template`; `../workflows/validation.md` → `../jobs/validation.md`.
 
-The YAML unit is a **Punch job**: `apiVersion: punch/v1`, `kind: K6Job`. The
-engine module is `punch.job` (`K6Job`, `JobError`, `load_job`), the catalog is
-`JobCatalog`, execution is `execute_job`, bundled jobs live in `jobs/k6/`, the
-run record names the YAML in `"job"`, and `punch-k6-run` takes the parameter
-`job`. An ordered sequence of Punch jobs is a **Punch workflow**; a **step** is
-a job's position in it. Consumers own Punch workflows today.
+Check every anchor resolves:
 
-There are no aliases. A file with `kind: K6Workflow` fails with
-`kind K6Workflow was renamed to K6Job; change the kind line`.
-
-## Consequences
-
-- Every consumer changes its job files' `kind` and its imports in one step.
-- "Job" also names a GitHub job; documents qualify "GitHub job" wherever both
-  appear.
-- ADR 0005 and the dated specs keep the old term.
+```bash
+(cd vendor/punch && python3 - <<'PY'
+import re
+from pathlib import Path
+FILES = ["docs/architecture/orchestrator-to-kubernetes.md",
+         "docs/architecture/reference-architecture-and-implementation-guide.md",
+         "docs/decisions/0007-job-terminology.md", "k8s/README.md"]
+def slugs(path):
+    text = Path(path).read_text(encoding="utf-8")
+    return {re.sub(r"[^\w\- ]", "", h.strip().lower()).replace(" ", "-")
+            for h in re.findall(r"^#+ (.+)$", text, re.M)}
+root = Path.cwd().resolve()
+for name in FILES:
+    for target, anchor in re.findall(r"\]\(([^)#\s]*)#([\w-]+)\)", Path(name).read_text(encoding="utf-8")):
+        path = name if not target else str((Path(name).parent / target).resolve().relative_to(root))
+        if anchor not in slugs(path):
+            print(f"BROKEN: {name} -> {target}#{anchor}")
+PY
+)
 ```
+
+Expected: no `BROKEN:` lines.
 
 - [ ] **Step 5: Add the changelog bullet**
 
@@ -309,8 +320,8 @@ K6Job; change the kind line`. See ADR 0007.
 
 ```bash
 cd vendor/punch
-git grep -n -iE "workflow" -- . ':!docs/specs' ':!docs/decisions/000[1-6]*' ':!CHANGELOG.md' \
-  | grep -vE "\{\{ *workflow\.|workflowTemplateRef|WorkflowTemplate|[Ww]orkflow[Tt]ask[Rr]esults|workflows\.argoproj|workflow-controller|[Aa]rgo[ _-][Ww]orkflow|\.github/workflows|github-workflows|GitHub (Actions )?[Ww]orkflow|workflow_template|workflow = yaml|workflow\[\"jobs\"\]|\bWorkflows?\b|(get|patch|create|delete|describe) workflow|workflow parameters|K6Workflow was renamed|kind: K6Workflow|ADR 0005|0005-workflow-yaml-runtime"
+git grep -n -iE "workflow" -- . ':!docs/specs' ':!docs/decisions/000[1-6]*' ':!CHANGELOG.md' ':!docs/decisions/0007-job-terminology.md' \
+  | grep -vE "\{\{ *workflow\.|workflowTemplateRef|WorkflowTemplate|[Ww]orkflow[Tt]ask[Rr]esults|workflows\.argoproj|workflow-controller|[Aa]rgo[ _-][Ww]orkflow|\.github/workflows|github-workflows|GitHub (Actions )?[Ww]orkflow|workflow_template|workflow = yaml|workflow\[\"jobs\"\]|\bWorkflows?\b|(get|patch|create|delete|describe) workflow|workflow parameters|K6Workflow was renamed|kind: K6Workflow|ADR 0005|0005-workflow-yaml-runtime|punch\.workflow|WorkflowCatalog|execute_workflow|load_workflow|PUNCH_WORKFLOW|workflows/k6|workflows-dir|\"workflow\"|parameter \`workflow\`|Punch workflow"
 cd ../..
 ```
 
@@ -322,7 +333,7 @@ Expected: no output, or only lines you can justify as GitHub, Argo, or generic s
 (cd vendor/punch && PYTHONPATH=src $PV -m unittest discover -s tests -p 'test_*.py' 2>&1 | tail -2)
 git -C vendor/punch add -A
 git -C vendor/punch commit -m "docs(job): call the YAML unit a Punch job in the docs; ADR 0007"
-git -C vendor/punch reset --soft 3e7141f
+git -C vendor/punch reset --soft e345bee
 git -C vendor/punch commit -F - <<'EOF'
 refactor(job)!: call the YAML unit a Punch job
 
@@ -337,7 +348,7 @@ EOF
 git -C vendor/punch log --oneline -2
 ```
 
-Expected: `Ran 324 tests`, `OK`; exactly one commit on top of `3e7141f`. Record its short SHA as `PUNCH_SHA`. Do not push yet (Task 8).
+Expected: `Ran 324 tests`, `OK`; exactly one commit on top of `e345bee`. Record its short SHA as `PUNCH_SHA`. Do not push yet (Task 8).
 
 ---
 
@@ -679,7 +690,7 @@ Expected: FAIL for `github-actions-perf-job-and-perf-workflow` (the forms link t
 printf '%s\n' CLAUDE.md README.md docs/README.md docs/cli-reference.md docs/coverage.md docs/findings.md \
   docs/local-development.md docs/unknowns.md docs/lifecycle/README.md tests/performance/k6/README.md \
   apps/visualizer-3d/README.md infra/k8s/README.md \
-  | cat - <(git ls-files docs/architecture docs/performance docs/reference docs/project-state docs/next-steps docs/uat | grep '\.md$') \
+  | cat - <(git ls-files docs/architecture docs/performance docs/reference docs/project-state docs/next-steps docs/uat | grep '\.md$' | grep -v punch-implementation) \
   > "$SCRATCH/docs.txt"
 xargs python3 $T job --docs < "$SCRATCH/docs.txt"
 xargs python3 $T workflow --docs < "$SCRATCH/docs.txt"
@@ -702,6 +713,7 @@ Specific edits the passes cannot make:
 - `docs/performance/orchestrator.md`: heading `## GitHub Actions (`perf-run`and`perf-chain`)` → `## GitHub Actions (`perf-job`and`perf-workflow`)`; the form table titles `Punch performance — single`/`— chain` → `— job`/`— workflow`; `request.json` kind values `single`/`chain` → `job`/`workflow`; evidence paths `reports/chain/chain.json` → `reports/workflow/workflow.json` and keys (`"sequence"` → `"jobs"`); spec examples to `"version": 2` and `"job"`.
 - `docs/cli-reference.md`: the `perf:chain` rows become `perf:workflow` rows; add one sentence that `perf:chain` exits 1 naming `perf:workflow`; the command count stays 33. Leave the pin line for Task 8.
 - `CLAUDE.md`: the `./dev perf:chain …` bullets become `./dev perf:workflow …`; the anchor becomes `#github-actions-perf-job-and-perf-workflow`; `## Next-steps workflow` stays.
+- `docs/architecture/punch-implementation.md` (never through the script; it already carries new-sense "Punch workflow"): delete ` (accepted, not built)` from the ADR 0007 row; change the link `docs/workflows/validation.md` to `docs/jobs/validation.md` and its text `Workflow Validation` to `Job Validation`.
 - `docs/next-steps/perf-run-ux.md`: the file name stays (it is a topic name, linked from `docs/next-steps/README.md`); its descriptive sections follow the new names.
 
 - [ ] **Step 5: Format and run the doc checks**
@@ -817,7 +829,7 @@ git log --oneline -3
 
 - [ ] **Step 2: Whole-branch review**
 
-Request a fresh review (superpowers:requesting-code-review) of `main..HEAD` in Expresso and `3e7141f..PUNCH_SHA` in Punch, with the spec, this plan, and the Review Focus list. Fix Critical and Important findings test-first; amend Punch fixes into `PUNCH_SHA` (`git -C vendor/punch commit --amend`), re-bump the pointer, and amend the Expresso commit. Re-run Task 7 Step 5.
+Request a fresh review (superpowers:requesting-code-review) of `main..HEAD` in Expresso and `3e7141f..PUNCH_SHA` in Punch (the docs commit `e345bee` and the rename commit), with the spec, this plan, and the Review Focus list. Fix Critical and Important findings test-first; amend Punch fixes into `PUNCH_SHA` (`git -C vendor/punch commit --amend`), re-bump the pointer, and amend the Expresso commit. Re-run Task 7 Step 5.
 
 - [ ] **Step 3: Re-pin the CLI reference**
 
@@ -912,6 +924,7 @@ PROTECT = [
     r"test_perf_github_workflows",
     r"workflow-traffic",
     r"domain\.workflow-name",
+    r"punch-workflow-on-kubernetes",
 ]
 
 JOB_MAP: List[Tuple[str, str]] = [
