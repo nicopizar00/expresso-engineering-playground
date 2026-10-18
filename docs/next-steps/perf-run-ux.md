@@ -1,8 +1,9 @@
 # Running Punch workflows on Expresso
 
 Status: open. Chains run locally and on demand from GitHub Actions. The
-GitHub Actions design below is implemented; its two-input forms are not yet
-verified on GitHub. Local setup and the start page still need decisions.
+GitHub Actions design below is implemented and verified on GitHub on
+2026-10-18 (Expresso `4329fc9`, Punch `3e7141f`). Local setup and the start
+page still need decisions.
 
 Goal: a person who has never run a Punch workflow on Expresso picks the right
 entry point, runs one workflow or a chain, and reads the result, from one
@@ -40,6 +41,16 @@ Measured on GitHub on 2026-10-17 with the `perf-run` and `perf-chain` forms
 | `perf-chain`: `browser-cart` → `http-orders` → `http-orders-status`                                                                                | 3 min 24 s | 2 min 24 s (with web) | 31 s                                                     |
 | `perf-chain`: `http-purchase-registered` → `http-auth-login` → `http-me-hot-status`                                                                | 2 min 44 s | 1 min 54 s            | 20 s                                                     |
 | `perf-chain`: `http-orders -> http-cart` through the API                                                                                           | none       | not started           | rejected by GitHub (HTTP 422: not in the allowed values) |
+
+Measured on GitHub on 2026-10-18 with the two-input forms (`4329fc9`); every
+threshold held in the runs that started the stack:
+
+| Form run                                                                                                                                                   | Job time   | Stack start | Run                                                              |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------------------------------- |
+| `perf-run`: `http-purchase`, `1 journey`                                                                                                                   | 2 min 20 s | 1 min 50 s  | 2 s                                                              |
+| `perf-chain`: `http-cart` → `http-orders` → `http-orders-status`, target `Custom: custom/status-regression.json` (producers sized to 27 and 23 iterations) | 3 min 16 s | 1 min 54 s  | 57 s                                                             |
+| `perf-chain`: `browser-purchase` → `http-orders-status`, target `5 users for 5 minutes`                                                                    | 12 s       | not started | rejected before the stack: 81 browser VUs, cap 4                 |
+| `perf-chain`: `http-cart -> http-orders`, target `Auto (data-size producer; default otherwise)` through the API                                            | none       | not started | rejected by GitHub (HTTP 422: not in the list of allowed values) |
 
 ## Friction found so far
 
