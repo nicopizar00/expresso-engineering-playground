@@ -250,7 +250,7 @@ def _select_steps(
             if step.config_path is None:
                 plan.errors.append(
                     f"step {number} {name}: a browser workflow has no "
-                    f"{preset_name(entry.value)} preset; use auto or one of: "
+                    f"{preset_name(entry.value)} preset; use one of: "
                     f"{', '.join(preset_name(shape) for shape in browser_shapes(options_dir))}"
                 )
                 continue
@@ -322,10 +322,13 @@ def _sizing_reader(step: Step, by_number: Dict[int, Step]) -> Optional[Step]:
 
 
 def _load_owner(reader: Step, by_number: Dict[int, Step]) -> Step:
-    """The step whose load sets `reader`'s size: the reader itself, or, when it was
-    sized too, the step it was sized for, followed until a step that was not."""
-    while reader.sizing is not None and reader.sized_for is not None:
-        reader = by_number[reader.sized_for]
+    """The step whose load sets `reader`'s size: follow each auto reader to its own
+    reader, sized or not, until a step with a load of its own or no reader."""
+    while reader.shape == AUTO:
+        following = _sizing_reader(reader, by_number)
+        if following is None:
+            break
+        reader = following
     return reader
 
 
@@ -356,7 +359,7 @@ def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
                         f"step {step.number} {step.name}: sized for step {reader.number} "
                         f"{reader.name} at {reader.shape_label()}, it needs {sizing.vus} browser "
                         f"VUs; the cap is {MAX_BROWSER_VUS}. Pick a smaller load for step "
-                        f"{owner.number}"
+                        f"{owner.number} {owner.name}"
                     )
                 continue
         step.config_path = step.workflow.k6_config
