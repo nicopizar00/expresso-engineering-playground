@@ -3,7 +3,7 @@
 // http-cart (scenarios/http-cart/http-cart.ts) reserves carts and
 // stops before checkout, emitting each cart as a `[DATA carts]` record; with
 // `--produce carts` Punch publishes them as the "carts" dataset. This
-// scenario requires that dataset (spec.data in workflows/http-orders.yaml),
+// scenario requires that dataset (spec.data in jobs/http-orders.yaml),
 // reads it via a SharedArray — loaded once at init and shared read-only
 // across VUs — and completes checkout for each row instead of creating a
 // fresh cart itself.
@@ -26,7 +26,7 @@
 //   meant to work — not a workaround.
 //
 // Load shape:
-//   From the k6 config Punch passes as `k6 run --config`; the workflow
+//   From the k6 config Punch passes as `k6 run --config`; the job
 //   default is options/5-iterations.json, matching http-cart's own default
 //   rather than tracking however many rows happen to be in the pool. Each
 //   row should be consumed once: a run that iterates past the pool size
@@ -73,7 +73,7 @@ const reservedCarts = new SharedArray<ReservedCart>("reserved-carts", () => {
 });
 
 // Load shape (executor, VUs, iterations or duration) comes from the k6
-// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// config Punch passes as `k6 run --config`: the job's spec.k6.config
 // or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
   thresholds: purchaseFlowThresholds,
@@ -122,7 +122,7 @@ export default function () {
       },
     });
     // Punch writes this to the "orders" dataset only when the run opts in
-    // with --produce orders (spec.data in the workflow YAML).
+    // with --produce orders (spec.data in the job YAML).
     if (persisted) console.log(`[DATA orders] ${orderId}`);
   });
 

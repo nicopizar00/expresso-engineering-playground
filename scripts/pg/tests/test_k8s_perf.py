@@ -77,10 +77,10 @@ class RuntimeSplitTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             perf.split_runtime(["--runtime", "nomad"])
 
-    @mock.patch("pg.k8s_perf.run_workflow", return_value=0)
-    def test_perf_run_routes_k8s_to_argo(self, run_workflow) -> None:
+    @mock.patch("pg.k8s_perf.run_job", return_value=0)
+    def test_perf_run_routes_k8s_to_argo(self, run_job) -> None:
         self.assertEqual(perf.run("http-cart", ["--runtime", "k8s", "--produce", "carts"]), 0)
-        run_workflow.assert_called_once_with("http-cart", ["--produce", "carts"])
+        run_job.assert_called_once_with("http-cart", ["--produce", "carts"])
 
 
 class RunInputTests(unittest.TestCase):
@@ -184,11 +184,11 @@ class RunResultTests(unittest.TestCase):
         self.assertEqual(k8s_perf.main_pod(running), "p")
 
 
-class RunWorkflowGuardTests(unittest.TestCase):
+class RunJobGuardTests(unittest.TestCase):
     @mock.patch("pg.k8s_perf.fail")
     @mock.patch("pg.k8s_perf.subprocess.run")
     def test_path_config_fails_before_kubectl(self, run, fail) -> None:
-        code = k8s_perf.run_workflow(
+        code = k8s_perf.run_job(
             "http-purchase", ["--config", "tests/performance/k6/options/1-iteration.json"]
         )
         self.assertEqual(code, 1)
@@ -198,8 +198,19 @@ class RunWorkflowGuardTests(unittest.TestCase):
     @mock.patch("pg.k8s_perf.fail")
     @mock.patch("pg.k8s_perf.subprocess.run")
     def test_undeclared_produce_fails_before_kubectl(self, run, _fail) -> None:
-        self.assertEqual(k8s_perf.run_workflow("http-orders-status", ["--produce", "orders"]), 1)
+        self.assertEqual(k8s_perf.run_job("http-orders-status", ["--produce", "orders"]), 1)
         run.assert_not_called()
+
+
+
+class ArgoResourceTests(unittest.TestCase):
+    @mock.patch("pg.k8s_perf.subprocess.run")
+    def test_phase_queries_argos_workflow_resource(self, run) -> None:
+        run.return_value = mock.Mock(stdout="Running\n")
+        self.assertEqual(k8s_perf._phase("run-1"), "Running")
+        args = run.call_args[0][0]
+        self.assertIn("workflow", args)
+        self.assertNotIn("job", args)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Punch's runtime in namespace punch: the generic punch-k6-run template
 # (vendor/punch/k8s), one thin template per
-# tests/performance/k6/workflows/*.yaml (pinned by
-# scripts/pg/tests/test_k8s_workflows.py), the k6 option presets, and the S3
+# tests/performance/k6/jobs/*.yaml (pinned by
+# scripts/pg/tests/test_k8s_jobs.py), the k6 option presets, and the S3
 # artifact repository on SeaweedFS.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -12,22 +12,22 @@ resources:
   - namespace.yaml
   - ../../../../vendor/punch/k8s
   - artifact-repositories.yaml
-  - workflows/browser-cart.yaml
-  - workflows/browser-purchase.yaml
-  - workflows/http-auth-login.yaml
-  - workflows/http-cart.yaml
-  - workflows/http-me-hot-status.yaml
-  - workflows/http-orders.yaml
-  - workflows/http-orders-status.yaml
-  - workflows/http-purchase.yaml
-  - workflows/http-purchase-registered.yaml
+  - jobs/browser-cart.yaml
+  - jobs/browser-purchase.yaml
+  - jobs/http-auth-login.yaml
+  - jobs/http-cart.yaml
+  - jobs/http-me-hot-status.yaml
+  - jobs/http-orders.yaml
+  - jobs/http-orders-status.yaml
+  - jobs/http-purchase.yaml
+  - jobs/http-purchase-registered.yaml
 
 configurations:
   - ../../../../vendor/punch/k8s/kustomizeconfig.yaml
 
 # ECR stand-in: the minikube registry addon. ./dev k8s:perf:up builds and
 # pushes these tags.
-# TODO(next-steps/punch-k8s): commit-tagged ECR images for the perf-run and perf-chain GitHub workflows.
+# TODO(next-steps/punch-k8s): commit-tagged ECR images for the perf-job and perf-workflow GitHub workflows.
 images:
   - name: k6-scenarios
     newName: localhost:5000/mini-commerce/k6

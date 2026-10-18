@@ -10,12 +10,12 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
-from punch.workflow import load_workflow  # noqa: E402
+from pg.paths import PERF_OPTIONS_DIR, PERF_JOBS_DIR, REPO_ROOT  # noqa: E402
+from punch.job import load_job  # noqa: E402
 
 
-class K6WorkflowCoverageTests(unittest.TestCase):
-    def test_workflows_cover_every_typescript_build_entry_once(self) -> None:
+class K6JobCoverageTests(unittest.TestCase):
+    def test_jobs_cover_every_typescript_build_entry_once(self) -> None:
         package = json.loads(
             (REPO_ROOT / "tests" / "performance" / "k6" / "package.json").read_text(
                 encoding="utf-8"
@@ -28,8 +28,8 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "/scripts/scenarios/" + str(Path(entry).relative_to("scenarios").with_suffix(".js"))
             for entry in build_entries
         }
-        workflow_paths = sorted(PERF_WORKFLOWS_DIR.glob("*.yaml"))
-        workflows = [load_workflow(path) for path in workflow_paths]
+        job_paths = sorted(PERF_JOBS_DIR.glob("*.yaml"))
+        jobs = [load_job(path) for path in job_paths]
 
         expected_names = {
             "browser-cart",
@@ -97,19 +97,19 @@ class K6WorkflowCoverageTests(unittest.TestCase):
             "browser-purchase": "Full purchase in Chromium",
             "http-purchase-registered": "Purchase as demo users",
         }
-        self.assertEqual(len(workflow_paths), len(expected_names))
-        self.assertEqual({path.stem for path in workflow_paths}, expected_names)
-        self.assertEqual({workflow.k6_script for workflow in workflows}, expected_scripts)
-        self.assertEqual(len({workflow.name for workflow in workflows}), len(workflows))
-        for path, workflow in zip(workflow_paths, workflows):
-            with self.subTest(workflow=path.stem):
+        self.assertEqual(len(job_paths), len(expected_names))
+        self.assertEqual({path.stem for path in job_paths}, expected_names)
+        self.assertEqual({job.k6_script for job in jobs}, expected_scripts)
+        self.assertEqual(len({job.name for job in jobs}), len(jobs))
+        for path, job in zip(job_paths, jobs):
+            with self.subTest(job=path.stem):
                 document = yaml.safe_load(path.read_text(encoding="utf-8"))
-                self.assertEqual(workflow.name, path.stem)
+                self.assertEqual(job.name, path.stem)
                 self.assertEqual(
-                    workflow.k6_script, f"/scripts/scenarios/{path.stem}/{path.stem}.js"
+                    job.k6_script, f"/scripts/scenarios/{path.stem}/{path.stem}.js"
                 )
-                self.assertEqual(workflow.description, expected_description[path.stem])
-                self.assertTrue(3 <= len(workflow.description.split()) <= 5)
+                self.assertEqual(job.description, expected_description[path.stem])
+                self.assertTrue(3 <= len(job.description.split()) <= 5)
                 scenario_source = (
                     REPO_ROOT / "tests/performance/k6/scenarios" / path.stem / f"{path.stem}.ts"
                 ).read_text(encoding="utf-8")
@@ -121,7 +121,7 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                 # Script options outrank `k6 run --config`; a shape here would win.
                 self.assertNotRegex(scenario_source, r"\b(scenarios|vus|iterations|duration|stages):")
                 self.assertNotRegex(scenario_source, r"__ENV\.(VUS|ITERATIONS|DURATION)\b")
-                self.assertEqual(workflow.k6_config, expected_config[path.stem])
+                self.assertEqual(job.k6_config, expected_config[path.stem])
                 self.assertEqual(
                     document["spec"]["compose"],
                     {
@@ -129,30 +129,30 @@ class K6WorkflowCoverageTests(unittest.TestCase):
                         "service": expected_compose_service[path.stem],
                     },
                 )
-                self.assertEqual(workflow.working_directory, REPO_ROOT)
+                self.assertEqual(job.working_directory, REPO_ROOT)
                 self.assertEqual(
-                    workflow.compose_file,
+                    job.compose_file,
                     REPO_ROOT / "infra" / "docker" / "compose.performance.yaml",
                 )
-                self.assertEqual(workflow.compose_service, expected_compose_service[path.stem])
+                self.assertEqual(job.compose_service, expected_compose_service[path.stem])
                 if path.stem in expected_data:
                     expected = expected_data[path.stem]
-                    self.assertEqual(workflow.data.directory, REPO_ROOT / "tests/performance/k6/data")
-                    self.assertEqual(workflow.data.mounted_at, "/scripts/data")
+                    self.assertEqual(job.data.directory, REPO_ROOT / "tests/performance/k6/data")
+                    self.assertEqual(job.data.mounted_at, "/scripts/data")
                     self.assertEqual(
-                        {product.dataset: product.targets for product in workflow.data.produces},
+                        {product.dataset: product.targets for product in job.data.produces},
                         expected["produces"],
                     )
-                    self.assertEqual(workflow.data.requires, expected["requires"])
-                    self.assertEqual(workflow.data.optional, expected.get("optional", ()))
+                    self.assertEqual(job.data.requires, expected["requires"])
+                    self.assertEqual(job.data.optional, expected.get("optional", ()))
                 else:
-                    self.assertIsNone(workflow.data)
+                    self.assertIsNone(job.data)
                 self.assertEqual(
                     document["spec"]["outputs"]["summary"]["path"],
                     f"tests/performance/k6/reports/{path.stem}-summary.json",
                 )
                 self.assertEqual(
-                    workflow.summary_output.path,
+                    job.summary_output.path,
                     REPO_ROOT / "tests" / "performance" / "k6" / "reports" / f"{path.stem}-summary.json",
                 )
                 self.assertEqual(
@@ -191,19 +191,19 @@ class K6OptionsPresetTests(unittest.TestCase):
 
 
 class ComposeScriptPathTests(unittest.TestCase):
-    def test_every_compose_scenario_path_is_a_workflow_script(self) -> None:
+    def test_every_compose_scenario_path_is_a_job_script(self) -> None:
         compose = (REPO_ROOT / "infra/docker/compose.performance.yaml").read_text(encoding="utf-8")
-        scripts = {load_workflow(p).k6_script for p in PERF_WORKFLOWS_DIR.glob("*.yaml")}
+        scripts = {load_job(p).k6_script for p in PERF_JOBS_DIR.glob("*.yaml")}
         referenced = set(re.findall(r"/scripts/scenarios/[\w-]+/[\w-]+\.js", compose))
         self.assertTrue(referenced)
         self.assertLessEqual(referenced, scripts)
 
 
-class K6WorkflowCatalogTests(unittest.TestCase):
-    def test_workflow_catalog_links_are_valid(self) -> None:
+class K6JobCatalogTests(unittest.TestCase):
+    def test_job_catalog_links_are_valid(self) -> None:
         from punch.catalog import load_catalog
 
-        catalog = load_catalog(PERF_WORKFLOWS_DIR)
+        catalog = load_catalog(PERF_JOBS_DIR)
         self.assertEqual(catalog.producers_of("carts"), ("browser-cart", "http-cart"))
         self.assertEqual(catalog.consumers_of("carts"), ("http-orders",))
         self.assertEqual(

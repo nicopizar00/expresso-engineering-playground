@@ -36,7 +36,7 @@ import { buildSummaryOutputs } from "../../support/report";
 declare const console: { log: (message: string) => void };
 
 // Load shape (executor, VUs, iterations or duration) comes from the k6
-// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// config Punch passes as `k6 run --config`: the job's spec.k6.config
 // or an options/*.json preset. Exporting scenarios here would override it.
 // Its scenario must set options.browser.type (the *-browser presets).
 export const options = {

@@ -18,7 +18,7 @@ deployment is running or that an external service is reachable.
 | BFF controllers                                        |                  10 | `reference/http-api.md`           | Reviewed                                         |
 | BFF HTTP and SSE routes                                |                  20 | `reference/http-api.md`           | Reviewed                                         |
 | `./dev` commands                                       |                  30 | `cli-reference.md`                | Reviewed                                         |
-| Performance workflows                                  |                   9 | `reference/build-and-deploy.md`   | Reviewed; detailed existing guide review pending |
+| Performance jobs                                       |                   9 | `reference/build-and-deploy.md`   | Reviewed; detailed existing guide review pending |
 | Runtime configuration names                            |                  39 | `reference/configuration.md`      | Reviewed                                         |
 | Operational CLI flag names, excluding help and aliases |                  13 | `cli-reference.md`                | Reviewed                                         |
 | Prisma models                                          |                   7 | `reference/data-and-state.md`     | Reviewed                                         |
@@ -29,7 +29,7 @@ deployment is running or that an external service is reachable.
 | Main Compose services                                  |                   9 | `reference/build-and-deploy.md`   | Reviewed                                         |
 | Performance Compose services                           |                   3 | `reference/build-and-deploy.md`   | Reviewed                                         |
 | CI jobs                                                |                  10 | `reference/build-and-deploy.md`   | Reviewed                                         |
-| Kubernetes performance workflows                       |                   9 | `reference/build-and-deploy.md`   | Reviewed                                         |
+| Kubernetes performance jobs                            |                   9 | `reference/build-and-deploy.md`   | Reviewed                                         |
 | Argo CD Applications                                   |                   2 | `reference/build-and-deploy.md`   | Reviewed                                         |
 
 Scheduled jobs have a denominator of zero. No application scheduler or
@@ -58,7 +58,7 @@ git show HEAD:pnpm-workspace.yaml
 git ls-tree -r --name-only HEAD apps packages tests
 git ls-tree -r --name-only HEAD | rg '(^|/)(Dockerfile|[^/]+\.Dockerfile)$'
 git show HEAD:.github/workflows/ci.yml
-git ls-tree -r --name-only HEAD infra/k8s/perf/punch/workflows
+git ls-tree -r --name-only HEAD infra/k8s/perf/punch/jobs
 git grep -n '^kind: Application$' HEAD infra/argocd/applications
 git show HEAD:.gitmodules
 git ls-tree HEAD vendor/punch
@@ -96,13 +96,13 @@ Author self-review does not change a status from `Drafted` to `Reviewed`.
 | `architecture/observability.md`        | Descriptive               | Existing, review pending | No fresh review recorded for this campaign.                                                                                                                   |
 | `architecture/orchestrator-python.md`  | Descriptive               | Existing, review pending | No fresh review recorded for this campaign.                                                                                                                   |
 | `architecture/punch-implementation.md` | Reference index           | Existing, review pending | No fresh review recorded for this campaign; internal sources require the pinned submodule.                                                                    |
-| `performance/orchestrator.md`          | Descriptive and reference | Existing, review pending | Workflow denominator verified in the build reference; detailed engine claims require separate review.                                                         |
+| `performance/orchestrator.md`          | Descriptive and reference | Existing, review pending | Job denominator verified in the build reference; detailed engine claims require separate review.                                                              |
 | `reference/README.md`                  | Reference index           | Reviewed                 | Fresh reader checked all links and reconciled inventory counts with reviewed leaves and committed sources.                                                    |
 | `reference/http-api.md`                | Reference                 | Reviewed                 | Fresh reader checked all 20 controller routes, validation, response shapes, cookies, and failure behavior.                                                    |
 | `reference/configuration.md`           | Reference                 | Reviewed                 | Fresh reader reconciled 39 unique direct-read keys, defaults, parsing, and deployment inputs.                                                                 |
 | `reference/data-and-state.md`          | Descriptive and reference | Reviewed                 | Fresh reader checked seven models, nine migrations, cache behavior, seed state, and idempotency boundaries.                                                   |
 | `reference/integrations.md`            | Reference                 | Reviewed                 | Fresh reader checked all 17 families, activation, wiring, and failure claims.                                                                                 |
-| `reference/build-and-deploy.md`        | Reference                 | Reviewed                 | Fresh reader checked workspace, Docker, Compose, CI, Kubernetes workflow, and Argo Application counts and build behavior.                                     |
+| `reference/build-and-deploy.md`        | Reference                 | Reviewed                 | Fresh reader checked workspace, Docker, Compose, CI, Kubernetes job, and Argo Application counts and build behavior.                                          |
 | `cli-reference.md`                     | Reference                 | Reviewed                 | Fresh reader checked all 30 commands, 13 operational flags, parser behavior, and launchers.                                                                   |
 | `coverage.md`                          | Reference ledger          | Reviewed                 | Fresh reader reconciled denominators, owner status, review banners, and remaining work.                                                                       |
 | `findings.md`                          | Working note              | Reviewed                 | Fresh reader verified source locations and separated inferred concurrency behavior from reproduced results.                                                   |

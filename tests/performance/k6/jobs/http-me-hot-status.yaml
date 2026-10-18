@@ -1,25 +1,25 @@
 apiVersion: punch/v1
-kind: K6Workflow
+kind: K6Job
 metadata:
-  name: http-orders-status
-  description: Read order status
+  name: http-me-hot-status
+  description: Poll hot-status banner
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6
   k6:
-    script: /scripts/scenarios/http-orders-status/http-orders-status.js
+    script: /scripts/scenarios/http-me-hot-status/http-me-hot-status.js
     config: tests/performance/k6/options/5-iterations.json
   environment:
-    forward: [BASE_URL, EXPECT_TEMPERATURE, ORDER_COOL_DOWN_SECONDS]
+    forward: [BASE_URL]
   outputs:
     summary:
-      path: tests/performance/k6/reports/http-orders-status-summary.json
+      path: tests/performance/k6/reports/http-me-hot-status-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
-    requires: [orders]
+    requires: [auth-tokens]
   sizing:
-    iterationSeconds: 0.6   # measured: 1 VU × 10 iterations, durationMs / 10
+    iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
     margin: 0.15            # extra rows over the estimate (producer errors)

@@ -1,31 +1,32 @@
-# Punch workflow browser-cart on Kubernetes; mirrors
-# tests/performance/k6/workflows/browser-cart.yaml (test_k8s_workflows.py).
+# Punch job http-purchase on Kubernetes; mirrors
+# tests/performance/k6/jobs/http-purchase.yaml (test_k8s_jobs.py).
+# Also the Argo CD PostSync smoke (infra/argocd/mini-commerce/postsync-smoke.yaml).
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: browser-cart
+  name: http-purchase
 spec:
   entrypoint: main
   arguments:
     parameters:
-      - { name: config, value: 5-iterations-browser }
+      - { name: config, value: 5-iterations }
       - { name: produce, value: "" }
-      - { name: base-url, value: "http://web.mini-commerce.svc.cluster.local:3000" }
+      - { name: base-url, value: "http://bff.mini-commerce.svc.cluster.local:3001" }
       - { name: extra-env, value: "" }
   templates:
     - name: main
       steps:
         - - name: k6
-            templateRef: { name: punch-k6-run, template: k6-browser }
+            templateRef: { name: punch-k6-run, template: k6 }
             arguments:
               parameters:
-                - { name: workflow, value: browser-cart }
-                - { name: script, value: /scripts/scenarios/browser-cart/browser-cart.js }
+                - { name: job, value: http-purchase }
+                - { name: script, value: /scripts/scenarios/http-purchase/http-purchase.js }
                 - { name: config, value: "{{workflow.parameters.config}}" }
                 - { name: base-url, value: "{{workflow.parameters.base-url}}" }
                 - { name: forward, value: "" }
                 - { name: extra-env, value: "{{workflow.parameters.extra-env}}" }
                 - { name: requires, value: "" }
                 - { name: requires-hint, value: "" }
-                - { name: produces, value: "carts=cartId,productId,sid" }
+                - { name: produces, value: "orders=orderId" }
                 - { name: produce, value: "{{workflow.parameters.produce}}" }

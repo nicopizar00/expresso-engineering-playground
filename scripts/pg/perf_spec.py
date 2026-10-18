@@ -1,9 +1,9 @@
-"""The versioned run spec: what `perf:dispatch` writes and `perf:chain --spec` runs.
+"""The versioned run spec: what `perf:dispatch` writes and `perf:workflow --spec` runs.
 
 A spec lists the active steps of one run, in order. Each step names a catalog
-workflow and one load:
+job and one load:
 
-    {"mode": "auto"}                               sized for its reader, else the workflow's config
+    {"mode": "auto"}                               sized for its reader, else the job's config
     {"mode": "preset", "value": "5-vu-5m"}         tests/performance/k6/options/<value>.json
     {"mode": "custom", "path": "custom/x.json"}    a committed JSON beneath that directory
 
@@ -11,8 +11,8 @@ The GitHub forms name each preset by a profile label (PRESET_LABELS);
 messages name a preset by its label and its file, so both the forms and the
 CLI recognize it.
 
-Stdlib-only: this module checks shape and paths, not the catalog. pg.perf_chain
-checks workflows, data links, presets, sizing, and the browser VU cap.
+Stdlib-only: this module checks shape and paths, not the catalog. pg.perf_workflow
+checks jobs, data links, presets, sizing, and the browser VU cap.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from pg.paths import PERF_OPTIONS_DIR
 
-SPEC_VERSION = 1
+SPEC_VERSION = 2
 MAX_STEPS = 4
 AUTO = "auto"
 PRESET = "preset"
@@ -49,9 +49,9 @@ class SpecError(ValueError):
 
 @dataclass(frozen=True)
 class StepRequest:
-    """One requested step before planning: a workflow name and its load."""
+    """One requested step before planning: a job name and its load."""
 
-    workflow: str
+    job: str
     mode: str = AUTO
     # The preset stem (preset) or the path beneath the options directory (custom).
     value: Optional[str] = None
@@ -62,7 +62,7 @@ class StepRequest:
             load["value"] = self.value
         elif self.mode == CUSTOM:
             load["path"] = self.value
-        return {"workflow": self.workflow, "load": load}
+        return {"job": self.job, "load": load}
 
 
 def preset_name(stem: str, file: Optional[str] = None) -> str:
@@ -77,11 +77,11 @@ def spec_document(steps: Sequence[StepRequest]) -> Dict[str, Any]:
 
 def _parse_step(number: int, step: Any) -> StepRequest:
     where = f"step {number}"
-    if not isinstance(step, dict) or set(step) != {"workflow", "load"}:
-        raise SpecError(f"{where} must be an object with exactly workflow and load")
-    workflow, load = step["workflow"], step["load"]
-    if not isinstance(workflow, str) or not workflow:
-        raise SpecError(f"{where}: workflow must be a non-empty string")
+    if not isinstance(step, dict) or set(step) != {"job", "load"}:
+        raise SpecError(f"{where} must be an object with exactly job and load")
+    job, load = step["job"], step["load"]
+    if not isinstance(job, str) or not job:
+        raise SpecError(f"{where}: job must be a non-empty string")
     if not isinstance(load, dict):
         raise SpecError(f"{where}: load must be an object")
     mode = load.get("mode")
@@ -96,7 +96,7 @@ def _parse_step(number: int, step: Any) -> StepRequest:
     value = load.get("value", load.get("path"))
     if mode != AUTO and (not isinstance(value, str) or not value):
         raise SpecError(f"{where}: a {mode} load needs a non-empty string")
-    return StepRequest(workflow, mode, value)
+    return StepRequest(job, mode, value)
 
 
 def parse_spec(document: Any) -> List[StepRequest]:
@@ -106,7 +106,13 @@ def parse_spec(document: Any) -> List[StepRequest]:
     extra = set(document) - {"version", "steps"}
     if extra:
         raise SpecError(f"unknown spec keys: {', '.join(sorted(extra))}")
-    if document.get("version") != SPEC_VERSION:
+    version = document.get("version")
+    if version == 1:
+        raise SpecError(
+            'spec version 1 is no longer read: set "version": 2 and rename each '
+            'step\'s "workflow" to "job"'
+        )
+    if version != SPEC_VERSION:
         raise SpecError(f"spec version must be {SPEC_VERSION}")
     steps = document.get("steps")
     if not isinstance(steps, list) or not 1 <= len(steps) <= MAX_STEPS:

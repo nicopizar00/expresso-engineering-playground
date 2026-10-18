@@ -1,21 +1,21 @@
 name: Punch performance — execute
 
-# Shared by perf-run.yml and perf-chain.yml; callable only through
+# Shared by perf-job.yml and perf-workflow.yml; callable only through
 # workflow_call. Normalizes the form values into spec.json, plans it before
 # Docker, starts the stack on this runner, runs exactly that spec, and uploads
 # one artifact of evidence:
-# docs/performance/orchestrator.md#github-actions-perf-run-and-perf-chain.
+# docs/performance/orchestrator.md#github-actions-perf-job-and-perf-workflow.
 # scripts/pg/tests/test_perf_github_workflows.py pins this contract.
 
 on:
   workflow_call:
     inputs:
       kind:
-        description: single or chain
+        description: job or workflow
         type: string
         required: true
       selection:
-        description: The workflow (single) or recipe label (chain)
+        description: The job name (job) or workflow label (workflow)
         type: string
         required: true
       profile:
@@ -64,7 +64,7 @@ jobs:
         # Fails in seconds, before the stack starts, on an impossible run.
         run: |
           ./dev perf:dispatch --stage plan
-          ./dev perf:chain --spec "$SPEC" --plan
+          ./dev perf:workflow --spec "$SPEC" --plan
       - name: Start the stack
         env:
           TARGET: ${{ steps.dispatch.outputs.browser == 'true' && 'web' || '' }}
@@ -91,7 +91,7 @@ jobs:
       - name: Run the plan
         run: |
           ./dev perf:dispatch --stage execute
-          ./dev perf:chain --spec "$SPEC"
+          ./dev perf:workflow --spec "$SPEC"
       - name: Finalize the dispatch record
         if: always()
         env:

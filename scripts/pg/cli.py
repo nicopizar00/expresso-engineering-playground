@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import Callable, Dict, List, Sequence
 
-from pg.ansi import bold, dim
-from pg.workflows import WORKFLOWS
+from pg.ansi import bold, dim, fail
+from pg.jobs import JOBS
 
 # Lazy import command modules so a syntax error in one doesn't break --help.
 def _doctor(_a: Sequence[str]) -> int:
@@ -108,9 +108,9 @@ def _perf(name: str) -> Callable[[Sequence[str]], int]:
     return run
 
 
-def _perf_chain(args: Sequence[str]) -> int:
-    from pg import perf_chain
-    return perf_chain.run(args)
+def _perf_workflow(args: Sequence[str]) -> int:
+    from pg import perf_workflow
+    return perf_workflow.run(args)
 
 
 def _perf_forms(args: Sequence[str]) -> int:
@@ -162,14 +162,17 @@ COMMANDS: Dict[str, Callable[[Sequence[str]], int]] = {
     "k8s:down": _k8s_down,
     "k8s:perf:up": _k8s_perf_up,
     "argocd:up": _argocd_up,
-    **{f"perf:{name}": _perf(name) for name in WORKFLOWS},
-    "perf:chain": _perf_chain,
+    **{f"perf:{name}": _perf(name) for name in JOBS},
+    "perf:workflow": _perf_workflow,
     "perf:forms": _perf_forms,
     "perf:dispatch": _perf_dispatch,
     "perf:open-report": _perf_open_report,
     "perf:clean": _perf_clean,
     "hack": _hack,
 }
+
+# Old command names that fail with their replacement instead of the usage text.
+RENAMED: Dict[str, str] = {"perf:chain": "perf:workflow"}
 
 
 def _usage() -> None:
@@ -179,12 +182,12 @@ def _usage() -> None:
     print("Requires: Docker Desktop  |  Python ≥ 3.9 on PATH.")
     print("Performance commands additionally require Punch's pinned dependency:")
     print("  python3 -m pip install -r vendor/punch/requirements.txt")
-    print("Data-producing workflows write their dataset only with --produce <dataset> (e.g. perf:http-cart --produce carts).")
+    print("Data-producing jobs write their dataset only with --produce <dataset> (e.g. perf:http-cart --produce carts).")
     print("perf:* take their k6 load shape from --config <preset|path> (e.g. perf:http-purchase --config 5-vu-5m).")
-    print("perf:* --runtime k8s runs the workflow on Argo Workflows (after ./dev k8s:perf:up).")
-    print("perf:chain <workflow>[:<shape>] ... runs workflows in order; each step's data feeds the next (e.g. perf:chain http-cart http-orders:5-vu-5m).")
-    print("perf:chain --spec <spec.json> runs a spec written by perf:dispatch (the GitHub perf forms' boundary).")
-    print("perf:forms --write|--check derives the perf-run/perf-chain GitHub form options from the catalog and custom configs.")
+    print("perf:* --runtime k8s runs the job on Argo Workflows (after ./dev k8s:perf:up).")
+    print("perf:workflow <job>[:<shape>] ... runs jobs in order; each step's data feeds the next (e.g. perf:workflow http-cart http-orders:5-vu-5m).")
+    print("perf:workflow --spec <spec.json> runs a spec written by perf:dispatch (the GitHub perf forms' boundary).")
+    print("perf:forms --write|--check derives the perf-job/perf-workflow GitHub form options from the catalog and custom configs.")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()
@@ -204,6 +207,9 @@ def main(argv: List[str]) -> int:
         return 0
     handler = COMMANDS.get(command)
     if not handler:
+        if command in RENAMED:
+            fail(f"{command} was renamed to {RENAMED[command]}")
+            return 1
         _usage()
         return 1
     try:

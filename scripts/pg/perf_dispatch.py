@@ -9,7 +9,7 @@ Form values arrive as environment variables, never as script text. The
 normalizer re-derives the form choices from the catalog and the options
 directory (pg.perf_forms), so a stale form or an API dispatch cannot run what
 the checked-out commit does not offer. It writes the versioned spec
-(pg.perf_spec) that `perf:chain --spec` plans and then runs unchanged: the
+(pg.perf_spec) that `perf:workflow --spec` plans and then runs unchanged: the
 profile is the last step's load, and every earlier step is auto, so the
 planner sizes it for the step that reads its data. Evidence lands in
 tests/performance/k6/reports/dispatch/: request.json (the three form values as
@@ -28,23 +28,23 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_
-from pg.paths import PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, repo_path
-from pg.perf_chain import (
+from pg.paths import PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_JOBS_DIR, repo_path
+from pg.perf_workflow import (
     BROWSER_SERVICE,
-    CHAIN_REPORTS_DIR,
+    WORKFLOW_REPORTS_DIR,
     RUNNER_WARNING,
     annotate,
     render_summary,
 )
-from pg.perf_forms import profile_load, profiles, recipe_label, recipes, standalone
+from pg.perf_forms import profile_load, profiles, workflow_label, workflows, standalone
 from pg.perf_spec import CUSTOM, SpecError, StepRequest, custom_config_path, write_spec
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
-from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
-from punch.workflow import WorkflowError
+from punch.catalog import CatalogError, JobCatalog, load_catalog
+from punch.job import JobError
 
 DISPATCH_DIR = PERF_REPORTS_DIR / "dispatch"
-KINDS = ("single", "chain")
+KINDS = ("job", "workflow")
 INPUTS: Tuple[str, ...] = ("kind", "selection", "profile")
 STAGES = ("plan", "stack", "images", "execute")
 TITLE = "Punch dispatch"
@@ -62,32 +62,32 @@ def read_request(environ: Mapping[str, str]) -> Dict[str, str]:
 # --- normalize ---------------------------------------------------------------
 
 
-def _single(selection: str, catalog: WorkflowCatalog, errors: List[str]) -> List[str]:
+def _job(selection: str, catalog: JobCatalog, errors: List[str]) -> List[str]:
     offered = standalone(catalog)
     if selection in offered:
         return [selection]
-    workflow = catalog.workflows.get(selection)
-    if workflow is not None and workflow.data is not None and workflow.data.requires:
+    job = catalog.jobs.get(selection)
+    if job is not None and job.data is not None and job.data.requires:
         needs = "; ".join(
             f"{dataset} from {' or '.join(catalog.producers_of(dataset))}"
-            for dataset in workflow.data.requires
+            for dataset in job.data.requires
         )
         errors.append(
-            f"{selection} reads data an earlier step writes ({needs}); run it from perf-chain.yml"
+            f"{selection} reads data an earlier step writes ({needs}); run it from perf-workflow.yml"
         )
     else:
-        errors.append(f"unknown workflow {selection!r}; use one of: {', '.join(offered)}")
+        errors.append(f"unknown job {selection!r}; use one of: {', '.join(offered)}")
     return []
 
 
-def _chain(
-    selection: str, catalog: WorkflowCatalog, options_dir: Path, errors: List[str]
+def _workflow(
+    selection: str, catalog: JobCatalog, options_dir: Path, errors: List[str]
 ) -> List[str]:
-    kept, _dropped = recipes(catalog, options_dir)
-    offered = {recipe_label(path): list(path) for path in kept}
+    kept, _dropped = workflows(catalog, options_dir)
+    offered = {workflow_label(path): list(path) for path in kept}
     if selection in offered:
         return offered[selection]
-    errors.append(f"unknown or stale recipe {selection!r}; use one of: {', '.join(offered)}")
+    errors.append(f"unknown or stale workflow {selection!r}; use one of: {', '.join(offered)}")
     return []
 
 
@@ -110,16 +110,16 @@ def _profile(label: str, options_dir: Path, errors: List[str]) -> Optional[Tuple
 
 
 def normalize(
-    request: Mapping[str, str], catalog: WorkflowCatalog, options_dir: Path = PERF_OPTIONS_DIR
+    request: Mapping[str, str], catalog: JobCatalog, options_dir: Path = PERF_OPTIONS_DIR
 ) -> Tuple[List[StepRequest], List[str]]:
     """The step requests a form submission asks for, or the reasons it cannot run.
     The profile is the last step's load; every earlier step is auto."""
     errors: List[str] = []
     kind, selection = request.get("kind", ""), request.get("selection", "")
-    if kind == "single":
-        names = _single(selection, catalog, errors)
-    elif kind == "chain":
-        names = _chain(selection, catalog, options_dir, errors)
+    if kind == "job":
+        names = _job(selection, catalog, errors)
+    elif kind == "workflow":
+        names = _workflow(selection, catalog, options_dir, errors)
     else:
         errors.append(f"unknown kind {kind!r}; use {' or '.join(KINDS)}")
         names = []
@@ -179,23 +179,23 @@ def dispatch(
     environ: Mapping[str, str],
     dispatch_dir: Path = DISPATCH_DIR,
     options_dir: Path = PERF_OPTIONS_DIR,
-    chain_dir: Optional[Path] = None,
+    workflow_dir: Optional[Path] = None,
 ) -> int:
     """Start a fresh dispatch record, keep the form values, and write spec.json.
-    Evidence from an earlier dispatch or chain in this checkout is removed first,
+    Evidence from an earlier dispatch or workflow in this checkout is removed first,
     so finalize never reports a run this dispatch did not start."""
     shutil.rmtree(dispatch_dir, ignore_errors=True)
-    shutil.rmtree(chain_dir or CHAIN_REPORTS_DIR, ignore_errors=True)
+    shutil.rmtree(workflow_dir or WORKFLOW_REPORTS_DIR, ignore_errors=True)
     dispatch_dir.mkdir(parents=True)
     record = _metadata(environ, "normalize")
     _write_json(dispatch_dir / "dispatch.json", record)
     request = read_request(environ)
     _write_json(dispatch_dir / "request.json", request)
     try:
-        catalog = load_catalog(PERF_WORKFLOWS_DIR)
+        catalog = load_catalog(PERF_JOBS_DIR)
         steps, errors = normalize(request, catalog, options_dir)
-    except (CatalogError, WorkflowError) as error:
-        steps, errors = [], [f"could not load the workflow catalog: {error}"]
+    except (CatalogError, JobError) as error:
+        steps, errors = [], [f"could not load the job catalog: {error}"]
     if errors:
         record["errors"] = errors
         _write_json(dispatch_dir / "dispatch.json", record)
@@ -206,12 +206,12 @@ def dispatch(
         return 1
     write_spec(dispatch_dir / "spec.json", steps)
     browser = any(
-        catalog.workflows[step.workflow].compose_service == BROWSER_SERVICE for step in steps
+        catalog.jobs[step.job].compose_service == BROWSER_SERVICE for step in steps
     )
     _output(environ, browser=browser)
     header("Punch dispatch")
     for number, step in enumerate(steps, start=1):
-        info(f"step {number}  {step.workflow}  {json.dumps(step.to_json()['load'])}")
+        info(f"step {number}  {step.job}  {json.dumps(step.to_json()['load'])}")
     pass_(f"Wrote {dispatch_dir / 'spec.json'}")
     return 0
 
@@ -233,31 +233,31 @@ def stage(name: str, dispatch_dir: Path = DISPATCH_DIR) -> int:
 # --- finalize and publish ----------------------------------------------------
 
 
-def _missing_evidence(chain: Dict[str, Any]) -> List[str]:
+def _missing_evidence(workflow: Dict[str, Any]) -> List[str]:
     problems = []
-    for step in chain.get("steps", []):
+    for step in workflow.get("steps", []):
         if step.get("status") != "passed":
             continue
         summary = step.get("summary")
         if not summary or not repo_path(summary).is_file():
             problems.append(
-                f"step {step['step']} {step['workflow']} passed but left no k6 summary "
+                f"step {step['step']} {step['job']} passed but left no k6 summary "
                 "in the evidence"
             )
     return problems
 
 
 def _status(
-    record: Dict[str, Any], chain: Optional[Dict[str, Any]], job: str
+    record: Dict[str, Any], workflow: Optional[Dict[str, Any]], job_status: str
 ) -> Tuple[str, List[str]]:
-    if record.get("errors") or (chain is not None and chain.get("errors")):
+    if record.get("errors") or (workflow is not None and workflow.get("errors")):
         return "rejected", []
-    if job == "cancelled":
+    if job_status == "cancelled":
         return "cancelled", []
-    if chain is None or chain.get("passed") is not True:
+    if workflow is None or workflow.get("passed") is not True:
         return "failed", []
-    problems = _missing_evidence(chain)
-    return ("failed" if problems or job != "success" else "passed"), problems
+    problems = _missing_evidence(workflow)
+    return ("failed" if problems or job_status != "success" else "passed"), problems
 
 
 def _selection(request: Mapping[str, str]) -> str:
@@ -268,22 +268,23 @@ def _selection(request: Mapping[str, str]) -> str:
 def _job_summary(
     record: Dict[str, Any],
     request: Mapping[str, str],
-    chain: Optional[Dict[str, Any]],
+    workflow: Optional[Dict[str, Any]],
     status: str,
 ) -> str:
     notes: List[str] = list(record.get("problems") or [])
     if status == "cancelled":
         notes.insert(0, "The run was cancelled.")
-    elif status == "failed" and record.get("stage") == "execute" and chain is None:
+    elif status == "failed" and record.get("stage") == "execute" and workflow is None:
         notes.append(
-            "The job stopped during the execute stage before the chain wrote its result; "
-            "files from steps that ran are under `chain/step-<n>-<workflow>/`."
+            "The GitHub job stopped during the execute stage before the Punch workflow wrote "
+            "its evidence (`workflow.json`); files from steps that ran are under "
+            "`workflow/step-<n>-<job>/`."
         )
-    elif status == "failed" and (chain is None or chain.get("passed") is None):
-        notes.append(f"The job stopped at the {record.get('stage')} stage before any step ran.")
-    evidence = chain or {
+    elif status == "failed" and (workflow is None or workflow.get("passed") is None):
+        notes.append(f"The GitHub job stopped at the {record.get('stage')} stage before any step ran.")
+    evidence = workflow or {
         "outcome": "rejected",
-        "sequence": [_selection(request)],
+        "jobs": [_selection(request)],
         "steps": [],
         "errors": record.get("errors") or [],
         "warnings": [],
@@ -303,28 +304,28 @@ def _job_summary(
 def finalize(
     environ: Mapping[str, str],
     dispatch_dir: Path = DISPATCH_DIR,
-    chain_dir: Optional[Path] = None,
+    workflow_dir: Optional[Path] = None,
 ) -> int:
     """Set dispatch.json's final status and write summary.md. Exits 1 only when the
     job would otherwise pass without evidence; an already failed job stays failed."""
-    chain_dir = chain_dir or CHAIN_REPORTS_DIR
+    workflow_dir = workflow_dir or WORKFLOW_REPORTS_DIR
     dispatch_dir.mkdir(parents=True, exist_ok=True)
     path = dispatch_dir / "dispatch.json"
     record = _read_json(path) or _metadata(environ, "setup")
     request = _read_json(dispatch_dir / "request.json") or read_request(environ)
-    chain = _read_json(chain_dir / "chain.json")
-    job = environ.get("PERF_JOB_STATUS", "success")
-    status, problems = _status(record, chain, job)
+    workflow = _read_json(workflow_dir / "workflow.json")
+    job_status = environ.get("PERF_JOB_STATUS", "success")
+    status, problems = _status(record, workflow, job_status)
     record.update(status=status, problems=problems)
     _write_json(path, record)
     (dispatch_dir / "summary.md").write_text(
-        _job_summary(record, request, chain, status), encoding="utf-8"
+        _job_summary(record, request, workflow, status), encoding="utf-8"
     )
     for problem in problems:
         fail(problem)
     annotate(problems, [], TITLE)
     info(f"Punch run {status}; stage reached: {record.get('stage')}")
-    return 1 if status != "passed" and job == "success" else 0
+    return 1 if status != "passed" and job_status == "success" else 0
 
 
 def publish(environ: Mapping[str, str], dispatch_dir: Path = DISPATCH_DIR) -> int:

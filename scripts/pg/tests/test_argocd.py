@@ -68,7 +68,7 @@ class PostSyncSmokeTests(unittest.TestCase):
         [config] = smoke["spec"]["arguments"]["parameters"]
         self.assertEqual(config, {"name": "config", "value": "1-iteration"})
         self.assertTrue((PERF_OPTIONS_DIR / "1-iteration.json").is_file())
-        self.assertTrue((K8S_DIR / "perf" / "punch" / "workflows" / "http-purchase.yaml").is_file())
+        self.assertTrue((K8S_DIR / "perf" / "punch" / "jobs" / "http-purchase.yaml").is_file())
 
 
 class SettledTests(unittest.TestCase):

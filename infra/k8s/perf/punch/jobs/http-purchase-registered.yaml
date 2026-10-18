@@ -1,9 +1,9 @@
-# Punch workflow http-orders-status on Kubernetes; mirrors
-# tests/performance/k6/workflows/http-orders-status.yaml (test_k8s_workflows.py).
+# Punch job http-purchase-registered on Kubernetes; mirrors
+# tests/performance/k6/jobs/http-purchase-registered.yaml (test_k8s_jobs.py).
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: http-orders-status
+  name: http-purchase-registered
 spec:
   entrypoint: main
   arguments:
@@ -19,13 +19,13 @@ spec:
             templateRef: { name: punch-k6-run, template: k6 }
             arguments:
               parameters:
-                - { name: workflow, value: http-orders-status }
-                - { name: script, value: /scripts/scenarios/http-orders-status/http-orders-status.js }
+                - { name: job, value: http-purchase-registered }
+                - { name: script, value: /scripts/scenarios/http-purchase-registered/http-purchase-registered.js }
                 - { name: config, value: "{{workflow.parameters.config}}" }
                 - { name: base-url, value: "{{workflow.parameters.base-url}}" }
-                - { name: forward, value: "EXPECT_TEMPERATURE ORDER_COOL_DOWN_SECONDS" }
+                - { name: forward, value: USERS }
                 - { name: extra-env, value: "{{workflow.parameters.extra-env}}" }
-                - { name: requires, value: orders }
-                - { name: requires-hint, value: "orders=browser-purchase,http-orders,http-purchase" }
-                - { name: produces, value: "" }
+                - { name: requires, value: "" }
+                - { name: requires-hint, value: "" }
+                - { name: produces, value: "owned-orders=orderId,username,email" }
                 - { name: produce, value: "{{workflow.parameters.produce}}" }

@@ -1,21 +1,21 @@
 apiVersion: punch/v1
-kind: K6Workflow
+kind: K6Job
 metadata:
-  name: http-orders
-  description: Create orders from carts
+  name: browser-purchase
+  description: Full purchase in Chromium
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
-    service: k6
+    service: k6-browser
   k6:
-    script: /scripts/scenarios/http-orders/http-orders.js
-    config: tests/performance/k6/options/5-iterations.json
+    script: /scripts/scenarios/browser-purchase/browser-purchase.js
+    config: tests/performance/k6/options/5-iterations-browser.json
   environment:
     forward: [BASE_URL]
   outputs:
     summary:
-      path: tests/performance/k6/reports/http-orders-summary.json
+      path: tests/performance/k6/reports/browser-purchase-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
@@ -23,8 +23,6 @@ spec:
       - dataset: orders
         columns: [orderId]
         targets: [http-orders-status]
-    requires: [carts]
   sizing:
-    iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
+    iterationSeconds: 7.6   # measured: 1 VU × 10 iterations, durationMs / 10
     maxSeconds: 270         # 30 s under the default config's 5m maxDuration
-    margin: 0.15            # extra rows over the estimate (producer errors)

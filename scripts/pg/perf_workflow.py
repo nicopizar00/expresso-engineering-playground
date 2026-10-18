@@ -1,24 +1,24 @@
-"""perf:chain — run repository k6 workflows in order; a step's datasets feed
+"""perf:workflow — run repository k6 jobs in order; a step's datasets feed
 the steps after it.
 
-    ./dev perf:chain <workflow>[:<shape>] [<workflow>[:<shape>] ...] [--plan]
-    ./dev perf:chain --spec <spec.json> [--plan]
+    ./dev perf:workflow <job>[:<shape>] [<job>[:<shape>] ...] [--plan]
+    ./dev perf:workflow --spec <spec.json> [--plan]
 
-The whole chain is planned before Docker starts; then each step runs through
-the same Punch path as `./dev perf:<workflow>` (pg.k6runner.execute_k6). A
+The whole workflow is planned before Docker starts; then each step runs through
+the same Punch path as `./dev perf:<job>` (pg.k6runner.execute_k6). A
 load is `auto`, a preset stem from tests/performance/k6/options/, or (from
 `--spec`) a custom k6 options JSON beneath that directory. A step whose data a
 later step reads is sized for that reader with Punch's size_producer when its
 load is `auto` (resolved from the last step back); any other `auto` step keeps
-its workflow's spec.k6.config. Browser workflows run a preset's `-browser`
+its job's spec.k6.config. Browser jobs run a preset's `-browser`
 variant, and every browser step's resolved config must stay within
 MAX_BROWSER_VUS. `none` marks an empty step; empty steps may only trail.
 
 A step reads each dataset from the latest earlier step that writes it. Only
 those writers run with --produce, and an optional dataset that no earlier step
-writes uses the scenario's built-in data, so a chain never reads a file left
-by an earlier run. The chain stops at the first failed step. Evidence lands
-in tests/performance/k6/reports/chain/: chain.json, summary.md (rendered from
+writes uses the scenario's built-in data, so a workflow never reads a file left
+by an earlier run. The workflow stops at the first failed step. Evidence lands
+in tests/performance/k6/reports/workflow/: workflow.json, summary.md (rendered from
 it by render_summary), and each step's log, k6 summary, and HTML report.
 """
 
@@ -49,17 +49,17 @@ from pg.paths import (
     BFF_PORT,
     PERF_OPTIONS_DIR,
     PERF_REPORTS_DIR,
-    PERF_WORKFLOWS_DIR,
+    PERF_JOBS_DIR,
     REPO_ROOT,
     repo_path,
 )
-from pg.workflows import WORKFLOWS
+from pg.jobs import JOBS
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
-from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
+from punch.catalog import CatalogError, JobCatalog, load_catalog
 from punch.execution import DEFAULT_DATA, ExecutionResult
 from punch.sizing import SizingError, SizingPlan, rows_needed, size_producer, sizing_evidence
-from punch.workflow import K6Workflow, WorkflowError, read_k6_config
+from punch.job import K6Job, JobError, read_k6_config
 
 EMPTY = "none"
 BROWSER_SERVICE = "k6-browser"
@@ -69,7 +69,7 @@ BROWSER_SUFFIX = "-browser"
 MAX_BROWSER_VUS = 4
 FIXED_VU_EXECUTORS = ("shared-iterations", "per-vu-iterations", "constant-vus")
 ARRIVAL_RATE_EXECUTORS = ("constant-arrival-rate", "ramping-arrival-rate")
-CHAIN_REPORTS_DIR = PERF_REPORTS_DIR / "chain"
+WORKFLOW_REPORTS_DIR = PERF_REPORTS_DIR / "workflow"
 METRIC_KEYS = ("totalRequests", "errorRate", "p90Ms", "checkPassRate", "durationMs")
 OUTCOME_HEADINGS = {
     "passed": "Passed", "failed": "Failed", "rejected": "Rejected", "planned": "Planned",
@@ -111,13 +111,13 @@ def _and(items: Sequence[str]) -> str:
 
 
 def parse_steps(raw: Sequence[str]) -> List[StepRequest]:
-    """`<workflow>[:<shape>]` items as step requests; the shape defaults to auto."""
+    """`<job>[:<shape>]` items as step requests; the shape defaults to auto."""
     steps: List[StepRequest] = []
     for item in raw:
-        workflow, _, shape = item.partition(":")
-        workflow, shape = workflow.strip(), shape.strip() or AUTO
+        job, _, shape = item.partition(":")
+        job, shape = job.strip(), shape.strip() or AUTO
         steps.append(
-            StepRequest(workflow) if shape == AUTO else StepRequest(workflow, PRESET, shape)
+            StepRequest(job) if shape == AUTO else StepRequest(job, PRESET, shape)
         )
     return steps
 
@@ -125,12 +125,12 @@ def parse_steps(raw: Sequence[str]) -> List[StepRequest]:
 @dataclass
 class Step:
     number: int
-    workflow: K6Workflow
+    job: K6Job
     # auto, a preset stem, or "custom"
     shape: str
     # The custom config's path beneath tests/performance/k6/options/
     custom: Optional[str] = None
-    # The preset or spec.k6.config file; None when sized or when the workflow has none.
+    # The preset or spec.k6.config file; None when sized or when the job has none.
     config_path: Optional[Path] = None
     # The k6 options this step runs with (a sized step's generated config).
     config: Dict[str, Any] = field(default_factory=dict)
@@ -149,11 +149,11 @@ class Step:
 
     @property
     def name(self) -> str:
-        return self.workflow.name
+        return self.job.name
 
     @property
     def browser(self) -> bool:
-        return self.workflow.compose_service == BROWSER_SERVICE
+        return self.job.compose_service == BROWSER_SERVICE
 
     def shape_label(self) -> str:
         if self.shape == CUSTOM:
@@ -177,7 +177,7 @@ class Step:
         return "; ".join(parts) or "none"
 
     def run_args(self, sized_config: Optional[Path] = None) -> List[str]:
-        """The `./dev perf:<workflow>` arguments for this step."""
+        """The `./dev perf:<job>` arguments for this step."""
         args: List[str] = []
         if sized_config is not None:
             args += ["--config", str(sized_config)]
@@ -197,30 +197,30 @@ class Plan:
     steps: List[Step]
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    # The workflows the run asked for, in order, including any the plan rejected.
+    # The jobs the run asked for, in order, including any the plan rejected.
     requested: List[str] = field(default_factory=list)
 
 
-def _preset_path(workflow: K6Workflow, shape: str, options_dir: Path) -> Optional[Path]:
-    if workflow.compose_service != BROWSER_SERVICE:
+def _preset_path(job: K6Job, shape: str, options_dir: Path) -> Optional[Path]:
+    if job.compose_service != BROWSER_SERVICE:
         return options_dir / f"{shape}.json"
     path = options_dir / f"{shape}{BROWSER_SUFFIX}.json"
     return path if path.is_file() else None
 
 
 def _select_steps(
-    entries: Sequence[StepRequest], catalog: WorkflowCatalog, options_dir: Path, plan: Plan
+    entries: Sequence[StepRequest], catalog: JobCatalog, options_dir: Path, plan: Plan
 ) -> None:
     """Check names, loads, and gaps; fill plan.steps with the non-empty steps."""
     presets = shapes(options_dir)[1:]
     last = max(
-        (index for index, entry in enumerate(entries) if entry.workflow != EMPTY), default=-1
+        (index for index, entry in enumerate(entries) if entry.job != EMPTY), default=-1
     )
     if last < 0:
-        plan.errors.append("no workflow selected; step 1 needs one")
+        plan.errors.append("no job selected; step 1 needs one")
         return
     for index, entry in enumerate(entries):
-        number, name = index + 1, entry.workflow
+        number, name = index + 1, entry.job
         if index > last:
             if entry.mode != AUTO:
                 plan.warnings.append(f"step {number} is empty; its shape {entry.value} is ignored")
@@ -231,11 +231,11 @@ def _select_steps(
                 "fill steps from step 1 without gaps"
             )
             continue
-        workflow = catalog.workflows.get(name)
-        if workflow is None:
+        job = catalog.jobs.get(name)
+        if job is None:
             plan.errors.append(
-                f"step {number}: unknown workflow {name!r}; "
-                f"known: {', '.join(sorted(catalog.workflows))}"
+                f"step {number}: unknown job {name!r}; "
+                f"known: {', '.join(sorted(catalog.jobs))}"
             )
             continue
         if entry.mode == PRESET and entry.value not in presets:
@@ -244,12 +244,12 @@ def _select_steps(
                 f"use one of: {', '.join(shapes(options_dir))}"
             )
             continue
-        step = Step(number, workflow, entry.value if entry.mode == PRESET else entry.mode)
+        step = Step(number, job, entry.value if entry.mode == PRESET else entry.mode)
         if entry.mode == PRESET:
-            step.config_path = _preset_path(workflow, entry.value, options_dir)
+            step.config_path = _preset_path(job, entry.value, options_dir)
             if step.config_path is None:
                 plan.errors.append(
-                    f"step {number} {name}: a browser workflow has no "
+                    f"step {number} {name}: a browser job has no "
                     f"{preset_name(entry.value)} preset; use one of: "
                     f"{', '.join(preset_name(shape) for shape in browser_shapes(options_dir))}"
                 )
@@ -264,17 +264,17 @@ def _select_steps(
         if entry.mode != AUTO:
             try:
                 step.config = read_k6_config(step.config_path)
-            except WorkflowError as error:
+            except JobError as error:
                 plan.errors.append(f"step {number} {name}: {error}")
                 continue
         plan.steps.append(step)
 
 
-def _link_data(catalog: WorkflowCatalog, plan: Plan) -> None:
+def _link_data(catalog: JobCatalog, plan: Plan) -> None:
     """Point each read at the latest earlier writer; writers produce only what is read."""
     writers: Dict[str, Step] = {}
     for step in plan.steps:
-        data = step.workflow.data
+        data = step.job.data
         if data is None:
             continue
         for dataset in data.requires:
@@ -298,7 +298,7 @@ def _link_data(catalog: WorkflowCatalog, plan: Plan) -> None:
         for product in data.produces:
             writers[product.dataset] = step
     for step in plan.steps:
-        data = step.workflow.data
+        data = step.job.data
         if data is None:
             continue
         step.produce = [p.dataset for p in data.produces if p.dataset in step.readers]
@@ -312,7 +312,7 @@ def _link_data(catalog: WorkflowCatalog, plan: Plan) -> None:
 
 def _sizing_reader(step: Step, by_number: Dict[int, Step]) -> Optional[Step]:
     """The first later step that reads this step's data and is one of its targets."""
-    data = step.workflow.data
+    data = step.job.data
     candidates: List[Step] = []
     for dataset, readers in step.readers.items():
         product = data.product(dataset) if data is not None else None
@@ -332,7 +332,7 @@ def _load_owner(reader: Step, by_number: Dict[int, Step]) -> Step:
     return reader
 
 
-def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
+def _resolve_configs(catalog: JobCatalog, plan: Plan) -> None:
     """Resolve each step's k6 options from the last step back, sizing auto writers."""
     by_number = {step.number: step for step in plan.steps}
     for step in reversed(plan.steps):
@@ -344,7 +344,7 @@ def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
             preset = reader.config_path.stem if reader.config_path is not None else None
             try:
                 sizing = size_producer(
-                    step.workflow, reader.name, catalog, reader.config, preset=preset
+                    step.job, reader.name, catalog, reader.config, preset=preset
                 )
             except SizingError as error:
                 plan.warnings.append(
@@ -362,13 +362,13 @@ def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
                         f"{owner.number} {owner.name}"
                     )
                 continue
-        step.config_path = step.workflow.k6_config
+        step.config_path = step.job.k6_config
         step.config = read_k6_config(step.config_path) if step.config_path is not None else {}
     for step in plan.steps:
         for dataset, readers in step.readers.items():
             reader = by_number[readers[0]]
             try:
-                step.rows_needed[dataset] = rows_needed(reader.workflow, reader.config)
+                step.rows_needed[dataset] = rows_needed(reader.job, reader.config)
             except SizingError:
                 pass
 
@@ -454,14 +454,14 @@ def _check_browser_vus(plan: Plan) -> None:
             )
 
 
-def plan_chain(
+def plan_workflow(
     entries: Sequence[StepRequest],
-    catalog: WorkflowCatalog,
+    catalog: JobCatalog,
     options_dir: Path = PERF_OPTIONS_DIR,
 ) -> Plan:
-    """Validate and size a chain of step requests without running it."""
+    """Validate and size a list of step requests without running it."""
     plan = Plan(
-        steps=[], requested=[entry.workflow for entry in entries if entry.workflow != EMPTY]
+        steps=[], requested=[entry.job for entry in entries if entry.job != EMPTY]
     )
     _select_steps(entries, catalog, options_dir, plan)
     if not plan.errors:
@@ -501,12 +501,12 @@ def _fresh(path: Path, started: float) -> bool:
 
 
 def _collect_evidence(record: StepRecord, started: float, reports_dir: Path) -> None:
-    """Copy the step's log, k6 summary, and HTML report into the chain directory,
+    """Copy the step's log, k6 summary, and HTML report into the workflow directory,
     then read the summary's metrics, threshold results, and emitted metric names."""
     step = record.step
     target = reports_dir / f"step-{step.number}-{step.name}"
     sources = [PERF_REPORTS_DIR / "logs" / f"k6-{step.name}.log"]
-    summary = step.workflow.summary_output.path if step.workflow.summary_output else None
+    summary = step.job.summary_output.path if step.job.summary_output else None
     if summary is not None:
         sources += [summary, summary.with_name(f"{step.name}-report.html")]
     for source in sources:
@@ -535,7 +535,7 @@ def _record(step: Step, code: int, result: Optional[ExecutionResult]) -> StepRec
         record.failure = result.failure
         record.rows = {dataset.dataset: dataset.record_count for dataset in result.datasets}
     elif code != 0:
-        record.failure = "could not prepare the workflow"
+        record.failure = "could not prepare the job"
     return record
 
 
@@ -553,7 +553,7 @@ def _shortfall(record: StepRecord, plan: Plan) -> None:
             warn(message)
 
 
-def run_chain(plan: Plan, reports_dir: Path = CHAIN_REPORTS_DIR) -> int:
+def run_workflow(plan: Plan, reports_dir: Path = WORKFLOW_REPORTS_DIR) -> int:
     """Run every planned step in order; stop at the first failure."""
     records: List[StepRecord] = []
     exit_code = 0
@@ -568,12 +568,12 @@ def run_chain(plan: Plan, reports_dir: Path = CHAIN_REPORTS_DIR) -> int:
             sized_config = reports_dir / f"step-{step.number}-{step.name}.k6-config.json"
             sized_config.write_text(json.dumps(step.config, indent=2) + "\n", encoding="utf-8")
         args = step.run_args(sized_config)
-        header(f"Chain step {step.number}/{total}: {step.name}")
+        header(f"Workflow step {step.number}/{total}: {step.name}")
         info(f"Same as: ./dev perf:{step.name} {' '.join(args)}".rstrip())
         print()
         started = time.time()
         code, result = execute_k6(
-            step.name, args, default_port=WORKFLOWS.get(step.name, BFF_PORT), interactive=False
+            step.name, args, default_port=JOBS.get(step.name, BFF_PORT), interactive=False
         )
         record = _record(step, code, result)
         record.seconds = round(time.time() - started, 1)
@@ -585,10 +585,10 @@ def run_chain(plan: Plan, reports_dir: Path = CHAIN_REPORTS_DIR) -> int:
     write_evidence(plan, records, reports_dir)
     print()
     if exit_code == 0:
-        pass_(f"Chain passed: {total} step{'' if total == 1 else 's'}.")
+        pass_(f"Workflow passed: {total} step{'' if total == 1 else 's'}.")
     else:
         failed = next(record for record in records if record.status == "failed")
-        fail(f"Chain failed at step {failed.step.number} {failed.step.name}.")
+        fail(f"Workflow failed at step {failed.step.number} {failed.step.name}.")
     info(f"Evidence: {_relative(reports_dir)}/")
     print()
     return exit_code
@@ -652,7 +652,7 @@ def _data_cell(step: Dict[str, Any]) -> str:
 def _step_row(step: Dict[str, Any], outcome: str) -> str:
     cells = [
         str(step["step"]),
-        f"`{step['workflow']}`",
+        f"`{step['job']}`",
         _md(step.get("config", "")),
         _data_cell(step),
         _status_cell(step, outcome),
@@ -669,7 +669,7 @@ def _step_row(step: Dict[str, Any], outcome: str) -> str:
 def _details(evidence: Dict[str, Any]) -> List[str]:
     lines: List[str] = []
     thresholds = [
-        f"- Step {step['step']} `{step['workflow']}`: `{item.get('metric')}` "
+        f"- Step {step['step']} `{step['job']}`: `{item.get('metric')}` "
         f"{item.get('expression')} {'held' if item.get('ok') else 'failed'}"
         for step in evidence.get("steps", [])
         for item in step.get("thresholds") or []
@@ -689,22 +689,22 @@ def render_summary(
     notes: Sequence[str] = (),
     runner_warning: bool = False,
 ) -> str:
-    """Markdown for a chain evidence record (chain.json): the heading names the
+    """Markdown for a workflow evidence record (workflow.json): the heading names the
     outcome, one row per step, then errors, the runner warning, and details."""
     outcome = outcome or evidence["outcome"]
     steps = evidence.get("steps", [])
-    names = evidence.get("sequence") or [step["workflow"] for step in steps]
-    sequence = " → ".join(names) or "no workflow"
+    names = evidence.get("jobs") or [step["job"] for step in steps]
+    sequence = " → ".join(names) or "no job"
     heading = OUTCOME_HEADINGS[outcome]
     failed = next((step for step in steps if step.get("status") == "failed"), None)
     if outcome == "failed" and failed is not None:
-        heading += f" at step {failed['step']} {failed['workflow']}"
+        heading += f" at step {failed['step']} {failed['job']}"
     lines = [f"## {heading}: {_md(sequence)}", ""]
     if notes:
         lines += [*[f"- {note}" for note in notes], ""]
     if steps:
         lines += [
-            "| Step | Workflow | Load | Data | Status | Duration | Requests | Errors | p90 "
+            "| Step | Job | Load | Data | Status | Duration | Requests | Errors | p90 "
             "| Checks | Thresholds |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
             *[_step_row(step, outcome) for step in steps],
@@ -722,7 +722,7 @@ def render_summary(
 def _step_evidence(step: Step, record: Optional[StepRecord]) -> Dict[str, Any]:
     entry: Dict[str, Any] = {
         "step": step.number,
-        "workflow": step.name,
+        "job": step.name,
         "shape": step.shape,
         "customConfig": step.custom,
         "config": step.shape_label(),
@@ -758,19 +758,19 @@ def _outcome(plan: Plan, records: Optional[List[StepRecord]]) -> str:
 
 
 def write_evidence(plan: Plan, records: Optional[List[StepRecord]], reports_dir: Path) -> None:
-    """chain.json (the chain's evidence record) and summary.md (rendered from it)."""
+    """workflow.json (the workflow's evidence record) and summary.md (rendered from it)."""
     by_step = {record.step.number: record for record in records or []}
     outcome = _outcome(plan, records)
     evidence = {
         "outcome": outcome,
         "passed": None if records is None else outcome == "passed",
-        "sequence": plan.requested,
+        "jobs": plan.requested,
         "steps": [_step_evidence(step, by_step.get(step.number)) for step in plan.steps],
         "errors": plan.errors,
         "warnings": plan.warnings,
     }
     reports_dir.mkdir(parents=True, exist_ok=True)
-    (reports_dir / "chain.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+    (reports_dir / "workflow.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     (reports_dir / "summary.md").write_text(
         render_summary(evidence, runner_warning=os.environ.get("GITHUB_ACTIONS") == "true"),
         encoding="utf-8",
@@ -788,7 +788,7 @@ def annotate(errors: Sequence[str], warnings: Sequence[str], title: str) -> None
 
 
 def _print_plan(plan: Plan) -> None:
-    header("Punch chain plan")
+    header("Punch workflow plan")
     for step in plan.steps:
         info(f"step {step.number}  {bold(step.name)}  {step.shape_label()}  ({step.data_label()})")
     for message in plan.warnings:
@@ -798,22 +798,22 @@ def _print_plan(plan: Plan) -> None:
     print()
 
 
-def _plan_spec(path: Path, catalog: WorkflowCatalog) -> Plan:
+def _plan_spec(path: Path, catalog: JobCatalog) -> Plan:
     try:
         entries = load_spec(path)
     except SpecError as error:
         return Plan(steps=[], errors=[f"spec {_relative(path)}: {error}"])
-    return plan_chain(entries, catalog)
+    return plan_workflow(entries, catalog)
 
 
 def run(args: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
-        prog="./dev perf:chain",
-        description="Run k6 workflows in order; each step's datasets feed the steps after it.",
+        prog="./dev perf:workflow",
+        description="Run k6 jobs in order; each step's datasets feed the steps after it.",
     )
     parser.add_argument(
-        "steps", nargs="*", metavar="WORKFLOW[:SHAPE]",
-        help=f"A workflow and its shape ({', '.join(shapes())}; default auto). "
+        "steps", nargs="*", metavar="JOB[:SHAPE]",
+        help=f"A job and its shape ({', '.join(shapes())}; default auto). "
              f"'{EMPTY}' marks an empty trailing step.",
     )
     parser.add_argument(
@@ -823,26 +823,26 @@ def run(args: Sequence[str]) -> int:
     )
     parser.add_argument(
         "--plan", action="store_true",
-        help="Validate and size the chain, write its summary, and stop before Docker.",
+        help="Validate and size the workflow, write its summary, and stop before Docker.",
     )
     parsed = parser.parse_args(list(args))
     if parsed.spec and parsed.steps:
         parser.error("--spec replaces positional steps; give one or the other")
     if not parsed.spec and not parsed.steps:
-        parser.error("give at least one WORKFLOW[:SHAPE], or --spec PATH")
+        parser.error("give at least one JOB[:SHAPE], or --spec PATH")
     try:
-        catalog = load_catalog(PERF_WORKFLOWS_DIR)
+        catalog = load_catalog(PERF_JOBS_DIR)
         if parsed.spec:
             plan = _plan_spec(repo_path(parsed.spec), catalog)
         else:
-            plan = plan_chain(parse_steps(parsed.steps), catalog)
-    except (CatalogError, WorkflowError) as error:
-        fail(f"Could not plan the chain: {error}")
+            plan = plan_workflow(parse_steps(parsed.steps), catalog)
+    except (CatalogError, JobError) as error:
+        fail(f"Could not plan the workflow: {error}")
         return 1
-    shutil.rmtree(CHAIN_REPORTS_DIR, ignore_errors=True)
+    shutil.rmtree(WORKFLOW_REPORTS_DIR, ignore_errors=True)
     _print_plan(plan)
-    annotate(plan.errors, plan.warnings, "Punch chain")
+    annotate(plan.errors, plan.warnings, "Punch workflow")
     if plan.errors or parsed.plan:
-        write_evidence(plan, None, CHAIN_REPORTS_DIR)
+        write_evidence(plan, None, WORKFLOW_REPORTS_DIR)
         return 1 if plan.errors else 0
-    return run_chain(plan)
+    return run_workflow(plan)

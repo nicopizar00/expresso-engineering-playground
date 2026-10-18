@@ -1,4 +1,4 @@
-"""Run repository-owned k6 workflows through Punch's public APIs."""
+"""Run repository-owned k6 jobs through Punch's public APIs."""
 
 from __future__ import annotations
 
@@ -10,23 +10,23 @@ from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_WORKFLOWS_DIR, WEB_PORT
+from pg.paths import BFF_PORT, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_JOBS_DIR, WEB_PORT
 from pg.ports import port_in_use
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
-from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
+from punch.catalog import CatalogError, JobCatalog, load_catalog
 from punch.execution import (
     build_compose_run_command,
     confirm_delete_consumed,
     confirm_docker_run,
     data_environment,
     ExecutionResult,
-    execute_workflow,
+    execute_job,
     required_data_paths,
     resolve_data_args,
     validate_produce,
 )
-from punch.workflow import K6Workflow, WorkflowError, load_workflow, read_k6_config
+from punch.job import K6Job, JobError, load_job, read_k6_config
 
 
 def default_base_url(port: int = BFF_PORT) -> str:
@@ -37,7 +37,7 @@ def _readiness_hint(port: int) -> tuple[str, str]:
     """What's expected to be listening on `port`, and how to start it.
 
     browser-purchase drives the web app's UI directly (port 3000);
-    every other workflow calls the BFF (port 3001).
+    every other job calls the BFF (port 3001).
     """
     if port == WEB_PORT:
         return "web app", "./dev up web"
@@ -62,21 +62,21 @@ def _print_metrics(summary_path: Path) -> None:
     print()
 
 
-def _parse_data_args(workflow_name: str, args: Sequence[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog=f"./dev perf:{workflow_name}")
+def _parse_data_args(job_name: str, args: Sequence[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog=f"./dev perf:{job_name}")
     parser.add_argument(
         "--produce", action="append", default=[], metavar="DATASET",
         help="Write a declared dataset (repeatable, or 'all').",
     )
     parser.add_argument(
         "--data", action="append", default=[], metavar="DATASET=PATH|default",
-        help="Read a dataset from PATH (beneath the workflow's data directory), or "
+        help="Read a dataset from PATH (beneath the job's data directory), or "
              "'default' to skip an optional dataset and use the scenario's built-in data.",
     )
     parser.add_argument(
         "--config", default=None, metavar="PRESET|PATH",
         help="k6 options JSON for `k6 run --config`: a preset name from "
-             "tests/performance/k6/options/ or a file path (default: the workflow's "
+             "tests/performance/k6/options/ or a file path (default: the job's "
              "spec.k6.config).",
     )
     return parser.parse_args(list(args))
@@ -94,68 +94,68 @@ def resolve_config(value: Optional[str]) -> Optional[Path]:
 
 
 def _announce_data(
-    workflow: K6Workflow, catalog: WorkflowCatalog, produce: Sequence[str]
+    job: K6Job, catalog: JobCatalog, produce: Sequence[str]
 ) -> None:
-    if workflow.data is None:
+    if job.data is None:
         return
-    for product in workflow.data.produces:
+    for product in job.data.produces:
         state = (
             f"writing {product.dataset}.csv"
             if product.dataset in produce
             else f"not written (add --produce {product.dataset})"
         )
         info(f"Produces {product.dataset} → {', '.join(product.targets)}: {state}")
-    for dataset in workflow.data.requires:
+    for dataset in job.data.requires:
         info(f"Requires {dataset} ← {', '.join(catalog.producers_of(dataset))}")
     print()
 
 
 def run_k6(
-    workflow_name: str,
+    job_name: str,
     args: Sequence[str] = (),
     *,
     extra_env: Optional[Dict[str, str]] = None,
     default_port: int = BFF_PORT,
 ) -> int:
-    """Load and execute one named, repository-owned k6 workflow."""
+    """Load and execute one named, repository-owned k6 job."""
     exit_code, _result = execute_k6(
-        workflow_name, args, extra_env=extra_env, default_port=default_port
+        job_name, args, extra_env=extra_env, default_port=default_port
     )
     return exit_code
 
 
 def execute_k6(
-    workflow_name: str,
+    job_name: str,
     args: Sequence[str] = (),
     *,
     extra_env: Optional[Dict[str, str]] = None,
     default_port: int = BFF_PORT,
     interactive: bool = True,
 ) -> Tuple[int, Optional[ExecutionResult]]:
-    """run_k6 plus Punch's execution result (None when the workflow, its
+    """run_k6 plus Punch's execution result (None when the job, its
     arguments, or its config could not be loaded).
 
     `interactive=False` never prompts: no Docker confirmation and no offer to
-    delete consumed data, which a later chain step may still read.
+    delete consumed data, which a later workflow step may still read.
     """
-    parsed = _parse_data_args(workflow_name, args)
-    workflow_path = PERF_WORKFLOWS_DIR / f"{workflow_name}.yaml"
+    parsed = _parse_data_args(job_name, args)
+    job_path = PERF_JOBS_DIR / f"{job_name}.yaml"
     try:
-        workflow = load_workflow(workflow_path)
-        catalog = load_catalog(PERF_WORKFLOWS_DIR)
-        produce = validate_produce(workflow, parsed.produce)
-        overrides, choices = resolve_data_args(workflow, parsed.data)
-        config = resolve_config(parsed.config) or workflow.k6_config
-    except (WorkflowError, CatalogError, ValueError) as error:
-        fail(f"Could not prepare k6 workflow {workflow_name}: {error}")
+        job = load_job(job_path)
+        catalog = load_catalog(PERF_JOBS_DIR)
+        produce = validate_produce(job, parsed.produce)
+        overrides, choices = resolve_data_args(job, parsed.data)
+        config = resolve_config(parsed.config) or job.k6_config
+    except (JobError, CatalogError, ValueError) as error:
+        fail(f"Could not prepare k6 job {job_name}: {error}")
         return 1, None
 
-    header(f"Punch orchestrator — {workflow.name} (k6)")
+    header(f"Punch orchestrator — {job.name} (k6)")
     base_url = default_base_url(default_port)
     environment = {**os.environ, "BASE_URL": base_url, **(extra_env or {})}
 
     info(f"Target  : {base_url}")
-    info(f"Scenario: {workflow.k6_script}")
+    info(f"Scenario: {job.k6_script}")
     info(f"Config  : {config.name if config is not None else 'script options'}")
     print()
 
@@ -167,11 +167,11 @@ def execute_k6(
         warn(f"{label} does not appear to be listening on :{default_port}. Start it with: {start_cmd}")
         print()
 
-    _announce_data(workflow, catalog, produce)
+    _announce_data(job, catalog, produce)
     command = build_compose_run_command(
-        workflow,
+        job,
         environment,
-        data_env=data_environment(workflow, overrides, choices),
+        data_env=data_environment(job, overrides, choices),
         config=config,
     )
     # An explicit --produce is already a deliberate, scripted choice, so it
@@ -182,8 +182,8 @@ def execute_k6(
         stdin=sys.stdin,
         stdout=sys.stdout,
     )
-    result = execute_workflow(
-        workflow,
+    result = execute_job(
+        job,
         environment=environment,
         produce=produce,
         data_overrides=overrides,
@@ -192,26 +192,26 @@ def execute_k6(
         docker_run_confirmed=docker_run_confirmed,
         stdout=sys.stdout,
         stderr=sys.stderr,
-        log_path=PERF_REPORTS_DIR / "logs" / f"k6-{workflow.name}.log",
+        log_path=PERF_REPORTS_DIR / "logs" / f"k6-{job.name}.log",
         config=config,
     )
     print()
     if result.child_exit_code is not None and interactive:
         confirm_delete_consumed(
-            required_data_paths(workflow, overrides), stdin=sys.stdin, stdout=sys.stdout
+            required_data_paths(job, overrides), stdin=sys.stdin, stdout=sys.stdout
         )
     if result.passed:
-        pass_(f"k6 {workflow.name} completed.")
+        pass_(f"k6 {job.name} completed.")
         for dataset in result.datasets:
             info(f"Wrote {dataset.record_count} {dataset.dataset} rows to {dataset.path}")
         print()
-        if workflow.summary_output is not None:
-            _print_metrics(workflow.summary_output.path)
+        if job.summary_output is not None:
+            _print_metrics(job.summary_output.path)
         return 0, result
 
     if result.child_exit_code:
-        fail(f"k6 {workflow.name} failed (exit code {result.child_exit_code}).")
+        fail(f"k6 {job.name} failed (exit code {result.child_exit_code}).")
         return result.child_exit_code, result
 
-    fail(f"k6 {workflow.name} failed: {result.failure}")
+    fail(f"k6 {job.name} failed: {result.failure}")
     return 1, result

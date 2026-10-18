@@ -25,7 +25,7 @@ scenario: `vus` × `duration` / the target's `iterationSeconds`. Both
 
 ```bash
 PYTHONPATH=vendor/punch/src python3 -m punch run \
-  tests/performance/k6/workflows/http-cart.yaml --size-for http-orders \
+  tests/performance/k6/jobs/http-cart.yaml --size-for http-orders \
   --config tests/performance/k6/options/5-vu-5m.json
 ./dev perf:http-orders --config 5-vu-5m
 ```

@@ -8,20 +8,20 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.paths import PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
+from pg.paths import PERF_JOBS_DIR, REPO_ROOT  # noqa: E402
 from pg.perf_dispatch import INPUTS, env_name  # noqa: E402
 from pg.perf_forms import (  # noqa: E402
     FORM_FILES,
     option_blocks,
     profiles,
-    recipe_label,
-    recipes,
+    workflow_label,
+    workflows,
     render,
     standalone,
 )
 from punch.catalog import load_catalog  # noqa: E402
 
-CATALOG = load_catalog(PERF_WORKFLOWS_DIR)
+CATALOG = load_catalog(PERF_JOBS_DIR)
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 EXECUTE = "./.github/workflows/_perf-execute.yml"
 
@@ -35,8 +35,19 @@ def expression(name: str) -> str:
 
 
 class FormTests(unittest.TestCase):
-    def test_the_old_form_is_gone(self) -> None:
-        self.assertFalse((WORKFLOWS / "perf.yml").exists())
+    def test_the_old_form_files_are_gone(self) -> None:
+        for name in ("perf.yml", "perf-run.yml", "perf-chain.yml"):
+            with self.subTest(name=name):
+                self.assertFalse((WORKFLOWS / name).exists())
+
+    def test_form_titles_and_run_names_use_the_new_terms(self) -> None:
+        job, workflow = load("perf-job.yml"), load("perf-workflow.yml")
+        self.assertEqual(job["name"], "Punch performance — job")
+        self.assertEqual(workflow["name"], "Punch performance — workflow")
+        self.assertTrue(job["run-name"].startswith("perf-job: "))
+        self.assertTrue(workflow["run-name"].startswith("perf-workflow: "))
+        self.assertEqual(job["jobs"]["run"]["with"]["kind"], "job")
+        self.assertEqual(workflow["jobs"]["run"]["with"]["kind"], "workflow")
 
     def test_committed_forms_match_the_catalog(self) -> None:
         blocks, _ = option_blocks(CATALOG)
@@ -47,49 +58,49 @@ class FormTests(unittest.TestCase):
                     render(text, blocks, path.name), text, "run ./dev perf:forms --write"
                 )
 
-    def test_the_single_form_has_a_workflow_and_a_profile(self) -> None:
-        form = load("perf-run.yml")
+    def test_the_single_form_has_a_job_and_a_profile(self) -> None:
+        form = load("perf-job.yml")
         # PyYAML reads the bare `on` key as the boolean True.
         self.assertEqual(list(form[True]), ["workflow_dispatch"])
         inputs = form[True]["workflow_dispatch"]["inputs"]
-        self.assertEqual(list(inputs), ["workflow", "profile"])
-        self.assertEqual(inputs["workflow"]["options"], standalone(CATALOG))
-        self.assertIn(inputs["workflow"]["default"], inputs["workflow"]["options"])
+        self.assertEqual(list(inputs), ["job", "profile"])
+        self.assertEqual(inputs["job"]["options"], standalone(CATALOG))
+        self.assertIn(inputs["job"]["default"], inputs["job"]["options"])
         self.assertEqual(inputs["profile"]["type"], "choice")
         self.assertEqual(inputs["profile"]["options"], profiles())
         self.assertEqual(inputs["profile"]["default"], "1 journey")
-        for name in ("github.actor", "inputs.workflow", "inputs.profile"):
+        for name in ("github.actor", "inputs.job", "inputs.profile"):
             self.assertIn(name, form["run-name"])
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
         self.assertEqual(job["uses"], EXECUTE)
         self.assertEqual(job["with"], {
-            "kind": "single",
-            "selection": expression("inputs.workflow"),
+            "kind": "job",
+            "selection": expression("inputs.job"),
             "profile": expression("inputs.profile"),
         })
 
-    def test_the_chain_form_has_a_recipe_and_a_target_profile(self) -> None:
-        form = load("perf-chain.yml")
+    def test_the_workflow_form_has_a_workflow_and_a_target_profile(self) -> None:
+        form = load("perf-workflow.yml")
         self.assertEqual(list(form[True]), ["workflow_dispatch"])
         inputs = form[True]["workflow_dispatch"]["inputs"]
-        self.assertEqual(list(inputs), ["recipe", "target-profile"])
-        kept, _ = recipes(CATALOG)
-        self.assertEqual(inputs["recipe"]["options"], [recipe_label(path) for path in kept])
-        self.assertIn(inputs["recipe"]["default"], inputs["recipe"]["options"])
+        self.assertEqual(list(inputs), ["workflow", "target-profile"])
+        kept, _ = workflows(CATALOG)
+        self.assertEqual(inputs["workflow"]["options"], [workflow_label(path) for path in kept])
+        self.assertIn(inputs["workflow"]["default"], inputs["workflow"]["options"])
         target = inputs["target-profile"]
         self.assertEqual(target["type"], "choice")
         self.assertEqual(target["options"], profiles())
         self.assertEqual([o for o in target["options"] if o.startswith("Auto")], [])
         self.assertEqual(target["default"], "5 journeys")
-        for name in ("github.actor", "inputs.recipe", "inputs.target-profile"):
+        for name in ("github.actor", "inputs.workflow", "inputs.target-profile"):
             self.assertIn(name, form["run-name"])
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
         self.assertEqual(job["uses"], EXECUTE)
         self.assertEqual(job["with"], {
-            "kind": "chain",
-            "selection": expression("inputs.recipe"),
+            "kind": "workflow",
+            "selection": expression("inputs.workflow"),
             "profile": expression("inputs.target-profile"),
         })
 
@@ -152,9 +163,9 @@ class ExecuteTests(unittest.TestCase):
         ]
         indexes = [self.index(name) for name in order]
         self.assertEqual(indexes, sorted(indexes))
-        self.assertIn('./dev perf:chain --spec "$SPEC" --plan', self.step("Plan the run")["run"])
+        self.assertIn('./dev perf:workflow --spec "$SPEC" --plan', self.step("Plan the run")["run"])
         self.assertIn(
-            './dev perf:chain --spec "$SPEC"\n', self.step("Run the plan")["run"] + "\n"
+            './dev perf:workflow --spec "$SPEC"\n', self.step("Run the plan")["run"] + "\n"
         )
         self.assertEqual(
             self.job["env"]["SPEC"], "tests/performance/k6/reports/dispatch/spec.json"

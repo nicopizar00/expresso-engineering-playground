@@ -1,28 +1,29 @@
 apiVersion: punch/v1
-kind: K6Workflow
+kind: K6Job
 metadata:
-  name: http-purchase-registered
-  description: Purchase as demo users
+  name: http-purchase
+  description: Full purchase journey
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6
   k6:
-    script: /scripts/scenarios/http-purchase-registered/http-purchase-registered.js
+    script: /scripts/scenarios/http-purchase/http-purchase.js
     config: tests/performance/k6/options/5-iterations.json
   environment:
-    forward: [BASE_URL, USERS]
+    forward: [BASE_URL]
   outputs:
     summary:
-      path: tests/performance/k6/reports/http-purchase-registered-summary.json
+      path: tests/performance/k6/reports/http-purchase-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
     produces:
-      - dataset: owned-orders
-        columns: [orderId, username, email]
-        targets: [http-auth-login]
+      - dataset: orders
+        columns: [orderId]
+        targets: [http-orders-status]
+        recommended: true
   sizing:
     iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
     maxSeconds: 270         # 30 s under the default config's 5m maxDuration

@@ -1,5 +1,5 @@
 # Argo CD source for the app: infra/k8s plus a PostSync smoke run of the
-# http-purchase Punch workflow (namespace punch). ./dev k8s:up keeps applying
+# http-purchase Punch job (namespace punch). ./dev k8s:up keeps applying
 # infra/k8s directly; this overlay exists only for Argo CD. It lives outside
 # infra/k8s because kustomize rejects an overlay that includes its own parent
 # directory (cycle).

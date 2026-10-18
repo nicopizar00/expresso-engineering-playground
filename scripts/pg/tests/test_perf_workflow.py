@@ -12,30 +12,30 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg import perf_chain  # noqa: E402
-from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR  # noqa: E402
-from pg.perf_chain import (  # noqa: E402
+from pg import cli, perf_workflow  # noqa: E402
+from pg.paths import PERF_OPTIONS_DIR, PERF_JOBS_DIR  # noqa: E402
+from pg.perf_workflow import (  # noqa: E402
     MAX_BROWSER_VUS,
     _load_owner,
     RUNNER_WARNING,
     parse_steps,
     peak_vus,
-    plan_chain,
+    plan_workflow,
     render_summary,
-    run_chain,
+    run_workflow,
     shapes,
     write_evidence,
 )
 from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 from punch.execution import DatasetResult, ExecutionResult  # noqa: E402
-from punch.workflow import SummaryOutput  # noqa: E402
+from punch.job import SummaryOutput  # noqa: E402
 
-CATALOG = load_catalog(PERF_WORKFLOWS_DIR)
+CATALOG = load_catalog(PERF_JOBS_DIR)
 
 
 def plan(*items: str):
-    return plan_chain(parse_steps(items), CATALOG)
+    return plan_workflow(parse_steps(items), CATALOG)
 
 
 class PlanTests(unittest.TestCase):
@@ -68,10 +68,10 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(orders.produce, ["orders"])
         self.assertEqual(status.reads, {"orders": 2})
 
-    def test_auto_without_a_reader_keeps_the_workflow_config(self) -> None:
+    def test_auto_without_a_reader_keeps_the_job_config(self) -> None:
         [purchase] = plan("http-purchase").steps
         self.assertIsNone(purchase.sizing)
-        self.assertEqual(purchase.config_path, CATALOG.workflows["http-purchase"].k6_config)
+        self.assertEqual(purchase.config_path, CATALOG.jobs["http-purchase"].k6_config)
         self.assertEqual(purchase.run_args(), [])
 
     def test_a_reader_without_an_earlier_writer_is_rejected_naming_producers(self) -> None:
@@ -94,9 +94,9 @@ class PlanTests(unittest.TestCase):
         self.assertEqual([step.name for step in trailing.steps], ["http-purchase"])
         self.assertEqual(trailing.warnings, ["step 3 is empty; its shape 5-vu-5m is ignored"])
 
-    def test_an_empty_chain_unknown_workflow_or_unknown_shape_is_rejected(self) -> None:
-        self.assertEqual(plan("none").errors, ["no workflow selected; step 1 needs one"])
-        self.assertRegex(plan("http-carts").errors[0], r"^step 1: unknown workflow 'http-carts'")
+    def test_an_empty_workflow_unknown_job_or_unknown_shape_is_rejected(self) -> None:
+        self.assertEqual(plan("none").errors, ["no job selected; step 1 needs one"])
+        self.assertRegex(plan("http-carts").errors[0], r"^step 1: unknown job 'http-carts'")
         self.assertRegex(
             plan("http-cart:9-vu-1h").errors[0], r"^step 1 http-cart: unknown shape '9-vu-1h'"
         )
@@ -109,7 +109,7 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(
             plan("browser-cart:5-vu-5m").errors,
             [
-                "step 1 browser-cart: a browser workflow has no 5 users for 5 minutes "
+                "step 1 browser-cart: a browser job has no 5 users for 5 minutes "
                 "(5-vu-5m) preset; use one of: 1 journey (1-iteration), "
                 "5 journeys (5-iterations)"
             ],
@@ -154,7 +154,7 @@ class PlanTests(unittest.TestCase):
         self.assertEqual((third.reads, fourth.reads), ({"carts": 2}, {"carts": 2}))
         self.assertEqual(result.warnings, ["steps 3 and 4 read carts from step 2; its rows are reused"])
 
-    def test_an_optional_dataset_comes_from_the_chain_or_the_built_in_default(self) -> None:
+    def test_an_optional_dataset_comes_from_the_workflow_or_the_built_in_default(self) -> None:
         [login] = plan("http-auth-login").steps
         self.assertEqual(login.defaults, ["owned-orders"])
         self.assertEqual(login.run_args(), ["--data", "owned-orders=default"])
@@ -194,7 +194,7 @@ class LoadTests(unittest.TestCase):
         return f"custom/{name}"
 
     def test_a_custom_reader_config_sizes_the_earlier_auto_producers(self) -> None:
-        result = plan_chain(
+        result = plan_workflow(
             [
                 StepRequest("http-cart"),
                 StepRequest("http-orders"),
@@ -222,7 +222,7 @@ class LoadTests(unittest.TestCase):
             "a": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
             "b": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
         }})
-        result = plan_chain(
+        result = plan_workflow(
             [
                 StepRequest("browser-cart"),
                 StepRequest("http-orders"),
@@ -238,15 +238,15 @@ class LoadTests(unittest.TestCase):
         self.assertIs(_load_owner(orders, by_number), status)
 
     def test_an_unsafe_or_invalid_custom_config_is_a_plan_error(self) -> None:
-        escape = plan_chain([StepRequest("http-cart", CUSTOM, "../x.json")], CATALOG, self.options)
+        escape = plan_workflow([StepRequest("http-cart", CUSTOM, "../x.json")], CATALOG, self.options)
         self.assertEqual(
             escape.errors, ["step 1 http-cart: custom config '../x.json' must not contain '..'"]
         )
         broken = self.custom("broken.json", "{nope")
-        invalid = plan_chain([StepRequest("http-cart", CUSTOM, broken)], CATALOG, self.options)
+        invalid = plan_workflow([StepRequest("http-cart", CUSTOM, broken)], CATALOG, self.options)
         self.assertRegex(invalid.errors[0], r"^step 1 http-cart: could not read k6 config ")
         array = self.custom("array.json", [])
-        not_object = plan_chain([StepRequest("http-cart", CUSTOM, array)], CATALOG, self.options)
+        not_object = plan_workflow([StepRequest("http-cart", CUSTOM, array)], CATALOG, self.options)
         self.assertRegex(not_object.errors[0], r"must be a JSON object$")
 
     def test_a_custom_browser_config_over_the_cap_is_rejected(self) -> None:
@@ -254,7 +254,7 @@ class LoadTests(unittest.TestCase):
             "executor": "shared-iterations", "vus": 6, "iterations": 6,
             "options": {"browser": {"type": "chromium"}},
         }}})
-        result = plan_chain([StepRequest("browser-cart", CUSTOM, big)], CATALOG, self.options)
+        result = plan_workflow([StepRequest("browser-cart", CUSTOM, big)], CATALOG, self.options)
         self.assertEqual(
             result.errors,
             [f"step 1 browser-cart: custom: {big} runs up to 6 browser VUs; "
@@ -267,7 +267,7 @@ class LoadTests(unittest.TestCase):
             "stages": [{"duration": "30s", "target": 3}, {"duration": "30s", "target": 8}],
             "options": {"browser": {"type": "chromium"}},
         }}})
-        result = plan_chain(
+        result = plan_workflow(
             [StepRequest("browser-purchase", CUSTOM, ramping)], CATALOG, self.options
         )
         self.assertEqual(len(result.errors), 1)
@@ -289,7 +289,7 @@ class LoadTests(unittest.TestCase):
         for name, config in cases.items():
             with self.subTest(config=name):
                 path = self.custom(name, config)
-                result = plan_chain([StepRequest("browser-cart", CUSTOM, path)], CATALOG, self.options)
+                result = plan_workflow([StepRequest("browser-cart", CUSTOM, path)], CATALOG, self.options)
                 self.assertEqual(
                     result.errors,
                     [f"step 1 browser-cart: custom: {path} must set options.browser.type on "
@@ -300,7 +300,7 @@ class LoadTests(unittest.TestCase):
         odd = self.custom("odd.json", {"scenarios": {"default": {
             "executor": "externally-controlled", "options": {"browser": {"type": "chromium"}},
         }}})
-        result = plan_chain([StepRequest("browser-cart", CUSTOM, odd)], CATALOG, self.options)
+        result = plan_workflow([StepRequest("browser-cart", CUSTOM, odd)], CATALOG, self.options)
         self.assertEqual(len(result.errors), 1)
         self.assertIn("cannot tell how many browser VUs", result.errors[0])
         self.assertIn('uses executor "externally-controlled"', result.errors[0])
@@ -308,12 +308,12 @@ class LoadTests(unittest.TestCase):
     def test_a_protocol_step_is_never_checked_against_the_browser_cap(self) -> None:
         big = self.custom("big-http.json", {"vus": 50, "duration": "1m"})
         self.assertEqual(
-            plan_chain([StepRequest("http-purchase", CUSTOM, big)], CATALOG, self.options).errors,
+            plan_workflow([StepRequest("http-purchase", CUSTOM, big)], CATALOG, self.options).errors,
             [],
         )
 
     def test_an_unknown_preset_from_a_spec_is_rejected_like_an_unknown_shape(self) -> None:
-        result = plan_chain([StepRequest("http-cart", PRESET, "auto")], CATALOG)
+        result = plan_workflow([StepRequest("http-cart", PRESET, "auto")], CATALOG)
         self.assertRegex(result.errors[0], r"^step 1 http-cart: unknown shape 'auto'")
 
 
@@ -360,7 +360,7 @@ class PeakVusTests(unittest.TestCase):
 
 def _result(name: str, passed: bool, rows: dict | None = None, path: Path = Path("x.csv")):
     return ExecutionResult(
-        workflow_name=name,
+        job_name=name,
         command=(),
         child_exit_code=0 if passed else 99,
         passed=passed,
@@ -374,7 +374,7 @@ def _result(name: str, passed: bool, rows: dict | None = None, path: Path = Path
 class RunTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = TemporaryDirectory()
-        self.reports = Path(self.temporary_directory.name) / "chain"
+        self.reports = Path(self.temporary_directory.name) / "workflow"
         self.out = patch("sys.stdout", StringIO())
         self.out.start()
 
@@ -383,9 +383,9 @@ class RunTests(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     def evidence(self) -> dict:
-        return json.loads((self.reports / "chain.json").read_text(encoding="utf-8"))
+        return json.loads((self.reports / "workflow.json").read_text(encoding="utf-8"))
 
-    @patch("pg.perf_chain.execute_k6")
+    @patch("pg.perf_workflow.execute_k6")
     def test_steps_run_in_order_with_their_arguments_and_stop_at_the_first_failure(
         self, execute
     ) -> None:
@@ -393,9 +393,9 @@ class RunTests(unittest.TestCase):
             (0, _result("http-cart", True, {"carts": 3})),
             (99, _result("http-orders", False, {"orders": 0})),
         ]
-        chain = plan("http-cart", "http-orders", "http-orders-status:1-iteration")
+        workflow = plan("http-cart", "http-orders", "http-orders-status:1-iteration")
 
-        self.assertEqual(run_chain(chain, self.reports), 99)
+        self.assertEqual(run_workflow(workflow, self.reports), 99)
 
         self.assertEqual([c.args[0] for c in execute.call_args_list], ["http-cart", "http-orders"])
         cart_args = execute.call_args_list[0].args[1]
@@ -418,13 +418,13 @@ class RunTests(unittest.TestCase):
         )
         self.assertIn("skipped: an earlier step failed", summary)
 
-    @patch("pg.perf_chain.execute_k6")
+    @patch("pg.perf_workflow.execute_k6")
     def test_fewer_rows_than_the_reader_needs_is_a_warning(self, execute) -> None:
         execute.side_effect = [
             (0, _result("http-cart", True, {"carts": 1})),
             (0, _result("http-orders", True)),
         ]
-        self.assertEqual(run_chain(plan("http-cart", "http-orders:5-iterations"), self.reports), 0)
+        self.assertEqual(run_workflow(plan("http-cart", "http-orders:5-iterations"), self.reports), 0)
         evidence = self.evidence()
         self.assertTrue(evidence["passed"])
         self.assertIn(
@@ -432,10 +432,10 @@ class RunTests(unittest.TestCase):
             evidence["warnings"],
         )
 
-    @patch("pg.perf_chain.execute_k6")
+    @patch("pg.perf_workflow.execute_k6")
     def test_plan_only_writes_the_summary_and_runs_nothing(self, execute) -> None:
-        with patch("pg.perf_chain.CHAIN_REPORTS_DIR", self.reports):
-            self.assertEqual(perf_chain.run(["--plan", "http-cart", "http-orders:5-vu-5m"]), 0)
+        with patch("pg.perf_workflow.WORKFLOW_REPORTS_DIR", self.reports):
+            self.assertEqual(perf_workflow.run(["--plan", "http-cart", "http-orders:5-vu-5m"]), 0)
         execute.assert_not_called()
         self.assertIsNone(self.evidence()["passed"])
         self.assertIn(
@@ -443,14 +443,14 @@ class RunTests(unittest.TestCase):
             (self.reports / "summary.md").read_text(encoding="utf-8"),
         )
 
-    @patch("pg.perf_chain.execute_k6")
-    def test_a_rejected_chain_exits_one_and_annotates_github_actions(self, execute) -> None:
-        with patch("pg.perf_chain.CHAIN_REPORTS_DIR", self.reports), \
+    @patch("pg.perf_workflow.execute_k6")
+    def test_a_rejected_workflow_exits_one_and_annotates_github_actions(self, execute) -> None:
+        with patch("pg.perf_workflow.WORKFLOW_REPORTS_DIR", self.reports), \
              patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
-            self.assertEqual(perf_chain.run(["http-orders", "http-cart"]), 1)
+            self.assertEqual(perf_workflow.run(["http-orders", "http-cart"]), 1)
         execute.assert_not_called()
         self.assertIn(
-            "::error title=Punch chain::step 1 http-orders reads carts", sys.stdout.getvalue()
+            "::error title=Punch workflow::step 1 http-orders reads carts", sys.stdout.getvalue()
         )
         self.assertIn(
             "## Rejected: http-orders → http-cart",
@@ -458,24 +458,24 @@ class RunTests(unittest.TestCase):
         )
 
 
-    def summary_writer(self, chain, summaries: dict):
+    def summary_writer(self, workflow, summaries: dict):
         """Point each step's k6 summary at a temp file the fake k6 run writes."""
-        for step in chain.steps:
+        for step in workflow.steps:
             path = Path(self.temporary_directory.name) / f"{step.name}-summary.json"
-            step.workflow = dataclasses.replace(step.workflow, summary_output=SummaryOutput(path))
+            step.job = dataclasses.replace(step.job, summary_output=SummaryOutput(path))
 
         def execute(name, _args, **_kwargs):
-            step = next(s for s in chain.steps if s.name == name)
+            step = next(s for s in workflow.steps if s.name == name)
             payload = summaries[name]
-            step.workflow.summary_output.path.write_text(json.dumps(payload), encoding="utf-8")
+            step.job.summary_output.path.write_text(json.dumps(payload), encoding="utf-8")
             return (0 if payload["passed"] else 99), _result(name, payload["passed"])
 
         return execute
 
-    @patch("pg.perf_chain.execute_k6")
+    @patch("pg.perf_workflow.execute_k6")
     def test_threshold_results_and_emitted_metrics_reach_the_evidence(self, execute) -> None:
-        chain = plan("http-purchase")
-        execute.side_effect = self.summary_writer(chain, {"http-purchase": {
+        workflow = plan("http-purchase")
+        execute.side_effect = self.summary_writer(workflow, {"http-purchase": {
             "passed": False, "totalRequests": 12, "errorRate": 0, "p90Ms": 1200.4,
             "checkPassRate": 1, "durationMs": 9000,
             "thresholds": [
@@ -485,7 +485,7 @@ class RunTests(unittest.TestCase):
             "emittedMetrics": ["checks", "http_req_duration", "http_req_failed", "http_reqs"],
         }})
 
-        self.assertEqual(run_chain(chain, self.reports), 99)
+        self.assertEqual(run_workflow(workflow, self.reports), 99)
 
         [step] = self.evidence()["steps"]
         self.assertEqual(step["thresholds"][0]["expression"], "p(95)<1000")
@@ -499,16 +499,16 @@ class RunTests(unittest.TestCase):
         self.assertIn("- Step 1 `http-purchase`: `http_req_duration` p(95)<1000 failed", summary)
         self.assertIn("- Step 1 `http-purchase`: `http_req_failed` rate<0.01 held", summary)
 
-    @patch("pg.perf_chain.execute_k6")
+    @patch("pg.perf_workflow.execute_k6")
     def test_metrics_k6_did_not_emit_read_not_emitted_not_zero(self, execute) -> None:
-        chain = plan("browser-cart:1-iteration")
-        execute.side_effect = self.summary_writer(chain, {"browser-cart": {
+        workflow = plan("browser-cart:1-iteration")
+        execute.side_effect = self.summary_writer(workflow, {"browser-cart": {
             "passed": True, "totalRequests": 0, "errorRate": 1, "p90Ms": 0,
             "checkPassRate": 1, "durationMs": 3000,
             "thresholds": [{"metric": "checks", "expression": "rate>0.95", "ok": True}],
             "emittedMetrics": ["checks", "iterations"],
         }})
-        self.assertEqual(run_chain(chain, self.reports), 0)
+        self.assertEqual(run_workflow(workflow, self.reports), 0)
         summary = (self.reports / "summary.md").read_text(encoding="utf-8")
         self.assertIn("| not emitted | not emitted | not emitted | 100.00% | held (1) |", summary)
 
@@ -520,7 +520,7 @@ class RunTests(unittest.TestCase):
 
     def test_the_runner_warning_appears_only_when_asked(self) -> None:
         evidence = {
-            "outcome": "planned", "sequence": ["http-purchase"], "steps": [],
+            "outcome": "planned", "jobs": ["http-purchase"], "steps": [],
             "errors": [], "warnings": [],
         }
         self.assertNotIn(RUNNER_WARNING, render_summary(evidence))
@@ -531,37 +531,55 @@ class RunTests(unittest.TestCase):
             )
         )
 
-    @patch("pg.perf_chain.execute_k6")
+    @patch("pg.perf_workflow.execute_k6")
     def test_a_spec_file_plans_the_same_steps_as_positional_arguments(self, execute) -> None:
         spec = Path(self.temporary_directory.name) / "spec.json"
         spec.write_text(
             json.dumps(spec_document(parse_steps(["http-cart", "http-orders:5-vu-5m"]))),
             encoding="utf-8",
         )
-        with patch("pg.perf_chain.CHAIN_REPORTS_DIR", self.reports):
-            self.assertEqual(perf_chain.run(["--plan", "--spec", str(spec)]), 0)
+        with patch("pg.perf_workflow.WORKFLOW_REPORTS_DIR", self.reports):
+            self.assertEqual(perf_workflow.run(["--plan", "--spec", str(spec)]), 0)
         execute.assert_not_called()
         steps = self.evidence()["steps"]
-        self.assertEqual([s["workflow"] for s in steps], ["http-cart", "http-orders"])
+        self.assertEqual([s["job"] for s in steps], ["http-cart", "http-orders"])
         self.assertEqual(steps[0]["config"], "auto: sized for step 2 (1569 iterations, 7 VUs)")
 
-    @patch("pg.perf_chain.execute_k6")
+    @patch("pg.perf_workflow.execute_k6")
     def test_an_invalid_spec_is_rejected_with_evidence(self, execute) -> None:
         spec = Path(self.temporary_directory.name) / "spec.json"
         spec.write_text(json.dumps({"version": 9, "steps": []}), encoding="utf-8")
-        with patch("pg.perf_chain.CHAIN_REPORTS_DIR", self.reports):
-            self.assertEqual(perf_chain.run(["--spec", str(spec)]), 1)
+        with patch("pg.perf_workflow.WORKFLOW_REPORTS_DIR", self.reports):
+            self.assertEqual(perf_workflow.run(["--spec", str(spec)]), 1)
         execute.assert_not_called()
         evidence = self.evidence()
         self.assertEqual(evidence["outcome"], "rejected")
-        self.assertRegex(evidence["errors"][0], r"^spec .*spec\.json: spec version must be 1$")
+        self.assertRegex(evidence["errors"][0], r"^spec .*spec\.json: spec version must be 2$")
 
     def test_steps_and_spec_are_mutually_exclusive(self) -> None:
         with patch("sys.stderr", StringIO()):
             for args in (["--spec", "x.json", "http-cart"], []):
                 with self.subTest(args=args), self.assertRaises(SystemExit) as caught:
-                    perf_chain.run(args)
+                    perf_workflow.run(args)
                 self.assertEqual(caught.exception.code, 2)
+
+
+class RenamedCommandTests(unittest.TestCase):
+    def test_perf_chain_names_its_replacement(self) -> None:
+        out = StringIO()
+        with patch("sys.stdout", out), patch("sys.stderr", out):
+            self.assertEqual(cli.main(["perf:chain", "http-cart"]), 1)
+        self.assertIn("perf:chain was renamed to perf:workflow", out.getvalue())
+        self.assertIn("perf:workflow", cli.COMMANDS)
+        self.assertNotIn("perf:chain", cli.COMMANDS)
+
+    def test_workflow_evidence_names_its_jobs(self) -> None:
+        with TemporaryDirectory() as temporary:
+            write_evidence(plan_workflow(parse_steps(["http-cart"]), CATALOG), None, Path(temporary))
+            evidence = json.loads((Path(temporary) / "workflow.json").read_text(encoding="utf-8"))
+        self.assertEqual(evidence["jobs"], ["http-cart"])
+        self.assertNotIn("sequence", evidence)
+        self.assertEqual([step["job"] for step in evidence["steps"]], ["http-cart"])
 
 
 if __name__ == "__main__":

@@ -43,9 +43,9 @@ Add more of the stack with `./dev up web`, `./dev up viz`, `./dev up obs`, or
 
 ## Performance testing with Punch
 
-Load tests are k6 scenarios run by **Punch**, a workflow orchestrator vendored
-as a git submodule at `vendor/punch/`. Each `./dev perf:<workflow>` picks one
-YAML workflow; Punch validates it, plans its data, and runs it once through
+Load tests are k6 scenarios run by **Punch**, a job orchestrator vendored
+as a git submodule at `vendor/punch/`. Each `./dev perf:<job>` picks one
+Punch job (a YAML file); Punch validates it, plans its data, and runs it once through
 Docker Compose. Punch needs its pinned Python dependency and the k6 image:
 
 ```bash
@@ -57,7 +57,7 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 Start from the [Punch integration and documentation index](./docs/architecture/punch-implementation.md):
 how Expresso uses Punch, plus links to Punch's Reference Architecture and
 Implementation Guide, README, specs, and validation contract. Expresso-side
-workflows and datasets: [`docs/performance/orchestrator.md`](./docs/performance/orchestrator.md).
+jobs and datasets: [`docs/performance/orchestrator.md`](./docs/performance/orchestrator.md).
 
 ## Repository layout
 
@@ -70,7 +70,7 @@ packages/          Shared TypeScript libraries
 tests/             Cross-app suites (integration, contract, e2e, performance)
 infra/             Docker Compose stacks + observability configs
 scripts/pg/        Python orchestrator package (driven by ./dev)
-vendor/punch/      Punch performance-workflow engine (git submodule)
+vendor/punch/      Punch performance-job engine (git submodule)
 docs/              Documentation hub
 ```
 

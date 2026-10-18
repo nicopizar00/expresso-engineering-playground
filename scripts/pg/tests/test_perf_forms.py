@@ -9,8 +9,8 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import cli  # noqa: E402
-from pg.paths import PERF_WORKFLOWS_DIR  # noqa: E402
-from pg.perf_chain import parse_steps, plan_chain, shapes  # noqa: E402
+from pg.paths import PERF_JOBS_DIR  # noqa: E402
+from pg.perf_workflow import parse_steps, plan_workflow, shapes  # noqa: E402
 from pg.perf_forms import (  # noqa: E402
     CUSTOM_PREFIX,
     FormsError,
@@ -19,15 +19,15 @@ from pg.perf_forms import (  # noqa: E402
     paths,
     profile_load,
     profiles,
-    recipe_label,
-    recipes,
+    workflow_label,
+    workflows,
     render,
     standalone,
 )
 from pg.perf_spec import CUSTOM, PRESET, PRESET_LABELS  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 
-CATALOG = load_catalog(PERF_WORKFLOWS_DIR)
+CATALOG = load_catalog(PERF_JOBS_DIR)
 STANDALONE = [
     "browser-cart",
     "browser-purchase",
@@ -36,7 +36,7 @@ STANDALONE = [
     "http-purchase",
     "http-purchase-registered",
 ]
-RECIPES = [
+WORKFLOWS = [
     ("browser-cart", "http-orders"),
     ("browser-cart", "http-orders", "http-orders-status"),
     ("browser-purchase", "http-orders-status"),
@@ -52,27 +52,27 @@ PRESET_PROFILES = ["1 journey", "5 journeys", "1 user for 5 minutes", "5 users f
 
 def fake_catalog(spec: dict) -> SimpleNamespace:
     """name -> (produces {dataset: [targets]}, requires, optional)."""
-    workflows = {}
+    jobs = {}
     for name, (produces, requires, optional) in spec.items():
-        workflows[name] = SimpleNamespace(data=SimpleNamespace(
+        jobs[name] = SimpleNamespace(data=SimpleNamespace(
             produces=[SimpleNamespace(dataset=d, targets=tuple(t)) for d, t in produces.items()],
             requires=tuple(requires),
             optional=tuple(optional),
         ))
-    return SimpleNamespace(workflows=workflows)
+    return SimpleNamespace(jobs=jobs)
 
 
 class DerivationTests(unittest.TestCase):
-    def test_the_current_catalog_offers_six_standalone_workflows(self) -> None:
+    def test_the_current_catalog_offers_six_standalone_jobs(self) -> None:
         self.assertEqual(standalone(CATALOG), STANDALONE)
 
-    def test_the_current_catalog_offers_nine_recipes_that_all_plan(self) -> None:
-        kept, dropped = recipes(CATALOG)
-        self.assertEqual(kept, RECIPES)
+    def test_the_current_catalog_offers_nine_workflows_that_all_plan(self) -> None:
+        kept, dropped = workflows(CATALOG)
+        self.assertEqual(kept, WORKFLOWS)
         self.assertEqual(dropped, [])
-        for recipe in kept:
-            with self.subTest(recipe=recipe):
-                self.assertEqual(plan_chain(parse_steps(recipe), CATALOG).errors, [])
+        for workflow in kept:
+            with self.subTest(workflow=workflow):
+                self.assertEqual(plan_workflow(parse_steps(workflow), CATALOG).errors, [])
 
     def test_paths_are_acyclic_unique_and_bounded(self) -> None:
         catalog = fake_catalog({
@@ -93,8 +93,8 @@ class DerivationTests(unittest.TestCase):
         })
         self.assertEqual(paths(catalog), [("a", "b")])
 
-    def test_recipe_labels_use_an_ascii_arrow(self) -> None:
-        self.assertEqual(recipe_label(("http-cart", "http-orders")), "http-cart -> http-orders")
+    def test_workflow_labels_use_an_ascii_arrow(self) -> None:
+        self.assertEqual(workflow_label(("http-cart", "http-orders")), "http-cart -> http-orders")
 
 
 class ProfileTests(unittest.TestCase):
@@ -175,11 +175,11 @@ class RenderTests(unittest.TestCase):
         "on:\n"
         "  workflow_dispatch:\n"
         "    inputs:\n"
-        "      workflow:\n"
+        "      job:\n"
         "        options:\n"
-        "          # BEGIN perf:forms workflows\n"
+        "          # BEGIN perf:forms jobs\n"
         "          - stale\n"
-        "          # END perf:forms workflows\n"
+        "          # END perf:forms jobs\n"
         "      profile:\n"
         "        options:\n"
         "          # BEGIN perf:forms profiles\n"
@@ -187,7 +187,7 @@ class RenderTests(unittest.TestCase):
     )
 
     def test_only_the_marked_blocks_change(self) -> None:
-        blocks = {"workflows": ["a", "b c"], "profiles": ["1 journey"]}
+        blocks = {"jobs": ["a", "b c"], "profiles": ["1 journey"]}
         rendered = render(self.TEXT, blocks)
         self.assertEqual(
             rendered,
@@ -200,9 +200,9 @@ class RenderTests(unittest.TestCase):
 
     def test_an_unknown_block_or_a_file_without_blocks_is_an_error(self) -> None:
         with self.assertRaisesRegex(FormsError, "unknown generated block 'profiles'"):
-            render(self.TEXT, {"workflows": []})
+            render(self.TEXT, {"jobs": []})
         with self.assertRaisesRegex(FormsError, "no '# BEGIN perf:forms <id>' block"):
-            render("on: push\n", {"workflows": []})
+            render("on: push\n", {"jobs": []})
 
     def test_option_blocks_name_the_three_lists(self) -> None:
         blocks, dropped = option_blocks(CATALOG)
@@ -210,8 +210,8 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(
             blocks,
             {
-                "workflows": STANDALONE,
-                "recipes": [recipe_label(r) for r in RECIPES],
+                "jobs": STANDALONE,
+                "workflows": [workflow_label(r) for r in WORKFLOWS],
                 "profiles": profiles(),
             },
         )

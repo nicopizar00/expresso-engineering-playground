@@ -60,7 +60,7 @@ class RunK6Tests(unittest.TestCase):
             return []
         return self.fake_args_path.read_text(encoding="utf-8").splitlines()
 
-    def test_run_k6_loads_repository_workflow_and_delegates_one_compose_run(self) -> None:
+    def test_run_k6_loads_repository_job_and_delegates_one_compose_run(self) -> None:
         rc = run_k6("http-purchase", extra_env={"IGNORED_SECRET": "no"})
         self.assertEqual(rc, 0)
         args = self.fake_docker_args()
@@ -69,7 +69,7 @@ class RunK6Tests(unittest.TestCase):
         self.assertIn("/scripts/scenarios/http-purchase/http-purchase.js", args)
         self.assertNotIn("IGNORED_SECRET=no", args)
 
-    def test_run_k6_passes_the_workflow_config_by_default(self) -> None:
+    def test_run_k6_passes_the_job_config_by_default(self) -> None:
         self.assertEqual(run_k6("http-purchase"), 0)
         args = self.fake_docker_args()
         preset = REPO_ROOT / "tests/performance/k6/options/5-iterations.json"
@@ -90,11 +90,11 @@ class RunK6Tests(unittest.TestCase):
             self.assertEqual(run_k6("http-purchase", ["--config", "no-such-preset"]), 1)
         self.assertFalse(self.fake_args_path.exists())
 
-    def test_unknown_workflow_name_fails_before_docker(self) -> None:
+    def test_unknown_job_name_fails_before_docker(self) -> None:
         self.assertEqual(run_k6("missing"), 1)
         self.assertFalse(self.fake_args_path.exists())
 
-    @patch("pg.k6runner.execute_workflow")
+    @patch("pg.k6runner.execute_job")
     def test_run_k6_forwards_produce_and_data(self, execute_mock) -> None:
         execute_mock.return_value = ExecutionResult("http-cart", (), 0, True, None)
         with patch("pg.k6runner.confirm_docker_run", return_value=True):
@@ -104,7 +104,7 @@ class RunK6Tests(unittest.TestCase):
         self.assertEqual(kwargs["data_overrides"], {})
         self.assertEqual(kwargs["producers_of"]("carts"), ("browser-cart", "http-cart"))
 
-    @patch("pg.k6runner.execute_workflow")
+    @patch("pg.k6runner.execute_job")
     def test_data_default_skips_an_optional_dataset(self, execute_mock) -> None:
         execute_mock.return_value = ExecutionResult("http-auth-login", (), 0, True, None)
         with patch("pg.k6runner.confirm_docker_run", return_value=True):
@@ -113,7 +113,7 @@ class RunK6Tests(unittest.TestCase):
 
     @patch("pg.k6runner.confirm_delete_consumed")
     @patch("pg.k6runner.confirm_docker_run", return_value=True)
-    @patch("pg.k6runner.execute_workflow")
+    @patch("pg.k6runner.execute_job")
     def test_execute_k6_without_interaction_never_prompts(
         self, execute_mock, confirm_run, confirm_delete
     ) -> None:
@@ -124,7 +124,7 @@ class RunK6Tests(unittest.TestCase):
         confirm_delete.assert_not_called()
 
     def test_run_k6_rejects_undeclared_produce_before_docker(self) -> None:
-        with patch("pg.k6runner.execute_workflow") as execute_mock:
+        with patch("pg.k6runner.execute_job") as execute_mock:
             self.assertEqual(run_k6("http-orders-status", ["--produce", "carts"]), 1)
         execute_mock.assert_not_called()
         self.assertFalse(self.fake_args_path.exists())
@@ -141,22 +141,22 @@ class RunK6Tests(unittest.TestCase):
             "browser-cart, http-cart (--produce carts)", out.getvalue() + err.getvalue()
         )
 
-    def test_malformed_workflow_fails_before_docker(self) -> None:
-        (self.root / "malformed.yaml").write_text("not: a-workflow\n", encoding="utf-8")
-        with patch("pg.k6runner.PERF_WORKFLOWS_DIR", self.root):
+    def test_malformed_job_fails_before_docker(self) -> None:
+        (self.root / "malformed.yaml").write_text("not: a-job\n", encoding="utf-8")
+        with patch("pg.k6runner.PERF_JOBS_DIR", self.root):
             self.assertEqual(run_k6("malformed"), 1)
         self.assertFalse(self.fake_args_path.exists())
 
-    @patch("pg.k6runner.execute_workflow")
+    @patch("pg.k6runner.execute_job")
     def test_punch_owned_failure_without_nonzero_child_exit_returns_one(self, execute_mock) -> None:
         for child_exit_code in (0, None):
             with self.subTest(child_exit_code=child_exit_code):
                 execute_mock.return_value = ExecutionResult(
-                    workflow_name="http-purchase",
+                    job_name="http-purchase",
                     command=(),
                     child_exit_code=child_exit_code,
                     passed=False,
-                    failure="workflow output validation failed",
+                    failure="job output validation failed",
                 )
                 self.assertEqual(run_k6("http-purchase"), 1)
 
@@ -166,20 +166,20 @@ class RunK6Tests(unittest.TestCase):
 
 
 
-class WorkflowRegistryTests(unittest.TestCase):
-    def test_registry_matches_the_workflow_directory(self) -> None:
-        from pg.paths import PERF_WORKFLOWS_DIR
-        from pg.workflows import WORKFLOWS
+class JobRegistryTests(unittest.TestCase):
+    def test_registry_matches_the_job_directory(self) -> None:
+        from pg.paths import PERF_JOBS_DIR
+        from pg.jobs import JOBS
 
         self.assertEqual(
-            set(WORKFLOWS), {p.stem for p in PERF_WORKFLOWS_DIR.glob("*.yaml")}
+            set(JOBS), {p.stem for p in PERF_JOBS_DIR.glob("*.yaml")}
         )
 
-    def test_browser_workflows_default_to_the_web_port(self) -> None:
+    def test_browser_jobs_default_to_the_web_port(self) -> None:
         from pg.paths import BFF_PORT, WEB_PORT
-        from pg.workflows import WORKFLOWS
+        from pg.jobs import JOBS
 
-        for name, port in WORKFLOWS.items():
+        for name, port in JOBS.items():
             with self.subTest(name=name):
                 self.assertEqual(port, WEB_PORT if name.startswith("browser-") else BFF_PORT)
 
@@ -187,7 +187,7 @@ class WorkflowRegistryTests(unittest.TestCase):
         """./dev --help must work before Punch's requirements are installed."""
         code = (
             "import sys; sys.modules['yaml'] = None; sys.modules['punch'] = None; "
-            "sys.path.insert(0, 'scripts'); import pg.workflows, pg.cli"
+            "sys.path.insert(0, 'scripts'); import pg.jobs, pg.cli"
         )
         result = subprocess.run(
             [sys.executable, "-c", code], cwd=REPO_ROOT, capture_output=True, text=True
@@ -196,9 +196,9 @@ class WorkflowRegistryTests(unittest.TestCase):
 
     @patch("pg.perf.run_k6", return_value=0)
     def test_perf_run_passes_args_and_port(self, run_k6_mock) -> None:
-        from pg.workflows import WORKFLOWS
+        from pg.jobs import JOBS
 
-        for name, port in WORKFLOWS.items():
+        for name, port in JOBS.items():
             with self.subTest(name=name):
                 run_k6_mock.reset_mock()
                 self.assertEqual(perf.run(name, ["--produce", "carts"]), 0)
@@ -207,16 +207,16 @@ class WorkflowRegistryTests(unittest.TestCase):
                 )
 
     @patch("pg.perf.run", return_value=0)
-    def test_cli_exposes_exactly_one_perf_command_per_workflow(self, run_mock) -> None:
-        from pg.workflows import WORKFLOWS
+    def test_cli_exposes_exactly_one_perf_command_per_job(self, run_mock) -> None:
+        from pg.jobs import JOBS
 
         perf_commands = {
             c for c in cli.COMMANDS
             if c.startswith("perf:")
-            and c not in ("perf:chain", "perf:forms", "perf:dispatch", "perf:open-report", "perf:clean")
+            and c not in ("perf:workflow", "perf:forms", "perf:dispatch", "perf:open-report", "perf:clean")
         }
-        self.assertEqual(perf_commands, {f"perf:{name}" for name in WORKFLOWS})
-        for name in WORKFLOWS:
+        self.assertEqual(perf_commands, {f"perf:{name}" for name in JOBS})
+        for name in JOBS:
             run_mock.reset_mock()
             self.assertEqual(cli.COMMANDS[f"perf:{name}"](["--produce", "carts"]), 0)
             run_mock.assert_called_once_with(name, ["--produce", "carts"])

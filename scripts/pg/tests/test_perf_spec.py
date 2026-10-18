@@ -84,12 +84,12 @@ class SpecDocumentTests(unittest.TestCase):
         self.assertEqual(
             spec_document(self.STEPS),
             {
-                "version": 1,
+                "version": 2,
                 "steps": [
-                    {"workflow": "http-cart", "load": {"mode": "auto"}},
-                    {"workflow": "http-orders", "load": {"mode": "preset", "value": "5-vu-5m"}},
+                    {"job": "http-cart", "load": {"mode": "auto"}},
+                    {"job": "http-orders", "load": {"mode": "preset", "value": "5-vu-5m"}},
                     {
-                        "workflow": "http-orders-status",
+                        "job": "http-orders-status",
                         "load": {"mode": "custom", "path": "custom/status-regression.json"},
                     },
                 ],
@@ -97,21 +97,37 @@ class SpecDocumentTests(unittest.TestCase):
         )
         self.assertEqual(parse_spec(spec_document(self.STEPS)), self.STEPS)
 
+    def test_a_version_1_spec_names_the_rename(self) -> None:
+        document = {"version": 1, "steps": [{"workflow": "http-cart", "load": {"mode": "auto"}}]}
+        with self.assertRaises(SpecError) as caught:
+            parse_spec(document)
+        self.assertEqual(
+            str(caught.exception),
+            'spec version 1 is no longer read: set "version": 2 and rename each '
+            'step\'s "workflow" to "job"',
+        )
+
+    def test_a_version_2_spec_names_each_step_job(self) -> None:
+        self.assertEqual(
+            spec_document([StepRequest("http-cart")]),
+            {"version": 2, "steps": [{"job": "http-cart", "load": {"mode": "auto"}}]},
+        )
+
     def test_malformed_documents_are_rejected(self) -> None:
-        good = {"workflow": "http-cart", "load": {"mode": AUTO}}
+        good = {"job": "http-cart", "load": {"mode": AUTO}}
 
         def one(load) -> dict:
-            return {"version": 1, "steps": [{"workflow": "x", "load": load}]}
+            return {"version": 2, "steps": [{"job": "x", "load": load}]}
 
         cases = [
             ("a spec must be a JSON object", []),
-            ("unknown spec keys: extra", {"version": 1, "steps": [good], "extra": 1}),
-            ("spec version must be 1", {"version": 2, "steps": [good]}),
-            ("a spec needs 1 to 4 steps", {"version": 1, "steps": []}),
-            ("a spec needs 1 to 4 steps", {"version": 1, "steps": [good] * 5}),
-            ("exactly workflow and load", {"version": 1, "steps": [{"workflow": "x"}]}),
-            ("workflow must be a non-empty string",
-             {"version": 1, "steps": [{"workflow": "", "load": {"mode": AUTO}}]}),
+            ("unknown spec keys: extra", {"version": 2, "steps": [good], "extra": 1}),
+            ("spec version must be 2", {"version": 3, "steps": [good]}),
+            ("a spec needs 1 to 4 steps", {"version": 2, "steps": []}),
+            ("a spec needs 1 to 4 steps", {"version": 2, "steps": [good] * 5}),
+            ("exactly job and load", {"version": 2, "steps": [{"job": "x"}]}),
+            ("job must be a non-empty string",
+             {"version": 2, "steps": [{"job": "", "load": {"mode": AUTO}}]}),
             ("load mode must be one of auto, preset, custom", one({"mode": "fast"})),
             ("a preset load takes exactly mode, value", one({"mode": PRESET})),
             ("an auto load takes exactly mode", one({"mode": AUTO, "path": "a.json"})),

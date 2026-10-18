@@ -74,7 +74,7 @@ services:
       # No default: the orchestrator always passes an explicit script arg
       # (docker/entrypoint.sh -> scripts/k6-wrapper.sh forwards it as-is
       # unless SCENARIO is set). A hardcoded default here would silently
-      # override whichever workflow was actually selected.
+      # override whichever job was actually selected.
       SCENARIO: ${SCENARIO:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"

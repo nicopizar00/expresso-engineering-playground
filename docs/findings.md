@@ -25,7 +25,7 @@ does not classify severity or change implementation.
   It does not start the stack or run Playwright.
 - `tests/performance/k6/.env.example:23`: `REPORT_OUTPUT` is presented as a
   report destination, but no maintained first-party runtime reads it. Report
-  paths come from the orchestrator and workflow definitions.
+  paths come from the orchestrator and job definitions.
 - `apps/web/src/components/cart/CartCheckoutPanel.tsx:74`: the customer-facing
   checkout request omits the optional idempotency key supported by the shared
   contract. A transport retry from this UI cannot request replay protection.

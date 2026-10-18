@@ -1,31 +1,31 @@
-name: Punch performance — single
+name: Punch performance — job
 
-# Run one Punch workflow that reads no earlier step's data, at one profile,
+# Run one Punch job that reads no earlier step's data, at one profile,
 # against the Expresso stack on this runner. ./dev perf:forms --write
-# generates the marked option blocks from the workflow catalog and the
+# generates the marked option blocks from the job catalog and the
 # committed k6 options; _perf-execute.yml validates, runs, and records the run:
-# docs/performance/orchestrator.md#github-actions-perf-run-and-perf-chain.
+# docs/performance/orchestrator.md#github-actions-perf-job-and-perf-workflow.
 
-run-name: "perf-run: ${{ inputs.workflow }} (${{ inputs.profile }}) by @${{ github.actor }}"
+run-name: "perf-job: ${{ inputs.job }} (${{ inputs.profile }}) by @${{ github.actor }}"
 
 on:
   workflow_dispatch:
     inputs:
-      workflow:
-        description: Workflow
+      job:
+        description: Job
         type: choice
         default: http-purchase
         options:
-          # BEGIN perf:forms workflows
+          # BEGIN perf:forms jobs
           - "browser-cart"
           - "browser-purchase"
           - "http-auth-login"
           - "http-cart"
           - "http-purchase"
           - "http-purchase-registered"
-          # END perf:forms workflows
+          # END perf:forms jobs
       profile:
-        description: Profile (browser workflows run the -browser preset and refuse the 5-minute profiles)
+        description: Profile (browser jobs run the -browser preset and refuse the 5-minute profiles)
         type: choice
         default: 1 journey
         options:
@@ -42,9 +42,9 @@ permissions:
 
 jobs:
   run:
-    name: Punch run
+    name: Punch job
     uses: ./.github/workflows/_perf-execute.yml
     with:
-      kind: single
-      selection: ${{ inputs.workflow }}
+      kind: job
+      selection: ${{ inputs.job }}
       profile: ${{ inputs.profile }}
