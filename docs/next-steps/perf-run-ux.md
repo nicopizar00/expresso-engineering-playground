@@ -1,9 +1,8 @@
 # Running Punch workflows on Expresso
 
 Status: open. Chains run locally and on demand from GitHub Actions. The
-GitHub Actions design below is implemented and verified on GitHub on
-2026-10-17 (Expresso `a8f7460`, Punch `3e7141f`). Local setup and the start
-page still need decisions.
+GitHub Actions design below is implemented; its two-input forms are not yet
+verified on GitHub. Local setup and the start page still need decisions.
 
 Goal: a person who has never run a Punch workflow on Expresso picks the right
 entry point, runs one workflow or a chain, and reads the result, from one
@@ -11,14 +10,14 @@ page, without reading code.
 
 ## What is built
 
-| Entry point                                                            | Runs                                                                                                                          | Stack                                                           | Result                                                                         |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `./dev perf:<workflow>`                                                | One workflow; `--config`, `--produce`, `--data`                                                                               | Local Docker (`./dev up`, `./dev up web` for browser workflows) | Console metrics; `tests/performance/k6/reports/`                               |
-| `./dev perf:chain <workflow>[:<shape>] ...`                            | Workflows in order; each step reads what earlier steps wrote; `auto` sizes writers; `--plan` validates only                   | Local Docker                                                    | `tests/performance/k6/reports/chain/`                                          |
-| GitHub Actions, `perf-run` and `perf-chain` forms                      | One standalone workflow, or one of nine catalog recipes with a load per step (`Auto`, a preset, or a committed custom config) | The GitHub runner (app and k6 on one 4-vCPU VM)                 | Job summary with each threshold's result; artifact `perf-<run id>-<attempt>`   |
-| CI `perf-smoke` job                                                    | `http-purchase` once, then `http-cart`, `http-orders`, `http-orders-status` as a chain                                        | The GitHub runner                                               | Job pass or fail                                                               |
-| Punch's menu and CLI (`python3 -m punch menu`, `punch run --size-for`) | One workflow, interactively or sized for a target                                                                             | Local Docker                                                    | `tests/performance/k6/reports/`; run evidence in `vendor/punch/reports/state/` |
-| `./dev perf:<workflow> --runtime k8s`                                  | One workflow on Argo Workflows                                                                                                | minikube                                                        | S3; see [punch-k8s.md](punch-k8s.md)                                           |
+| Entry point                                                            | Runs                                                                                                                                                                     | Stack                                                           | Result                                                                         |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `./dev perf:<workflow>`                                                | One workflow; `--config`, `--produce`, `--data`                                                                                                                          | Local Docker (`./dev up`, `./dev up web` for browser workflows) | Console metrics; `tests/performance/k6/reports/`                               |
+| `./dev perf:chain <workflow>[:<shape>] ...`                            | Workflows in order; each step reads what earlier steps wrote; `auto` sizes writers; `--plan` validates only                                                              | Local Docker                                                    | `tests/performance/k6/reports/chain/`                                          |
+| GitHub Actions, `perf-run` and `perf-chain` forms                      | One standalone workflow, or one of nine catalog recipes, at one profile for the last step (a preset or a committed custom config); earlier steps are sized automatically | The GitHub runner (app and k6 on one 4-vCPU VM)                 | Job summary with each threshold's result; artifact `perf-<run id>-<attempt>`   |
+| CI `perf-smoke` job                                                    | `http-purchase` once, then `http-cart`, `http-orders`, `http-orders-status` as a chain                                                                                   | The GitHub runner                                               | Job pass or fail                                                               |
+| Punch's menu and CLI (`python3 -m punch menu`, `punch run --size-for`) | One workflow, interactively or sized for a target                                                                                                                        | Local Docker                                                    | `tests/performance/k6/reports/`; run evidence in `vendor/punch/reports/state/` |
+| `./dev perf:<workflow> --runtime k8s`                                  | One workflow on Argo Workflows                                                                                                                                           | minikube                                                        | S3; see [punch-k8s.md](punch-k8s.md)                                           |
 
 Chain rules and evidence: [`orchestrator.md`](../performance/orchestrator.md#chains-perfchain).
 
@@ -81,7 +80,7 @@ workflow order in the form, and shares all execution behavior.
 | Workflow            | Trigger             | Responsibility                                                                          |
 | ------------------- | ------------------- | --------------------------------------------------------------------------------------- |
 | `perf-run.yml`      | `workflow_dispatch` | Select and run one workflow that needs no earlier producer                              |
-| `perf-chain.yml`    | `workflow_dispatch` | Select one complete valid producer/consumer recipe and configure each active step       |
+| `perf-chain.yml`    | `workflow_dispatch` | Select one complete valid producer/consumer recipe and the profile for its last step    |
 | `_perf-execute.yml` | `workflow_call`     | Normalize and validate form values, run them, summarize them, and upload their evidence |
 
 The current user-facing `perf.yml` is replaced by the first two workflows.
@@ -124,77 +123,69 @@ The following constraints were checked against the official documentation on
   `k6 x docs results-output/end-of-test/custom-summary` (k6 docs v2.3.0).
 
 These constraints rule out dependent workflow dropdowns in the native form.
-The chain form therefore selects an already valid complete sequence.
+The chain form therefore selects an already valid complete recipe.
 
 ### What the forms look like
 
-The single-run form contains three inputs:
+The single-run form contains two inputs:
 
 ```text
 Run workflow: Punch performance — single
 Use workflow from: [ main                         v ]
 
 Workflow          [ http-purchase                 v ]
-Load               [ 1 journey                    v ]
-Custom config      [                                ]
+Profile           [ 1 journey                     v ]
 
                                              [ Run workflow ]
 ```
 
-The chain form contains nine inputs: one recipe, four load selectors, and four
-custom-config paths. Four slots preserve the current chain limit; today's
-longest recipe uses three.
+The chain form contains two inputs: one recipe and the profile for its last
+step.
 
 ```text
 Run workflow: Punch performance — chain
-Use workflow from: [ main                                      v ]
+Use workflow from: [ main                                           v ]
 
-Sequence           [ http-cart -> http-orders -> http-orders-status v ]
-Step 1 load         [ Auto (data-size producer; default otherwise) v ]
-Step 1 custom config[                                             ]
-Step 2 load         [ 5 users for 5 minutes                     v ]
-Step 2 custom config[                                             ]
-Step 3 load         [ Custom config                             v ]
-Step 3 custom config[ custom/status-regression.json               ]
-Step 4 load         [ Auto (unused)                              v ]
-Step 4 custom config[                                             ]
+Recipe            [ http-cart -> http-orders -> http-orders-status v ]
+Target profile    [ 5 journeys                                     v ]
 
                                                   [ Run workflow ]
 ```
 
 Both forms use `run-name` so the Actions list shows the selected workflow or
-sequence and the initiating actor. Human-readable form values are translated
-to stable internal values at the form boundary:
+recipe, the profile, and the initiating actor. Human-readable profiles are
+translated to stable internal loads at the form boundary:
 
-| Form label                                     | Internal load value |
-| ---------------------------------------------- | ------------------- |
-| `Auto (data-size producer; default otherwise)` | `auto`              |
-| `1 journey`                                    | `1-iteration`       |
-| `5 journeys`                                   | `5-iterations`      |
-| `1 user for 5 minutes`                         | `1-vu-5m`           |
-| `5 users for 5 minutes`                        | `5-vu-5m`           |
-| `Custom config`                                | `custom`            |
+| Profile                 | Internal load                                 |
+| ----------------------- | --------------------------------------------- |
+| `1 journey`             | `{"mode": "preset", "value": "1-iteration"}`  |
+| `5 journeys`            | `{"mode": "preset", "value": "5-iterations"}` |
+| `1 user for 5 minutes`  | `{"mode": "preset", "value": "1-vu-5m"}`      |
+| `5 users for 5 minutes` | `{"mode": "preset", "value": "5-vu-5m"}`      |
+| `Custom: <path>`        | `{"mode": "custom", "path": "<path>"}`        |
 
-`Auto` has one consistent meaning. When the step produces data for a later
-step, the planner sizes it for the first compatible reader, resolving from the
-end of the chain. Otherwise it uses the workflow's default k6 config. A custom
-reader config participates in sizing an earlier automatic producer.
+The profile always applies to the last workflow. Every earlier step is
+automatic: when it produces data for a later step, the planner sizes it for
+the first compatible reader, resolving from the end of the chain; otherwise it
+uses the workflow's default k6 config. A custom target config participates in
+sizing the earlier producers. A different load for an intermediate step needs
+`./dev perf:chain` or a committed version 1 spec.
 
 Browser workflows transparently map supported presets to their `-browser`
 variant. A duration preset with no browser variant is rejected during
-planning. The static form cannot hide incompatible load values after a
-workflow is selected, so the description warns about this and the planner is
-the authority. After resolving any browser load, including a custom config,
-the planner must be able to calculate its peak VUs and reject a value above
-the current cap of 4.
+planning. The static form cannot hide incompatible profiles after a workflow
+or recipe is selected, so the planner is the authority. After resolving any
+browser load, including a custom config or a size derived from the target
+profile, the planner must be able to calculate its peak VUs and reject a value
+above the current cap of 4.
 
-Custom configs are committed JSON objects beneath
-`tests/performance/k6/options/`; the form path is relative to that directory.
-Absolute paths, `..`, non-JSON files, missing files, and paths outside that
-directory are rejected. `Custom config` with an empty path, or a path supplied
-for another load mode, is also rejected. Values in inactive step slots are
-ignored. This keeps a run reproducible from its selected Git ref and avoids
-accepting executable or inline JSON from the form.
+Custom profiles are committed JSON objects beneath
+`tests/performance/k6/options/custom/`. `./dev perf:forms` lists each one as
+`Custom: <path>`, with `<path>` relative to `tests/performance/k6/options/`.
+The normalizer accepts only a profile it lists for the checked-out commit, and
+the path rules still reject absolute paths, `..`, non-JSON files, missing
+files, and paths outside the options directory. The form takes no free-text
+path or inline JSON, which keeps a run reproducible from its selected Git ref.
 
 ### Catalog-derived choices
 
@@ -232,27 +223,31 @@ match the catalog. Tests pin the current six and nine choices, reject
 duplicates and cycles, enforce the four-step bound, and prove that every
 emitted recipe passes `plan_chain`.
 
+The same command writes the profile list into both forms: the four presets,
+then one `Custom: <path>` entry per committed JSON file beneath
+`tests/performance/k6/options/custom/`.
+
 The form is convenience, not a security boundary. The normalizer regenerates
 the catalog choices at run time and rejects an input not in them. This also
 protects CLI or API dispatches that bypass the dropdown.
 
 ### Normalized execution contract
 
-Both forms call `_perf-execute.yml` with the same ten inputs: `kind`,
-`selection`, and four load/path pairs. The single form fills only the first
-pair; the chain form fills all four. A repository command reads those values
-from environment variables and translates them into one versioned JSON
-document. A single run is exactly the same document with one step:
+Both forms call `_perf-execute.yml` with the same three inputs: `kind`,
+`selection`, and `profile`. A repository command reads those values from
+environment variables, resolves the selection to one workflow or an ordered
+recipe, makes every step automatic, and replaces the last step's load with
+the profile. The result is one versioned JSON document; a single run is the
+same document with one step. The recipe
+`http-cart -> http-orders -> http-orders-status` with the profile
+`Custom: custom/status-regression.json` produces:
 
 ```json
 {
   "version": 1,
   "steps": [
     { "workflow": "http-cart", "load": { "mode": "auto" } },
-    {
-      "workflow": "http-orders",
-      "load": { "mode": "preset", "value": "5-vu-5m" }
-    },
+    { "workflow": "http-orders", "load": { "mode": "auto" } },
     {
       "workflow": "http-orders-status",
       "load": { "mode": "custom", "path": "custom/status-regression.json" }
@@ -317,7 +312,7 @@ that guarantee.
 
 The artifact contains:
 
-- `request.json`: the form values received by the reusable workflow;
+- `request.json`: the three form values received by the reusable workflow;
 - `spec.json`: the immutable normalized specification used by both planning
   and execution;
 - `dispatch.json`: event ref and commit SHA, actor, execution stage, final
@@ -350,17 +345,17 @@ Every summary includes this warning:
 
 ### Failure behavior
 
-| Failure                                    | Result                                                                          |
-| ------------------------------------------ | ------------------------------------------------------------------------------- |
-| Unknown or stale sequence                  | Reject before Docker; annotate the error and upload the attempted specification |
-| Missing required producer or invalid order | Reject before Docker; show the missing dataset and compatible producer          |
-| Invalid preset or browser load             | Reject before Docker; show the supported choices for that workflow              |
-| Invalid or missing custom config           | Reject before Docker; show the path rule or JSON error                          |
-| Browser load exceeds the VU cap            | Reject before Docker; identify the resolved config and peak VUs                 |
-| Stack or image build fails                 | Fail; attach Compose diagnostics and skip k6                                    |
-| k6 exits non-zero or a threshold fails     | Fail that step, skip later steps, retain all completed and failed-step evidence |
-| Summary or artifact evidence is missing    | Fail the job instead of reporting an unevidenced success                        |
-| Teardown fails after another failure       | Preserve the original result and add a cleanup warning                          |
+| Failure                                                           | Result                                                                                         |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Unknown or stale recipe or profile                                | Reject before Docker; annotate the error and upload the attempted specification                |
+| Missing required producer or invalid order                        | Reject before Docker; show the missing dataset and compatible producer                         |
+| Profile a browser workflow cannot run                             | Reject before Docker; show the supported choices for that workflow                             |
+| Invalid or missing custom config                                  | Reject before Docker; show the path rule or JSON error                                         |
+| Browser load, its own or sized for the target, exceeds the VU cap | Reject before Docker; identify the resolved config, peak VUs, and the step whose load to lower |
+| Stack or image build fails                                        | Fail; attach Compose diagnostics and skip k6                                                   |
+| k6 exits non-zero or a threshold fails                            | Fail that step, skip later steps, retain all completed and failed-step evidence                |
+| Summary or artifact evidence is missing                           | Fail the job instead of reporting an unevidenced success                                       |
+| Teardown fails after another failure                              | Preserve the original result and add a cleanup warning                                         |
 
 ### Alternatives rejected
 
@@ -370,6 +365,11 @@ Every summary includes this warning:
   duplicate setup and evidence behavior.
 - Independent workflow dropdowns cannot prevent invalid order in GitHub's
   static native form.
+- A load and a custom-config path for each of four steps in the chain form
+  showed unused fields for shorter recipes and asked the operator to know the
+  planner's steps. One target profile keeps producer sizing; `./dev
+perf:chain` and a version 1 spec keep per-step control. See the
+  [form simplification design](../superpowers/specs/2026-10-17-performance-form-simplification-design.md).
 - A custom GitHub App or external UI could provide dynamic dependent selects,
   but adds authentication, deployment, and maintenance that nine static
   recipes do not justify.
@@ -382,11 +382,11 @@ The design is satisfied when:
    valid recipes for the current catalog.
 2. A one-step run, a two-step producer/consumer run, and each current
    three-step chain can be dispatched without editing YAML.
-3. Every active step accepts automatic/data-sized, preset, or committed custom
-   configuration, and a custom consumer config sizes an earlier automatic
-   producer.
-4. An invalid sequence submitted through the API is rejected before Docker,
-   even though it never appeared in the UI.
+3. The last step accepts a preset or committed custom profile, every earlier
+   step is sized automatically, and a custom target config sizes the earlier
+   producers.
+4. An invalid recipe or profile submitted through the API is rejected before
+   Docker, even though it never appeared in the UI.
 5. Planning and execution consume the same `spec.json`, and that exact file is
    uploaded as evidence.
 6. Threshold failures fail the job and appear by expression in the summary.

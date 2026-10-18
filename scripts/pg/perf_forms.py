@@ -8,10 +8,11 @@ dataset does not count). perf-chain.yml offers every recipe: an acyclic path
 of two to four workflows that starts at one of those, where each link is a
 dataset the producer writes for that consumer (named in its targets) and the
 consumer requires or reads optionally, and that perf:chain plans with every
-step on auto. Only the lines between `# BEGIN perf:forms <id>` and
-`# END perf:forms <id>` change. perf:dispatch derives the same lists at run
-time, so a stale form or an API dispatch cannot run what the catalog does not
-offer.
+step on auto. Both forms offer the same profiles: the preset labels, then
+`Custom: <path>` for every JSON file beneath tests/performance/k6/options/custom/.
+Only the lines between `# BEGIN perf:forms <id>` and `# END perf:forms <id>`
+change. perf:dispatch derives the same lists at run time, so a stale form or an
+API dispatch cannot run what the checked-out commit does not offer.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from pg.ansi import fail, info, pass_, warn
 from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
 from pg.perf_chain import plan_chain
-from pg.perf_spec import AUTO, CUSTOM, LOAD_LABELS, MAX_STEPS, PRESET, PRESET_LABELS, StepRequest
+from pg.perf_spec import CUSTOM, MAX_STEPS, PRESET, PRESET_LABELS, StepRequest
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
@@ -35,7 +36,7 @@ FORM_FILES = (
     REPO_ROOT / ".github" / "workflows" / "perf-run.yml",
     REPO_ROOT / ".github" / "workflows" / "perf-chain.yml",
 )
-SEQUENCE_SEPARATOR = " -> "
+RECIPE_SEPARATOR = " -> "
 CUSTOM_PREFIX = "Custom: "
 CUSTOM_DIR = "custom"
 BLOCK = re.compile(
@@ -48,14 +49,6 @@ BLOCK = re.compile(
 
 class FormsError(ValueError):
     pass
-
-
-def load_mode(label: str) -> Optional[Tuple[str, Optional[str]]]:
-    """(mode, preset stem) for a form load label; None for any other string."""
-    for known, value in LOAD_LABELS:
-        if label == known:
-            return (value, None) if value in (AUTO, CUSTOM) else (PRESET, value)
-    return None
 
 
 def custom_profiles(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
@@ -131,8 +124,8 @@ def paths(catalog: WorkflowCatalog, max_steps: int = MAX_STEPS) -> List[Tuple[st
     return sorted(found)
 
 
-def sequence_label(path: Sequence[str]) -> str:
-    return SEQUENCE_SEPARATOR.join(path)
+def recipe_label(path: Sequence[str]) -> str:
+    return RECIPE_SEPARATOR.join(path)
 
 
 def recipes(
@@ -144,7 +137,7 @@ def recipes(
     for path in paths(catalog):
         plan = plan_chain([StepRequest(name) for name in path], catalog, options_dir)
         if plan.errors:
-            dropped.append(f"{sequence_label(path)}: {'; '.join(plan.errors)}")
+            dropped.append(f"{recipe_label(path)}: {'; '.join(plan.errors)}")
         else:
             kept.append(path)
     return kept, dropped
@@ -157,8 +150,8 @@ def option_blocks(
     kept, dropped = recipes(catalog, options_dir)
     blocks = {
         "workflows": standalone(catalog),
-        "sequences": [sequence_label(path) for path in kept],
-        "loads": [label for label, _ in LOAD_LABELS],
+        "recipes": [recipe_label(path) for path in kept],
+        "profiles": profiles(options_dir),
     }
     return blocks, dropped
 
@@ -216,5 +209,6 @@ def run(args: Sequence[str]) -> int:
         pass_(f"Rewrote {names}.")
     else:
         pass_("The perf forms match the catalog.")
-    info(f"{len(blocks['workflows'])} standalone workflows, {len(blocks['sequences'])} recipes.")
+    info(f"{len(blocks['workflows'])} standalone workflows, {len(blocks['recipes'])} recipes.")
+    info(f"Profiles: {', '.join(blocks['profiles'])}")
     return 0

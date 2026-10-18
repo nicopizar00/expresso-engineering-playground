@@ -13,20 +13,18 @@ from pg.paths import PERF_WORKFLOWS_DIR  # noqa: E402
 from pg.perf_chain import parse_steps, plan_chain, shapes  # noqa: E402
 from pg.perf_forms import (  # noqa: E402
     CUSTOM_PREFIX,
-    LOAD_LABELS,
     FormsError,
     custom_profiles,
-    load_mode,
     option_blocks,
     paths,
     profile_load,
     profiles,
+    recipe_label,
     recipes,
     render,
-    sequence_label,
     standalone,
 )
-from pg.perf_spec import AUTO, CUSTOM, PRESET, PRESET_LABELS  # noqa: E402
+from pg.perf_spec import CUSTOM, PRESET, PRESET_LABELS  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 
 CATALOG = load_catalog(PERF_WORKFLOWS_DIR)
@@ -95,17 +93,8 @@ class DerivationTests(unittest.TestCase):
         })
         self.assertEqual(paths(catalog), [("a", "b")])
 
-    def test_load_labels_cover_auto_custom_and_every_preset(self) -> None:
-        values = [value for _, value in LOAD_LABELS]
-        self.assertEqual(len(set(label for label, _ in LOAD_LABELS)), len(LOAD_LABELS))
-        self.assertEqual(set(values) - {AUTO, CUSTOM}, set(shapes()[1:]))
-        self.assertEqual(load_mode("1 journey"), (PRESET, "1-iteration"))
-        self.assertEqual(load_mode("Auto (data-size producer; default otherwise)"), (AUTO, None))
-        self.assertEqual(load_mode("Custom config"), (CUSTOM, None))
-        self.assertIsNone(load_mode("5-vu-5m"))
-
-    def test_sequence_labels_use_an_ascii_arrow(self) -> None:
-        self.assertEqual(sequence_label(("http-cart", "http-orders")), "http-cart -> http-orders")
+    def test_recipe_labels_use_an_ascii_arrow(self) -> None:
+        self.assertEqual(recipe_label(("http-cart", "http-orders")), "http-cart -> http-orders")
 
 
 class ProfileTests(unittest.TestCase):
@@ -191,26 +180,26 @@ class RenderTests(unittest.TestCase):
         "          # BEGIN perf:forms workflows\n"
         "          - stale\n"
         "          # END perf:forms workflows\n"
-        "      load:\n"
+        "      profile:\n"
         "        options:\n"
-        "          # BEGIN perf:forms loads\n"
-        "          # END perf:forms loads\n"
+        "          # BEGIN perf:forms profiles\n"
+        "          # END perf:forms profiles\n"
     )
 
     def test_only_the_marked_blocks_change(self) -> None:
-        blocks = {"workflows": ["a", "b c"], "loads": ["1 journey"]}
+        blocks = {"workflows": ["a", "b c"], "profiles": ["1 journey"]}
         rendered = render(self.TEXT, blocks)
         self.assertEqual(
             rendered,
             self.TEXT.replace("          - stale\n", '          - "a"\n          - "b c"\n').replace(
-                "          # BEGIN perf:forms loads\n",
-                '          # BEGIN perf:forms loads\n          - "1 journey"\n',
+                "          # BEGIN perf:forms profiles\n",
+                '          # BEGIN perf:forms profiles\n          - "1 journey"\n',
             ),
         )
         self.assertEqual(render(rendered, blocks), rendered)
 
     def test_an_unknown_block_or_a_file_without_blocks_is_an_error(self) -> None:
-        with self.assertRaisesRegex(FormsError, "unknown generated block 'loads'"):
+        with self.assertRaisesRegex(FormsError, "unknown generated block 'profiles'"):
             render(self.TEXT, {"workflows": []})
         with self.assertRaisesRegex(FormsError, "no '# BEGIN perf:forms <id>' block"):
             render("on: push\n", {"workflows": []})
@@ -218,9 +207,14 @@ class RenderTests(unittest.TestCase):
     def test_option_blocks_name_the_three_lists(self) -> None:
         blocks, dropped = option_blocks(CATALOG)
         self.assertEqual(dropped, [])
-        self.assertEqual(blocks["workflows"], STANDALONE)
-        self.assertEqual(blocks["sequences"], [sequence_label(r) for r in RECIPES])
-        self.assertEqual(blocks["loads"], [label for label, _ in LOAD_LABELS])
+        self.assertEqual(
+            blocks,
+            {
+                "workflows": STANDALONE,
+                "recipes": [recipe_label(r) for r in RECIPES],
+                "profiles": profiles(),
+            },
+        )
 
     def test_the_command_is_registered(self) -> None:
         self.assertIn("perf:forms", cli.COMMANDS)

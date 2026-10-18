@@ -1,12 +1,12 @@
 name: Punch performance — single
 
-# Run one Punch workflow that reads no earlier step's data, against the
-# Expresso stack on this runner. ./dev perf:forms --write generates the marked
-# option blocks from the workflow catalog; _perf-execute.yml validates, runs,
-# and records the run:
+# Run one Punch workflow that reads no earlier step's data, at one profile,
+# against the Expresso stack on this runner. ./dev perf:forms --write
+# generates the marked option blocks from the workflow catalog and the
+# committed k6 options; _perf-execute.yml validates, runs, and records the run:
 # docs/performance/orchestrator.md#github-actions-perf-run-and-perf-chain.
 
-run-name: "perf-run: ${{ inputs.workflow }} (${{ inputs.load }}) by @${{ github.actor }}"
+run-name: "perf-run: ${{ inputs.workflow }} (${{ inputs.profile }}) by @${{ github.actor }}"
 
 on:
   workflow_dispatch:
@@ -24,24 +24,18 @@ on:
           - "http-purchase"
           - "http-purchase-registered"
           # END perf:forms workflows
-      load:
-        description: Load (browser workflows run the -browser preset and refuse the 5-minute loads)
+      profile:
+        description: Profile (browser workflows run the -browser preset and refuse the 5-minute profiles)
         type: choice
         default: 1 journey
         options:
-          # BEGIN perf:forms loads
-          - "Auto (data-size producer; default otherwise)"
+          # BEGIN perf:forms profiles
           - "1 journey"
           - "5 journeys"
           - "1 user for 5 minutes"
           - "5 users for 5 minutes"
-          - "Custom config"
-          # END perf:forms loads
-      config:
-        description: Custom config, a JSON path relative to tests/performance/k6/options/ (only with Custom config)
-        type: string
-        required: false
-        default: ""
+          - "Custom: custom/status-regression.json"
+          # END perf:forms profiles
 
 permissions:
   contents: read
@@ -53,5 +47,4 @@ jobs:
     with:
       kind: single
       selection: ${{ inputs.workflow }}
-      load-1: ${{ inputs.load }}
-      config-1: ${{ inputs.config }}
+      profile: ${{ inputs.profile }}

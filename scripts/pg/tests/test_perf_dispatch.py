@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import unittest
 from io import StringIO
@@ -20,19 +21,17 @@ from pg.perf_chain import (  # noqa: E402
     write_evidence,
 )
 from pg.perf_dispatch import INPUTS, env_name, normalize  # noqa: E402
-from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
+from pg.perf_spec import PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 
 CATALOG = load_catalog(PERF_WORKFLOWS_DIR)
-AUTO_LABEL = "Auto (data-size producer; default otherwise)"
+PRESETS_OFFERED = "use one of: 1 journey, 5 journeys, 1 user for 5 minutes, 5 users for 5 minutes"
+STATUS_RECIPE = "http-cart -> http-orders -> http-orders-status"
+STATUS_PROFILE = "Custom: custom/status-regression.json"
 
 
-def request(kind: str, selection: str, *slots) -> dict:
-    values = {name: "" for name in INPUTS}
-    values.update(kind=kind, selection=selection)
-    for number, (load, config) in enumerate(slots, start=1):
-        values[f"load-{number}"], values[f"config-{number}"] = load, config
-    return values
+def request(kind: str, selection: str, profile: str) -> dict:
+    return {"kind": kind, "selection": selection, "profile": profile}
 
 
 def environ(values: dict, **extra: str) -> dict:
@@ -47,87 +46,158 @@ def environ(values: dict, **extra: str) -> dict:
 
 
 class NormalizeTests(unittest.TestCase):
-    def test_env_names_are_upper_snake_case(self) -> None:
-        self.assertEqual(env_name("load-1"), "PERF_LOAD_1")
-        self.assertEqual(len(INPUTS), 10)
+    def test_the_three_inputs_travel_as_upper_snake_case_env(self) -> None:
+        self.assertEqual(INPUTS, ("kind", "selection", "profile"))
+        self.assertEqual(
+            [env_name(name) for name in INPUTS], ["PERF_KIND", "PERF_SELECTION", "PERF_PROFILE"]
+        )
 
-    def test_a_single_run_fills_only_the_first_slot(self) -> None:
+    def test_a_single_run_gives_its_only_step_the_profile(self) -> None:
+        steps, errors = normalize(request("single", "http-purchase", "1 journey"), CATALOG)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            spec_document(steps)["steps"],
+            [{"workflow": "http-purchase", "load": {"mode": "preset", "value": "1-iteration"}}],
+        )
+
+    def test_a_two_step_recipe_gives_the_profile_to_the_target_only(self) -> None:
         steps, errors = normalize(
-            request("single", "http-purchase", ("1 journey", ""), ("garbage", "x.txt")), CATALOG
+            request("chain", "http-cart -> http-orders", "5 users for 5 minutes"), CATALOG
         )
         self.assertEqual(errors, [])
-        self.assertEqual(steps, [StepRequest("http-purchase", PRESET, "1-iteration")])
+        self.assertEqual(
+            spec_document(steps)["steps"],
+            [
+                {"workflow": "http-cart", "load": {"mode": "auto"}},
+                {"workflow": "http-orders", "load": {"mode": "preset", "value": "5-vu-5m"}},
+            ],
+        )
+
+    def test_a_three_step_recipe_with_a_custom_profile_writes_two_auto_producers(self) -> None:
+        steps, errors = normalize(request("chain", STATUS_RECIPE, STATUS_PROFILE), CATALOG)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            spec_document(steps),
+            {
+                "version": 1,
+                "steps": [
+                    {"workflow": "http-cart", "load": {"mode": "auto"}},
+                    {"workflow": "http-orders", "load": {"mode": "auto"}},
+                    {
+                        "workflow": "http-orders-status",
+                        "load": {"mode": "custom", "path": "custom/status-regression.json"},
+                    },
+                ],
+            },
+        )
+
+    def test_a_custom_target_profile_sizes_both_producers_when_planned(self) -> None:
+        steps, _ = normalize(request("chain", STATUS_RECIPE, STATUS_PROFILE), CATALOG)
+        result = plan_chain(steps, CATALOG)
+        self.assertEqual(result.errors, [])
+        cart, orders, _status = result.steps
+        # 2 VUs x 10 per-VU iterations = 20 rows; +15% margin = 23; cart: 23 x 1.15 -> 27.
+        self.assertEqual((orders.sizing.iterations, orders.sized_for), (23, 3))
+        self.assertEqual((cart.sizing.iterations, cart.sized_for), (27, 2))
 
     def test_a_single_run_of_a_consumer_names_its_producers(self) -> None:
-        _steps, errors = normalize(request("single", "http-orders", ("1 journey", "")), CATALOG)
+        _steps, errors = normalize(request("single", "http-orders", "1 journey"), CATALOG)
         self.assertEqual(
             errors,
             ["http-orders reads data an earlier step writes (carts from browser-cart or "
              "http-cart); run it from perf-chain.yml"],
         )
 
-    def test_a_chain_translates_labels_into_the_spec_contract(self) -> None:
+    def test_an_unknown_or_stale_recipe_is_rejected(self) -> None:
         steps, errors = normalize(
-            request(
-                "chain", "http-cart -> http-orders -> http-orders-status",
-                (AUTO_LABEL, ""), ("5 users for 5 minutes", ""),
-                ("Custom config", "custom/status-regression.json"), ("Custom config", ""),
-            ),
-            CATALOG,
-        )
-        self.assertEqual(errors, [])  # slot 4 is inactive: its empty custom path is ignored
-        self.assertEqual(
-            spec_document(steps)["steps"],
-            [
-                {"workflow": "http-cart", "load": {"mode": "auto"}},
-                {"workflow": "http-orders", "load": {"mode": "preset", "value": "5-vu-5m"}},
-                {"workflow": "http-orders-status",
-                 "load": {"mode": "custom", "path": "custom/status-regression.json"}},
-            ],
-        )
-
-    def test_an_unknown_or_stale_sequence_is_rejected(self) -> None:
-        steps, errors = normalize(
-            request("chain", "http-orders -> http-cart", (AUTO_LABEL, "")), CATALOG
+            request("chain", "http-orders -> http-cart", "5 journeys"), CATALOG
         )
         self.assertEqual(steps, [])
+        self.assertEqual(len(errors), 1)
         self.assertRegex(
-            errors[0], r"^unknown or stale sequence 'http-orders -> http-cart'; use one of: "
+            errors[0], r"^unknown or stale recipe 'http-orders -> http-cart'; use one of: "
         )
 
-    def test_an_internal_load_value_or_a_recased_label_is_rejected_naming_the_labels(self) -> None:
-        for label in ("5-vu-5m", "1 Journey", " 1 journey"):
+    def test_an_old_label_an_internal_value_or_a_recased_label_is_not_a_profile(self) -> None:
+        for label in (
+            "Auto (data-size producer; default otherwise)",
+            "Custom config",
+            "5-vu-5m",
+            "1 Journey",
+            " 1 journey",
+            "",
+        ):
             with self.subTest(label=label):
-                _steps, errors = normalize(request("single", "http-purchase", (label, "")), CATALOG)
+                steps, errors = normalize(request("single", "http-purchase", label), CATALOG)
+                self.assertEqual(steps, [])
                 self.assertEqual(len(errors), 1)
-                self.assertIn(f"unknown load {label!r}", errors[0])
-                self.assertIn("1 journey, 5 journeys", errors[0])
+                self.assertTrue(
+                    errors[0].startswith(f"unknown or stale profile {label!r}; {PRESETS_OFFERED}"),
+                    errors[0],
+                )
 
-    def test_custom_path_rules_apply_to_active_slots(self) -> None:
-        cases = {
-            ("Custom config", ""): "needs a JSON path relative to",
-            ("Custom config", "../workflows/http-cart.yaml"): "must not contain '..'",
-            ("1 journey", "custom/status-regression.json"):
-                "a custom config path was given with load '1 journey'",
-        }
-        for slot, message in cases.items():
-            with self.subTest(slot=slot):
-                _steps, errors = normalize(request("single", "http-purchase", slot), CATALOG)
+    def test_a_custom_label_for_a_file_the_form_does_not_offer_is_not_resolved(self) -> None:
+        for label in (
+            "Custom: 1-iteration.json",
+            "Custom: custom/missing.json",
+            "Custom: custom/../1-iteration.json",
+            "Custom:custom/status-regression.json",
+        ):
+            with self.subTest(label=label):
+                steps, errors = normalize(request("single", "http-purchase", label), CATALOG)
+                self.assertEqual(steps, [])
                 self.assertEqual(len(errors), 1)
-                self.assertIn(message, errors[0])
+                self.assertTrue(
+                    errors[0].startswith(f"unknown or stale profile {label!r}; {PRESETS_OFFERED}"),
+                    errors[0],
+                )
+
+    def test_a_listed_custom_profile_that_escapes_through_a_symlink_is_rejected(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            options = root / "options"
+            (options / "custom").mkdir(parents=True)
+            (root / "outside.json").write_text("{}", encoding="utf-8")
+            os.symlink(root / "outside.json", options / "custom" / "link.json")
+            steps, errors = normalize(
+                request("single", "http-purchase", "Custom: custom/link.json"), CATALOG, options
+            )
+        self.assertEqual(steps, [])
+        self.assertEqual(
+            errors,
+            ["profile 'Custom: custom/link.json': custom config 'custom/link.json' resolves "
+             "outside tests/performance/k6/options/"],
+        )
+
+    def test_selection_and_profile_errors_are_reported_together(self) -> None:
+        _steps, errors = normalize(request("single", "nope", "nope"), CATALOG)
+        self.assertEqual(len(errors), 2)
+        self.assertTrue(errors[0].startswith("unknown workflow 'nope'"), errors[0])
+        self.assertTrue(errors[1].startswith("unknown or stale profile 'nope'"), errors[1])
 
     def test_an_unknown_kind_is_rejected(self) -> None:
-        _steps, errors = normalize(request("graph", "http-purchase", ("1 journey", "")), CATALOG)
+        _steps, errors = normalize(request("graph", "http-purchase", "1 journey"), CATALOG)
         self.assertEqual(errors, ["unknown kind 'graph'; use single or chain"])
 
-    def test_custom_requests_keep_the_form_path(self) -> None:
-        steps, _ = normalize(
-            request("single", "http-purchase", ("Custom config", "custom/status-regression.json")),
-            CATALOG,
-        )
-        self.assertEqual(
-            steps, [StepRequest("http-purchase", CUSTOM, "custom/status-regression.json")]
-        )
+    def test_a_profile_the_planner_refuses_passes_normalization_and_fails_the_plan(self) -> None:
+        cases = {
+            ("single", "browser-cart", STATUS_PROFILE):
+                "step 1 browser-cart: custom: custom/status-regression.json must set "
+                "options.browser.type on every scenario",
+            ("single", "browser-cart", "5 users for 5 minutes"):
+                "step 1 browser-cart: a browser workflow has no 5 users for 5 minutes "
+                "(5-vu-5m) preset",
+            ("chain", "browser-purchase -> http-orders-status", "5 users for 5 minutes"):
+                "step 1 browser-purchase: sized for step 2 http-orders-status at 5 users for "
+                "5 minutes (5-vu-5m), it needs 81 browser VUs; the cap is 4",
+        }
+        for (kind, selection, profile), message in cases.items():
+            with self.subTest(selection=selection, profile=profile):
+                steps, errors = normalize(request(kind, selection, profile), CATALOG)
+                self.assertEqual(errors, [])
+                plan_errors = plan_chain(steps, CATALOG).errors
+                self.assertEqual(len(plan_errors), 1)
+                self.assertTrue(plan_errors[0].startswith(message), plan_errors[0])
 
 
 class DispatchTests(unittest.TestCase):
@@ -153,14 +223,14 @@ class DispatchTests(unittest.TestCase):
         return json.loads((self.dir / name).read_text(encoding="utf-8"))
 
     def dispatch_single(self) -> None:
-        values = request("single", "http-purchase", ("1 journey", ""))
+        values = request("single", "http-purchase", "1 journey")
         self.assertEqual(perf_dispatch.dispatch(environ(values), self.dir), 0)
 
     def test_a_valid_dispatch_writes_request_spec_record_and_outputs(self) -> None:
-        values = request(
-            "chain", "browser-cart -> http-orders", (AUTO_LABEL, ""), ("1 journey", "")
-        )
-        code = perf_dispatch.dispatch(environ(values, GITHUB_OUTPUT=str(self.output)), self.dir)
+        values = request("chain", "browser-cart -> http-orders", "1 journey")
+        # A leftover per-step value is not one of the three inputs and must not be copied.
+        env = environ(values, GITHUB_OUTPUT=str(self.output), PERF_LOAD_1="old-form-value")
+        code = perf_dispatch.dispatch(env, self.dir)
         self.assertEqual(code, 0)
         self.assertEqual(self.read("request.json"), values)
         self.assertEqual(
@@ -184,26 +254,28 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual((record["stage"], record["status"]), ("normalize", None))
         self.assertEqual(self.output.read_text(encoding="utf-8"), "browser=true\n")
         for path in self.dir.iterdir():
-            self.assertNotIn("do-not-copy", path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("do-not-copy", text)
+            self.assertNotIn("old-form-value", text)
 
     def test_a_rejected_dispatch_writes_no_spec_and_annotates(self) -> None:
-        values = request("chain", "nope", (AUTO_LABEL, ""))
+        values = request("chain", "nope", "5 journeys")
         env = environ(values, GITHUB_OUTPUT=str(self.output))
         with patch.dict("os.environ", {"GITHUB_ACTIONS": "true"}):
             self.assertEqual(perf_dispatch.dispatch(env, self.dir), 1)
         self.assertFalse((self.dir / "spec.json").exists())
         self.assertRegex(
-            self.read("dispatch.json")["errors"][0], r"^unknown or stale sequence 'nope'"
+            self.read("dispatch.json")["errors"][0], r"^unknown or stale recipe 'nope'"
         )
         self.assertIn(
-            "::error title=Punch dispatch::unknown or stale sequence", sys.stdout.getvalue()
+            "::error title=Punch dispatch::unknown or stale recipe", sys.stdout.getvalue()
         )
         self.assertFalse(self.output.exists())
 
     def test_a_new_dispatch_never_keeps_an_earlier_spec(self) -> None:
         self.dispatch_single()
         (self.dir / "compose-logs.txt").write_text("old", encoding="utf-8")
-        bad = request("single", "http-purchase", ("nope", ""))
+        bad = request("single", "http-purchase", "nope")
         self.assertEqual(perf_dispatch.dispatch(environ(bad), self.dir), 1)
         self.assertEqual(
             sorted(p.name for p in self.dir.iterdir()), ["dispatch.json", "request.json"]
@@ -211,7 +283,7 @@ class DispatchTests(unittest.TestCase):
 
     def test_a_new_dispatch_clears_chain_evidence_from_an_earlier_run(self) -> None:
         write_evidence(plan_chain(parse_steps(["http-cart"]), CATALOG), None, self.chain)
-        bad = request("single", "http-orders", ("1 journey", ""))
+        bad = request("single", "http-orders", "1 journey")
         self.assertEqual(perf_dispatch.dispatch(environ(bad), self.dir, chain_dir=self.chain), 1)
         self.assertFalse(self.chain.exists())
         self.assertEqual(self.finalize("failure"), 0)
@@ -222,6 +294,19 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(perf_dispatch.stage("stack", self.dir), 0)
         self.assertEqual(self.read("dispatch.json")["stage"], "stack")
         self.assertEqual(perf_dispatch.stage("teleport", self.dir), 1)
+
+    def test_an_unknown_profile_is_rejected_before_docker_and_recorded(self) -> None:
+        values = request("chain", "http-cart -> http-orders", "Custom config")
+        self.assertEqual(perf_dispatch.dispatch(environ(values), self.dir), 1)
+        self.assertFalse((self.dir / "spec.json").exists())
+        self.assertEqual(self.read("request.json"), values)
+        self.assertRegex(
+            self.read("dispatch.json")["errors"][0], r"^unknown or stale profile 'Custom config'"
+        )
+        self.assertEqual(self.finalize("failure"), 0)
+        self.assertEqual(self.read("dispatch.json")["status"], "rejected")
+        self.assertTrue(self.summary().startswith("## Rejected: `http-cart -> http-orders`"))
+        self.assertIn("unknown or stale profile 'Custom config'", self.summary())
 
     # --- finalize ---------------------------------------------------------
 
@@ -237,14 +322,14 @@ class DispatchTests(unittest.TestCase):
         write_evidence(plan, [record], self.chain)
 
     def finalize(self, job: str) -> int:
-        env = environ(request("single", "http-purchase", ("1 journey", "")), PERF_JOB_STATUS=job)
+        env = environ(request("single", "http-purchase", "1 journey"), PERF_JOB_STATUS=job)
         return perf_dispatch.finalize(env, self.dir, self.chain)
 
     def summary(self) -> str:
         return (self.dir / "summary.md").read_text(encoding="utf-8")
 
     def test_a_rejected_dispatch_finalizes_as_rejected(self) -> None:
-        perf_dispatch.dispatch(environ(request("single", "nope", ("1 journey", ""))), self.dir)
+        perf_dispatch.dispatch(environ(request("single", "nope", "1 journey")), self.dir)
         self.assertEqual(self.finalize("failure"), 0)
         self.assertEqual(self.read("dispatch.json")["status"], "rejected")
         self.assertTrue(self.summary().startswith("## Rejected: `nope`"))
@@ -317,7 +402,7 @@ class DispatchTests(unittest.TestCase):
     def test_finalize_reads_the_chain_directory_that_dispatch_clears(self) -> None:
         self.dispatch_single()
         self.chain_evidence(passed=False)
-        env = environ(request("single", "http-purchase", ("1 journey", "")), PERF_JOB_STATUS="failure")
+        env = environ(request("single", "http-purchase", "1 journey"), PERF_JOB_STATUS="failure")
         self.assertEqual(perf_dispatch.finalize(env, self.dir), 0)
         self.assertTrue(self.summary().startswith("## Failed at step 1 http-purchase"))
 

@@ -6,11 +6,13 @@
     ./dev perf:dispatch --publish     append the job summary and artifact link to GITHUB_STEP_SUMMARY
 
 Form values arrive as environment variables, never as script text. The
-normalizer re-derives the form choices from the catalog (pg.perf_forms), so a
-stale form or an API dispatch cannot run what the catalog does not offer, and
-translates the form's load labels into the versioned spec (pg.perf_spec) that
-`perf:chain --spec` plans and then runs unchanged. Evidence lands in
-tests/performance/k6/reports/dispatch/: request.json (the ten form values as
+normalizer re-derives the form choices from the catalog and the options
+directory (pg.perf_forms), so a stale form or an API dispatch cannot run what
+the checked-out commit does not offer. It writes the versioned spec
+(pg.perf_spec) that `perf:chain --spec` plans and then runs unchanged: the
+profile is the last step's load, and every earlier step is auto, so the
+planner sizes it for the step that reads its data. Evidence lands in
+tests/performance/k6/reports/dispatch/: request.json (the three form values as
 received), spec.json (written once, read-only), dispatch.json (run metadata,
 stage, status), summary.md (the job summary), and Compose diagnostics when the
 stack fails to start. No other environment value is copied.
@@ -34,17 +36,8 @@ from pg.perf_chain import (
     annotate,
     render_summary,
 )
-from pg.perf_forms import load_mode, recipes, sequence_label, standalone
-from pg.perf_spec import (
-    CUSTOM,
-    CUSTOM_LABEL,
-    LOAD_LABELS,
-    MAX_STEPS,
-    SpecError,
-    StepRequest,
-    custom_config_path,
-    write_spec,
-)
+from pg.perf_forms import profile_load, profiles, recipe_label, recipes, standalone
+from pg.perf_spec import CUSTOM, SpecError, StepRequest, custom_config_path, write_spec
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
@@ -52,11 +45,7 @@ from punch.workflow import WorkflowError
 
 DISPATCH_DIR = PERF_REPORTS_DIR / "dispatch"
 KINDS = ("single", "chain")
-INPUTS: Tuple[str, ...] = (
-    "kind",
-    "selection",
-    *[f"{field}-{number}" for number in range(1, MAX_STEPS + 1) for field in ("load", "config")],
-)
+INPUTS: Tuple[str, ...] = ("kind", "selection", "profile")
 STAGES = ("plan", "stack", "images", "execute")
 TITLE = "Punch dispatch"
 
@@ -95,44 +84,36 @@ def _chain(
     selection: str, catalog: WorkflowCatalog, options_dir: Path, errors: List[str]
 ) -> List[str]:
     kept, _dropped = recipes(catalog, options_dir)
-    offered = {sequence_label(path): list(path) for path in kept}
+    offered = {recipe_label(path): list(path) for path in kept}
     if selection in offered:
         return offered[selection]
-    errors.append(f"unknown or stale sequence {selection!r}; use one of: {', '.join(offered)}")
+    errors.append(f"unknown or stale recipe {selection!r}; use one of: {', '.join(offered)}")
     return []
 
 
-def _step(
-    number: int, workflow: str, label: str, path: str, options_dir: Path, errors: List[str]
-) -> Optional[StepRequest]:
-    where = f"step {number} {workflow}"
-    mode = load_mode(label)
-    if mode is None:
-        labels = ", ".join(known for known, _ in LOAD_LABELS)
-        errors.append(f"{where}: unknown load {label!r}; use one of: {labels}")
+def _profile(label: str, options_dir: Path, errors: List[str]) -> Optional[Tuple[str, str]]:
+    """The (mode, value) load an offered profile label names; custom paths re-checked."""
+    load = profile_load(label, options_dir)
+    if load is None:
+        errors.append(
+            f"unknown or stale profile {label!r}; use one of: {', '.join(profiles(options_dir))}"
+        )
         return None
-    kind, preset = mode
-    if kind != CUSTOM:
-        if path:
-            errors.append(
-                f"{where}: a custom config path was given with load {label!r}; "
-                f"choose {CUSTOM_LABEL!r} or clear the path"
-            )
+    mode, value = load
+    if mode == CUSTOM:
+        try:
+            custom_config_path(value, options_dir)
+        except SpecError as error:
+            errors.append(f"profile {label!r}: {error}")
             return None
-        return StepRequest(workflow, kind, preset)
-    try:
-        custom_config_path(path, options_dir)
-    except SpecError as error:
-        errors.append(f"{where}: {error}")
-        return None
-    return StepRequest(workflow, CUSTOM, path)
+    return load
 
 
 def normalize(
     request: Mapping[str, str], catalog: WorkflowCatalog, options_dir: Path = PERF_OPTIONS_DIR
 ) -> Tuple[List[StepRequest], List[str]]:
     """The step requests a form submission asks for, or the reasons it cannot run.
-    Slots past the selected workflow or sequence are inactive and ignored."""
+    The profile is the last step's load; every earlier step is auto."""
     errors: List[str] = []
     kind, selection = request.get("kind", ""), request.get("selection", "")
     if kind == "single":
@@ -142,15 +123,11 @@ def normalize(
     else:
         errors.append(f"unknown kind {kind!r}; use {' or '.join(KINDS)}")
         names = []
-    steps: List[StepRequest] = []
-    for number, name in enumerate(names, start=1):
-        step = _step(
-            number, name, request.get(f"load-{number}", ""), request.get(f"config-{number}", ""),
-            options_dir, errors,
-        )
-        if step is not None:
-            steps.append(step)
-    return ([] if errors else steps), errors
+    target = _profile(request.get("profile", ""), options_dir, errors)
+    if errors or target is None:
+        return [], errors
+    mode, value = target
+    return [StepRequest(name) for name in names[:-1]] + [StepRequest(names[-1], mode, value)], []
 
 
 # --- records -----------------------------------------------------------------

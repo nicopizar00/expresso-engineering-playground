@@ -15,41 +15,13 @@ on:
         type: string
         required: true
       selection:
-        description: The workflow (single) or sequence label (chain)
+        description: The workflow (single) or recipe label (chain)
         type: string
         required: true
-      load-1:
+      profile:
+        description: The profile label; the dispatcher applies it to the last step
         type: string
-        required: false
-        default: ""
-      config-1:
-        type: string
-        required: false
-        default: ""
-      load-2:
-        type: string
-        required: false
-        default: ""
-      config-2:
-        type: string
-        required: false
-        default: ""
-      load-3:
-        type: string
-        required: false
-        default: ""
-      config-3:
-        type: string
-        required: false
-        default: ""
-      load-4:
-        type: string
-        required: false
-        default: ""
-      config-4:
-        type: string
-        required: false
-        default: ""
+        required: true
 
 permissions:
   contents: read
@@ -85,14 +57,7 @@ jobs:
           # Form values reach Python as data, never as script text.
           PERF_KIND: ${{ inputs.kind }}
           PERF_SELECTION: ${{ inputs.selection }}
-          PERF_LOAD_1: ${{ inputs.load-1 }}
-          PERF_CONFIG_1: ${{ inputs.config-1 }}
-          PERF_LOAD_2: ${{ inputs.load-2 }}
-          PERF_CONFIG_2: ${{ inputs.config-2 }}
-          PERF_LOAD_3: ${{ inputs.load-3 }}
-          PERF_CONFIG_3: ${{ inputs.config-3 }}
-          PERF_LOAD_4: ${{ inputs.load-4 }}
-          PERF_CONFIG_4: ${{ inputs.config-4 }}
+          PERF_PROFILE: ${{ inputs.profile }}
           PERF_RUNNER_LABEL: ubuntu-latest
         run: ./dev perf:dispatch
       - name: Plan the run
