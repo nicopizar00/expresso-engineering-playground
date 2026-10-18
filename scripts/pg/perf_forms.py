@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from pg.ansi import fail, info, pass_, warn
 from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
 from pg.perf_chain import plan_chain
-from pg.perf_spec import AUTO, CUSTOM, LOAD_LABELS, MAX_STEPS, PRESET, StepRequest
+from pg.perf_spec import AUTO, CUSTOM, LOAD_LABELS, MAX_STEPS, PRESET, PRESET_LABELS, StepRequest
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
@@ -36,6 +36,8 @@ FORM_FILES = (
     REPO_ROOT / ".github" / "workflows" / "perf-chain.yml",
 )
 SEQUENCE_SEPARATOR = " -> "
+CUSTOM_PREFIX = "Custom: "
+CUSTOM_DIR = "custom"
 BLOCK = re.compile(
     r"^(?P<indent>[ \t]*)# BEGIN perf:forms (?P<id>[\w-]+)\n"
     r"(?P<body>.*?)"
@@ -53,6 +55,35 @@ def load_mode(label: str) -> Optional[Tuple[str, Optional[str]]]:
     for known, value in LOAD_LABELS:
         if label == known:
             return (value, None) if value in (AUTO, CUSTOM) else (PRESET, value)
+    return None
+
+
+def custom_profiles(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
+    """`Custom: <path>` for every JSON file beneath options/custom/, at any depth,
+    sorted by its path relative to the options directory."""
+    root = options_dir / CUSTOM_DIR
+    if not root.is_dir():
+        return []
+    found = sorted(
+        path.relative_to(options_dir).as_posix()
+        for path in root.rglob("*.json")
+        if path.is_file()
+    )
+    return [CUSTOM_PREFIX + path for path in found]
+
+
+def profiles(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
+    """The profile choices: the preset labels, then the committed custom configs."""
+    return [label for label, _ in PRESET_LABELS] + custom_profiles(options_dir)
+
+
+def profile_load(label: str, options_dir: Path = PERF_OPTIONS_DIR) -> Optional[Tuple[str, str]]:
+    """(preset, stem) or (custom, path) for an offered profile label; None for any other string."""
+    for known, stem in PRESET_LABELS:
+        if label == known:
+            return PRESET, stem
+    if label in custom_profiles(options_dir):
+        return CUSTOM, label[len(CUSTOM_PREFIX):]
     return None
 
 

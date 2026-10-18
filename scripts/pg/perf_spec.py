@@ -31,17 +31,22 @@ CUSTOM = "custom"
 LOAD_MODES = (AUTO, PRESET, CUSTOM)
 _LOAD_KEYS = {AUTO: {"mode"}, PRESET: {"mode", "value"}, CUSTOM: {"mode", "path"}}
 OPTIONS_LABEL = "tests/performance/k6/options/"
-CUSTOM_LABEL = "Custom config"
-# Form label -> internal load value; every value but auto and custom is a preset stem.
-LOAD_LABELS: Tuple[Tuple[str, str], ...] = (
-    ("Auto (data-size producer; default otherwise)", AUTO),
+# GitHub form profile label -> preset stem; pg.perf_forms adds one
+# `Custom: <path>` profile per committed custom config.
+PRESET_LABELS: Tuple[Tuple[str, str], ...] = (
     ("1 journey", "1-iteration"),
     ("5 journeys", "5-iterations"),
     ("1 user for 5 minutes", "1-vu-5m"),
     ("5 users for 5 minutes", "5-vu-5m"),
+)
+CUSTOM_LABEL = "Custom config"
+# Form label -> internal load value; every value but auto and custom is a preset stem.
+LOAD_LABELS: Tuple[Tuple[str, str], ...] = (
+    ("Auto (data-size producer; default otherwise)", AUTO),
+    *PRESET_LABELS,
     (CUSTOM_LABEL, CUSTOM),
 )
-_PRESET_LABELS = {value: label for label, value in LOAD_LABELS if value not in (AUTO, CUSTOM)}
+_PRESET_LABELS = {value: label for label, value in PRESET_LABELS}
 
 
 class SpecError(ValueError):
