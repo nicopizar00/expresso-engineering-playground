@@ -213,9 +213,9 @@ planned before Docker starts (`scripts/pg/perf_chain.py`):
   warns and keeps the workflow's config.
 - A browser step runs the preset's `-browser` variant; a shape without one
   (`1-vu-5m`, `5-vu-5m`) fails the plan.
-- A sized browser step needs at most 4 VUs, or the plan fails and asks for a
-  smaller load on the step that sets its size: its reader, or, when that
-  reader is sized too, the first step down the chain of readers that is not.
+- A sized browser step needs at most 4 VUs, or the plan fails and names the
+  step whose load to lower: the first step down its chain of readers that is
+  not `auto`, or the last of them when all are.
   The cap is a starting value for a 4-vCPU runner that also runs the app; it
   is not measured.
 - Every other browser step's resolved config (preset, custom, or the
@@ -263,7 +263,7 @@ where each link is a dataset the producer writes for that consumer (named in
 its `targets`) and the consumer requires or reads optionally, and that
 `perf:chain` plans with every step on `auto`. `./dev perf:forms --write`
 rewrites the generated option blocks; `--check` fails when they differ from
-the catalog, and the Python tests run the same check.
+the catalog and the custom configs, and the Python tests run the same check.
 
 The target profile is the last step's load. Every earlier step runs `auto`,
 so the planner sizes it for the step that reads its data, resolving from the
@@ -281,7 +281,10 @@ have no per-step load; `./dev perf:chain` and a version 1 spec file
 each `.json` file beneath `tests/performance/k6/options/custom/`, at any
 depth, sorted by `<path>`, which is relative to
 `tests/performance/k6/options/` (for example
-`Custom: custom/status-regression.json`). `perf-run` defaults to `1 journey`
+`Custom: custom/status-regression.json`). `perf:forms` lists the files in the
+checkout, committed or not, so keep scratch configs outside
+`tests/performance/k6/options/custom/`; a GitHub run sees only committed
+files. `perf-run` defaults to `1 journey`
 and `perf-chain` to `5 journeys`. Every profile is offered for every choice,
 so the planner rejects, before Docker, a 5-minute profile on a browser
 workflow, a custom config without browser options on a browser workflow, and

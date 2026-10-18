@@ -1,7 +1,7 @@
-"""perf:forms — the GitHub perf forms' option lists, derived from the workflow catalog.
+"""perf:forms — the GitHub perf forms' option lists, derived from the catalog and custom configs.
 
     ./dev perf:forms --write   rewrite the generated option blocks
-    ./dev perf:forms --check   fail when a block differs from the catalog
+    ./dev perf:forms --check   fail when a block differs from the derived lists
 
 perf-run.yml offers every workflow that requires no dataset (an optional
 dataset does not count). perf-chain.yml offers every recipe: an acyclic path
@@ -178,12 +178,13 @@ def render(text: str, blocks: Dict[str, List[str]], source: str = "form") -> str
 def run(args: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="./dev perf:forms",
-        description="Derive the GitHub perf forms' option lists from the workflow catalog.",
+        description="Derive the GitHub perf forms' option lists from the workflow catalog "
+                    "and the custom configs.",
     )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--write", action="store_true", help="Rewrite the generated option blocks.")
     mode.add_argument(
-        "--check", action="store_true", help="Fail when a block differs from the catalog."
+        "--check", action="store_true", help="Fail when a block differs from the derived lists."
     )
     parsed = parser.parse_args(list(args))
     stale: List[Path] = []
@@ -203,12 +204,12 @@ def run(args: Sequence[str]) -> int:
         warn(f"Not offered (fails to plan on auto): {message}")
     names = ", ".join(path.name for path in stale)
     if parsed.check and stale:
-        fail(f"{names} differ from the catalog; run ./dev perf:forms --write")
+        fail(f"{names} differ from the catalog and custom configs; run ./dev perf:forms --write")
         return 1
     if parsed.write and stale:
         pass_(f"Rewrote {names}.")
     else:
-        pass_("The perf forms match the catalog.")
+        pass_("The perf forms match the catalog and custom configs.")
     info(f"{len(blocks['workflows'])} standalone workflows, {len(blocks['recipes'])} recipes.")
     info(f"Profiles: {', '.join(blocks['profiles'])}")
     return 0

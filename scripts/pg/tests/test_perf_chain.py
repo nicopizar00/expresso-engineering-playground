@@ -16,6 +16,7 @@ from pg import perf_chain  # noqa: E402
 from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR  # noqa: E402
 from pg.perf_chain import (  # noqa: E402
     MAX_BROWSER_VUS,
+    _load_owner,
     RUNNER_WARNING,
     parse_steps,
     peak_vus,
@@ -109,7 +110,7 @@ class PlanTests(unittest.TestCase):
             plan("browser-cart:5-vu-5m").errors,
             [
                 "step 1 browser-cart: a browser workflow has no 5 users for 5 minutes "
-                "(5-vu-5m) preset; use auto or one of: 1 journey (1-iteration), "
+                "(5-vu-5m) preset; use one of: 1 journey (1-iteration), "
                 "5 journeys (5-iterations)"
             ],
         )
@@ -128,7 +129,7 @@ class PlanTests(unittest.TestCase):
             result.errors[0],
             "step 1 browser-purchase: sized for step 2 http-orders-status at 5 users for "
             "5 minutes (5-vu-5m), it needs 81 browser VUs; the cap is 4. Pick a smaller load "
-            "for step 2",
+            "for step 2 http-orders-status",
         )
 
     def test_a_browser_producer_over_the_cap_names_the_step_whose_load_sets_its_size(self) -> None:
@@ -139,7 +140,7 @@ class PlanTests(unittest.TestCase):
             [
                 "step 1 browser-cart: sized for step 2 http-orders at auto: sized for step 3 "
                 "(575 iterations, 3 VUs), it needs 7 browser VUs; the cap is 4. Pick a smaller "
-                "load for step 3"
+                "load for step 3 http-orders-status"
             ],
         )
 
@@ -213,6 +214,28 @@ class LoadTests(unittest.TestCase):
             ["--config", str((PERF_OPTIONS_DIR / STATUS_REGRESSION).resolve())],
         )
         self.assertEqual(result.requested, ["http-cart", "http-orders", "http-orders-status"])
+
+    def test_the_load_owner_walks_past_an_auto_reader_that_could_not_be_sized(self) -> None:
+        # Two scenarios cannot be sized for, so step 2 runs its default config; step 3's
+        # load is still the only one a target-only form can change.
+        two = self.custom("two.json", {"scenarios": {
+            "a": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
+            "b": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
+        }})
+        result = plan_chain(
+            [
+                StepRequest("browser-cart"),
+                StepRequest("http-orders"),
+                StepRequest("http-orders-status", CUSTOM, two),
+            ],
+            CATALOG,
+            self.options,
+        )
+        cart, orders, status = result.steps
+        self.assertIsNone(orders.sizing)
+        self.assertEqual(cart.sized_for, 2)
+        by_number = {step.number: step for step in result.steps}
+        self.assertIs(_load_owner(orders, by_number), status)
 
     def test_an_unsafe_or_invalid_custom_config_is_a_plan_error(self) -> None:
         escape = plan_chain([StepRequest("http-cart", CUSTOM, "../x.json")], CATALOG, self.options)

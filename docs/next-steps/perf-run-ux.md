@@ -230,7 +230,7 @@ also pass the existing chain planner. The nine current choices are:
 One repository command, `./dev perf:forms --write|--check`, owns this
 derivation. Write mode replaces only marked generated option blocks in
 `perf-run.yml` and `perf-chain.yml`; check mode fails if those blocks do not
-match the catalog. Tests pin the current six and nine choices, reject
+match the catalog and the custom configs. Tests pin the current six and nine choices, reject
 duplicates and cycles, enforce the four-step bound, and prove that every
 emitted recipe passes `plan_chain`.
 

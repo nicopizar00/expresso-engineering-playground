@@ -184,7 +184,7 @@ def _usage() -> None:
     print("perf:* --runtime k8s runs the workflow on Argo Workflows (after ./dev k8s:perf:up).")
     print("perf:chain <workflow>[:<shape>] ... runs workflows in order; each step's data feeds the next (e.g. perf:chain http-cart http-orders:5-vu-5m).")
     print("perf:chain --spec <spec.json> runs a spec written by perf:dispatch (the GitHub perf forms' boundary).")
-    print("perf:forms --write|--check derives the perf-run/perf-chain GitHub form options from the catalog.")
+    print("perf:forms --write|--check derives the perf-run/perf-chain GitHub form options from the catalog and custom configs.")
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()
