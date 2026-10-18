@@ -321,6 +321,14 @@ def _sizing_reader(step: Step, by_number: Dict[int, Step]) -> Optional[Step]:
     return min(candidates, key=lambda reader: reader.number, default=None)
 
 
+def _load_owner(reader: Step, by_number: Dict[int, Step]) -> Step:
+    """The step whose load sets `reader`'s size: the reader itself, or, when it was
+    sized too, the step it was sized for, followed until a step that was not."""
+    while reader.sizing is not None and reader.sized_for is not None:
+        reader = by_number[reader.sized_for]
+    return reader
+
+
 def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
     """Resolve each step's k6 options from the last step back, sizing auto writers."""
     by_number = {step.number: step for step in plan.steps}
@@ -343,11 +351,12 @@ def _resolve_configs(catalog: WorkflowCatalog, plan: Plan) -> None:
             else:
                 step.sizing, step.sized_for, step.config = sizing, reader.number, dict(sizing.config)
                 if step.browser and sizing.vus > MAX_BROWSER_VUS:
+                    owner = _load_owner(reader, by_number)
                     plan.errors.append(
                         f"step {step.number} {step.name}: sized for step {reader.number} "
                         f"{reader.name} at {reader.shape_label()}, it needs {sizing.vus} browser "
                         f"VUs; the cap is {MAX_BROWSER_VUS}. Pick a smaller load for step "
-                        f"{reader.number}"
+                        f"{owner.number}"
                     )
                 continue
         step.config_path = step.workflow.k6_config

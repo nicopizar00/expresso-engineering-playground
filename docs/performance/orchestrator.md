@@ -214,8 +214,10 @@ planned before Docker starts (`scripts/pg/perf_chain.py`):
 - A browser step runs the preset's `-browser` variant; a shape without one
   (`1-vu-5m`, `5-vu-5m`) fails the plan.
 - A sized browser step needs at most 4 VUs, or the plan fails and asks for a
-  smaller load on the reading step. The cap is a starting value for a
-  4-vCPU runner that also runs the app; it is not measured.
+  smaller load on the step that sets its size: its reader, or, when that
+  reader is sized too, the first step down the chain of readers that is not.
+  The cap is a starting value for a 4-vCPU runner that also runs the app; it
+  is not measured.
 - Every other browser step's resolved config (preset, custom, or the
   workflow's own) must also peak at 4 VUs or fewer. The planner sums the
   scenarios' peak VUs as if they ran at once, and rejects a config whose peak
@@ -250,12 +252,12 @@ stack on one GitHub-hosted runner. Both call `_perf-execute.yml`, which
 validates the form values, plans before Docker, runs that exact plan, and
 uploads one artifact.
 
-| Workflow file    | Title in the Actions tab     | Inputs                                                     | Runs                                                                      |
-| ---------------- | ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `perf-run.yml`   | `Punch performance — single` | Workflow, load, custom config                              | One workflow that requires no dataset                                     |
-| `perf-chain.yml` | `Punch performance — chain`  | Sequence, then a load and a custom config for steps 1 to 4 | One recipe: a producer and the consumers that read its data, 2 to 4 steps |
+| Workflow file    | Title in the Actions tab     | Inputs                 | Runs                                                                      |
+| ---------------- | ---------------------------- | ---------------------- | ------------------------------------------------------------------------- |
+| `perf-run.yml`   | `Punch performance — single` | Workflow, profile      | One workflow that requires no dataset                                     |
+| `perf-chain.yml` | `Punch performance — chain`  | Recipe, target profile | One recipe: a producer and the consumers that read its data, 2 to 4 steps |
 
-The workflow and sequence lists come from the catalog. A recipe is an acyclic
+The workflow and recipe lists come from the catalog. A recipe is an acyclic
 path of two to four workflows that starts at a workflow requiring no dataset,
 where each link is a dataset the producer writes for that consumer (named in
 its `targets`) and the consumer requires or reads optionally, and that
@@ -263,28 +265,41 @@ its `targets`) and the consumer requires or reads optionally, and that
 rewrites the generated option blocks; `--check` fails when they differ from
 the catalog, and the Python tests run the same check.
 
-| Load label                                      | Meaning                                                                  |
-| ----------------------------------------------- | ------------------------------------------------------------------------ |
-| `Auto (data-size producer; default otherwise)`  | `auto`: sized for the step that reads its data, else `spec.k6.config`    |
-| `1 journey`, `5 journeys`                       | Presets `1-iteration`, `5-iterations`; browser steps run `-browser` ones |
-| `1 user for 5 minutes`, `5 users for 5 minutes` | Presets `1-vu-5m`, `5-vu-5m`; refused for browser steps                  |
-| `Custom config`                                 | The committed JSON at the step's custom config path                      |
+The target profile is the last step's load. Every earlier step runs `auto`,
+so the planner sizes it for the step that reads its data, resolving from the
+last step back. `perf-run` applies its profile to its only step. The forms
+have no per-step load; `./dev perf:chain` and a version 1 spec file
+(`--spec`) keep per-step control.
 
-A custom config path is relative to `tests/performance/k6/options/`, for
-example `custom/status-regression.json`. Absolute paths, `..`, non-JSON
-files, missing files, and paths that resolve outside that directory are
-rejected, as is `Custom config` without a path or a path with any other
-load. A browser step's custom config must declare `scenarios` and set
-`options.browser.type` on each one, as
-`tests/performance/k6/options/1-iteration-browser.json` does. Step slots past
-the sequence's last workflow are ignored.
+| Profile                                         | Load                                                                         |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| `1 journey`, `5 journeys`                       | Presets `1-iteration`, `5-iterations`; browser steps run the `-browser` ones |
+| `1 user for 5 minutes`, `5 users for 5 minutes` | Presets `1-vu-5m`, `5-vu-5m`; refused for browser steps                      |
+| `Custom: <path>`                                | The committed k6 options JSON at `<path>`                                    |
 
-`./dev perf:dispatch` is the boundary. It reads the form values from
-environment variables, derives the lists from the catalog again (so an API
-dispatch cannot run a sequence the form does not offer), and writes
-`tests/performance/k6/reports/dispatch/`:
+`perf:forms` lists the four presets, then one `Custom: <path>` profile for
+each `.json` file beneath `tests/performance/k6/options/custom/`, at any
+depth, sorted by `<path>`, which is relative to
+`tests/performance/k6/options/` (for example
+`Custom: custom/status-regression.json`). `perf-run` defaults to `1 journey`
+and `perf-chain` to `5 journeys`. Every profile is offered for every choice,
+so the planner rejects, before Docker, a 5-minute profile on a browser
+workflow, a custom config without browser options on a browser workflow, and
+a target profile that would size a browser producer above 4 VUs. A custom
+profile's path passes the same rules as a spec path: absolute paths, `..`,
+non-JSON files, missing files, and paths that resolve outside
+`tests/performance/k6/options/` are rejected. A browser step's custom config
+must declare `scenarios` and set `options.browser.type` on each one, as
+`tests/performance/k6/options/1-iteration-browser.json` does.
 
-- `request.json`: the ten form values as received;
+`./dev perf:dispatch` is the boundary. It reads the three form values
+(`kind`, `selection`, `profile`) from environment variables, derives the
+workflow, recipe, and profile lists from the checked-out commit again (so an
+API dispatch cannot run a recipe or profile the form does not offer), makes
+every step but the last `auto`, gives the last step the profile's load, and
+writes `tests/performance/k6/reports/dispatch/`:
+
+- `request.json`: the three form values as received;
 - `spec.json`: the normalized spec, written once and read-only, which both
   `perf:chain --spec --plan` and `perf:chain --spec` read;
 - `dispatch.json`: event ref and commit SHA, actor, run id and attempt,

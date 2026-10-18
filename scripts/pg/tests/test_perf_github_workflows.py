@@ -12,11 +12,11 @@ from pg.paths import PERF_WORKFLOWS_DIR, REPO_ROOT  # noqa: E402
 from pg.perf_dispatch import INPUTS, env_name  # noqa: E402
 from pg.perf_forms import (  # noqa: E402
     FORM_FILES,
-    LOAD_LABELS,
     option_blocks,
+    profiles,
+    recipe_label,
     recipes,
     render,
-    sequence_label,
     standalone,
 )
 from punch.catalog import load_catalog  # noqa: E402
@@ -24,8 +24,6 @@ from punch.catalog import load_catalog  # noqa: E402
 CATALOG = load_catalog(PERF_WORKFLOWS_DIR)
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 EXECUTE = "./.github/workflows/_perf-execute.yml"
-LABELS = [label for label, _ in LOAD_LABELS]
-AUTO_LABEL = LABELS[0]
 
 
 def load(name: str) -> dict:
@@ -49,53 +47,51 @@ class FormTests(unittest.TestCase):
                     render(text, blocks, path.name), text, "run ./dev perf:forms --write"
                 )
 
-    def test_the_single_form_offers_standalone_workflows_and_every_load(self) -> None:
+    def test_the_single_form_has_a_workflow_and_a_profile(self) -> None:
         form = load("perf-run.yml")
         # PyYAML reads the bare `on` key as the boolean True.
         self.assertEqual(list(form[True]), ["workflow_dispatch"])
         inputs = form[True]["workflow_dispatch"]["inputs"]
-        self.assertEqual(list(inputs), ["workflow", "load", "config"])
+        self.assertEqual(list(inputs), ["workflow", "profile"])
         self.assertEqual(inputs["workflow"]["options"], standalone(CATALOG))
         self.assertIn(inputs["workflow"]["default"], inputs["workflow"]["options"])
-        self.assertEqual(inputs["load"]["options"], LABELS)
-        self.assertEqual(inputs["load"]["default"], "1 journey")
-        self.assertEqual(inputs["config"]["type"], "string")
-        self.assertIn("github.actor", form["run-name"])
-        self.assertIn("inputs.workflow", form["run-name"])
+        self.assertEqual(inputs["profile"]["type"], "choice")
+        self.assertEqual(inputs["profile"]["options"], profiles())
+        self.assertEqual(inputs["profile"]["default"], "1 journey")
+        for name in ("github.actor", "inputs.workflow", "inputs.profile"):
+            self.assertIn(name, form["run-name"])
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
         self.assertEqual(job["uses"], EXECUTE)
         self.assertEqual(job["with"], {
             "kind": "single",
             "selection": expression("inputs.workflow"),
-            "load-1": expression("inputs.load"),
-            "config-1": expression("inputs.config"),
+            "profile": expression("inputs.profile"),
         })
 
-    def test_the_chain_form_offers_recipes_and_four_step_slots(self) -> None:
+    def test_the_chain_form_has_a_recipe_and_a_target_profile(self) -> None:
         form = load("perf-chain.yml")
         self.assertEqual(list(form[True]), ["workflow_dispatch"])
         inputs = form[True]["workflow_dispatch"]["inputs"]
-        slots = [f"step{n}-{field}" for n in range(1, 5) for field in ("load", "config")]
-        self.assertEqual(list(inputs), ["sequence", *slots])
+        self.assertEqual(list(inputs), ["recipe", "target-profile"])
         kept, _ = recipes(CATALOG)
-        self.assertEqual(inputs["sequence"]["options"], [sequence_label(path) for path in kept])
-        self.assertIn(inputs["sequence"]["default"], inputs["sequence"]["options"])
-        for n in range(1, 5):
-            with self.subTest(step=n):
-                self.assertEqual(inputs[f"step{n}-load"]["options"], LABELS)
-                self.assertEqual(inputs[f"step{n}-load"]["default"], AUTO_LABEL)
-                self.assertEqual(inputs[f"step{n}-config"]["type"], "string")
-        self.assertIn("github.actor", form["run-name"])
-        self.assertIn("inputs.sequence", form["run-name"])
+        self.assertEqual(inputs["recipe"]["options"], [recipe_label(path) for path in kept])
+        self.assertIn(inputs["recipe"]["default"], inputs["recipe"]["options"])
+        target = inputs["target-profile"]
+        self.assertEqual(target["type"], "choice")
+        self.assertEqual(target["options"], profiles())
+        self.assertEqual([o for o in target["options"] if o.startswith("Auto")], [])
+        self.assertEqual(target["default"], "5 journeys")
+        for name in ("github.actor", "inputs.recipe", "inputs.target-profile"):
+            self.assertIn(name, form["run-name"])
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
         self.assertEqual(job["uses"], EXECUTE)
-        expected = {"kind": "chain", "selection": expression("inputs.sequence")}
-        for n in range(1, 5):
-            expected[f"load-{n}"] = expression(f"inputs.step{n}-load")
-            expected[f"config-{n}"] = expression(f"inputs.step{n}-config")
-        self.assertEqual(job["with"], expected)
+        self.assertEqual(job["with"], {
+            "kind": "chain",
+            "selection": expression("inputs.recipe"),
+            "profile": expression("inputs.target-profile"),
+        })
 
 
 class ExecuteTests(unittest.TestCase):
@@ -110,15 +106,15 @@ class ExecuteTests(unittest.TestCase):
     def index(self, name: str) -> int:
         return self.steps.index(self.step(name))
 
-    def test_it_is_callable_only_with_the_ten_string_inputs(self) -> None:
+    def test_it_is_callable_only_with_the_three_string_inputs(self) -> None:
         self.assertEqual(list(self.workflow[True]), ["workflow_call"])
         inputs = self.workflow[True]["workflow_call"]["inputs"]
+        self.assertEqual(list(inputs), ["kind", "selection", "profile"])
         self.assertEqual(list(inputs), list(INPUTS))
         for name, spec in inputs.items():
             with self.subTest(input=name):
                 self.assertEqual(spec["type"], "string")
-        self.assertTrue(inputs["kind"]["required"])
-        self.assertTrue(inputs["selection"]["required"])
+                self.assertTrue(spec["required"])
 
     def test_one_read_only_job_bounded_to_an_hour(self) -> None:
         self.assertEqual(list(self.workflow["jobs"]), ["execute"])
@@ -140,8 +136,10 @@ class ExecuteTests(unittest.TestCase):
     def test_form_values_reach_the_dispatcher_only_as_environment_data(self) -> None:
         step = self.step("Normalize the form values")
         self.assertEqual(step["run"], "./dev perf:dispatch")
-        for name in INPUTS:
-            self.assertEqual(step["env"][env_name(name)], expression(f"inputs.{name}"))
+        self.assertEqual(step["env"], {
+            **{env_name(name): expression(f"inputs.{name}") for name in INPUTS},
+            "PERF_RUNNER_LABEL": "ubuntu-latest",
+        })
         for each in self.steps:
             with self.subTest(step=each.get("name")):
                 self.assertNotIn("${{", each.get("run", ""), "inputs must reach run: through env")
