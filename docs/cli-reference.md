@@ -1,10 +1,10 @@
 # CLI reference
 
-> Status: Reviewed against HEAD 56a1af6.
+> Status: Reviewed against HEAD a9d9c70.
 
 `./dev` dispatches 33 commands: 18 stack, Kubernetes, and Argo CD commands; nine job commands generated from the performance job catalog; `perf:workflow`; `perf:forms`; `perf:dispatch`; `perf:open-report`; `perf:clean`; and `hack`. The standalone `./k8s` script is a related Bash CLI with its own command set. `pnpm pg:*` and selected `task` commands wrap `./dev`; they do not add dispatcher commands.
 
-The command and flag behavior below is pinned to commit `56a1af6485ab2fd31cbc6aac7953cc4af2775a2f`. Primary implementation sources are [`scripts/pg/cli.py`](../scripts/pg/cli.py), [`scripts/pg/jobs.py`](../scripts/pg/jobs.py), the `scripts/pg` command modules, [`scripts/pg/hack.py`](../scripts/pg/hack.py), and the root [`k8s`](../k8s) script.
+The command and flag behavior below is pinned to commit `a9d9c7046d312a6a9c3be7fee8699af0a0d1c880`. Primary implementation sources are [`scripts/pg/cli.py`](../scripts/pg/cli.py), [`scripts/pg/jobs.py`](../scripts/pg/jobs.py), the `scripts/pg` command modules, [`scripts/pg/hack.py`](../scripts/pg/hack.py), and the root [`k8s`](../k8s) script.
 
 ## Entry points
 
