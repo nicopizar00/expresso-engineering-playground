@@ -214,8 +214,10 @@ planned before Docker starts (`scripts/pg/perf_chain.py`):
 - A browser step runs the preset's `-browser` variant; a shape without one
   (`1-vu-5m`, `5-vu-5m`) fails the plan.
 - A sized browser step needs at most 4 VUs, or the plan fails and asks for a
-  smaller load on the reading step. The cap is a starting value for a
-  4-vCPU runner that also runs the app; it is not measured.
+  smaller load on the step that sets its size: its reader, or, when that
+  reader is sized too, the first step down the chain of readers that is not.
+  The cap is a starting value for a 4-vCPU runner that also runs the app; it
+  is not measured.
 - Every other browser step's resolved config (preset, custom, or the
   workflow's own) must also peak at 4 VUs or fewer. The planner sums the
   scenarios' peak VUs as if they ran at once, and rejects a config whose peak

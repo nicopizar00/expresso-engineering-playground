@@ -131,6 +131,18 @@ class PlanTests(unittest.TestCase):
             "for step 2",
         )
 
+    def test_a_browser_producer_over_the_cap_names_the_step_whose_load_sets_its_size(self) -> None:
+        # Step 2 is auto and sized for step 3, so only step 3's load can shrink step 1.
+        result = plan("browser-cart", "http-orders", "http-orders-status:1-vu-5m")
+        self.assertEqual(
+            result.errors,
+            [
+                "step 1 browser-cart: sized for step 2 http-orders at auto: sized for step 3 "
+                "(575 iterations, 3 VUs), it needs 7 browser VUs; the cap is 4. Pick a smaller "
+                "load for step 3"
+            ],
+        )
+
     def test_the_latest_writer_wins_and_only_read_data_is_produced(self) -> None:
         result = plan("http-cart", "browser-cart", "http-orders", "http-orders")
         first, second, third, fourth = result.steps
