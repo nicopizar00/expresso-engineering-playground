@@ -347,7 +347,7 @@ Every summary includes this warning:
 
 | Failure                                                           | Result                                                                                         |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Unknown or stale recipe or profile                                | Reject before Docker; annotate the error and upload the attempted specification                |
+| Unknown or stale recipe or profile                                | Reject before Docker; annotate the error and upload the received request                       |
 | Missing required producer or invalid order                        | Reject before Docker; show the missing dataset and compatible producer                         |
 | Profile a browser workflow cannot run                             | Reject before Docker; show the supported choices for that workflow                             |
 | Invalid or missing custom config                                  | Reject before Docker; show the path rule or JSON error                                         |
@@ -366,9 +366,9 @@ Every summary includes this warning:
 - Independent workflow dropdowns cannot prevent invalid order in GitHub's
   static native form.
 - A load and a custom-config path for each of four steps in the chain form
-  showed unused fields for shorter recipes and asked the operator to know the
-  planner's steps. One target profile keeps producer sizing; `./dev
-perf:chain` and a version 1 spec keep per-step control. See the
+  would show unused fields for shorter recipes and ask the operator to know
+  the planner's steps. One target profile keeps producer sizing;
+  `./dev perf:chain` and a version 1 spec keep per-step control. See the
   [form simplification design](../superpowers/specs/2026-10-17-performance-form-simplification-design.md).
 - A custom GitHub App or external UI could provide dynamic dependent selects,
   but adds authentication, deployment, and maintenance that nine static
