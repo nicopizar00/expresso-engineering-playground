@@ -16,11 +16,11 @@ from pg.ports import port_in_use
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, JobCatalog, load_catalog
 from punch.execution import (
+    ExecutionResult,
     build_compose_run_command,
     confirm_delete_consumed,
     confirm_docker_run,
     data_environment,
-    ExecutionResult,
     execute_job,
     required_data_paths,
     resolve_data_args,

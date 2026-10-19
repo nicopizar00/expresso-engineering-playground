@@ -17,8 +17,8 @@ from pg.paths import PERF_JOBS_DIR, PERF_OPTIONS_DIR  # noqa: E402
 from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from pg.perf_workflow import (  # noqa: E402
     MAX_BROWSER_VUS,
-    _load_owner,
     RUNNER_WARNING,
+    _load_owner,
     parse_steps,
     peak_vus,
     plan_workflow,
