@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_JOBS_DIR, WEB_PORT
+from pg.paths import BFF_PORT, PERF_JOBS_DIR, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, WEB_PORT
 from pg.ports import port_in_use
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
@@ -26,7 +26,7 @@ from punch.execution import (
     resolve_data_args,
     validate_produce,
 )
-from punch.job import K6Job, JobError, load_job, read_k6_config
+from punch.job import JobError, K6Job, load_job, read_k6_config
 
 
 def default_base_url(port: int = BFF_PORT) -> str:

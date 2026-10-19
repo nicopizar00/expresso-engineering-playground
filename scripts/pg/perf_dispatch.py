@@ -1,9 +1,9 @@
 """perf:dispatch — the GitHub Actions boundary of a Punch run (_perf-execute.yml).
 
     ./dev perf:dispatch               record the form values (PERF_*) and write spec.json
-    ./dev perf:dispatch --stage NAME  record how far the job got (plan, stack, images, execute)
-    ./dev perf:dispatch --finalize    set the final status and write the job summary
-    ./dev perf:dispatch --publish     append the job summary and artifact link to GITHUB_STEP_SUMMARY
+    ./dev perf:dispatch --stage NAME  record how far the GitHub job got (plan, stack, images, execute)
+    ./dev perf:dispatch --finalize    set the final status and write the GitHub job summary
+    ./dev perf:dispatch --publish     append the GitHub job summary and artifact link to GITHUB_STEP_SUMMARY
 
 Form values arrive as environment variables, never as script text. The
 normalizer re-derives the form choices from the catalog and the options
@@ -14,7 +14,7 @@ profile is the last step's load, and every earlier step is auto, so the
 planner sizes it for the step that reads its data. Evidence lands in
 tests/performance/k6/reports/dispatch/: request.json (the three form values as
 received), spec.json (written once, read-only), dispatch.json (run metadata,
-stage, status), summary.md (the job summary), and Compose diagnostics when the
+stage, status), summary.md (the GitHub job summary), and Compose diagnostics when the
 stack fails to start. No other environment value is copied.
 """
 
@@ -28,16 +28,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_
-from pg.paths import PERF_OPTIONS_DIR, PERF_REPORTS_DIR, PERF_JOBS_DIR, repo_path
+from pg.paths import PERF_JOBS_DIR, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, repo_path
+from pg.perf_forms import profile_load, profiles, standalone, workflow_label, workflows
+from pg.perf_spec import CUSTOM, SpecError, StepRequest, custom_config_path, write_spec
 from pg.perf_workflow import (
     BROWSER_SERVICE,
-    WORKFLOW_REPORTS_DIR,
     RUNNER_WARNING,
+    WORKFLOW_REPORTS_DIR,
     annotate,
     render_summary,
 )
-from pg.perf_forms import profile_load, profiles, workflow_label, workflows, standalone
-from pg.perf_spec import CUSTOM, SpecError, StepRequest, custom_config_path, write_spec
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, JobCatalog, load_catalog
@@ -166,7 +166,7 @@ def _metadata(environ: Mapping[str, str], stage_name: str) -> Dict[str, Any]:
 
 
 def _output(environ: Mapping[str, str], **values: bool) -> None:
-    """Bounded booleans for later workflow steps (GITHUB_OUTPUT)."""
+    """Bounded booleans for later GitHub workflow steps (GITHUB_OUTPUT)."""
     target = environ.get("GITHUB_OUTPUT")
     if not target:
         return
@@ -307,7 +307,8 @@ def finalize(
     workflow_dir: Optional[Path] = None,
 ) -> int:
     """Set dispatch.json's final status and write summary.md. Exits 1 only when the
-    job would otherwise pass without evidence; an already failed job stays failed."""
+    GitHub job would otherwise pass without evidence; an already failed GitHub job
+    stays failed."""
     workflow_dir = workflow_dir or WORKFLOW_REPORTS_DIR
     dispatch_dir.mkdir(parents=True, exist_ok=True)
     path = dispatch_dir / "dispatch.json"
@@ -329,7 +330,7 @@ def finalize(
 
 
 def publish(environ: Mapping[str, str], dispatch_dir: Path = DISPATCH_DIR) -> int:
-    """Append the job summary and the uploaded artifact's link and digest."""
+    """Append the GitHub job summary and the uploaded artifact's link and digest."""
     record = _read_json(dispatch_dir / "dispatch.json") or {}
     summary = dispatch_dir / "summary.md"
     text = (
@@ -347,7 +348,7 @@ def publish(environ: Mapping[str, str], dispatch_dir: Path = DISPATCH_DIR) -> in
             heading, _, rest = text.partition("\n")
             text = "## Failed" + heading[len("## Passed"):] + "\n\n" \
                 + "- The evidence artifact was not uploaded.\n" + rest
-        text += "- Artifact: not uploaded; the job log is the only evidence\n"
+        text += "- Artifact: not uploaded; the GitHub job log is the only evidence\n"
     target = environ.get("GITHUB_STEP_SUMMARY")
     if target:
         with open(target, "a", encoding="utf-8") as handle:
@@ -367,12 +368,12 @@ def run(args: Sequence[str]) -> int:
                     "(.github/workflows/_perf-execute.yml).",
     )
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--stage", choices=STAGES, help="Record the stage the job reached.")
+    mode.add_argument("--stage", choices=STAGES, help="Record the stage the GitHub job reached.")
     mode.add_argument(
-        "--finalize", action="store_true", help="Set the final status; write the job summary."
+        "--finalize", action="store_true", help="Set the final status; write the GitHub job summary."
     )
     mode.add_argument(
-        "--publish", action="store_true", help="Append the job summary and artifact link."
+        "--publish", action="store_true", help="Append the GitHub job summary and artifact link."
     )
     parsed = parser.parse_args(list(args))
     if parsed.stage:

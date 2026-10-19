@@ -13,9 +13,9 @@ import shutil
 from typing import List, Sequence, Tuple
 
 from pg.ansi import dim, fail, header, info, pass_, warn
+from pg.jobs import JOBS
 from pg.k6runner import run_k6
 from pg.paths import PERF_REPORTS_DIR
-from pg.jobs import JOBS
 
 RUNTIMES = ("compose", "k8s")
 

@@ -13,7 +13,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import cli, perf_workflow  # noqa: E402
-from pg.paths import PERF_OPTIONS_DIR, PERF_JOBS_DIR  # noqa: E402
+from pg.paths import PERF_JOBS_DIR, PERF_OPTIONS_DIR  # noqa: E402
+from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from pg.perf_workflow import (  # noqa: E402
     MAX_BROWSER_VUS,
     _load_owner,
@@ -26,7 +27,6 @@ from pg.perf_workflow import (  # noqa: E402
     shapes,
     write_evidence,
 )
-from pg.perf_spec import CUSTOM, PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 from punch.execution import DatasetResult, ExecutionResult  # noqa: E402
 from punch.job import SummaryOutput  # noqa: E402

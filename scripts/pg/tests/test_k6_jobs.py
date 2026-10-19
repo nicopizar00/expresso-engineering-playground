@@ -10,7 +10,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.paths import PERF_OPTIONS_DIR, PERF_JOBS_DIR, REPO_ROOT  # noqa: E402
+from pg.paths import PERF_JOBS_DIR, PERF_OPTIONS_DIR, REPO_ROOT  # noqa: E402
 from punch.job import load_job  # noqa: E402
 
 

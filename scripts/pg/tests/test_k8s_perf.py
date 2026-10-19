@@ -202,7 +202,6 @@ class RunJobGuardTests(unittest.TestCase):
         run.assert_not_called()
 
 
-
 class ArgoResourceTests(unittest.TestCase):
     @mock.patch("pg.k8s_perf.subprocess.run")
     def test_phase_queries_argos_workflow_resource(self, run) -> None:

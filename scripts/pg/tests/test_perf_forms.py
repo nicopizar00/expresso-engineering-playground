@@ -10,7 +10,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import cli  # noqa: E402
 from pg.paths import PERF_JOBS_DIR  # noqa: E402
-from pg.perf_workflow import parse_steps, plan_workflow, shapes  # noqa: E402
 from pg.perf_forms import (  # noqa: E402
     CUSTOM_PREFIX,
     FormsError,
@@ -19,12 +18,13 @@ from pg.perf_forms import (  # noqa: E402
     paths,
     profile_load,
     profiles,
-    workflow_label,
-    workflows,
     render,
     standalone,
+    workflow_label,
+    workflows,
 )
 from pg.perf_spec import CUSTOM, PRESET, PRESET_LABELS  # noqa: E402
+from pg.perf_workflow import parse_steps, plan_workflow, shapes  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 
 CATALOG = load_catalog(PERF_JOBS_DIR)

@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from pg.ansi import bold, fail, header, info, pass_, warn
+from pg.jobs import JOBS
 from pg.k6runner import execute_k6
 from pg.perf_spec import (
     AUTO,
@@ -47,19 +48,18 @@ from pg.perf_spec import (
 )
 from pg.paths import (
     BFF_PORT,
+    PERF_JOBS_DIR,
     PERF_OPTIONS_DIR,
     PERF_REPORTS_DIR,
-    PERF_JOBS_DIR,
     REPO_ROOT,
     repo_path,
 )
-from pg.jobs import JOBS
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, JobCatalog, load_catalog
 from punch.execution import DEFAULT_DATA, ExecutionResult
+from punch.job import JobError, K6Job, read_k6_config
 from punch.sizing import SizingError, SizingPlan, rows_needed, size_producer, sizing_evidence
-from punch.job import K6Job, JobError, read_k6_config
 
 EMPTY = "none"
 BROWSER_SERVICE = "k6-browser"

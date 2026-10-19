@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pg import cli, perf_dispatch  # noqa: E402
 from pg.paths import PERF_JOBS_DIR  # noqa: E402
+from pg.perf_dispatch import INPUTS, env_name, normalize  # noqa: E402
+from pg.perf_spec import PRESET, StepRequest, spec_document  # noqa: E402
 from pg.perf_workflow import (  # noqa: E402
     RUNNER_WARNING,
     StepRecord,
@@ -20,8 +22,6 @@ from pg.perf_workflow import (  # noqa: E402
     plan_workflow,
     write_evidence,
 )
-from pg.perf_dispatch import INPUTS, env_name, normalize  # noqa: E402
-from pg.perf_spec import PRESET, StepRequest, spec_document  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 
 CATALOG = load_catalog(PERF_JOBS_DIR)

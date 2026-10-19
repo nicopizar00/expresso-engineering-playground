@@ -14,10 +14,10 @@ from pg.perf_forms import (  # noqa: E402
     FORM_FILES,
     option_blocks,
     profiles,
-    workflow_label,
-    workflows,
     render,
     standalone,
+    workflow_label,
+    workflows,
 )
 from punch.catalog import load_catalog  # noqa: E402
 
@@ -58,7 +58,7 @@ class FormTests(unittest.TestCase):
                     render(text, blocks, path.name), text, "run ./dev perf:forms --write"
                 )
 
-    def test_the_single_form_has_a_job_and_a_profile(self) -> None:
+    def test_the_job_form_has_a_job_and_a_profile(self) -> None:
         form = load("perf-job.yml")
         # PyYAML reads the bare `on` key as the boolean True.
         self.assertEqual(list(form[True]), ["workflow_dispatch"])

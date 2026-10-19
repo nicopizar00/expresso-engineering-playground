@@ -24,9 +24,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from pg.ansi import fail, info, pass_, warn
-from pg.paths import PERF_OPTIONS_DIR, PERF_JOBS_DIR, REPO_ROOT
-from pg.perf_workflow import plan_workflow
+from pg.paths import PERF_JOBS_DIR, PERF_OPTIONS_DIR, REPO_ROOT
 from pg.perf_spec import CUSTOM, MAX_STEPS, PRESET, PRESET_LABELS, StepRequest
+from pg.perf_workflow import plan_workflow
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
 from punch.catalog import CatalogError, JobCatalog, load_catalog

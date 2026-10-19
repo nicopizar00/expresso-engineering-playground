@@ -15,7 +15,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.paths import K8S_DIR, PERF_OPTIONS_DIR, PERF_JOBS_DIR  # noqa: E402
+from pg.paths import K8S_DIR, PERF_JOBS_DIR, PERF_OPTIONS_DIR  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
 from punch.job import load_job  # noqa: E402
 
