@@ -2,8 +2,9 @@
 
 Status: open. Punch workflows run locally and on demand from GitHub Actions. The
 GitHub Actions design below is implemented and verified on GitHub on
-2026-10-18 (Expresso `4329fc9`, Punch `3e7141f`). Local setup and the start
-page still need decisions.
+2026-10-18 (Expresso `4329fc9`, Punch `3e7141f`) and, with the renamed
+`perf-job` and `perf-workflow` forms, on 2026-10-19 (Expresso `634ff6e`, Punch
+`ac7d88e`). Local setup and the start page still need decisions.
 
 Goal: a person who has never run a Punch job on Expresso picks the right
 entry point, runs one job or a workflow, and reads the result, from one
@@ -51,6 +52,17 @@ threshold held in the runs that started the stack:
 | `perf-chain`: `http-cart` → `http-orders` → `http-orders-status`, target `Custom: custom/status-regression.json` (producers sized to 27 and 23 iterations) | 3 min 16 s | 1 min 54 s  | 57 s                                                             |
 | `perf-chain`: `browser-purchase` → `http-orders-status`, target `5 users for 5 minutes`                                                                    | 12 s       | not started | rejected before the stack: 81 browser VUs, cap 4                 |
 | `perf-chain`: `http-cart -> http-orders`, target `Auto (data-size producer; default otherwise)` through the API                                            | none       | not started | rejected by GitHub (HTTP 422: not in the list of allowed values) |
+
+Measured on GitHub on 2026-10-19 with the renamed forms (`634ff6e`, Punch
+`ac7d88e`); every threshold held:
+
+| Form run                                                                                                                                                      | Job time   | Stack start | Run  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---- |
+| `perf-job`: `http-purchase`, `1 journey`                                                                                                                      | 2 min 11 s | 1 min 45 s  | 1 s  |
+| `perf-workflow`: `http-cart` → `http-orders` → `http-orders-status`, target `Custom: custom/status-regression.json` (producers sized to 27 and 23 iterations) | 3 min 17 s | 1 min 51 s  | 57 s |
+
+Their artifacts keep the file layout of the `4329fc9` runs, with
+`workflow/workflow.json` in place of `chain/chain.json`.
 
 ## Friction found so far
 
