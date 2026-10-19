@@ -27,11 +27,11 @@ from punch.catalog import load_catalog  # noqa: E402
 CATALOG = load_catalog(PERF_JOBS_DIR)
 PRESETS_OFFERED = "use one of: 1 journey, 5 journeys, 1 user for 5 minutes, 5 users for 5 minutes"
 STATUS_WORKFLOW = "http-cart -> http-orders -> http-orders-status"
-STATUS_PROFILE = "Custom: custom/status-regression.json"
+STATUS_WORKLOAD = "Custom: custom/status-regression.json"
 
 
-def request(kind: str, selection: str, profile: str) -> dict:
-    return {"kind": kind, "selection": selection, "profile": profile}
+def request(kind: str, selection: str, workload: str, sizing: str = "true") -> dict:
+    return {"kind": kind, "selection": selection, "workload": workload, "sizing": sizing}
 
 
 def environ(values: dict, **extra: str) -> dict:
@@ -51,13 +51,14 @@ def environ(values: dict, **extra: str) -> dict:
 
 
 class NormalizeTests(unittest.TestCase):
-    def test_the_three_inputs_travel_as_upper_snake_case_env(self) -> None:
-        self.assertEqual(INPUTS, ("kind", "selection", "profile"))
+    def test_the_four_inputs_travel_as_upper_snake_case_env(self) -> None:
+        self.assertEqual(INPUTS, ("kind", "selection", "workload", "sizing"))
         self.assertEqual(
-            [env_name(name) for name in INPUTS], ["PERF_KIND", "PERF_SELECTION", "PERF_PROFILE"]
+            [env_name(name) for name in INPUTS],
+            ["PERF_KIND", "PERF_SELECTION", "PERF_WORKLOAD", "PERF_SIZING"],
         )
 
-    def test_a_single_run_gives_its_only_step_the_profile(self) -> None:
+    def test_a_single_run_gives_its_only_step_the_workload(self) -> None:
         steps, errors = normalize(request("job", "http-purchase", "1 journey"), CATALOG)
         self.assertEqual(errors, [])
         self.assertEqual(
@@ -65,7 +66,7 @@ class NormalizeTests(unittest.TestCase):
             [{"job": "http-purchase", "load": {"mode": "preset", "value": "1-iteration"}}],
         )
 
-    def test_a_two_step_workflow_gives_the_profile_to_the_target_only(self) -> None:
+    def test_a_two_step_workflow_gives_the_workload_to_the_last_step_only(self) -> None:
         steps, errors = normalize(
             request("workflow", "http-cart -> http-orders", "5 users for 5 minutes"), CATALOG
         )
@@ -78,8 +79,46 @@ class NormalizeTests(unittest.TestCase):
             ],
         )
 
-    def test_a_three_step_workflow_with_a_custom_profile_writes_two_auto_producers(self) -> None:
-        steps, errors = normalize(request("workflow", STATUS_WORKFLOW, STATUS_PROFILE), CATALOG)
+    def test_without_data_sizing_every_step_runs_the_workload(self) -> None:
+        steps, errors = normalize(
+            request("workflow", STATUS_WORKFLOW, "5 journeys", sizing="false"), CATALOG
+        )
+        self.assertEqual(errors, [])
+        load = {"mode": "preset", "value": "5-iterations"}
+        self.assertEqual(
+            spec_document(steps)["steps"],
+            [
+                {"job": "http-cart", "load": load},
+                {"job": "http-orders", "load": load},
+                {"job": "http-orders-status", "load": load},
+            ],
+        )
+        result = plan_workflow(steps, CATALOG)
+        self.assertEqual(result.errors, [])
+        self.assertEqual([step.sizing for step in result.steps], [None, None, None])
+        # Unsized writers still write the datasets their readers read.
+        self.assertEqual([step.produce for step in result.steps], [["carts"], ["orders"], []])
+
+    def test_data_sizing_does_not_change_a_single_job(self) -> None:
+        for sizing in ("true", "false"):
+            with self.subTest(sizing=sizing):
+                steps, errors = normalize(
+                    request("job", "http-purchase", "1 journey", sizing), CATALOG
+                )
+                self.assertEqual(errors, [])
+                self.assertEqual(steps, [StepRequest("http-purchase", PRESET, "1-iteration")])
+
+    def test_data_sizing_is_true_or_false(self) -> None:
+        for sizing in ("", "yes", "True", "0"):
+            with self.subTest(sizing=sizing):
+                steps, errors = normalize(
+                    request("workflow", "http-cart -> http-orders", "5 journeys", sizing), CATALOG
+                )
+                self.assertEqual(steps, [])
+                self.assertEqual(errors, [f"data sizing {sizing!r} must be true or false"])
+
+    def test_a_three_step_workflow_with_a_custom_workload_writes_two_auto_producers(self) -> None:
+        steps, errors = normalize(request("workflow", STATUS_WORKFLOW, STATUS_WORKLOAD), CATALOG)
         self.assertEqual(errors, [])
         self.assertEqual(
             spec_document(steps),
@@ -96,8 +135,8 @@ class NormalizeTests(unittest.TestCase):
             },
         )
 
-    def test_a_custom_target_profile_sizes_both_producers_when_planned(self) -> None:
-        steps, _ = normalize(request("workflow", STATUS_WORKFLOW, STATUS_PROFILE), CATALOG)
+    def test_a_custom_workload_sizes_both_producers_when_planned(self) -> None:
+        steps, _ = normalize(request("workflow", STATUS_WORKFLOW, STATUS_WORKLOAD), CATALOG)
         result = plan_workflow(steps, CATALOG)
         self.assertEqual(result.errors, [])
         cart, orders, _status = result.steps
@@ -125,7 +164,7 @@ class NormalizeTests(unittest.TestCase):
             errors[0], r"^unknown or stale workflow 'http-orders -> http-cart'; use one of: "
         )
 
-    def test_an_old_label_an_internal_value_or_a_recased_label_is_not_a_profile(self) -> None:
+    def test_an_old_label_an_internal_value_or_a_recased_label_is_not_a_workload(self) -> None:
         for label in (
             "Auto (data-size producer; default otherwise)",
             "Custom config",
@@ -139,7 +178,7 @@ class NormalizeTests(unittest.TestCase):
                 self.assertEqual(steps, [])
                 self.assertEqual(len(errors), 1)
                 self.assertTrue(
-                    errors[0].startswith(f"unknown or stale profile {label!r}; {PRESETS_OFFERED}"),
+                    errors[0].startswith(f"unknown or stale workload {label!r}; {PRESETS_OFFERED}"),
                     errors[0],
                 )
 
@@ -155,11 +194,11 @@ class NormalizeTests(unittest.TestCase):
                 self.assertEqual(steps, [])
                 self.assertEqual(len(errors), 1)
                 self.assertTrue(
-                    errors[0].startswith(f"unknown or stale profile {label!r}; {PRESETS_OFFERED}"),
+                    errors[0].startswith(f"unknown or stale workload {label!r}; {PRESETS_OFFERED}"),
                     errors[0],
                 )
 
-    def test_a_listed_custom_profile_that_escapes_through_a_symlink_is_rejected(self) -> None:
+    def test_a_listed_custom_workload_that_escapes_through_a_symlink_is_rejected(self) -> None:
         with TemporaryDirectory() as temporary:
             root = Path(temporary)
             options = root / "options"
@@ -173,27 +212,27 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "profile 'Custom: custom/link.json': custom config 'custom/link.json' resolves "
+                "workload 'Custom: custom/link.json': custom config 'custom/link.json' resolves "
                 "outside tests/performance/k6/options/"
             ],
         )
 
-    def test_selection_and_profile_errors_are_reported_together(self) -> None:
+    def test_selection_and_workload_errors_are_reported_together(self) -> None:
         _steps, errors = normalize(request("job", "nope", "nope"), CATALOG)
         self.assertEqual(len(errors), 2)
         self.assertTrue(errors[0].startswith("unknown job 'nope'"), errors[0])
-        self.assertTrue(errors[1].startswith("unknown or stale profile 'nope'"), errors[1])
+        self.assertTrue(errors[1].startswith("unknown or stale workload 'nope'"), errors[1])
 
     def test_an_unknown_kind_is_rejected(self) -> None:
         _steps, errors = normalize(request("graph", "http-purchase", "1 journey"), CATALOG)
         self.assertEqual(errors, ["unknown kind 'graph'; use job or workflow"])
 
-    def test_a_profile_the_planner_refuses_passes_normalization_and_fails_the_plan(self) -> None:
+    def test_a_workload_the_planner_refuses_passes_normalization_and_fails_the_plan(self) -> None:
         cases = {
             (
                 "job",
                 "browser-cart",
-                STATUS_PROFILE,
+                STATUS_WORKLOAD,
             ): "step 1 browser-cart: custom: custom/status-regression.json must set "
             "options.browser.type on every scenario",
             (
@@ -209,13 +248,30 @@ class NormalizeTests(unittest.TestCase):
             ): "step 1 browser-purchase: sized for step 2 http-orders-status at 5 users for "
             "5 minutes (5-vu-5m), it needs 81 browser VUs; the cap is 4",
         }
-        for (kind, selection, profile), message in cases.items():
-            with self.subTest(selection=selection, profile=profile):
-                steps, errors = normalize(request(kind, selection, profile), CATALOG)
+        for (kind, selection, workload), message in cases.items():
+            with self.subTest(selection=selection, workload=workload):
+                steps, errors = normalize(request(kind, selection, workload), CATALOG)
                 self.assertEqual(errors, [])
                 plan_errors = plan_workflow(steps, CATALOG).errors
                 self.assertEqual(len(plan_errors), 1)
                 self.assertTrue(plan_errors[0].startswith(message), plan_errors[0])
+
+    def test_without_data_sizing_a_browser_producer_refuses_a_5_minute_workload(self) -> None:
+        steps, errors = normalize(
+            request(
+                "workflow", "browser-cart -> http-orders", "5 users for 5 minutes", sizing="false"
+            ),
+            CATALOG,
+        )
+        self.assertEqual(errors, [])
+        plan_errors = plan_workflow(steps, CATALOG).errors
+        self.assertEqual(len(plan_errors), 1)
+        self.assertTrue(
+            plan_errors[0].startswith(
+                "step 1 browser-cart: a browser job has no 5 users for 5 minutes (5-vu-5m) preset"
+            ),
+            plan_errors[0],
+        )
 
 
 class DispatchTests(unittest.TestCase):
@@ -246,7 +302,7 @@ class DispatchTests(unittest.TestCase):
 
     def test_a_valid_dispatch_writes_request_spec_record_and_outputs(self) -> None:
         values = request("workflow", "browser-cart -> http-orders", "1 journey")
-        # A leftover per-step value is not one of the three inputs and must not be copied.
+        # A leftover per-step value is not one of the four inputs and must not be copied.
         env = environ(values, GITHUB_OUTPUT=str(self.output), PERF_LOAD_1="old-form-value")
         code = perf_dispatch.dispatch(env, self.dir)
         self.assertEqual(code, 0)
@@ -325,18 +381,18 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(self.read("dispatch.json")["stage"], "stack")
         self.assertEqual(perf_dispatch.stage("teleport", self.dir), 1)
 
-    def test_an_unknown_profile_is_rejected_before_docker_and_recorded(self) -> None:
+    def test_an_unknown_workload_is_rejected_before_docker_and_recorded(self) -> None:
         values = request("workflow", "http-cart -> http-orders", "Custom config")
         self.assertEqual(perf_dispatch.dispatch(environ(values), self.dir), 1)
         self.assertFalse((self.dir / "spec.json").exists())
         self.assertEqual(self.read("request.json"), values)
         self.assertRegex(
-            self.read("dispatch.json")["errors"][0], r"^unknown or stale profile 'Custom config'"
+            self.read("dispatch.json")["errors"][0], r"^unknown or stale workload 'Custom config'"
         )
         self.assertEqual(self.finalize("failure"), 0)
         self.assertEqual(self.read("dispatch.json")["status"], "rejected")
         self.assertTrue(self.summary().startswith("## Rejected: `http-cart -> http-orders`"))
-        self.assertIn("unknown or stale profile 'Custom config'", self.summary())
+        self.assertIn("unknown or stale workload 'Custom config'", self.summary())
 
     # --- finalize ---------------------------------------------------------
 

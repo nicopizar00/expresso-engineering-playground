@@ -10,9 +10,10 @@ normalizer re-derives the form choices from the catalog and the options
 directory (pg.perf_forms), so a stale form or an API dispatch cannot run what
 the checked-out commit does not offer. It writes the versioned spec
 (pg.perf_spec) that `perf:workflow --spec` plans and then runs unchanged: the
-profile is the last step's load, and every earlier step is auto, so the
-planner sizes it for the step that reads its data. Evidence lands in
-tests/performance/k6/reports/dispatch/: request.json (the three form values as
+workload is the last step's load. With data sizing on, every earlier step is
+auto, so the planner sizes it for the step that reads its data; with it off,
+every step runs the workload. Evidence lands in
+tests/performance/k6/reports/dispatch/: request.json (the four form values as
 received), spec.json (written once, read-only), dispatch.json (run metadata,
 stage, status), summary.md (the GitHub job summary), and Compose diagnostics when the
 stack fails to start. No other environment value is copied.
@@ -29,7 +30,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_
 from pg.paths import PERF_JOBS_DIR, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, repo_path
-from pg.perf_forms import profile_load, profiles, standalone, workflow_label, workflows
+from pg.perf_forms import parse_workload, standalone, workflow_label, workflows, workloads
 from pg.perf_spec import CUSTOM, SpecError, StepRequest, custom_config_path, write_spec
 from pg.perf_workflow import (
     BROWSER_SERVICE,
@@ -45,7 +46,8 @@ from punch.job import JobError
 
 DISPATCH_DIR = PERF_REPORTS_DIR / "dispatch"
 KINDS = ("job", "workflow")
-INPUTS: Tuple[str, ...] = ("kind", "selection", "profile")
+INPUTS: Tuple[str, ...] = ("kind", "selection", "workload", "sizing")
+SIZING = {"true": True, "false": False}
 STAGES = ("plan", "stack", "images", "execute")
 TITLE = "Punch dispatch"
 
@@ -91,12 +93,12 @@ def _workflow(
     return []
 
 
-def _profile(label: str, options_dir: Path, errors: List[str]) -> Optional[Tuple[str, str]]:
-    """The (mode, value) load an offered profile label names; custom paths re-checked."""
-    load = profile_load(label, options_dir)
+def _workload(label: str, options_dir: Path, errors: List[str]) -> Optional[Tuple[str, str]]:
+    """The (mode, value) load an offered workload label names; custom paths re-checked."""
+    load = parse_workload(label, options_dir)
     if load is None:
         errors.append(
-            f"unknown or stale profile {label!r}; use one of: {', '.join(profiles(options_dir))}"
+            f"unknown or stale workload {label!r}; use one of: {', '.join(workloads(options_dir))}"
         )
         return None
     mode, value = load
@@ -104,16 +106,25 @@ def _profile(label: str, options_dir: Path, errors: List[str]) -> Optional[Tuple
         try:
             custom_config_path(value, options_dir)
         except SpecError as error:
-            errors.append(f"profile {label!r}: {error}")
+            errors.append(f"workload {label!r}: {error}")
             return None
     return load
+
+
+def _sizing(raw: str, errors: List[str]) -> bool:
+    """The form's data sizing checkbox, as GitHub renders a boolean input."""
+    if raw not in SIZING:
+        errors.append(f"data sizing {raw!r} must be true or false")
+        return False
+    return SIZING[raw]
 
 
 def normalize(
     request: Mapping[str, str], catalog: JobCatalog, options_dir: Path = PERF_OPTIONS_DIR
 ) -> Tuple[List[StepRequest], List[str]]:
     """The step requests a form submission asks for, or the reasons it cannot run.
-    The profile is the last step's load; every earlier step is auto."""
+    The workload is the last step's load. Every earlier step is auto (sized for
+    its reader) with data sizing on, and runs the workload too with it off."""
     errors: List[str] = []
     kind, selection = request.get("kind", ""), request.get("selection", "")
     if kind == "job":
@@ -123,11 +134,15 @@ def normalize(
     else:
         errors.append(f"unknown kind {kind!r}; use {' or '.join(KINDS)}")
         names = []
-    target = _profile(request.get("profile", ""), options_dir, errors)
+    target = _workload(request.get("workload", ""), options_dir, errors)
+    sizing = _sizing(request.get("sizing", ""), errors)
     if errors or target is None:
         return [], errors
     mode, value = target
-    return [StepRequest(name) for name in names[:-1]] + [StepRequest(names[-1], mode, value)], []
+    earlier = [
+        StepRequest(name) if sizing else StepRequest(name, mode, value) for name in names[:-1]
+    ]
+    return earlier + [StepRequest(names[-1], mode, value)], []
 
 
 # --- records -----------------------------------------------------------------

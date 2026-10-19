@@ -7,7 +7,7 @@ job and one load:
     {"mode": "preset", "value": "5-vu-5m"}         tests/performance/k6/options/<value>.json
     {"mode": "custom", "path": "custom/x.json"}    a committed JSON beneath that directory
 
-The GitHub forms name each preset by a profile label (PRESET_LABELS);
+The GitHub forms name each preset by a workload label (PRESET_LABELS);
 messages name a preset by its label and its file, so both the forms and the
 CLI recognize it.
 
@@ -32,8 +32,8 @@ CUSTOM = "custom"
 LOAD_MODES = (AUTO, PRESET, CUSTOM)
 _LOAD_KEYS = {AUTO: {"mode"}, PRESET: {"mode", "value"}, CUSTOM: {"mode", "path"}}
 OPTIONS_LABEL = "tests/performance/k6/options/"
-# GitHub form profile label -> preset stem; pg.perf_forms adds one
-# `Custom: <path>` profile per committed custom config.
+# GitHub form workload label -> preset stem; pg.perf_forms adds one
+# `Custom: <path>` workload per committed custom config.
 PRESET_LABELS: Tuple[Tuple[str, str], ...] = (
     ("1 journey", "1-iteration"),
     ("5 journeys", "5-iterations"),

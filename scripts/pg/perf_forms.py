@@ -8,7 +8,8 @@ dataset does not count). perf-workflow.yml offers every workflow: an acyclic pat
 of two to four jobs that starts at one of those, where each link is a
 dataset the producer writes for that consumer (named in its targets) and the
 consumer requires or reads optionally, and that perf:workflow plans with every
-step on auto. Both forms offer the same profiles: the preset labels, then
+step on auto. Both forms offer the same workloads (k6's term for how much
+traffic a test applies and in which pattern): the preset labels, then
 `Custom: <path>` for every JSON file beneath tests/performance/k6/options/custom/.
 Only the lines between `# BEGIN perf:forms <id>` and `# END perf:forms <id>`
 change. perf:dispatch derives the same lists at run time, so a stale form or an
@@ -51,7 +52,7 @@ class FormsError(ValueError):
     pass
 
 
-def custom_profiles(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
+def custom_workloads(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
     """`Custom: <path>` for every JSON file beneath options/custom/, at any depth,
     sorted by its path relative to the options directory."""
     root = options_dir / CUSTOM_DIR
@@ -63,17 +64,17 @@ def custom_profiles(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
     return [CUSTOM_PREFIX + path for path in found]
 
 
-def profiles(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
-    """The profile choices: the preset labels, then the committed custom configs."""
-    return [label for label, _ in PRESET_LABELS] + custom_profiles(options_dir)
+def workloads(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
+    """The workload choices: the preset labels, then the committed custom configs."""
+    return [label for label, _ in PRESET_LABELS] + custom_workloads(options_dir)
 
 
-def profile_load(label: str, options_dir: Path = PERF_OPTIONS_DIR) -> Optional[Tuple[str, str]]:
-    """(preset, stem) or (custom, path) for an offered profile label; None for any other string."""
+def parse_workload(label: str, options_dir: Path = PERF_OPTIONS_DIR) -> Optional[Tuple[str, str]]:
+    """(preset, stem) or (custom, path) for an offered workload label; None for any other string."""
     for known, stem in PRESET_LABELS:
         if label == known:
             return PRESET, stem
-    if label in custom_profiles(options_dir):
+    if label in custom_workloads(options_dir):
         return CUSTOM, label[len(CUSTOM_PREFIX) :]
     return None
 
@@ -148,7 +149,7 @@ def option_blocks(
     blocks = {
         "jobs": standalone(catalog),
         "workflows": [workflow_label(path) for path in kept],
-        "profiles": profiles(options_dir),
+        "workloads": workloads(options_dir),
     }
     return blocks, dropped
 
@@ -208,5 +209,5 @@ def run(args: Sequence[str]) -> int:
     else:
         pass_("The perf forms match the catalog and custom configs.")
     info(f"{len(blocks['jobs'])} standalone jobs, {len(blocks['workflows'])} workflows.")
-    info(f"Profiles: {', '.join(blocks['profiles'])}")
+    info(f"Workloads: {', '.join(blocks['workloads'])}")
     return 0

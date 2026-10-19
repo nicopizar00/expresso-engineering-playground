@@ -13,11 +13,11 @@ from pg.perf_dispatch import INPUTS, env_name  # noqa: E402
 from pg.perf_forms import (  # noqa: E402
     FORM_FILES,
     option_blocks,
-    profiles,
     render,
     standalone,
     workflow_label,
     workflows,
+    workloads,
 )
 from punch.catalog import load_catalog  # noqa: E402
 
@@ -58,18 +58,19 @@ class FormTests(unittest.TestCase):
                     render(text, blocks, path.name), text, "run ./dev perf:forms --write"
                 )
 
-    def test_the_job_form_has_a_job_and_a_profile(self) -> None:
+    def test_the_job_form_has_a_job_and_a_workload(self) -> None:
         form = load("perf-job.yml")
         # PyYAML reads the bare `on` key as the boolean True.
         self.assertEqual(list(form[True]), ["workflow_dispatch"])
         inputs = form[True]["workflow_dispatch"]["inputs"]
-        self.assertEqual(list(inputs), ["job", "profile"])
+        self.assertEqual(list(inputs), ["job", "workload"])
         self.assertEqual(inputs["job"]["options"], standalone(CATALOG))
         self.assertIn(inputs["job"]["default"], inputs["job"]["options"])
-        self.assertEqual(inputs["profile"]["type"], "choice")
-        self.assertEqual(inputs["profile"]["options"], profiles())
-        self.assertEqual(inputs["profile"]["default"], "1 journey")
-        for name in ("github.actor", "inputs.job", "inputs.profile"):
+        self.assertEqual(inputs["workload"]["type"], "choice")
+        self.assertTrue(inputs["workload"]["description"].startswith("Workload"))
+        self.assertEqual(inputs["workload"]["options"], workloads())
+        self.assertEqual(inputs["workload"]["default"], "1 journey")
+        for name in ("github.actor", "inputs.job", "inputs.workload"):
             self.assertIn(name, form["run-name"])
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
@@ -79,24 +80,28 @@ class FormTests(unittest.TestCase):
             {
                 "kind": "job",
                 "selection": expression("inputs.job"),
-                "profile": expression("inputs.profile"),
+                "workload": expression("inputs.workload"),
             },
         )
 
-    def test_the_workflow_form_has_a_workflow_and_a_target_profile(self) -> None:
+    def test_the_workflow_form_has_a_workflow_a_workload_and_data_sizing(self) -> None:
         form = load("perf-workflow.yml")
         self.assertEqual(list(form[True]), ["workflow_dispatch"])
         inputs = form[True]["workflow_dispatch"]["inputs"]
-        self.assertEqual(list(inputs), ["workflow", "target-profile"])
+        self.assertEqual(list(inputs), ["workflow", "workload", "sizing"])
         kept, _ = workflows(CATALOG)
         self.assertEqual(inputs["workflow"]["options"], [workflow_label(path) for path in kept])
         self.assertIn(inputs["workflow"]["default"], inputs["workflow"]["options"])
-        target = inputs["target-profile"]
-        self.assertEqual(target["type"], "choice")
-        self.assertEqual(target["options"], profiles())
-        self.assertEqual([o for o in target["options"] if o.startswith("Auto")], [])
-        self.assertEqual(target["default"], "5 journeys")
-        for name in ("github.actor", "inputs.workflow", "inputs.target-profile"):
+        workload = inputs["workload"]
+        self.assertEqual(workload["type"], "choice")
+        self.assertTrue(workload["description"].startswith("Workload"))
+        self.assertEqual(workload["options"], workloads())
+        self.assertEqual([o for o in workload["options"] if o.startswith("Auto")], [])
+        self.assertEqual(workload["default"], "5 journeys")
+        sizing = inputs["sizing"]
+        self.assertEqual((sizing["type"], sizing["default"]), ("boolean", True))
+        self.assertTrue(sizing["description"].startswith("Data sizing"))
+        for name in ("github.actor", "inputs.workflow", "inputs.workload", "inputs.sizing"):
             self.assertIn(name, form["run-name"])
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
@@ -106,7 +111,8 @@ class FormTests(unittest.TestCase):
             {
                 "kind": "workflow",
                 "selection": expression("inputs.workflow"),
-                "profile": expression("inputs.target-profile"),
+                "workload": expression("inputs.workload"),
+                "sizing": expression("inputs.sizing"),
             },
         )
 
@@ -123,15 +129,20 @@ class ExecuteTests(unittest.TestCase):
     def index(self, name: str) -> int:
         return self.steps.index(self.step(name))
 
-    def test_it_is_callable_only_with_the_three_string_inputs(self) -> None:
+    def test_it_is_callable_only_with_three_string_inputs_and_data_sizing(self) -> None:
         self.assertEqual(list(self.workflow[True]), ["workflow_call"])
         inputs = self.workflow[True]["workflow_call"]["inputs"]
-        self.assertEqual(list(inputs), ["kind", "selection", "profile"])
+        self.assertEqual(list(inputs), ["kind", "selection", "workload", "sizing"])
         self.assertEqual(list(inputs), list(INPUTS))
-        for name, spec in inputs.items():
+        for name in ("kind", "selection", "workload"):
             with self.subTest(input=name):
-                self.assertEqual(spec["type"], "string")
-                self.assertTrue(spec["required"])
+                self.assertEqual(inputs[name]["type"], "string")
+                self.assertTrue(inputs[name]["required"])
+        # perf-job.yml leaves it out: one step has nothing to size.
+        self.assertEqual(
+            {key: inputs["sizing"][key] for key in ("type", "required", "default")},
+            {"type": "boolean", "required": False, "default": True},
+        )
 
     def test_one_read_only_job_bounded_to_an_hour(self) -> None:
         self.assertEqual(list(self.workflow["jobs"]), ["execute"])
