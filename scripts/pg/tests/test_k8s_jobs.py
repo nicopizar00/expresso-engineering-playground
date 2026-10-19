@@ -1,7 +1,7 @@
-"""Each Kubernetes thin template mirrors its Punch workflow YAML.
+"""Each Kubernetes thin template mirrors its Punch job YAML.
 
-infra/k8s/perf/punch/workflows/<id>.yaml runs Punch's generic punch-k6-run
-template with the facts of tests/performance/k6/workflows/<id>.yaml. The
+infra/k8s/perf/punch/jobs/<id>.yaml runs Punch's generic punch-k6-run
+template with the facts of tests/performance/k6/jobs/<id>.yaml. The
 cluster never reads the Punch YAML, so this test is what keeps them equal.
 """
 
@@ -15,12 +15,12 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.paths import K8S_DIR, PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR  # noqa: E402
+from pg.paths import K8S_DIR, PERF_OPTIONS_DIR, PERF_JOBS_DIR  # noqa: E402
 from punch.catalog import load_catalog  # noqa: E402
-from punch.workflow import load_workflow  # noqa: E402
+from punch.job import load_job  # noqa: E402
 
 PUNCH_DIR = K8S_DIR / "perf" / "punch"
-THIN_DIR = PUNCH_DIR / "workflows"
+THIN_DIR = PUNCH_DIR / "jobs"
 BASE_URLS = {
     "k6": "http://bff.mini-commerce.svc.cluster.local:3001",
     "k6-browser": "http://web.mini-commerce.svc.cluster.local:3000",
@@ -42,15 +42,15 @@ def _named(items: list) -> dict:
 
 
 class ThinTemplateParityTests(unittest.TestCase):
-    def test_one_thin_template_per_punch_workflow(self) -> None:
-        punch = {path.stem for path in PERF_WORKFLOWS_DIR.glob("*.yaml")}
+    def test_one_thin_template_per_punch_job(self) -> None:
+        punch = {path.stem for path in PERF_JOBS_DIR.glob("*.yaml")}
         thin = {path.stem for path in THIN_DIR.glob("*.yaml")}
         self.assertEqual(thin, punch)
 
     def test_kustomization_lists_every_thin_template(self) -> None:
         resources = _load(PUNCH_DIR / "kustomization.yaml")["resources"]
-        listed = {r for r in resources if r.startswith("workflows/")}
-        self.assertEqual(listed, {f"workflows/{p.name}" for p in THIN_DIR.glob("*.yaml")})
+        listed = {r for r in resources if r.startswith("jobs/")}
+        self.assertEqual(listed, {f"jobs/{p.name}" for p in THIN_DIR.glob("*.yaml")})
 
     def test_options_configmap_carries_every_preset(self) -> None:
         generators = _load(PUNCH_DIR / "kustomization.yaml")["configMapGenerator"]
@@ -60,39 +60,39 @@ class ThinTemplateParityTests(unittest.TestCase):
             {p.name for p in PERF_OPTIONS_DIR.glob("*.json")},
         )
 
-    def test_thin_templates_match_their_punch_workflow(self) -> None:
-        catalog = load_catalog(PERF_WORKFLOWS_DIR)
-        for path in sorted(PERF_WORKFLOWS_DIR.glob("*.yaml")):
-            workflow = load_workflow(path)
-            with self.subTest(workflow=workflow.name):
+    def test_thin_templates_match_their_punch_job(self) -> None:
+        catalog = load_catalog(PERF_JOBS_DIR)
+        for path in sorted(PERF_JOBS_DIR.glob("*.yaml")):
+            job = load_job(path)
+            with self.subTest(job=job.name):
                 thin = _load(THIN_DIR / path.name)
                 self.assertEqual(thin["kind"], "WorkflowTemplate")
-                self.assertEqual(thin["metadata"]["name"], workflow.name)
+                self.assertEqual(thin["metadata"]["name"], job.name)
                 spec = thin["spec"]
                 main = next(t for t in spec["templates"] if t["name"] == spec["entrypoint"])
                 [[step]] = main["steps"]
                 self.assertEqual(
                     step["templateRef"],
-                    {"name": "punch-k6-run", "template": workflow.compose_service},
+                    {"name": "punch-k6-run", "template": job.compose_service},
                 )
-                requires = workflow.data.requires if workflow.data else ()
-                produces = workflow.data.produces if workflow.data else ()
+                requires = job.data.requires if job.data else ()
+                produces = job.data.produces if job.data else ()
                 self.assertEqual(
                     _named(spec["arguments"]["parameters"]),
                     {
-                        "config": workflow.k6_config.stem,
+                        "config": job.k6_config.stem,
                         "produce": "",
-                        "base-url": BASE_URLS[workflow.compose_service],
+                        "base-url": BASE_URLS[job.compose_service],
                         "extra-env": "",
                     },
                 )
                 self.assertEqual(
                     _named(step["arguments"]["parameters"]),
                     {
-                        "workflow": workflow.name,
-                        "script": workflow.k6_script,
+                        "job": job.name,
+                        "script": job.k6_script,
                         "forward": " ".join(
-                            name for name in workflow.forward_environment if name != "BASE_URL"
+                            name for name in job.forward_environment if name != "BASE_URL"
                         ),
                         "requires": " ".join(requires),
                         "requires-hint": " ".join(

@@ -5,7 +5,7 @@
 # and ./dev perf:<id> --runtime k8s (infra/k8s, infra/k8s/perf,
 # infra/argocd), with no Python: minikube, the Punch perf platform (Argo
 # Workflows, SeaweedFS as S3, the registry addon as ECR), Argo CD, Punch
-# workflow runs, the POC verification, and evidence. Run ./k8s help.
+# job runs, the POC verification, and evidence. Run ./k8s help.
 #
 # Requires: docker, minikube, kubectl. Works with macOS's bash 3.2.
 # scripts/pg/tests/test_k8s_cli.py keeps the facts below in step with the
@@ -348,7 +348,7 @@ follow_run() {
 }
 
 cmd_run() {
-  local usage="usage: ./k8s run <workflow> [--config PRESET] [--produce DATASET]... [--base-url URL]"
+  local usage="usage: ./k8s run <job> [--config PRESET] [--produce DATASET]... [--base-url URL]"
   [ $# -ge 1 ] && [ "${1#-}" = "$1" ] || die "$usage"
   local id=$1 config="" produce="" base_url="" forward name value extra="" params="" manifest run
   shift
@@ -370,7 +370,7 @@ cmd_run() {
   fi
   require_cluster
   kc -n punch get workflowtemplate "$id" >/dev/null 2>&1 ||
-    die "no workflow '$id' in namespace punch — ./k8s perf:up, or one of: $(kc -n punch get workflowtemplates -o name 2>/dev/null | sed 's|.*/||' | grep -v '^punch-k6-run$' | tr '\n' ' ')"
+    die "no job '$id' in namespace punch — ./k8s perf:up, or one of: $(kc -n punch get workflowtemplates -o name 2>/dev/null | sed 's|.*/||' | grep -v '^punch-k6-run$' | tr '\n' ' ')"
   # Forward the template's declared names that are set in this shell, as
   # compose forwards host environment variables.
   forward=$(kc -n punch get workflowtemplate "$id" \
@@ -596,7 +596,7 @@ Cluster
 
 Punch on Kubernetes
   perf:up [--no-build]      registry + k6 images, Argo Workflows, SeaweedFS (S3), Punch templates
-  run <workflow> [opts]     run one workflow and follow it; same ids as ./dev perf:<id>
+  run <job> [opts]          run one job and follow it; same ids as ./dev perf:<id>
                               --config PRESET     tests/performance/k6/options/<PRESET>.json
                               --produce DATASET   publish to s3://$BUCKET/datasets/ (repeatable, or all)
                               --base-url URL      in-cluster target (default: the template's)

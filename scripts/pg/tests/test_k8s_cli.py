@@ -58,10 +58,10 @@ class CliTests(unittest.TestCase):
     def test_unknown_command_fails(self) -> None:
         self.assertEqual(_k8s("nope").returncode, 1)
 
-    def test_run_without_a_workflow_shows_usage(self) -> None:
+    def test_run_without_a_job_shows_usage(self) -> None:
         result = _k8s("run")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("usage: ./k8s run <workflow>", result.stderr)
+        self.assertIn("usage: ./k8s run <job>", result.stderr)
 
     def test_run_rejects_a_config_path_before_touching_the_cluster(self) -> None:
         result = _k8s("run", "http-purchase", "--config", "tests/performance/k6/options/1-iteration.json")

@@ -22,7 +22,7 @@ Source anchors: `apps/web/app/page.tsx`, `apps/bff/src/app.module.ts`,
 `infra/docker/compose.yaml`, `infra/k8s/kustomization.yaml`,
 `infra/k8s/perf/punch/kustomization.yaml`, `infra/argocd/applications/`,
 `vercel.json`, `scripts/pg/perf.py`, `scripts/pg/k8s_perf.py`,
-`infra/observability/otel-collector-config.yaml`, and `tests/performance/k6/workflows/`.
+`infra/observability/otel-collector-config.yaml`, and `tests/performance/k6/jobs/`.
 
 This page owns the system summary. HTTP contracts live in the
 [system reference](../reference/README.md), and implementation mechanisms live
@@ -131,8 +131,8 @@ Tempo, Prometheus, and Grafana observability stack.
 
 The minikube application deployment contains PostgreSQL, the BFF, web app,
 visualizer, and collector. A separate performance base installs Argo
-Workflows, SeaweedFS as an S3-compatible artifact store, and nine Punch
-workflow templates. The setup command separately enables minikube's registry
+Workflows, SeaweedFS as an S3-compatible artifact store, and nine thin
+WorkflowTemplates, one per Punch job. The setup command separately enables minikube's registry
 addon when it builds performance images.
 
 Argo CD has two Applications. One syncs the performance platform, and the
@@ -149,14 +149,14 @@ The local collector forwards traces to
 Tempo and exposes metrics for Prometheus when those optional services run.
 
 Performance tests are separate from the web performance section. Nine
-repository-owned workflow definitions select k6 HTTP or browser scenarios.
+repository-owned job definitions select k6 HTTP or browser scenarios.
 Punch runs them through Docker Compose or submits them to Argo Workflows on
 Kubernetes.
 
 Local performance runs write datasets and reports under the test tree.
 Kubernetes runs store datasets and run artifacts in the configured S3 bucket.
 The [performance orchestrator guide](../performance/orchestrator.md) owns the
-workflow and dataset contract.
+job and dataset contract.
 
 ## Deliberate limits and exposed quirks
 

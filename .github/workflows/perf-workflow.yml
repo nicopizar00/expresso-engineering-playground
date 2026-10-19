@@ -1,24 +1,25 @@
-name: Punch performance — chain
+name: Punch performance — workflow
 
-# Run one producer/consumer recipe against the Expresso stack on this runner;
-# each step reads the datasets earlier steps wrote. The target profile is the
-# last step's load; every earlier step is sized for the step that reads its
-# data. The recipe list holds only recipes the catalog links and perf:chain
-# plans: ./dev perf:forms --write generates the marked option blocks.
+# Run one producer/consumer Punch workflow against the Expresso stack on this
+# runner; each step reads the datasets earlier steps wrote. The target profile
+# is the last step's load; every earlier step is sized for the step that reads
+# its data. The list holds only Punch workflows the catalog links and
+# perf:workflow plans: ./dev perf:forms --write generates the marked option
+# blocks.
 # _perf-execute.yml validates, runs, and records the run:
-# docs/performance/orchestrator.md#github-actions-perf-run-and-perf-chain.
+# docs/performance/orchestrator.md#github-actions-perf-job-and-perf-workflow.
 
-run-name: "perf-chain: ${{ inputs.recipe }} (${{ inputs.target-profile }}) by @${{ github.actor }}"
+run-name: "perf-workflow: ${{ inputs.workflow }} (${{ inputs.target-profile }}) by @${{ github.actor }}"
 
 on:
   workflow_dispatch:
     inputs:
-      recipe:
-        description: Recipe
+      workflow:
+        description: Workflow
         type: choice
         default: http-cart -> http-orders
         options:
-          # BEGIN perf:forms recipes
+          # BEGIN perf:forms workflows
           - "browser-cart -> http-orders"
           - "browser-cart -> http-orders -> http-orders-status"
           - "browser-purchase -> http-orders-status"
@@ -28,7 +29,7 @@ on:
           - "http-purchase -> http-orders-status"
           - "http-purchase-registered -> http-auth-login"
           - "http-purchase-registered -> http-auth-login -> http-me-hot-status"
-          # END perf:forms recipes
+          # END perf:forms workflows
       target-profile:
         description: Target profile, the last step's load (earlier steps are sized for it; a browser producer above 4 VUs is refused)
         type: choice
@@ -47,9 +48,9 @@ permissions:
 
 jobs:
   run:
-    name: Punch chain
+    name: Punch workflow
     uses: ./.github/workflows/_perf-execute.yml
     with:
-      kind: chain
-      selection: ${{ inputs.recipe }}
+      kind: workflow
+      selection: ${{ inputs.workflow }}
       profile: ${{ inputs.target-profile }}

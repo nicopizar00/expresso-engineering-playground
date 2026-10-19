@@ -1,5 +1,5 @@
-# Punch workflow http-cart on Kubernetes; mirrors
-# tests/performance/k6/workflows/http-cart.yaml (test_k8s_workflows.py).
+# Punch job http-cart on Kubernetes; mirrors
+# tests/performance/k6/jobs/http-cart.yaml (test_k8s_jobs.py).
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
@@ -19,7 +19,7 @@ spec:
             templateRef: { name: punch-k6-run, template: k6 }
             arguments:
               parameters:
-                - { name: workflow, value: http-cart }
+                - { name: job, value: http-cart }
                 - { name: script, value: /scripts/scenarios/http-cart/http-cart.js }
                 - { name: config, value: "{{workflow.parameters.config}}" }
                 - { name: base-url, value: "{{workflow.parameters.base-url}}" }

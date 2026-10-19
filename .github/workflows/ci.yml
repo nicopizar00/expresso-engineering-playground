@@ -238,14 +238,14 @@ jobs:
         # k6 runs as uid 12345 in its container; the checkout belongs to the
         # runner user, so handleSummary() could not write here.
         run: chmod a+w tests/performance/k6/reports
-      - name: Run k6 purchase workflow
+      - name: Run k6 purchase job
         env:
           BASE_URL: http://host.docker.internal:3001
         run: ./dev perf:http-purchase --config 1-iteration
-      - name: Run k6 chain
+      - name: Run k6 workflow
         # Each step reads the rows the step before it wrote; auto sizes
         # http-cart and http-orders for the step after them.
-        run: ./dev perf:chain http-cart http-orders http-orders-status:1-iteration
+        run: ./dev perf:workflow http-cart http-orders http-orders-status:1-iteration
       - name: Tear down stack
         if: always()
         run: docker compose -f infra/docker/compose.yaml down --volumes

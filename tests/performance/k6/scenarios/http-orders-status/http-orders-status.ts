@@ -4,7 +4,7 @@
 // `[DATA orders] <orderId>` after verifying each order; with
 // `--produce orders` Punch publishes tests/performance/k6/data/orders.csv
 // (header `orderId`) and injects its container path here as
-// DATA_ORDERS_CSV (see spec.data in workflows/http-orders-status.yaml). Punch fails
+// DATA_ORDERS_CSV (see spec.data in jobs/http-orders-status.yaml). Punch fails
 // the run before Docker when the dataset is missing or empty.
 //
 // Each iteration reads GET /orders/:id/status — a direct Postgres read in
@@ -16,7 +16,7 @@
 // ORDER_COOL_DOWN_SECONDS must match the BFF's value (default 300).
 //
 // Load shape:
-//   From the k6 config Punch passes as `k6 run --config`; the workflow
+//   From the k6 config Punch passes as `k6 run --config`; the job
 //   default is options/5-iterations.json. Rows are reused round-robin when
 //   the run iterates past the dataset size — reads are idempotent.
 //
@@ -50,7 +50,7 @@ if (!["auto", "hot", "cold"].includes(EXPECT)) {
 }
 
 // Load shape (executor, VUs, iterations or duration) comes from the k6
-// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// config Punch passes as `k6 run --config`: the job's spec.k6.config
 // or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
   thresholds: orderStatusThresholds,

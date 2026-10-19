@@ -121,10 +121,10 @@ orchestration capability; the engine is Punch (`vendor/punch/`).
 - Punch boundary + docs index: [`docs/architecture/punch-implementation.md`](docs/architecture/punch-implementation.md)
 - Run from a fresh checkout: `./dev perf:http-purchase --config 1-iteration`
 - Kubernetes runtime (Argo Workflows/Argo CD, no Python in cluster): [`docs/performance/k8s-runtime.md`](docs/performance/k8s-runtime.md); `./dev perf:<id> --runtime k8s`
-- Chains: `./dev perf:chain http-cart http-orders:5-vu-5m` runs workflows in order, each step reading the previous steps' datasets; the `perf-run` and `perf-chain` GitHub workflows run single workflows and chains on demand ([`docs/performance/orchestrator.md`](docs/performance/orchestrator.md#github-actions-perf-run-and-perf-chain))
+- Workflows: `./dev perf:workflow http-cart http-orders:5-vu-5m` runs jobs in order, each step reading the previous steps' datasets; the `perf-job` and `perf-workflow` GitHub workflows run single jobs and Punch workflows on demand ([`docs/performance/orchestrator.md`](docs/performance/orchestrator.md#github-actions-perf-job-and-perf-workflow))
 
 Core `scripts/pg/` stays standard-library-only. Performance commands load the
-public Punch workflow engine, so initialize the submodule and install its
+public Punch job engine, so initialize the submodule and install its
 pinned dependency before the first `./dev perf:*` command:
 
 ```bash
@@ -133,8 +133,8 @@ python3 -m pip install -r vendor/punch/requirements.txt
 docker compose -f infra/docker/compose.performance.yaml build k6
 ```
 
-Each performance command selects one repository-owned YAML workflow; Punch
-loads, validates, and runs it once through Docker Compose. Workflows declare
+Each performance command selects one repository-owned Punch job (YAML); Punch
+loads, validates, and runs it once through Docker Compose. Jobs declare
 datasets in `spec.data`; a producer writes its dataset only with
 `--produce <dataset>` (e.g. `./dev perf:http-cart --produce carts`), and a
 consumer such as `http-orders` fails before Docker until its dataset exists.

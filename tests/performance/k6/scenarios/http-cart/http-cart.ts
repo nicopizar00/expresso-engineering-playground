@@ -3,7 +3,7 @@
 // Mirrors http-purchase's pre-checkout steps exactly, then emits the cart id
 // as a `[DATA carts]` stdout record instead of placing an order. Punch writes
 // those rows to data/carts.csv when the run opts in with `--produce carts`
-// (see spec.data in workflows/http-cart.yaml), giving http-orders a batch
+// (see spec.data in jobs/http-cart.yaml), giving http-orders a batch
 // of live cart ids without exercising the checkout path.
 //
 // Session handoff:
@@ -19,7 +19,7 @@
 //   http.cookieJar().set(...) before its checkout call.
 //
 // Load shape:
-//   From the k6 config Punch passes as `k6 run --config`. The workflow
+//   From the k6 config Punch passes as `k6 run --config`. The job
 //   default is options/5-iterations.json — a fixed op count, environment
 //   independent, unlike a constant-vus soak (options/*-vu-5m.json) whose
 //   throughput (and therefore op count) varies with how fast the target
@@ -42,7 +42,7 @@ import { buildSummaryOutputs } from "../../support/report";
 declare const console: { log: (message: string) => void };
 
 // Load shape (executor, VUs, iterations or duration) comes from the k6
-// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// config Punch passes as `k6 run --config`: the job's spec.k6.config
 // or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
   thresholds: purchaseFlowThresholds,

@@ -3,7 +3,7 @@
 The cluster side is plain YAML (infra/k8s/perf/ plus Punch's generic template
 in vendor/punch/k8s/) and needs no Python. This module is a local
 convenience over kubectl: build and push the k6 images into the registry
-addon (the ECR stand-in), apply the platform, and run one workflow by id.
+addon (the ECR stand-in), apply the platform, and run one job by id.
 kubectl-only equivalents: docs/performance/k8s-runtime.md.
 """
 
@@ -19,7 +19,7 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pg import k8s
 from pg.ansi import bold, fail, header, info, pass_, warn
-from pg.paths import K8S_DIR, PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
+from pg.paths import K8S_DIR, PERF_JOBS_DIR, PERF_OPTIONS_DIR, REPO_ROOT
 
 PERF_DIR = K8S_DIR / "perf"
 NAMESPACE = "punch"
@@ -102,7 +102,7 @@ def up(args: Sequence[str]) -> int:
     subprocess.run(punch("get", "workflowtemplates"), check=False)
     print()
     pass_("Punch is ready on Kubernetes")
-    info(f"Run a workflow: {bold('./dev perf:http-purchase --runtime k8s --config 1-iteration')}")
+    info(f"Run a job: {bold('./dev perf:http-purchase --runtime k8s --config 1-iteration')}")
     info(f"Argo UI: kubectl --context {k8s.PROFILE} -n argo port-forward svc/argo-server "
          "2746:2746, then https://localhost:2746")
     print()
@@ -113,7 +113,7 @@ def parse_run_args(name: str, args: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog=f"./dev perf:{name} --runtime k8s")
     parser.add_argument(
         "--config", default=None, metavar="PRESET",
-        help="k6 options preset from tests/performance/k6/options/ (default: the workflow's).",
+        help="k6 options preset from tests/performance/k6/options/ (default: the job's).",
     )
     parser.add_argument(
         "--produce", action="append", default=[], metavar="DATASET",
@@ -288,20 +288,20 @@ def _follow(name: str, run: str) -> int:
     return 1
 
 
-def run_workflow(name: str, args: Sequence[str]) -> int:
-    """Run one repository workflow on Argo Workflows and follow it."""
+def run_job(name: str, args: Sequence[str]) -> int:
+    """Run one repository job on Argo Workflows and follow it."""
     parsed = parse_run_args(name, args)
     try:
         # Punch's loader is the perf-only dependency; import it lazily.
         from punch.execution import validate_produce
-        from punch.workflow import load_workflow
+        from punch.job import load_job
 
-        workflow = load_workflow(PERF_WORKFLOWS_DIR / f"{name}.yaml")
-        produce = validate_produce(workflow, parsed.produce)
+        job = load_job(PERF_JOBS_DIR / f"{name}.yaml")
+        produce = validate_produce(job, parsed.produce)
         config = resolve_preset(parsed.config)
-        env_pairs = extra_env(workflow.forward_environment, os.environ)
+        env_pairs = extra_env(job.forward_environment, os.environ)
     except ValueError as error:
-        fail(f"Could not prepare k8s workflow {name}: {error}")
+        fail(f"Could not prepare k8s job {name}: {error}")
         return 1
 
     header(f"Punch on Kubernetes — {name} (Argo Workflows)")

@@ -1,11 +1,11 @@
 # k6 scenario library
 
 This folder owns the mini-commerce BFF scenarios, their TypeScript build
-entries, repository workflow YAML, and generated HTML/JSON reports. It uses
-the pinned Punch submodule for shared report helpers and the generic workflow
+entries, repository Punch job YAML, and generated HTML/JSON reports. It uses
+the pinned Punch submodule for shared report helpers and the generic job
 runtime; Punch does not own Expresso's HTTP contracts.
 
-## Run a workflow
+## Run a job
 
 Start the BFF, initialize Punch, install its pinned dependency, and build the
 image separately:
@@ -18,13 +18,13 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ./dev perf:http-purchase
 ```
 
-`./dev perf:*` selects one YAML file in `workflows/`. Punch loads and validates
+`./dev perf:*` selects one YAML file in `jobs/`. Punch loads and validates
 it, then issues one Compose run. It streams stdout and stderr independently to
 the terminal and `reports/logs/`, while each scenario retains its existing
 HTML/JSON summary output in `reports/`. Do not substitute a direct Compose
 command in normal use; it is a debugging escape hatch, not the owned path.
 
-Set a different target without changing a workflow:
+Set a different target without changing a job:
 
 ```bash
 BASE_URL=https://perf.example.test ./dev perf:http-purchase
@@ -34,9 +34,9 @@ BASE_URL=https://perf.example.test ./dev perf:http-purchase
 
 The load shape — executor, VUs, iterations or duration — is a native k6
 options JSON that Punch passes as `k6 run --config`. It is never an
-environment variable. Each workflow's `spec.k6.config` names its default,
+environment variable. Each job's `spec.k6.config` names its default,
 `options/5-iterations.json` (1 VU, 5 shared iterations, 5m `maxDuration`;
-`options/5-iterations-browser.json` for the browser workflows). That gives a
+`options/5-iterations-browser.json` for the browser jobs). That gives a
 fixed op count that doesn't depend on the environment, unlike a
 `constant-vus` soak whose throughput (and therefore op count) varies with how
 fast the target environment is. Pick another config for one run with
@@ -67,12 +67,12 @@ distinct carts, not a shared one.
 
 `./dev perf:*` stays non-interactive and never opens the picker. Punch's
 interactive menu (`PYTHONPATH=vendor/punch/src python3 -m punch menu
-tests/performance/k6/workflows`) is a separate entry point: after picking a
-workflow and a `BASE_URL` target, it offers these same `options/*.json`
+tests/performance/k6/jobs`) is a separate entry point: after picking a
+job and a `BASE_URL` target, it offers these same `options/*.json`
 presets as the run's `--config`; its first entry (the cursor's default) keeps
-the workflow's own `spec.k6.config`. The step is shown whenever `options/`
-holds at least one preset, and every preset is offered to every workflow — a
-browser workflow needs a `*-browser` preset.
+the job's own `spec.k6.config`. The step is shown whenever `options/`
+holds at least one preset, and every preset is offered to every job — a
+browser job needs a `*-browser` preset.
 
 ## Run the browser variant
 
@@ -80,7 +80,7 @@ browser workflow needs a `*-browser` preset.
 app's real UI with Chromium (`k6/browser`) instead of calling the BFF over
 HTTP — same add-to-cart → http-orders → land-on-the-new-order path, exercised
 through clicks and DOM reads. It targets the **web app** (`WEB_PORT`, 3000),
-not the BFF (3001) that every other workflow targets, and it builds a
+not the BFF (3001) that every other job targets, and it builds a
 separate image (`infra/docker/k6-browser.Dockerfile`, service `k6-browser`)
 layered on Grafana's official Chromium-bundled `grafana/k6:0.54.0-with-browser`
 tag — the plain `k6` image stays bare:
@@ -107,12 +107,12 @@ correctly via k6's threshold results). The two helpers default an *absent*
 like 100% failure) — a pre-existing quirk in the shared report helper
 (`vendor/punch/src/tests/support/report.ts`), not something specific to this
 scenario. Read `passed`/`checkPassRate`, not `errorRate`, from the JSON
-summary for this workflow.
+summary for this job.
 
 ## Data pipeline (produce / require)
 
-Workflows hand data to each other through named datasets declared in each
-workflow's `spec.data` (full contract: [`docs/performance/orchestrator.md`](../../../docs/performance/orchestrator.md#data-pipeline-specdata)):
+Jobs hand data to each other through named datasets declared in each
+job's `spec.data` (full contract: [`docs/performance/orchestrator.md`](../../../docs/performance/orchestrator.md#data-pipeline-specdata)):
 
 ```text
 http-cart ─────────┐
@@ -125,16 +125,16 @@ browser-purchase ─────────────────────
   `data/<dataset>.csv` (gitignored, header row from the declared columns)
   **only** when the run opts in with `--produce <dataset>` (or
   `--produce all`), and publishes it atomically after a successful run. A
-  zero-row run, a malformed row, or a failed process fails the workflow and
+  zero-row run, a malformed row, or a failed process fails the job and
   keeps the previous file.
 - A consumer fails before Docker when a required dataset is missing or has no
-  rows, naming the workflows that produce it. Through `punch run` or the
+  rows, naming the jobs that produce it. Through `punch run` or the
   `punch` menu in a terminal, Punch first offers each optional dataset's source
   (built-in default or `data/<dataset>.csv`), then — for missing data — lists
   every producer with the `recommended: true` one preselected (`http-cart` for
   `carts`, `http-purchase` for `orders`), runs the picked one (`punch run`
   with `--produce`; the menu asks before writing, as for a direct pick), and
-  tells you which workflow to re-run. `--no-input` and
+  tells you which job to re-run. `--no-input` and
   `--data <dataset>=default` are the non-interactive equivalents. Punch injects
   the container path as `DATA_<DATASET>_CSV`; `--data <dataset>=<path>` reads
   an alternate file under `data/`. After the run, an interactive terminal is
@@ -147,18 +147,18 @@ browser-purchase ─────────────────────
 
 ### Size a producer for a target
 
-Every workflow here declares `spec.sizing`: a measured one-VU
+Every job here declares `spec.sizing`: a measured one-VU
 `iterationSeconds`, `maxSeconds: 270` on producers (30 s under the default
 configs' 5 m `maxDuration`), and `margin: 0.15` on targets. Instead of
 picking producer options, size the producer for the run you plan next:
 
 ```bash
-# menu: pick http-cart → "Size for a target workflow" → pick http-orders' preset
-PYTHONPATH=vendor/punch/src python3 -m punch menu tests/performance/k6/workflows
+# menu: pick http-cart → "Size for a target job" → pick http-orders' preset
+PYTHONPATH=vendor/punch/src python3 -m punch menu tests/performance/k6/jobs
 
 # CLI: --config is the target's load shape (default: the target's spec.k6.config)
 PYTHONPATH=vendor/punch/src python3 -m punch run \
-  tests/performance/k6/workflows/http-cart.yaml --size-for http-orders \
+  tests/performance/k6/jobs/http-cart.yaml --size-for http-orders \
   --config tests/performance/k6/options/5-vu-5m.json
 ```
 
@@ -210,7 +210,7 @@ docker compose -f infra/docker/compose.performance.yaml build k6-browser
 
 An order is "served" at checkout and reports `hot` until
 `ORDER_COOL_DOWN_SECONDS` (BFF default 300) have passed, then `cold`. Each
-complete purchase workflow emits `[DATA orders] <orderId>` once it verified
+complete purchase job emits `[DATA orders] <orderId>` once it verified
 the order (`browser-purchase` reads the id from the rendered orders
 section). `http-orders-status` reads `GET /orders/:id/status` — a direct Postgres
 read in the BFF — per row and checks the temperature:
@@ -262,17 +262,17 @@ Load-tests `GET /me/hot-status` with real login tokens.
 - Thresholds for all three: `http_req_failed` < 10%, checks > 90%,
   p(90) < 1000 ms (500 ms for http-me-hot-status).
 
-### Run a chain in one command
+### Run a workflow in one command
 
-`./dev perf:chain` runs the steps above in order, writes only the datasets a
+`./dev perf:workflow` runs the steps above in order, writes only the datasets a
 later step reads, and sizes each writer for its reader by default. On GitHub,
-the `perf-run` and `perf-chain` workflows run single workflows and chains from
-the Actions tab. Rules and evidence: [`orchestrator.md`](../../../docs/performance/orchestrator.md#chains-perfchain).
+the `perf-job` and `perf-workflow` GitHub workflows run single jobs and Punch workflows from
+the Actions tab. Rules and evidence: [`orchestrator.md`](../../../docs/performance/orchestrator.md#workflows-perfworkflow).
 
 ```bash
-./dev perf:chain http-cart http-orders http-orders-status:1-iteration
-./dev perf:chain http-purchase-registered http-auth-login http-me-hot-status:1-vu-5m
-./dev perf:chain --plan browser-purchase http-orders-status:5-vu-5m   # rejected: 81 browser VUs
+./dev perf:workflow http-cart http-orders http-orders-status:1-iteration
+./dev perf:workflow http-purchase-registered http-auth-login http-me-hot-status:1-vu-5m
+./dev perf:workflow --plan browser-purchase http-orders-status:5-vu-5m   # rejected: 81 browser VUs
 ```
 
 ## Reports and current-run evidence
@@ -282,8 +282,8 @@ The report volume has this stable layout:
 ```text
 reports/
   <id>-report.html / <id>-summary.json         # scenario HTML/JSON output
-  logs/k6-<id>.log                             # selected workflow stdout/stderr
-  chain/                                       # ./dev perf:chain evidence (chain.json, summary.md)
+  logs/k6-<id>.log                             # selected job stdout/stderr
+  workflow/                                       # ./dev perf:workflow evidence (workflow.json, summary.md)
   dispatch/                                    # GitHub run record (request.json, spec.json, dispatch.json, summary.md)
 ```
 
@@ -295,26 +295,26 @@ Inspect or remove those generated files with:
 ```
 
 Existing dataset, HTML, or JSON files are **not current-run evidence**: a file
-may predate the selected workflow. Use the Punch execution result and its
+may predate the selected job. Use the Punch execution result and its
 matching stdout/stderr log as the current-run evidence record; the result
-identifies the selected workflow and reports its exit/pass state and the row
+identifies the selected job and reports its exit/pass state and the row
 count of any dataset it wrote.
 
 The current mappings are:
 
-| TypeScript build entry                                           | YAML workflow                             |
+| TypeScript build entry                                           | YAML job                             |
 | ---------------------------------------------------------------- | ----------------------------------------- |
-| `scenarios/browser-cart/browser-cart.ts`                         | `workflows/browser-cart.yaml`             |
-| `scenarios/browser-purchase/browser-purchase.ts`                 | `workflows/browser-purchase.yaml`         |
-| `scenarios/http-auth-login/http-auth-login.ts`                   | `workflows/http-auth-login.yaml`          |
-| `scenarios/http-cart/http-cart.ts`                               | `workflows/http-cart.yaml`                |
-| `scenarios/http-me-hot-status/http-me-hot-status.ts`             | `workflows/http-me-hot-status.yaml`       |
-| `scenarios/http-orders/http-orders.ts`                           | `workflows/http-orders.yaml`              |
-| `scenarios/http-orders-status/http-orders-status.ts`             | `workflows/http-orders-status.yaml`       |
-| `scenarios/http-purchase/http-purchase.ts`                       | `workflows/http-purchase.yaml`            |
-| `scenarios/http-purchase-registered/http-purchase-registered.ts` | `workflows/http-purchase-registered.yaml` |
+| `scenarios/browser-cart/browser-cart.ts`                         | `jobs/browser-cart.yaml`             |
+| `scenarios/browser-purchase/browser-purchase.ts`                 | `jobs/browser-purchase.yaml`         |
+| `scenarios/http-auth-login/http-auth-login.ts`                   | `jobs/http-auth-login.yaml`          |
+| `scenarios/http-cart/http-cart.ts`                               | `jobs/http-cart.yaml`                |
+| `scenarios/http-me-hot-status/http-me-hot-status.ts`             | `jobs/http-me-hot-status.yaml`       |
+| `scenarios/http-orders/http-orders.ts`                           | `jobs/http-orders.yaml`              |
+| `scenarios/http-orders-status/http-orders-status.ts`             | `jobs/http-orders-status.yaml`       |
+| `scenarios/http-purchase/http-purchase.ts`                       | `jobs/http-purchase.yaml`            |
+| `scenarios/http-purchase-registered/http-purchase-registered.ts` | `jobs/http-purchase-registered.yaml` |
 
-`http-purchase` is the one full load/perf workflow: it mimics the web app
+`http-purchase` is the one full load/perf job: it mimics the web app
 exactly (catalog list → add to cart → cart view → checkout → verify order →
 verify visualizer feed), with no `GET /products/:id` hop since the
 web catalog grid never calls it. `http-cart` and `http-orders` split that
@@ -324,7 +324,7 @@ between them as the `carts` dataset; see "Data pipeline" above.
 ## Add a scenario
 
 Add the scenario source, add one TypeScript build entry, then add exactly one
-matching `workflows/<name>.yaml`. The workflow supplies the Compose file,
+matching `jobs/<name>.yaml`. The job supplies the Compose file,
 service, container script, default k6 config (`spec.k6.config`; the script
 exports only `thresholds` and `tags`), permitted environment, and optional `spec.data`
 (`produces` with columns and targets, and/or `requires`); do not put an
@@ -333,13 +333,13 @@ data lifecycle — opt-in, preflight, path injection, delete prompt — so a new
 `perf.py` function stays a one-line pass-through to `run_k6`.
 
 Update the relevant command/docs and run `pnpm pg:test`. Build explicitly and
-execute the workflow locally before relying on CI. Keep thresholds named in
+execute the job locally before relying on CI. Keep thresholds named in
 `config/thresholds.ts` and retain the existing report shape.
 
 ## Host k6 debugging escape hatch
 
 For a local experiment, bundle first and use a host k6 binary against the
-compiled output. This bypasses the repository YAML workflow and is therefore
+compiled output. This bypasses the repository YAML job and is therefore
 not the supported or CI path:
 
 ```bash

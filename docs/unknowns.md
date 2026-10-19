@@ -7,7 +7,7 @@ boundary.
 - Punch internal implementation details are unknown at the parent commit. The parent
   tree contains only the `vendor/punch` gitlink at
   `c626872bad654dff144c1ceb13aa64e8aca1cc55` and its remote URL. The survey
-  checked `.gitmodules`, the gitlink, parent-side launchers, workflow YAML, and
+  checked `.gitmodules`, the gitlink, parent-side launchers, job YAML, and
   Kubernetes references. Inspect that pinned submodule commit to document its
   internal execution or failure behavior. Parent adapters and tests establish
   their own calls and expectations, but do not prove Punch's dataset replacement

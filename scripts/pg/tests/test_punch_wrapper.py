@@ -119,18 +119,18 @@ class PunchWrapperTests(unittest.TestCase):
             self.assertIn("requires a terminal", result.stderr)
             self.assertFalse(events_path.exists())
 
-    def test_declining_image_build_still_opens_workflow_menu(self) -> None:
+    def test_declining_image_build_still_opens_job_menu(self) -> None:
         rc, events, stderr = self.run_interactive_wrapper("n")
         self.assertEqual(rc, 0, stderr)
         self.assertEqual(
             events,
             [
                 "python3\t-m\tpunch\tmenu\t"
-                f"{REPO_ROOT / 'tests/performance/k6/workflows'}",
+                f"{REPO_ROOT / 'tests/performance/k6/jobs'}",
             ],
         )
 
-    def test_accepting_image_build_runs_it_before_workflow_menu(self) -> None:
+    def test_accepting_image_build_runs_it_before_job_menu(self) -> None:
         rc, events, stderr = self.run_interactive_wrapper("y")
         self.assertEqual(rc, 0, stderr)
         self.assertEqual(
@@ -139,7 +139,7 @@ class PunchWrapperTests(unittest.TestCase):
                 "docker\tcompose\t-f\t"
                 f"{REPO_ROOT / 'infra/docker/compose.performance.yaml'}\tbuild\tk6\tk6-browser",
                 "python3\t-m\tpunch\tmenu\t"
-                f"{REPO_ROOT / 'tests/performance/k6/workflows'}",
+                f"{REPO_ROOT / 'tests/performance/k6/jobs'}",
             ],
         )
 

@@ -3,11 +3,11 @@
     ./dev perf:forms --write   rewrite the generated option blocks
     ./dev perf:forms --check   fail when a block differs from the derived lists
 
-perf-run.yml offers every workflow that requires no dataset (an optional
-dataset does not count). perf-chain.yml offers every recipe: an acyclic path
-of two to four workflows that starts at one of those, where each link is a
+perf-job.yml offers every job that requires no dataset (an optional
+dataset does not count). perf-workflow.yml offers every workflow: an acyclic path
+of two to four jobs that starts at one of those, where each link is a
 dataset the producer writes for that consumer (named in its targets) and the
-consumer requires or reads optionally, and that perf:chain plans with every
+consumer requires or reads optionally, and that perf:workflow plans with every
 step on auto. Both forms offer the same profiles: the preset labels, then
 `Custom: <path>` for every JSON file beneath tests/performance/k6/options/custom/.
 Only the lines between `# BEGIN perf:forms <id>` and `# END perf:forms <id>`
@@ -24,19 +24,19 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from pg.ansi import fail, info, pass_, warn
-from pg.paths import PERF_OPTIONS_DIR, PERF_WORKFLOWS_DIR, REPO_ROOT
-from pg.perf_chain import plan_chain
+from pg.paths import PERF_OPTIONS_DIR, PERF_JOBS_DIR, REPO_ROOT
+from pg.perf_workflow import plan_workflow
 from pg.perf_spec import CUSTOM, MAX_STEPS, PRESET, PRESET_LABELS, StepRequest
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.
-from punch.catalog import CatalogError, WorkflowCatalog, load_catalog
-from punch.workflow import WorkflowError
+from punch.catalog import CatalogError, JobCatalog, load_catalog
+from punch.job import JobError
 
 FORM_FILES = (
-    REPO_ROOT / ".github" / "workflows" / "perf-run.yml",
-    REPO_ROOT / ".github" / "workflows" / "perf-chain.yml",
+    REPO_ROOT / ".github" / "workflows" / "perf-job.yml",
+    REPO_ROOT / ".github" / "workflows" / "perf-workflow.yml",
 )
-RECIPE_SEPARATOR = " -> "
+WORKFLOW_SEPARATOR = " -> "
 CUSTOM_PREFIX = "Custom: "
 CUSTOM_DIR = "custom"
 BLOCK = re.compile(
@@ -80,23 +80,23 @@ def profile_load(label: str, options_dir: Path = PERF_OPTIONS_DIR) -> Optional[T
     return None
 
 
-def standalone(catalog: WorkflowCatalog) -> List[str]:
-    """Workflows that need no earlier step: no required dataset."""
+def standalone(catalog: JobCatalog) -> List[str]:
+    """Jobs that need no earlier step: no required dataset."""
     return sorted(
-        name for name, workflow in catalog.workflows.items()
-        if workflow.data is None or not workflow.data.requires
+        name for name, job in catalog.jobs.items()
+        if job.data is None or not job.data.requires
     )
 
 
-def links(catalog: WorkflowCatalog) -> Dict[str, List[str]]:
+def links(catalog: JobCatalog) -> Dict[str, List[str]]:
     """producer -> the consumers it writes a dataset for, each consumer once."""
     result: Dict[str, List[str]] = {}
-    for name, workflow in catalog.workflows.items():
-        if workflow.data is None:
+    for name, job in catalog.jobs.items():
+        if job.data is None:
             continue
-        for product in workflow.data.produces:
+        for product in job.data.produces:
             for target in product.targets:
-                consumer = catalog.workflows[target].data
+                consumer = catalog.jobs[target].data
                 if consumer is None:
                     continue
                 if product.dataset in consumer.requires or product.dataset in consumer.optional:
@@ -105,8 +105,8 @@ def links(catalog: WorkflowCatalog) -> Dict[str, List[str]]:
     return {name: sorted(consumers) for name, consumers in result.items()}
 
 
-def paths(catalog: WorkflowCatalog, max_steps: int = MAX_STEPS) -> List[Tuple[str, ...]]:
-    """Every acyclic link path of 2..max_steps workflows from a standalone workflow."""
+def paths(catalog: JobCatalog, max_steps: int = MAX_STEPS) -> List[Tuple[str, ...]]:
+    """Every acyclic link path of 2..max_steps jobs from a standalone job."""
     graph = links(catalog)
     found = set()
 
@@ -124,33 +124,33 @@ def paths(catalog: WorkflowCatalog, max_steps: int = MAX_STEPS) -> List[Tuple[st
     return sorted(found)
 
 
-def recipe_label(path: Sequence[str]) -> str:
-    return RECIPE_SEPARATOR.join(path)
+def workflow_label(path: Sequence[str]) -> str:
+    return WORKFLOW_SEPARATOR.join(path)
 
 
-def recipes(
-    catalog: WorkflowCatalog, options_dir: Path = PERF_OPTIONS_DIR
+def workflows(
+    catalog: JobCatalog, options_dir: Path = PERF_OPTIONS_DIR
 ) -> Tuple[List[Tuple[str, ...]], List[str]]:
     """Paths that plan with every step on auto, and why any other path was left out."""
     kept: List[Tuple[str, ...]] = []
     dropped: List[str] = []
     for path in paths(catalog):
-        plan = plan_chain([StepRequest(name) for name in path], catalog, options_dir)
+        plan = plan_workflow([StepRequest(name) for name in path], catalog, options_dir)
         if plan.errors:
-            dropped.append(f"{recipe_label(path)}: {'; '.join(plan.errors)}")
+            dropped.append(f"{workflow_label(path)}: {'; '.join(plan.errors)}")
         else:
             kept.append(path)
     return kept, dropped
 
 
 def option_blocks(
-    catalog: WorkflowCatalog, options_dir: Path = PERF_OPTIONS_DIR
+    catalog: JobCatalog, options_dir: Path = PERF_OPTIONS_DIR
 ) -> Tuple[Dict[str, List[str]], List[str]]:
-    """Generated block id -> its options, and the recipes left out with why."""
-    kept, dropped = recipes(catalog, options_dir)
+    """Generated block id -> its options, and the workflows left out with why."""
+    kept, dropped = workflows(catalog, options_dir)
     blocks = {
-        "workflows": standalone(catalog),
-        "recipes": [recipe_label(path) for path in kept],
+        "jobs": standalone(catalog),
+        "workflows": [workflow_label(path) for path in kept],
         "profiles": profiles(options_dir),
     }
     return blocks, dropped
@@ -178,7 +178,7 @@ def render(text: str, blocks: Dict[str, List[str]], source: str = "form") -> str
 def run(args: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="./dev perf:forms",
-        description="Derive the GitHub perf forms' option lists from the workflow catalog "
+        description="Derive the GitHub perf forms' option lists from the job catalog "
                     "and the custom configs.",
     )
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -189,7 +189,7 @@ def run(args: Sequence[str]) -> int:
     parsed = parser.parse_args(list(args))
     stale: List[Path] = []
     try:
-        blocks, dropped = option_blocks(load_catalog(PERF_WORKFLOWS_DIR))
+        blocks, dropped = option_blocks(load_catalog(PERF_JOBS_DIR))
         for path in FORM_FILES:
             text = path.read_text(encoding="utf-8")
             rendered = render(text, blocks, path.name)
@@ -197,7 +197,7 @@ def run(args: Sequence[str]) -> int:
                 stale.append(path)
                 if parsed.write:
                     path.write_text(rendered, encoding="utf-8")
-    except (CatalogError, WorkflowError, FormsError, OSError) as error:
+    except (CatalogError, JobError, FormsError, OSError) as error:
         fail(f"Could not derive the perf forms: {error}")
         return 1
     for message in dropped:
@@ -210,6 +210,6 @@ def run(args: Sequence[str]) -> int:
         pass_(f"Rewrote {names}.")
     else:
         pass_("The perf forms match the catalog and custom configs.")
-    info(f"{len(blocks['workflows'])} standalone workflows, {len(blocks['recipes'])} recipes.")
+    info(f"{len(blocks['jobs'])} standalone jobs, {len(blocks['workflows'])} workflows.")
     info(f"Profiles: {', '.join(blocks['profiles'])}")
     return 0

@@ -9,7 +9,7 @@ committed behavior. They do not prove that an external deployment is running.
 | Need                                           | Reference                               |                                                             Measured coverage |
 | ---------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------: |
 | Call the BFF                                   | [HTTP API](http-api.md)                 |                                                        20 HTTP and SSE routes |
-| Configure a runtime or workflow                | [Configuration](configuration.md)       |                                               39 first-party direct-read keys |
+| Configure a runtime or job                     | [Configuration](configuration.md)       |                                               39 first-party direct-read keys |
 | Understand persisted and in-memory state       | [Data and state](data-and-state.md)     |                                              7 Prisma models and 9 migrations |
 | Trace external boundaries and failure behavior | [Integrations](integrations.md)         |                                                       17 integration families |
 | Build artifacts or deploy a topology           | [Build and deploy](build-and-deploy.md) |     9 workspace packages, 5 Dockerfiles, 10 CI jobs, and deployment manifests |

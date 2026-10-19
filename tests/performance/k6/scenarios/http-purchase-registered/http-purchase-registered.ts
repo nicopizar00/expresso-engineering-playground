@@ -28,7 +28,7 @@ declare const console: { log: (message: string) => void };
 
 const USERS = parseUsers(__ENV.USERS);
 // Load shape (executor, VUs, iterations or duration) comes from the k6
-// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// config Punch passes as `k6 run --config`: the job's spec.k6.config
 // or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
   thresholds: purchaseRegisteredThresholds,

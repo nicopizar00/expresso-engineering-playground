@@ -225,7 +225,7 @@ iteration can then decide which to act on.
 3. ~~**The `load` and `stress` k6 scenarios exist but have no CLI
    command.**~~ Resolved — both unwired scaffolds were deleted.
 4. ~~**`./dev` ships only `perf:smoke` and `perf:clean`.**~~ Resolved —
-   every k6 workflow now has its own `./dev perf:<id>` command.
+   every k6 job now has its own `./dev perf:<id>` command.
 5. **`./dev doctor` warns about `.env` but does not auto-create it,
    while `pnpm pg:doctor` does.** Align both CLIs by adding the same
    `.env.example → .env` bootstrap to the `dev` script.

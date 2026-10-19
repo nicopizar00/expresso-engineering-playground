@@ -1,5 +1,5 @@
 apiVersion: punch/v1
-kind: K6Workflow
+kind: K6Job
 metadata:
   name: http-auth-login
   description: Log in, capture tokens

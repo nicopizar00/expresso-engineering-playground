@@ -25,12 +25,12 @@ git grep -n "TODO(next-steps/"
 6. **[Observability follow-ups](observability-grafana.md)** — Loki, BFF
    metrics reader, alert rules.
 7. **[Punch on Kubernetes](punch-k8s.md)** — POC shipped (Argo Workflows +
-   Argo CD, local S3/ECR stand-ins); next: chain-ready templates, then the
-   `perf-run`/`perf-chain` GitHub workflows against real AWS.
-8. **[Running Punch workflows on Expresso](perf-run-ux.md)**: single runs and
-   chains run locally and from the `perf-run` and `perf-chain` GitHub forms
-   (verified on GitHub); next: settle the open questions so a person can run
-   a workflow from one page.
+   Argo CD, local S3/ECR stand-ins); next: workflow-ready templates, then the
+   `perf-job`/`perf-workflow` GitHub workflows against real AWS.
+8. **[Running Punch jobs and workflows on Expresso](perf-run-ux.md)**: single
+   jobs and Punch workflows run locally and from the `perf-job` and
+   `perf-workflow` GitHub forms (verified on GitHub); next: settle the open
+   questions so a person can run a job or a workflow from one page.
 
 ## Done
 
@@ -44,5 +44,5 @@ git grep -n "TODO(next-steps/"
 | Observability minimum (Tempo/Prom/Grafana)   | [../architecture/observability.md](../architecture/observability.md)             |
 | Python orchestrator (`./dev`, `pg hack`)     | [../architecture/orchestrator-python.md](../architecture/orchestrator-python.md) |
 | Unified web entry point (`/api/bff`, `/viz`) | [../architecture/web-entry-point.md](../architecture/web-entry-point.md)         |
-| k6 workflows (`./dev perf:*`)                | [../performance/orchestrator.md](../performance/orchestrator.md)                 |
+| k6 jobs (`./dev perf:*`)                     | [../performance/orchestrator.md](../performance/orchestrator.md)                 |
 | OpenTelemetry SDK, orders persistence        | [../architecture/bff-modules.md](../architecture/bff-modules.md)                 |

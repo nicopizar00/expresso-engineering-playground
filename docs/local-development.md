@@ -170,10 +170,10 @@ docker compose -f infra/docker/compose.performance.yaml build k6
 ./dev perf:http-purchase --config 1-iteration
 ```
 
-Each `./dev perf:<workflow>` selects one repository-owned YAML workflow that
+Each `./dev perf:<job>` selects one repository-owned YAML job that
 Punch validates and runs once through Docker Compose; reports land in
 `tests/performance/k6/reports/` (`./dev perf:clean` removes them). `--config`
-picks the k6 load shape from `tests/performance/k6/options/`. Workflows,
+picks the k6 load shape from `tests/performance/k6/options/`. Jobs,
 datasets, and thresholds: [`tests/performance/k6/README.md`](../tests/performance/k6/README.md).
 
 ## 9. Logs and teardown

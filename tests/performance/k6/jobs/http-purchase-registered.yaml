@@ -1,29 +1,28 @@
 apiVersion: punch/v1
-kind: K6Workflow
+kind: K6Job
 metadata:
-  name: http-cart
-  description: Reserve carts, no checkout
+  name: http-purchase-registered
+  description: Purchase as demo users
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6
   k6:
-    script: /scripts/scenarios/http-cart/http-cart.js
+    script: /scripts/scenarios/http-purchase-registered/http-purchase-registered.js
     config: tests/performance/k6/options/5-iterations.json
   environment:
-    forward: [BASE_URL]
+    forward: [BASE_URL, USERS]
   outputs:
     summary:
-      path: tests/performance/k6/reports/http-cart-summary.json
+      path: tests/performance/k6/reports/http-purchase-registered-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
     produces:
-      - dataset: carts
-        columns: [cartId, productId, sid]
-        targets: [http-orders]
-        recommended: true
+      - dataset: owned-orders
+        columns: [orderId, username, email]
+        targets: [http-auth-login]
   sizing:
     iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
     maxSeconds: 270         # 30 s under the default config's 5m maxDuration

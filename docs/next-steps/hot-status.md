@@ -25,13 +25,13 @@ traffic identical to what Punch drives.
 ## Contract for Punch
 
 - Only `Cookie: auth=<token>` is needed.
-- Tokens stay valid across workflows (`AUTH_SESSION_TTL_DAYS`, default 30).
+- Tokens stay valid across jobs (`AUTH_SESSION_TTL_DAYS`, default 30).
 - Each login creates its own session; a user can hold many.
 
 ## Open follow-ups
 
-- **Load chain (shipped 2026-10-06):** `http-purchase-registered` →
-  `http-auth-login` → `http-me-hot-status` k6 workflows, with Punch optional
+- **Load workflow (shipped 2026-10-06):** `http-purchase-registered` →
+  `http-auth-login` → `http-me-hot-status` k6 jobs, with Punch optional
   datasets for the login fallback. See the "http-purchase-registered →
   http-auth-login → http-me-hot-status" section
   of [`tests/performance/k6/README.md`](../../tests/performance/k6/README.md).

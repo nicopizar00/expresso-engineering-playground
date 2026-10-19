@@ -144,7 +144,7 @@ Three reasons, in priority order:
 - Optional richer geometry (still primitives — no model loaders).
 - A small legend / inspector panel.
 - A read-heavy k6 load / stress profile for `/visualization`. The
-  `http-purchase` workflow already hits the endpoint (its
+  `http-purchase` job already hits the endpoint (its
   `visualization 200` check).
 
 ## Design tooling boundary

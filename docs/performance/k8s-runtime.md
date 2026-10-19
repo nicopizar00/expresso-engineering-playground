@@ -1,6 +1,6 @@
 # Punch on Kubernetes — Step-by-Step Guide
 
-Punch's k6 workflows run natively on Kubernetes as well as on Docker Compose.
+Punch's k6 jobs run natively on Kubernetes as well as on Docker Compose.
 Argo Workflows executes them, S3 holds datasets and evidence, an OCI registry
 holds the k6 images, and Argo CD syncs everything from git. No Python and no
 Punch image run in the cluster. Everything runs locally on minikube:
@@ -11,7 +11,7 @@ GitOps, evidence, troubleshooting, and how it works. The compose runtime
 (`./dev perf:<id>`) is unchanged and stays the default.
 
 - Design: [spec](../superpowers/specs/2026-10-13-punch-k8s-native-design.md)
-- Punch's runtime contract and generic operation (consumer image, workflow
+- Punch's runtime contract and generic operation (consumer image, job
   mapping, runs, datasets, Argo CD, AWS, the CI design, troubleshooting):
   [`vendor/punch/k8s/README.md`](../../vendor/punch/k8s/README.md). This
   guide covers only this repository's setup on minikube.
@@ -26,8 +26,8 @@ this guide shows `./k8s` first and the `./dev` equivalent beside it.
 | ------------------------ | -------------------------------- | --------------------------------------------- |
 | Start cluster + app      | `./k8s up`                       | `./dev k8s:up`                                |
 | Deploy the perf platform | `./k8s perf:up`                  | `./dev k8s:perf:up`                           |
-| Run one workflow         | `./k8s run <id> [opts]`          | `./dev perf:<id> --runtime k8s [opts]`        |
-| Verify the POC           | `./k8s verify`                   | — (run the chain by hand, step 6)             |
+| Run one job              | `./k8s run <id> [opts]`          | `./dev perf:<id> --runtime k8s [opts]`        |
+| Verify the POC           | `./k8s verify`                   | — (run the workflow by hand, step 6)          |
 | Show a run's evidence    | `./k8s evidence <run>`           | — (kubectl, step 4)                           |
 | Open a UI                | `./k8s ui argo\|argocd\|s3`      | — (port-forward, steps 4–5)                   |
 | GitOps with Argo CD      | `./k8s argocd:up [--revision R]` | `./dev argocd:up [--revision R]`              |
@@ -121,9 +121,9 @@ punch-k6-run               21s
 ```
 
 `punch-k6-run` is the generic step; the other nine map one-to-one to
-`tests/performance/k6/workflows/*.yaml`.
+`tests/performance/k6/jobs/*.yaml`.
 
-## Step 3 — Run your first workflow
+## Step 3 — Run your first job
 
 ```bash
 ./k8s run http-purchase --config 1-iteration
@@ -148,13 +148,13 @@ The exit code is 0 on success and 1 on failure. Ctrl+C stops the run.
 
 Options (same for `./k8s run` and `./dev perf:<id> --runtime k8s`):
 
-| Option                | Meaning                                                                                                                                                                                                                                         |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--config <preset>`   | k6 load shape from `tests/performance/k6/options/`: `1-iteration`, `5-iterations`, `1-vu-5m`, `5-vu-5m`, and the `-browser` variants. A name, not a path. Default: the workflow's own (`5-iterations`; `5-iterations-browser` for `browser-*`). |
-| `--produce <dataset>` | Publish the run's `[DATA]` rows to `s3://punch-artifacts/datasets/<dataset>.csv` (repeatable, or `all`).                                                                                                                                        |
-| `--base-url <url>`    | Target inside the cluster. Default: `http://bff.mini-commerce.svc.cluster.local:3001` (`http-*`) or the `web` Service (`browser-*`).                                                                                                            |
+| Option                | Meaning                                                                                                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--config <preset>`   | k6 load shape from `tests/performance/k6/options/`: `1-iteration`, `5-iterations`, `1-vu-5m`, `5-vu-5m`, and the `-browser` variants. A name, not a path. Default: the job's own (`5-iterations`; `5-iterations-browser` for `browser-*`). |
+| `--produce <dataset>` | Publish the run's `[DATA]` rows to `s3://punch-artifacts/datasets/<dataset>.csv` (repeatable, or `all`).                                                                                                                                   |
+| `--base-url <url>`    | Target inside the cluster. Default: `http://bff.mini-commerce.svc.cluster.local:3001` (`http-*`) or the `web` Service (`browser-*`).                                                                                                       |
 
-Workflow-specific settings that compose forwards from your shell are
+Job-specific settings that compose forwards from your shell are
 forwarded the same way, e.g. `EXPECT_TEMPERATURE=hot ./k8s run http-orders-status`.
 Values cannot contain spaces.
 
@@ -220,10 +220,10 @@ step graph; click the `k6` step for **Logs**, **Inputs/Outputs** (parameters
 and the `datasets` row count), and **Artifacts**. Ctrl+C in the terminal stops
 the port-forward.
 
-## Step 6 — Hand data between workflows
+## Step 6 — Hand data between jobs
 
-Workflows pass data through S3 datasets: a producer publishes rows, a
-consumer reads them. The cart → orders → status chain:
+Jobs pass data through S3 datasets: a producer publishes rows, a
+consumer reads them. The cart → orders → status workflow:
 
 ```bash
 ./k8s run http-orders                         # 1. no carts yet: stops before k6
@@ -245,10 +245,10 @@ What each run prints:
 ```
 
 Publishing is opt-in and all-or-nothing, a consumer with no rows stops in
-preflight, and a workflow on k8s reads at most one required dataset. Punch
+preflight, and a job on k8s reads at most one required dataset. Punch
 owns these rules:
 [Behavior](../../vendor/punch/k8s/README.md#behavior) and
-[Chain workflows through datasets](../../vendor/punch/k8s/README.md#chain-workflows-through-datasets).
+[Run a Punch workflow through datasets](../../vendor/punch/k8s/README.md#run-a-punch-workflow-through-datasets).
 Here the k8s datasets live in `s3://punch-artifacts/datasets/`, and the
 compose runtime's stay in `tests/performance/k6/data/`.
 
@@ -345,7 +345,7 @@ minikube delete -p mini-commerce    # remove everything (destructive)
 
 ```mermaid
 flowchart LR
-  CLI["./k8s run / ./dev perf:id --runtime k8s"] -->|kubectl create Workflow| Thin["thin WorkflowTemplate<br/>infra/k8s/perf/punch/workflows/id.yaml"]
+  CLI["./k8s run / ./dev perf:id --runtime k8s"] -->|kubectl create Workflow| Thin["thin WorkflowTemplate<br/>infra/k8s/perf/punch/jobs/id.yaml"]
   Thin -->|templateRef| Generic["punch-k6-run<br/>vendor/punch/k8s"]
   Generic --> Pod["pod: k6 image + k6-run.sh"]
   S3[("SeaweedFS S3<br/>punch-artifacts")] -->|datasets/requires.csv| Pod
@@ -358,11 +358,11 @@ flowchart LR
 Punch owns the generic step `punch-k6-run`, its shell step `k6-run.sh`, the
 artifact layout, and the evidence: see the
 [Punch runtime contract](../../vendor/punch/k8s/README.md). This repository
-supplies the nine thin templates in `infra/k8s/perf/punch/workflows/`, one
-per workflow YAML in `tests/performance/k6/workflows/`, built by Punch's
-[mapping](../../vendor/punch/k8s/README.md#from-a-workflow-yaml-to-a-thin-template).
-`scripts/pg/tests/test_k8s_workflows.py` fails CI when a thin template drifts
-from its workflow YAML. The artifact repository is the
+supplies the nine thin templates in `infra/k8s/perf/punch/jobs/`, one
+per job YAML in `tests/performance/k6/jobs/`, built by Punch's
+[mapping](../../vendor/punch/k8s/README.md#from-a-job-yaml-to-a-thin-template).
+`scripts/pg/tests/test_k8s_jobs.py` fails CI when a thin template drifts
+from its job YAML. The artifact repository is the
 `artifact-repositories` ConfigMap in namespace `punch`
 (`infra/k8s/perf/punch/artifact-repositories.yaml`).
 
@@ -396,7 +396,7 @@ kubectl kustomize --load-restrictor LoadRestrictionsNone infra/k8s/perf \
 ```
 
 For one run, create a Workflow as in Punch's
-[Run a workflow](../../vendor/punch/k8s/README.md#run-a-workflow), with
+[Run a job](../../vendor/punch/k8s/README.md#run-a-job), with
 `--context mini-commerce -n punch` in place of `-n perf`.
 
 The images must exist first: `minikube -p mini-commerce addons enable registry`,
@@ -429,7 +429,7 @@ table covers this repository's CLIs and cluster.
 | Symptom                                                     | Cause and fix                                                                                                    |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `cluster 'mini-commerce' is not running`                    | `./k8s up`.                                                                                                      |
-| `no workflow '<id>' in namespace punch`                     | The perf platform isn't deployed: `./k8s perf:up`.                                                               |
+| `no job '<id>' in namespace punch`                          | The perf platform isn't deployed: `./k8s perf:up`.                                                               |
 | `<run> cannot start yet — ImagePullBackOff`                 | The k6 images aren't in the registry: `./k8s perf:up` without `--no-build`. The run fails after 900 s otherwise. |
 | `--config takes a preset name` / `unknown preset`           | On k8s, `--config` takes a name from `tests/performance/k6/options/`, not a path.                                |
 | `<NAME> contains whitespace, which k8s runs cannot forward` | `./k8s run` and `./dev perf:<id> --runtime k8s` forward a shell variable only when its value has no spaces.      |

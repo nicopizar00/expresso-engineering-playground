@@ -1,21 +1,21 @@
 apiVersion: punch/v1
-kind: K6Workflow
+kind: K6Job
 metadata:
-  name: http-purchase
-  description: Full purchase journey
+  name: http-orders
+  description: Create orders from carts
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
     service: k6
   k6:
-    script: /scripts/scenarios/http-purchase/http-purchase.js
+    script: /scripts/scenarios/http-orders/http-orders.js
     config: tests/performance/k6/options/5-iterations.json
   environment:
     forward: [BASE_URL]
   outputs:
     summary:
-      path: tests/performance/k6/reports/http-purchase-summary.json
+      path: tests/performance/k6/reports/http-orders-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
@@ -23,7 +23,8 @@ spec:
       - dataset: orders
         columns: [orderId]
         targets: [http-orders-status]
-        recommended: true
+    requires: [carts]
   sizing:
     iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
     maxSeconds: 270         # 30 s under the default config's 5m maxDuration
+    margin: 0.15            # extra rows over the estimate (producer errors)

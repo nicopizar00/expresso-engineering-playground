@@ -1,4 +1,4 @@
-// Purchase-flow scenario — the one repository-owned perf workflow.
+// Purchase-flow scenario — the one repository-owned perf job.
 //
 // Mirrors the web app exactly: it never calls GET /products/:id
 // because the web catalog grid adds to cart straight from the list, with
@@ -11,7 +11,7 @@
 //   not race a shared cart.
 //
 // Load shape:
-//   From the k6 config Punch passes as `k6 run --config`. The workflow
+//   From the k6 config Punch passes as `k6 run --config`. The job
 //   default is options/5-iterations.json — a fixed op count, environment
 //   independent, unlike a constant-vus soak (options/*-vu-5m.json) whose
 //   throughput (and therefore op count) varies with how fast the target
@@ -37,7 +37,7 @@ import { buildSummaryOutputs } from "../../support/report";
 declare const console: { log: (message: string) => void };
 
 // Load shape (executor, VUs, iterations or duration) comes from the k6
-// config Punch passes as `k6 run --config`: the workflow's spec.k6.config
+// config Punch passes as `k6 run --config`: the job's spec.k6.config
 // or an options/*.json preset. Exporting scenarios here would override it.
 export const options = {
   thresholds: purchaseFlowThresholds,
@@ -137,7 +137,7 @@ export default function () {
       },
     });
     // Punch writes this to the "orders" dataset only when the run opts in
-    // with --produce orders (spec.data in the workflow YAML).
+    // with --produce orders (spec.data in the job YAML).
     if (persisted) console.log(`[DATA orders] ${orderId}`);
   });
 

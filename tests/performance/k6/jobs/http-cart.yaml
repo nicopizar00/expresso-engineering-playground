@@ -1,21 +1,21 @@
 apiVersion: punch/v1
-kind: K6Workflow
+kind: K6Job
 metadata:
-  name: browser-cart
-  description: Reserve carts in Chromium
+  name: http-cart
+  description: Reserve carts, no checkout
 spec:
   workingDirectory: ../../../..
   compose:
     file: infra/docker/compose.performance.yaml
-    service: k6-browser
+    service: k6
   k6:
-    script: /scripts/scenarios/browser-cart/browser-cart.js
-    config: tests/performance/k6/options/5-iterations-browser.json
+    script: /scripts/scenarios/http-cart/http-cart.js
+    config: tests/performance/k6/options/5-iterations.json
   environment:
     forward: [BASE_URL]
   outputs:
     summary:
-      path: tests/performance/k6/reports/browser-cart-summary.json
+      path: tests/performance/k6/reports/http-cart-summary.json
   data:
     directory: tests/performance/k6/data
     mountedAt: /scripts/data
@@ -23,6 +23,7 @@ spec:
       - dataset: carts
         columns: [cartId, productId, sid]
         targets: [http-orders]
+        recommended: true
   sizing:
-    iterationSeconds: 2.7   # measured: 1 VU × 10 iterations, durationMs / 10
+    iterationSeconds: 1.1   # measured: 1 VU × 10 iterations, durationMs / 10
     maxSeconds: 270         # 30 s under the default config's 5m maxDuration

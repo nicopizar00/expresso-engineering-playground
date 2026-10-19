@@ -28,7 +28,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
             steps,
         )
 
-    def test_performance_ci_builds_then_runs_the_purchase_workflow_and_a_chain(self) -> None:
+    def test_performance_ci_builds_then_runs_the_purchase_job_and_a_workflow(self) -> None:
         """Bypassing ./dev would duplicate the repository YAML execution contract."""
         ci = yaml.safe_load(
             (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -54,33 +54,33 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
                 "run": "docker compose -f infra/docker/compose.performance.yaml build k6",
             }
         )
-        run_workflow = step_index(
+        run_job = step_index(
             {
-                "name": "Run k6 purchase workflow",
+                "name": "Run k6 purchase job",
                 "env": {"BASE_URL": "http://host.docker.internal:3001"},
                 "run": "./dev perf:http-purchase --config 1-iteration",
             }
         )
 
-        run_chain = step_index(
-            next(step for step in steps if step.get("name") == "Run k6 chain")
+        run_workflow = step_index(
+            next(step for step in steps if step.get("name") == "Run k6 workflow")
         )
 
         self.assertLess(setup_python, install_punch)
         self.assertLess(install_punch, start_bff)
         self.assertLess(start_bff, build_k6)
-        self.assertLess(build_k6, run_workflow)
+        self.assertLess(build_k6, run_job)
         writable_reports = step_index(
             next(step for step in steps if step.get("name") == "Let k6 write its reports")
         )
         self.assertEqual(
             steps[writable_reports]["run"], "chmod a+w tests/performance/k6/reports"
         )
-        self.assertLess(writable_reports, run_workflow)
-        self.assertLess(run_workflow, run_chain)
+        self.assertLess(writable_reports, run_job)
+        self.assertLess(run_job, run_workflow)
         self.assertEqual(
-            steps[run_chain]["run"],
-            "./dev perf:chain http-cart http-orders http-orders-status:1-iteration",
+            steps[run_workflow]["run"],
+            "./dev perf:workflow http-cart http-orders http-orders-status:1-iteration",
         )
         self.assertEqual(
             sum(step.get("run", "").startswith("./dev perf:http-purchase") for step in steps), 1
@@ -95,7 +95,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertFalse(any("--produce" in step.get("run", "") for step in steps))
 
     def test_k6_env_example_does_not_force_a_scenario(self) -> None:
-        """An active SCENARIO= line overrides every ./dev perf:* workflow for
+        """An active SCENARIO= line overrides every ./dev perf:* job for
         anyone who sources the file (see compose.performance.yaml)."""
         text = (REPO_ROOT / "tests/performance/k6/.env.example").read_text(encoding="utf-8")
         self.assertNotRegex(text, r"(?m)^SCENARIO=")
@@ -111,6 +111,30 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
     def test_orchestrator_doc_lists_each_command_once(self) -> None:
         doc = (REPO_ROOT / "docs/performance/orchestrator.md").read_text(encoding="utf-8")
         self.assertNotIn("`./dev perf:http-purchase` / `perf:http-purchase`", doc)
+
+    def test_docs_quote_the_punch_menus_sizing_label(self) -> None:
+        menu = (REPO_ROOT / "vendor/punch/src/punch/menu.py").read_text(encoding="utf-8")
+        label = re.search(r'"(Size for a target [a-z]+)"', menu).group(1)
+        for path in ("docs/performance/orchestrator.md", "tests/performance/k6/README.md"):
+            text = (REPO_ROOT / path).read_text(encoding="utf-8")
+            quoted = set(re.findall(r"Size for a target [a-z]+", text))
+            with self.subTest(path=path):
+                self.assertEqual(quoted, {label})
+
+    def test_every_orchestrator_anchor_link_resolves(self) -> None:
+        doc = (REPO_ROOT / "docs/performance/orchestrator.md").read_text(encoding="utf-8")
+        anchors = {
+            re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
+            for heading in re.findall(r"^#{2,4} (.+)$", doc, re.MULTILINE)
+        }
+        sources = ["CLAUDE.md", "docs/cli-reference.md", "tests/performance/k6/README.md",
+                   ".github/workflows/perf-job.yml", ".github/workflows/perf-workflow.yml",
+                   ".github/workflows/_perf-execute.yml"]
+        for source in sources:
+            text = (REPO_ROOT / source).read_text(encoding="utf-8")
+            for anchor in re.findall(r"orchestrator\.md#([\w\-]+)", text):
+                with self.subTest(source=source, anchor=anchor):
+                    self.assertIn(anchor, anchors)
 
     def test_dev_help_explains_the_performance_only_python_dependency(self) -> None:
         """A fresh user needs the Punch installation command before a perf command."""

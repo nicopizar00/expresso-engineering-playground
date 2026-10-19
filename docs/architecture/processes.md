@@ -4,7 +4,7 @@
 
 These three processes show where state crosses browser, service, database, and execution boundaries. They describe current behavior and call out where an error leaves work incomplete or asks the caller to recover.
 
-Implementation anchors: `apps/web/app/page.tsx`, `apps/web/src/components/cart/CartCheckoutPanel.tsx`, `apps/web/src/components/auth/AuthProvider.tsx`, `apps/web/src/components/sections/OrdersSection.tsx`, `apps/bff/src/core/session/session.service.ts`, `apps/bff/src/core/auth/auth-session.service.ts`, `apps/bff/src/modules/cart/cart.service.ts`, `apps/bff/src/modules/checkout/checkout.service.ts`, `apps/bff/src/modules/checkout/order-for.ts`, `apps/bff/src/modules/orders/orders.service.ts`, `apps/bff/src/modules/visualization/visualization.controller.ts`, `apps/bff/src/modules/visualization/visualization.service.ts`, `apps/web/src/components/visualizer/VisualizerEmbed.tsx`, `apps/visualizer-3d/public/transport.js`, `apps/visualizer-3d/public/scene.js`, `scripts/pg/cli.py`, `scripts/pg/k6runner.py`, `tests/performance/k6/workflows/`, `infra/docker/compose.performance.yaml`, and `infra/k8s/perf/punch/workflows/`.
+Implementation anchors: `apps/web/app/page.tsx`, `apps/web/src/components/cart/CartCheckoutPanel.tsx`, `apps/web/src/components/auth/AuthProvider.tsx`, `apps/web/src/components/sections/OrdersSection.tsx`, `apps/bff/src/core/session/session.service.ts`, `apps/bff/src/core/auth/auth-session.service.ts`, `apps/bff/src/modules/cart/cart.service.ts`, `apps/bff/src/modules/checkout/checkout.service.ts`, `apps/bff/src/modules/checkout/order-for.ts`, `apps/bff/src/modules/orders/orders.service.ts`, `apps/bff/src/modules/visualization/visualization.controller.ts`, `apps/bff/src/modules/visualization/visualization.service.ts`, `apps/web/src/components/visualizer/VisualizerEmbed.tsx`, `apps/visualizer-3d/public/transport.js`, `apps/visualizer-3d/public/scene.js`, `scripts/pg/cli.py`, `scripts/pg/k6runner.py`, `tests/performance/k6/jobs/`, `infra/docker/compose.performance.yaml`, and `infra/k8s/perf/punch/jobs/`.
 
 Additional opening anchors: `scripts/pg/perf.py`, `scripts/pg/k8s_perf.py`, `scripts/pg/tests/test_k6runner.py`, `bin/punch`, and `infra/k8s/perf/punch/artifact-repositories.yaml`.
 
@@ -79,17 +79,17 @@ Rapid domain changes collapse into one snapshot after 50 ms. The client renders 
 
 Selection messages do not travel through the BFF and do not mutate the domain snapshot. Direct database edits emit no domain event. Catalog and order edits also bypass the BFF caches, so subsequent snapshots and browser reloads still return cached values until the BFF restarts. Asset refresh reloads asset caches without emitting an event; a later snapshot can expose those refreshed assets.
 
-## Performance workflow execution
+## Performance job execution
 
-Each run selects one repository-owned workflow. Punch validates its workflow and data contract, then executes it once through Docker Compose or submits it to Argo Workflows. Dataset production is opt-in; reports and run evidence have distinct outputs.
+Each run selects one repository-owned job. Punch validates its job and data contract, then executes it once through Docker Compose or submits it to Argo Workflows. Dataset production is opt-in; reports and run evidence have distinct outputs.
 
 ```mermaid
 flowchart TD
   User[Developer or CI] -->|./dev perf:id| Dev[./dev command dispatcher]
   User -->|interactive picker| Menu[./bin/punch]
   Dev --> Runner[Performance adapter and Punch]
-  Menu --> Punch[Punch workflow picker and runner]
-  Runner --> Select[Load and validate one workflow, config, and data]
+  Menu --> Punch[Punch job picker and runner]
+  Runner --> Select[Load and validate one job, config, and data]
   Punch --> Select
   Select --> Runtime{Runtime}
   Runtime -->|default compose| Compose[One Docker Compose run: k6 or k6-browser]
@@ -98,9 +98,9 @@ flowchart TD
   Argo --> OutputsK[Workflow status, pod logs, S3 run artifacts and optional datasets]
 ```
 
-Named commands route `./dev perf:<id>` to the matching YAML workflow. The interactive launcher delegates its workflow directory to the pinned Punch picker. Browser workflows target the web app and use the browser-enabled load image; HTTP workflows target the BFF. Native k6 configuration supplies the load shape, and a run-level config option can replace the workflow default. The adapter constructs one Compose invocation by default; the Kubernetes option submits the matching Argo workflow after the performance platform is deployed. Cluster manifests reference the generic Punch runner template, whose implementation is outside the parent snapshot.
+Named commands route `./dev perf:<id>` to the matching YAML job. The interactive launcher delegates its job directory to the pinned Punch picker. Browser jobs target the web app and use the browser-enabled load image; HTTP jobs target the BFF. Native k6 configuration supplies the load shape, and a run-level config option can replace the job default. The adapter constructs one Compose invocation by default; the Kubernetes option submits the matching Argo workflow after the performance platform is deployed. Cluster manifests reference the generic Punch runner template, whose implementation is outside the parent snapshot.
 
-The Compose adapter loads the workflow catalog and delegates required-data checks and execution to Punch. A repository test asserts that missing required cart data prevents Docker execution. Dataset publication is requested with `--produce`; workflow declarations define the columns and consumer links. After a child process finishes, the adapter calls Punch's consumed-data confirmation helper. The pinned submodule owns row validation, replacement safety, and interactive deletion behavior; its implementation is outside this parent snapshot.
+The Compose adapter loads the job catalog and delegates required-data checks and execution to Punch. A repository test asserts that missing required cart data prevents Docker execution. Dataset publication is requested with `--produce`; job declarations define the columns and consumer links. After a child process finishes, the adapter calls Punch's consumed-data confirmation helper. The pinned submodule owns row validation, replacement safety, and interactive deletion behavior; its implementation is outside this parent snapshot.
 
 The Kubernetes adapter validates production choices and option preset names before submitting a Workflow. It does not check S3 dataset existence before submission, so required-data handling belongs to the cluster runner. Kubernetes accepts preset names for `--config`, while Compose also accepts configuration file paths. Dataset storage uses S3-compatible object storage.
 
