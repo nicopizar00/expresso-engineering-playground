@@ -18,10 +18,15 @@ on:
         description: The job name (job) or workflow label (workflow)
         type: string
         required: true
-      profile:
-        description: The profile label; the dispatcher applies it to the last step
+      workload:
+        description: The workload label; the dispatcher applies it to the last step, or to every step when sizing is false
         type: string
         required: true
+      sizing:
+        description: Size each earlier step for its reader; false runs the workload on every step
+        type: boolean
+        required: false
+        default: true
 
 permissions:
   contents: read
@@ -57,7 +62,8 @@ jobs:
           # Form values reach Python as data, never as script text.
           PERF_KIND: ${{ inputs.kind }}
           PERF_SELECTION: ${{ inputs.selection }}
-          PERF_PROFILE: ${{ inputs.profile }}
+          PERF_WORKLOAD: ${{ inputs.workload }}
+          PERF_SIZING: ${{ inputs.sizing }}
           PERF_RUNNER_LABEL: ubuntu-latest
         run: ./dev perf:dispatch
       - name: Plan the run

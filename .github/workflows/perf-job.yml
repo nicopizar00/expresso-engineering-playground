@@ -1,12 +1,12 @@
 name: Punch performance — job
 
-# Run one Punch job that reads no earlier step's data, at one profile,
+# Run one Punch job that reads no earlier step's data, at one workload,
 # against the Expresso stack on this runner. ./dev perf:forms --write
 # generates the marked option blocks from the job catalog and the
 # committed k6 options; _perf-execute.yml validates, runs, and records the run:
 # docs/performance/orchestrator.md#github-actions-perf-job-and-perf-workflow.
 
-run-name: "perf-job: ${{ inputs.job }} (${{ inputs.profile }}) by @${{ github.actor }}"
+run-name: "perf-job: ${{ inputs.job }} (${{ inputs.workload }}) by @${{ github.actor }}"
 
 on:
   workflow_dispatch:
@@ -24,18 +24,18 @@ on:
           - "http-purchase"
           - "http-purchase-registered"
           # END perf:forms jobs
-      profile:
-        description: Profile (browser jobs run the -browser preset and refuse the 5-minute profiles)
+      workload:
+        description: Workload (browser jobs run the -browser preset and refuse the 5-minute workloads)
         type: choice
         default: 1 journey
         options:
-          # BEGIN perf:forms profiles
+          # BEGIN perf:forms workloads
           - "1 journey"
           - "5 journeys"
           - "1 user for 5 minutes"
           - "5 users for 5 minutes"
           - "Custom: custom/status-regression.json"
-          # END perf:forms profiles
+          # END perf:forms workloads
 
 permissions:
   contents: read
@@ -47,4 +47,4 @@ jobs:
     with:
       kind: job
       selection: ${{ inputs.job }}
-      profile: ${{ inputs.profile }}
+      workload: ${{ inputs.workload }}

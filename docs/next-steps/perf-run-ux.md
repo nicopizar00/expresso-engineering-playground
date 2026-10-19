@@ -4,7 +4,9 @@ Status: open. Punch workflows run locally and on demand from GitHub Actions. The
 GitHub Actions design below is implemented and verified on GitHub on
 2026-10-18 (Expresso `4329fc9`, Punch `3e7141f`) and, with the renamed
 `perf-job` and `perf-workflow` forms, on 2026-10-19 (Expresso `634ff6e`, Punch
-`ac7d88e`). Local setup and the start page still need decisions.
+`ac7d88e`), and, with the `workload` input and the workflow form's data
+sizing switch, on 2026-10-19 (Expresso `aaa58e5`, Punch `9a4b79b`). Local
+setup and the start page still need decisions.
 
 Goal: a person who has never run a Punch job on Expresso picks the right
 entry point, runs one job or a workflow, and reads the result, from one
@@ -12,14 +14,14 @@ page, without reading code.
 
 ## What is built
 
-| Entry point                                                            | Runs                                                                                                                                                                  | Stack                                                      | Result                                                                         |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `./dev perf:<job>`                                                     | One job; `--config`, `--produce`, `--data`                                                                                                                            | Local Docker (`./dev up`, `./dev up web` for browser jobs) | Console metrics; `tests/performance/k6/reports/`                               |
-| `./dev perf:workflow <job>[:<shape>] ...`                              | Jobs in order; each step reads what earlier steps wrote; `auto` sizes writers; `--plan` validates only                                                                | Local Docker                                               | `tests/performance/k6/reports/workflow/`                                       |
-| GitHub Actions, `perf-job` and `perf-workflow` forms                   | One standalone job, or one of nine catalog workflows, at one profile for the last step (a preset or a committed custom config); earlier steps are sized automatically | The GitHub runner (app and k6 on one 4-vCPU VM)            | Job summary with each threshold's result; artifact `perf-<run id>-<attempt>`   |
-| CI `perf-smoke` job                                                    | `http-purchase` once, then `http-cart`, `http-orders`, `http-orders-status` as a workflow                                                                             | The GitHub runner                                          | Job pass or fail                                                               |
-| Punch's menu and CLI (`python3 -m punch menu`, `punch run --size-for`) | One job, interactively or sized for a target                                                                                                                          | Local Docker                                               | `tests/performance/k6/reports/`; run evidence in `vendor/punch/reports/state/` |
-| `./dev perf:<job> --runtime k8s`                                       | One job on Argo Workflows                                                                                                                                             | minikube                                                   | S3; see [punch-k8s.md](punch-k8s.md)                                           |
+| Entry point                                                            | Runs                                                                                                                                                                                                                  | Stack                                                      | Result                                                                         |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `./dev perf:<job>`                                                     | One job; `--config`, `--produce`, `--data`                                                                                                                                                                            | Local Docker (`./dev up`, `./dev up web` for browser jobs) | Console metrics; `tests/performance/k6/reports/`                               |
+| `./dev perf:workflow <job>[:<shape>] ...`                              | Jobs in order; each step reads what earlier steps wrote; `auto` sizes writers; `--plan` validates only                                                                                                                | Local Docker                                               | `tests/performance/k6/reports/workflow/`                                       |
+| GitHub Actions, `perf-job` and `perf-workflow` forms                   | One standalone job, or one of nine catalog workflows, at one workload for the last step (a preset or a committed custom config); earlier steps are sized automatically, or run the same workload with data sizing off | The GitHub runner (app and k6 on one 4-vCPU VM)            | Job summary with each threshold's result; artifact `perf-<run id>-<attempt>`   |
+| CI `perf-smoke` job                                                    | `http-purchase` once, then `http-cart`, `http-orders`, `http-orders-status` as a workflow                                                                                                                             | The GitHub runner                                          | Job pass or fail                                                               |
+| Punch's menu and CLI (`python3 -m punch menu`, `punch run --size-for`) | One job, interactively or sized for a target                                                                                                                                                                          | Local Docker                                               | `tests/performance/k6/reports/`; run evidence in `vendor/punch/reports/state/` |
+| `./dev perf:<job> --runtime k8s`                                       | One job on Argo Workflows                                                                                                                                                                                             | minikube                                                   | S3; see [punch-k8s.md](punch-k8s.md)                                           |
 
 Workflow rules and evidence: [`orchestrator.md`](../performance/orchestrator.md#workflows-perfworkflow).
 
@@ -104,7 +106,7 @@ job order in the form, and shares all execution behavior.
 | GitHub workflow     | Trigger             | Responsibility                                                                          |
 | ------------------- | ------------------- | --------------------------------------------------------------------------------------- |
 | `perf-job.yml`      | `workflow_dispatch` | Select and run one job that needs no earlier producer                                   |
-| `perf-workflow.yml` | `workflow_dispatch` | Select one complete valid producer/consumer workflow and the profile for its last step  |
+| `perf-workflow.yml` | `workflow_dispatch` | Select one complete valid producer/consumer workflow, its workload, and data sizing     |
 | `_perf-execute.yml` | `workflow_call`     | Normalize and validate form values, run them, summarize them, and upload their evidence |
 
 The current user-facing `perf.yml` is replaced by the first two GitHub workflows.
@@ -159,29 +161,31 @@ Run workflow: Punch performance — job
 Use workflow from: [ main                         v ]
 
 Job               [ http-purchase                 v ]
-Profile           [ 1 journey                     v ]
+Workload          [ 1 journey                     v ]
 
                                              [ Run workflow ]
 ```
 
-The workflow form contains two inputs: one workflow and the profile for its last
-step.
+The workflow form contains three inputs: one workflow, the workload for its last
+step, and the data sizing checkbox.
 
 ```text
 Run workflow: Punch performance — workflow
 Use workflow from: [ main                                           v ]
 
 Workflow          [ http-cart -> http-orders -> http-orders-status v ]
-Target profile    [ 5 journeys                                     v ]
+Workload          [ 5 journeys                                     v ]
+[x] Data sizing
 
                                                   [ Run workflow ]
 ```
 
 Both forms use `run-name` so the Actions list shows the selected job or
-workflow, the profile, and the initiating actor. Human-readable profiles are
+workflow, the workload, and the initiating actor; the workflow form's run name adds
+`no data sizing` when the checkbox is clear. Human-readable workloads are
 translated to stable internal loads at the form boundary:
 
-| Profile                 | Internal load                                 |
+| Workload                | Internal load                                 |
 | ----------------------- | --------------------------------------------- |
 | `1 journey`             | `{"mode": "preset", "value": "1-iteration"}`  |
 | `5 journeys`            | `{"mode": "preset", "value": "5-iterations"}` |
@@ -189,25 +193,27 @@ translated to stable internal loads at the form boundary:
 | `5 users for 5 minutes` | `{"mode": "preset", "value": "5-vu-5m"}`      |
 | `Custom: <path>`        | `{"mode": "custom", "path": "<path>"}`        |
 
-The profile always applies to the last job. Every earlier step is
-automatic: when it produces data for a later step, the planner sizes it for
-the first compatible reader, resolving from the end of the workflow; otherwise it
-uses the job's default k6 config. A custom target config participates in
-sizing the earlier producers. A different load for an intermediate step needs
+The workload always applies to the last job. With data sizing on, every
+earlier step is automatic: when it produces data for a later step, the planner
+sizes it for the first compatible reader, resolving from the end of the
+workflow; otherwise it uses the job's default k6 config. A custom config on the
+last step participates in sizing the earlier producers. With data sizing off,
+every step runs the workload, and a reader that needs more rows than its
+writer wrote reuses rows. A different load for an intermediate step needs
 `./dev perf:workflow` or a committed version 2 spec.
 
 Browser jobs transparently map supported presets to their `-browser`
 variant. A duration preset with no browser variant is rejected during
-planning. The static form cannot hide incompatible profiles after a job
+planning. The static form cannot hide incompatible workloads after a job
 or workflow is selected, so the planner is the authority. After resolving any
-browser load, including a custom config or a size derived from the target
-profile, the planner must be able to calculate its peak VUs and reject a value
+browser load, including a custom config or a size derived from the last
+step's workload, the planner must be able to calculate its peak VUs and reject a value
 above the current cap of 4.
 
-Custom profiles are committed JSON objects beneath
+Custom workloads are committed JSON objects beneath
 `tests/performance/k6/options/custom/`. `./dev perf:forms` lists each one as
 `Custom: <path>`, with `<path>` relative to `tests/performance/k6/options/`.
-The normalizer accepts only a profile it lists for the checked-out commit, and
+The normalizer accepts only a workload it lists for the checked-out commit, and
 the path rules still reject absolute paths, `..`, non-JSON files, missing
 files, and paths outside the options directory. The form takes no free-text
 path or inline JSON, which keeps a run reproducible from its selected Git ref.
@@ -248,7 +254,7 @@ match the catalog and the custom configs. Tests pin the current six and nine cho
 duplicates and cycles, enforce the four-step bound, and prove that every
 emitted workflow passes `plan_workflow`.
 
-The same command writes the profile list into both forms: the four presets,
+The same command writes the workload list into both forms: the four presets,
 then one `Custom: <path>` entry per committed JSON file beneath
 `tests/performance/k6/options/custom/`.
 
@@ -258,14 +264,15 @@ protects CLI or API dispatches that bypass the dropdown.
 
 ### Normalized execution contract
 
-Both forms call `_perf-execute.yml` with the same three inputs: `kind`,
-`selection`, and `profile`. A repository command reads those values from
-environment variables, resolves the selection to one job or an ordered
-workflow, makes every step automatic, and replaces the last step's load with
-the profile. The result is one versioned JSON document; a single run is the
+Both forms call `_perf-execute.yml` with the inputs `kind`, `selection`, and
+`workload`; the workflow form also passes `sizing`, which defaults to `true`.
+A repository command reads those values from environment variables, resolves
+the selection to one job or an ordered workflow, makes every step automatic
+(or, with `sizing` false, gives every step the workload's load), and replaces
+the last step's load with the workload. The result is one versioned JSON document; a single run is the
 same document with one step. The workflow
-`http-cart -> http-orders -> http-orders-status` with the profile
-`Custom: custom/status-regression.json` produces:
+`http-cart -> http-orders -> http-orders-status` with the workload
+`Custom: custom/status-regression.json` and data sizing on produces:
 
 ```json
 {
@@ -372,9 +379,9 @@ Every summary includes this warning:
 
 | Failure                                                           | Result                                                                                         |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Unknown or stale workflow or profile                              | Reject before Docker; annotate the error and upload the received request                       |
+| Unknown or stale workflow or workload                             | Reject before Docker; annotate the error and upload the received request                       |
 | Missing required producer or invalid order                        | Reject before Docker; show the missing dataset and compatible producer                         |
-| Profile a browser job cannot run                                  | Reject before Docker; show the supported choices for that job                                  |
+| Workload a browser step cannot run                                | Reject before Docker; show the supported choices for that job                                  |
 | Invalid or missing custom config                                  | Reject before Docker; show the path rule or JSON error                                         |
 | Browser load, its own or sized for the target, exceeds the VU cap | Reject before Docker; identify the resolved config, peak VUs, and the step whose load to lower |
 | Stack or image build fails                                        | Fail; attach Compose diagnostics and skip k6                                                   |
@@ -392,7 +399,7 @@ Every summary includes this warning:
   static native form.
 - A load and a custom-config path for each of four steps in the workflow form
   would show unused fields for shorter workflows and ask the operator to know
-  the planner's steps. One target profile keeps producer sizing;
+  the planner's steps. One workload for the last step keeps producer sizing;
   `./dev perf:workflow` and a version 2 spec keep per-step control. See the
   [form simplification design](../superpowers/specs/2026-10-17-performance-form-simplification-design.md).
 - A custom GitHub App or external UI could provide dynamic dependent selects,
@@ -407,10 +414,11 @@ The design is satisfied when:
    valid workflows for the current catalog.
 2. A one-step run, a two-step producer/consumer run, and each current
    three-step workflow can be dispatched without editing YAML.
-3. The last step accepts a preset or committed custom profile, every earlier
-   step is sized automatically, and a custom target config sizes the earlier
-   producers.
-4. An invalid workflow or profile submitted through the API is rejected before
+3. The last step accepts a preset or committed custom workload; with data
+   sizing on, every earlier step is sized automatically and a custom config on
+   the last step sizes the earlier producers; with it off, every step runs the
+   workload.
+4. An invalid workflow or workload submitted through the API is rejected before
    Docker, even though it never appeared in the UI.
 5. Planning and execution consume the same `spec.json`, and that exact file is
    uploaded as evidence.

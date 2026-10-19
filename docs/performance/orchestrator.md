@@ -88,16 +88,16 @@ layered on Grafana's official `-with-browser` Chromium-bundled tag) and a
 different target (the web app, not the BFF) — see
 [`tests/performance/k6/README.md`](../../tests/performance/k6/README.md#run-the-browser-variant).
 
-| Build entry | Job YAML | Container script |
-| --- | --- | --- |
-| `scenarios/browser-cart/browser-cart.ts` | `jobs/browser-cart.yaml` | `/scripts/scenarios/browser-cart/browser-cart.js` |
-| `scenarios/browser-purchase/browser-purchase.ts` | `jobs/browser-purchase.yaml` | `/scripts/scenarios/browser-purchase/browser-purchase.js` |
-| `scenarios/http-auth-login/http-auth-login.ts` | `jobs/http-auth-login.yaml` | `/scripts/scenarios/http-auth-login/http-auth-login.js` |
-| `scenarios/http-cart/http-cart.ts` | `jobs/http-cart.yaml` | `/scripts/scenarios/http-cart/http-cart.js` |
-| `scenarios/http-me-hot-status/http-me-hot-status.ts` | `jobs/http-me-hot-status.yaml` | `/scripts/scenarios/http-me-hot-status/http-me-hot-status.js` |
-| `scenarios/http-orders/http-orders.ts` | `jobs/http-orders.yaml` | `/scripts/scenarios/http-orders/http-orders.js` |
-| `scenarios/http-orders-status/http-orders-status.ts` | `jobs/http-orders-status.yaml` | `/scripts/scenarios/http-orders-status/http-orders-status.js` |
-| `scenarios/http-purchase/http-purchase.ts` | `jobs/http-purchase.yaml` | `/scripts/scenarios/http-purchase/http-purchase.js` |
+| Build entry                                                      | Job YAML                             | Container script                                                          |
+| ---------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------- |
+| `scenarios/browser-cart/browser-cart.ts`                         | `jobs/browser-cart.yaml`             | `/scripts/scenarios/browser-cart/browser-cart.js`                         |
+| `scenarios/browser-purchase/browser-purchase.ts`                 | `jobs/browser-purchase.yaml`         | `/scripts/scenarios/browser-purchase/browser-purchase.js`                 |
+| `scenarios/http-auth-login/http-auth-login.ts`                   | `jobs/http-auth-login.yaml`          | `/scripts/scenarios/http-auth-login/http-auth-login.js`                   |
+| `scenarios/http-cart/http-cart.ts`                               | `jobs/http-cart.yaml`                | `/scripts/scenarios/http-cart/http-cart.js`                               |
+| `scenarios/http-me-hot-status/http-me-hot-status.ts`             | `jobs/http-me-hot-status.yaml`       | `/scripts/scenarios/http-me-hot-status/http-me-hot-status.js`             |
+| `scenarios/http-orders/http-orders.ts`                           | `jobs/http-orders.yaml`              | `/scripts/scenarios/http-orders/http-orders.js`                           |
+| `scenarios/http-orders-status/http-orders-status.ts`             | `jobs/http-orders-status.yaml`       | `/scripts/scenarios/http-orders-status/http-orders-status.js`             |
+| `scenarios/http-purchase/http-purchase.ts`                       | `jobs/http-purchase.yaml`            | `/scripts/scenarios/http-purchase/http-purchase.js`                       |
 | `scenarios/http-purchase-registered/http-purchase-registered.ts` | `jobs/http-purchase-registered.yaml` | `/scripts/scenarios/http-purchase-registered/http-purchase-registered.js` |
 
 Each ID is the same string everywhere: YAML stem, `metadata.name`, scenario
@@ -113,13 +113,13 @@ it) and what it requires:
 ```yaml
 spec:
   data:
-    directory: tests/performance/k6/data   # host dir (gitignored)
-    mountedAt: /scripts/data               # same dir inside k6 / k6-browser
+    directory: tests/performance/k6/data # host dir (gitignored)
+    mountedAt: /scripts/data # same dir inside k6 / k6-browser
     produces:
       - dataset: carts
         columns: [cartId, productId, sid]
         targets: [http-orders]
-    requires: [carts]                      # consumer side
+    requires: [carts] # consumer side
 ```
 
 - **Producing.** A scenario prints `[DATA <dataset>] <csv payload>` on stdout.
@@ -136,7 +136,7 @@ spec:
 - **Consuming.** Before Docker starts, every required dataset file must exist
   with at least one row, or the run fails naming its producers (e.g.
   `http-orders requires "carts"; produce it with: http-cart,
-  browser-cart (--produce carts)`). Punch injects
+browser-cart (--produce carts)`). Punch injects
   `DATA_<DATASET>_CSV=<container path>`; `--data <dataset>=<path>` reads an
   alternate file beneath `directory`, and `--data <dataset>=default` leaves an
   optional dataset on the scenario's built-in data. After the run, an interactive terminal is
@@ -148,12 +148,12 @@ spec:
 
 Current datasets:
 
-| Dataset | Columns | Producers | Consumers |
-| --- | --- | --- | --- |
-| `carts` | `cartId,productId,sid` | `http-cart`, `browser-cart` | `http-orders` |
-| `orders` | `orderId` | `http-orders`, `http-purchase`, `browser-purchase` | `http-orders-status` |
-| `owned-orders` | `orderId,username,email` | `http-purchase-registered` | `http-auth-login` (optional) |
-| `auth-tokens` | `username,authToken` | `http-auth-login` | `http-me-hot-status` |
+| Dataset        | Columns                  | Producers                                          | Consumers                    |
+| -------------- | ------------------------ | -------------------------------------------------- | ---------------------------- |
+| `carts`        | `cartId,productId,sid`   | `http-cart`, `browser-cart`                        | `http-orders`                |
+| `orders`       | `orderId`                | `http-orders`, `http-purchase`, `browser-purchase` | `http-orders-status`         |
+| `owned-orders` | `orderId,username,email` | `http-purchase-registered`                         | `http-auth-login` (optional) |
+| `auth-tokens`  | `username,authToken`     | `http-auth-login`                                  | `http-me-hot-status`         |
 
 An optional dataset (`spec.data.optional`) is used when its file has rows and
 skipped otherwise; `http-auth-login` falls back to the seeded demo users.
@@ -252,10 +252,10 @@ stack on one GitHub-hosted runner. Both call `_perf-execute.yml`, which
 validates the form values, plans before Docker, runs that exact plan, and
 uploads one artifact.
 
-| GitHub workflow file | Title in the Actions tab       | Inputs                   | Runs                                                                        |
-| -------------------- | ------------------------------ | ------------------------ | --------------------------------------------------------------------------- |
-| `perf-job.yml`       | `Punch performance — job`      | Job, profile             | One job that requires no dataset                                            |
-| `perf-workflow.yml`  | `Punch performance — workflow` | Workflow, target profile | One workflow: a producer and the consumers that read its data, 2 to 4 steps |
+| GitHub workflow file | Title in the Actions tab       | Inputs                          | Runs                                                                        |
+| -------------------- | ------------------------------ | ------------------------------- | --------------------------------------------------------------------------- |
+| `perf-job.yml`       | `Punch performance — job`      | Job, workload                   | One job that requires no dataset                                            |
+| `perf-workflow.yml`  | `Punch performance — workflow` | Workflow, workload, data sizing | One workflow: a producer and the consumers that read its data, 2 to 4 steps |
 
 The job and workflow lists come from the catalog. A workflow is an acyclic
 path of two to four jobs that starts at a job requiring no dataset,
@@ -265,19 +265,23 @@ its `targets`) and the consumer requires or reads optionally, and that
 rewrites the generated option blocks; `--check` fails when they differ from
 the catalog and the custom configs, and the Python tests run the same check.
 
-The target profile is the last step's load. Every earlier step runs `auto`,
-so the planner sizes it for the step that reads its data, resolving from the
-last step back. `perf-job` applies its profile to its only step. The forms
-have no per-step load; `./dev perf:workflow` and a version 2 spec file
-(`--spec`) keep per-step control.
+A workload is how much traffic a step applies and in which pattern, the term
+the k6 testing guides use for it. The workload is the last step's load. With
+data sizing on (the default), every earlier step runs `auto`, so the planner
+sizes it for the step that reads its data, resolving from the last step back.
+With data sizing off, every step runs the workload, and a consumer that reads
+more rows than its producer wrote reuses rows (the plan warns `rows repeat`).
+`perf-job` applies its workload to its only step and has no data sizing input.
+The forms have no per-step load; `./dev perf:workflow` and a version 2 spec
+file (`--spec`) keep per-step control.
 
-| Profile                                         | Load                                                                         |
+| Workload                                        | Load                                                                         |
 | ----------------------------------------------- | ---------------------------------------------------------------------------- |
 | `1 journey`, `5 journeys`                       | Presets `1-iteration`, `5-iterations`; browser steps run the `-browser` ones |
 | `1 user for 5 minutes`, `5 users for 5 minutes` | Presets `1-vu-5m`, `5-vu-5m`; refused for browser steps                      |
 | `Custom: <path>`                                | The committed k6 options JSON at `<path>`                                    |
 
-`perf:forms` lists the four presets, then one `Custom: <path>` profile for
+`perf:forms` lists the four presets, then one `Custom: <path>` workload for
 each `.json` file beneath `tests/performance/k6/options/custom/`, at any
 depth, sorted by `<path>`, which is relative to
 `tests/performance/k6/options/` (for example
@@ -285,24 +289,26 @@ depth, sorted by `<path>`, which is relative to
 checkout, committed or not, so keep scratch configs outside
 `tests/performance/k6/options/custom/`; a GitHub run sees only committed
 files. `perf-job` defaults to `1 journey`
-and `perf-workflow` to `5 journeys`. Every profile is offered for every choice,
-so the planner rejects, before Docker, a 5-minute profile on a browser
-job, a custom config without browser options on a browser job, and
-a target profile that would size a browser producer above 4 VUs. A custom
-profile's path passes the same rules as a spec path: absolute paths, `..`,
+and `perf-workflow` to `5 journeys`. Every workload is offered for every choice,
+so the planner rejects, before Docker, a 5-minute workload on a browser
+step, a custom config without browser options on a browser step, and
+a workload that would size a browser producer above 4 VUs. A custom
+workload's path passes the same rules as a spec path: absolute paths, `..`,
 non-JSON files, missing files, and paths that resolve outside
 `tests/performance/k6/options/` are rejected. A browser step's custom config
 must declare `scenarios` and set `options.browser.type` on each one, as
 `tests/performance/k6/options/1-iteration-browser.json` does.
 
-`./dev perf:dispatch` is the boundary. It reads the three form values
-(`kind`, `selection`, `profile`) from environment variables, derives the
-job, workflow, and profile lists from the checked-out commit again (so an
-API dispatch cannot run a workflow or profile the form does not offer), makes
-every step but the last `auto`, gives the last step the profile's load, and
-writes `tests/performance/k6/reports/dispatch/`:
+`./dev perf:dispatch` is the boundary. It reads the four form values
+(`kind`, `selection`, `workload`, `sizing`) from environment variables,
+derives the job, workflow, and workload lists from the checked-out commit
+again (so an API dispatch cannot run a workflow or workload the form does not
+offer), rejects a `sizing` other than `true` or `false`, gives the last step
+the workload's load, makes every earlier step `auto` with sizing on or gives
+it the same load with sizing off, and writes
+`tests/performance/k6/reports/dispatch/`:
 
-- `request.json`: the three form values as received;
+- `request.json`: the four form values as received;
 - `spec.json`: the normalized spec, written once and read-only, which both
   `perf:workflow --spec --plan` and `perf:workflow --spec` read;
 - `dispatch.json`: event ref and commit SHA, actor, run id and attempt,

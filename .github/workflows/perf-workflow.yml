@@ -1,15 +1,15 @@
 name: Punch performance — workflow
 
 # Run one producer/consumer Punch workflow against the Expresso stack on this
-# runner; each step reads the datasets earlier steps wrote. The target profile
-# is the last step's load; every earlier step is sized for the step that reads
-# its data. The list holds only Punch workflows the catalog links and
-# perf:workflow plans: ./dev perf:forms --write generates the marked option
-# blocks.
+# runner; each step reads the datasets earlier steps wrote. The workload is the
+# last step's load. With data sizing on, every earlier step is sized for the
+# step that reads its data; with it off, every step runs the workload. The list
+# holds only Punch workflows the catalog links and perf:workflow plans:
+# ./dev perf:forms --write generates the marked option blocks.
 # _perf-execute.yml validates, runs, and records the run:
 # docs/performance/orchestrator.md#github-actions-perf-job-and-perf-workflow.
 
-run-name: "perf-workflow: ${{ inputs.workflow }} (${{ inputs.target-profile }}) by @${{ github.actor }}"
+run-name: "perf-workflow: ${{ inputs.workflow }} (${{ inputs.workload }}${{ !inputs.sizing && ', no data sizing' || '' }}) by @${{ github.actor }}"
 
 on:
   workflow_dispatch:
@@ -30,18 +30,22 @@ on:
           - "http-purchase-registered -> http-auth-login"
           - "http-purchase-registered -> http-auth-login -> http-me-hot-status"
           # END perf:forms workflows
-      target-profile:
-        description: Target profile, the last step's load (earlier steps are sized for it; a browser producer above 4 VUs is refused)
+      workload:
+        description: Workload for the last step, or for every step with data sizing off (browser steps refuse more than 4 VUs and the 5-minute workloads)
         type: choice
         default: 5 journeys
         options:
-          # BEGIN perf:forms profiles
+          # BEGIN perf:forms workloads
           - "1 journey"
           - "5 journeys"
           - "1 user for 5 minutes"
           - "5 users for 5 minutes"
           - "Custom: custom/status-regression.json"
-          # END perf:forms profiles
+          # END perf:forms workloads
+      sizing:
+        description: Data sizing (each earlier step writes the rows the step after it reads)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -53,4 +57,5 @@ jobs:
     with:
       kind: workflow
       selection: ${{ inputs.workflow }}
-      profile: ${{ inputs.target-profile }}
+      workload: ${{ inputs.workload }}
+      sizing: ${{ inputs.sizing }}
