@@ -43,7 +43,7 @@ on:
           - "Custom: custom/status-regression.json"
           # END perf:forms workloads
       sizing:
-        description: Data sizing (each earlier step writes the rows the step after it reads)
+        description: Data sizing (each earlier step is sized for the next; the last runs the workload)
         type: boolean
         default: true
 
