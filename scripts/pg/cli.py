@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Sequence
 from pg.ansi import bold, dim, fail
 from pg.jobs import JOBS
 
+
 # Lazy import command modules so a syntax error in one doesn't break --help.
 def _doctor(_a: Sequence[str]) -> int:
     from pg import doctor

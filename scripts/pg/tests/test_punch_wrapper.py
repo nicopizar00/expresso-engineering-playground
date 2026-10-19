@@ -7,7 +7,6 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PUNCH_BIN = REPO_ROOT / "bin" / "punch"
 

@@ -11,11 +11,10 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from pg.k6runner import execute_k6, run_k6  # noqa: E402
 from pg import cli, perf  # noqa: E402
+from pg.k6runner import execute_k6, run_k6  # noqa: E402
 from pg.paths import REPO_ROOT  # noqa: E402
 from punch.execution import ExecutionResult  # noqa: E402
-
 
 FAKE_DOCKER = """#!/usr/bin/env python3
 import os
@@ -168,16 +167,16 @@ class RunK6Tests(unittest.TestCase):
 
 class JobRegistryTests(unittest.TestCase):
     def test_registry_matches_the_job_directory(self) -> None:
-        from pg.paths import PERF_JOBS_DIR
         from pg.jobs import JOBS
+        from pg.paths import PERF_JOBS_DIR
 
         self.assertEqual(
             set(JOBS), {p.stem for p in PERF_JOBS_DIR.glob("*.yaml")}
         )
 
     def test_browser_jobs_default_to_the_web_port(self) -> None:
-        from pg.paths import BFF_PORT, WEB_PORT
         from pg.jobs import JOBS
+        from pg.paths import BFF_PORT, WEB_PORT
 
         for name, port in JOBS.items():
             with self.subTest(name=name):

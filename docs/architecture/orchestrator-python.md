@@ -151,4 +151,6 @@ pnpm pg:test                          # runs unittest under scripts/pg/tests
 cd scripts && python3 -m unittest discover -s pg/tests -p 'test_*.py'
 ```
 
-CI runs ruff lint + unittest in the `python` job.
+CI runs ruff lint + unittest in the `python` job. The lint gate adds import
+sorting to ruff's default rules; [`scripts/ruff.toml`](../../scripts/ruff.toml)
+keeps `punch` imports after `pg`, because `pg.paths` puts Punch on `sys.path`.

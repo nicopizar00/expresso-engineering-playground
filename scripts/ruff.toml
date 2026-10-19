@@ -1,5 +1,8 @@
-# Ruff settings for the Python orchestrator (scripts/pg). Lint rules stay at
-# Ruff's defaults.
+# Ruff settings for the Python orchestrator (scripts/pg). Ruff's default lint
+# rules plus import sorting, which CI's `ruff check scripts/pg` enforces.
+
+[lint]
+extend-select = ["I"]
 
 [lint.isort]
 # pg.paths puts vendor/punch/src on sys.path, so every `punch` import must

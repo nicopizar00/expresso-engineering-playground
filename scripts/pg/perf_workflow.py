@@ -36,6 +36,14 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from pg.ansi import bold, fail, header, info, pass_, warn
 from pg.jobs import JOBS
 from pg.k6runner import execute_k6
+from pg.paths import (
+    BFF_PORT,
+    PERF_JOBS_DIR,
+    PERF_OPTIONS_DIR,
+    PERF_REPORTS_DIR,
+    REPO_ROOT,
+    repo_path,
+)
 from pg.perf_spec import (
     AUTO,
     CUSTOM,
@@ -45,14 +53,6 @@ from pg.perf_spec import (
     custom_config_path,
     load_spec,
     preset_name,
-)
-from pg.paths import (
-    BFF_PORT,
-    PERF_JOBS_DIR,
-    PERF_OPTIONS_DIR,
-    PERF_REPORTS_DIR,
-    REPO_ROOT,
-    repo_path,
 )
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.

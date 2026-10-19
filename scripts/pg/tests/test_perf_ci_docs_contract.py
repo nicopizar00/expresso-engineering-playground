@@ -8,11 +8,21 @@ from pathlib import Path
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
+    def test_python_ci_lint_gates_import_order_with_punch_after_pg(self) -> None:
+        """CI's `ruff check scripts/pg` enforces isort, and isort must keep punch
+        after pg: pg.paths puts Punch on sys.path."""
+        ci = yaml.safe_load(
+            (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        self.assertIn({"name": "Lint", "run": "ruff check scripts/pg"}, ci["jobs"]["python"]["steps"])
+        config = (REPO_ROOT / "scripts" / "ruff.toml").read_text(encoding="utf-8")
+        self.assertRegex(config, r'(?m)^extend-select = \["I"\]$')
+        self.assertRegex(config, r'(?m)^known-first-party = \["pg", "punch"\]$')
+
     def test_python_ci_installs_pinned_punch_dependencies(self) -> None:
         """Removing Punch's requirements from Python CI would break YAML loading."""
         ci = yaml.safe_load(
