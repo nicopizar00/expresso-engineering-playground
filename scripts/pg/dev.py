@@ -19,10 +19,14 @@ def watch() -> int:
     cmd = [
         "docker",
         "compose",
-        "-f", str(COMPOSE_FILE),
-        "-f", str(COMPOSE_DEV_FILE),
-        "--profile", "web",
-        "--profile", "viz",
+        "-f",
+        str(COMPOSE_FILE),
+        "-f",
+        str(COMPOSE_DEV_FILE),
+        "--profile",
+        "web",
+        "--profile",
+        "viz",
         "watch",
     ]
     result = subprocess.run(cmd, check=False)

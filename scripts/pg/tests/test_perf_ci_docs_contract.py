@@ -18,7 +18,9 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         ci = yaml.safe_load(
             (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         )
-        self.assertIn({"name": "Lint", "run": "ruff check scripts/pg"}, ci["jobs"]["python"]["steps"])
+        self.assertIn(
+            {"name": "Lint", "run": "ruff check scripts/pg"}, ci["jobs"]["python"]["steps"]
+        )
         config = (REPO_ROOT / "scripts" / "ruff.toml").read_text(encoding="utf-8")
         self.assertRegex(config, r'(?m)^extend-select = \["I"\]$')
         self.assertRegex(config, r'(?m)^known-first-party = \["pg", "punch"\]$')
@@ -57,7 +59,9 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
                 "run": "python -m pip install --quiet -r vendor/punch/requirements.txt",
             }
         )
-        start_bff = step_index(next(step for step in steps if step.get("name") == "Start BFF stack"))
+        start_bff = step_index(
+            next(step for step in steps if step.get("name") == "Start BFF stack")
+        )
         build_k6 = step_index(
             {
                 "name": "Build k6 image",
@@ -83,9 +87,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         writable_reports = step_index(
             next(step for step in steps if step.get("name") == "Let k6 write its reports")
         )
-        self.assertEqual(
-            steps[writable_reports]["run"], "chmod a+w tests/performance/k6/reports"
-        )
+        self.assertEqual(steps[writable_reports]["run"], "chmod a+w tests/performance/k6/reports")
         self.assertLess(writable_reports, run_job)
         self.assertLess(run_job, run_workflow)
         self.assertEqual(
@@ -97,8 +99,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         )
         self.assertFalse(
             any(
-                "docker compose" in step.get("run", "")
-                and " run " in f" {step.get('run', '')} "
+                "docker compose" in step.get("run", "") and " run " in f" {step.get('run', '')} "
                 for step in steps
             )
         )
@@ -111,8 +112,10 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertNotRegex(text, r"(?m)^SCENARIO=")
 
     def test_validation_example_quotes_the_real_http_purchase_threshold(self) -> None:
-        thresholds = (REPO_ROOT / "tests/performance/k6/config/thresholds.ts").read_text(encoding="utf-8")
-        block = thresholds[thresholds.index("export const purchaseFlowThresholds"):]
+        thresholds = (REPO_ROOT / "tests/performance/k6/config/thresholds.ts").read_text(
+            encoding="utf-8"
+        )
+        block = thresholds[thresholds.index("export const purchaseFlowThresholds") :]
         p95 = re.search(r'"p\(95\)<(\d+)"', block).group(1)
         doc = (REPO_ROOT / "docs/performance/validation.md").read_text(encoding="utf-8")
         example = re.search(r"http-purchase after change: .*?\(threshold (\d+)ms\)", doc).group(1)
@@ -137,9 +140,14 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
             re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
             for heading in re.findall(r"^#{2,4} (.+)$", doc, re.MULTILINE)
         }
-        sources = ["CLAUDE.md", "docs/cli-reference.md", "tests/performance/k6/README.md",
-                   ".github/workflows/perf-job.yml", ".github/workflows/perf-workflow.yml",
-                   ".github/workflows/_perf-execute.yml"]
+        sources = [
+            "CLAUDE.md",
+            "docs/cli-reference.md",
+            "tests/performance/k6/README.md",
+            ".github/workflows/perf-job.yml",
+            ".github/workflows/perf-workflow.yml",
+            ".github/workflows/_perf-execute.yml",
+        ]
         for source in sources:
             text = (REPO_ROOT / source).read_text(encoding="utf-8")
             for anchor in re.findall(r"orchestrator\.md#([\w\-]+)", text):
@@ -190,9 +198,7 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
                 self.assertIn("spec.data", documents[path])
                 self.assertIn("atomic", documents[path])
 
-        self.assertNotIn(
-            "only way to run `pnpm pg:perf:checkout-flow`", documents["README.md"]
-        )
+        self.assertNotIn("only way to run `pnpm pg:perf:checkout-flow`", documents["README.md"])
         for path in ("docs/performance/orchestrator.md", "tests/performance/k6/README.md"):
             with self.subTest(path=path):
                 self.assertIn("not current-run evidence", documents[path])

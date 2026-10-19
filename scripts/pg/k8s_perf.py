@@ -29,7 +29,9 @@ BUCKET = "punch-artifacts"
 # placeholders to these tags.
 PERF_IMAGES: Tuple[k8s.Image, ...] = (
     k8s.Image(f"{REGISTRY}/mini-commerce/k6:local", ".", "infra/docker/k6.Dockerfile"),
-    k8s.Image(f"{REGISTRY}/mini-commerce/k6-browser:local", ".", "infra/docker/k6-browser.Dockerfile"),
+    k8s.Image(
+        f"{REGISTRY}/mini-commerce/k6-browser:local", ".", "infra/docker/k6-browser.Dockerfile"
+    ),
 )
 CRDS: Tuple[str, ...] = ("workflowtemplates.argoproj.io", "workflows.argoproj.io")
 ROLLOUTS: Tuple[Tuple[str, str], ...] = (
@@ -52,9 +54,17 @@ def _push_images() -> bool:
     if subprocess.run(enable, check=False).returncode != 0:
         fail("Could not enable the minikube registry addon")
         return False
-    ready = k8s.kubectl("-n", "kube-system", "wait", "--for=condition=Ready", "pod",
-                        "-l", "kubernetes.io/minikube-addons=registry", "--timeout=180s",
-                        namespaced=False)
+    ready = k8s.kubectl(
+        "-n",
+        "kube-system",
+        "wait",
+        "--for=condition=Ready",
+        "pod",
+        "-l",
+        "kubernetes.io/minikube-addons=registry",
+        "--timeout=180s",
+        namespaced=False,
+    )
     if subprocess.run(ready, check=False).returncode != 0:
         fail("The registry addon did not become ready")
         return False
@@ -63,7 +73,10 @@ def _push_images() -> bool:
         return False
     for image in PERF_IMAGES:
         info(f"Building {image.tag}...")
-        if subprocess.run(k8s.build_cmd(image), cwd=REPO_ROOT, env=env, check=False).returncode != 0:
+        if (
+            subprocess.run(k8s.build_cmd(image), cwd=REPO_ROOT, env=env, check=False).returncode
+            != 0
+        ):
             fail(f"Build failed: {image.tag}")
             return False
         if subprocess.run(["docker", "push", image.tag], env=env, check=False).returncode != 0:
@@ -103,8 +116,10 @@ def up(args: Sequence[str]) -> int:
     print()
     pass_("Punch is ready on Kubernetes")
     info(f"Run a job: {bold('./dev perf:http-purchase --runtime k8s --config 1-iteration')}")
-    info(f"Argo UI: kubectl --context {k8s.PROFILE} -n argo port-forward svc/argo-server "
-         "2746:2746, then https://localhost:2746")
+    info(
+        f"Argo UI: kubectl --context {k8s.PROFILE} -n argo port-forward svc/argo-server "
+        "2746:2746, then https://localhost:2746"
+    )
     print()
     return 0
 
@@ -112,15 +127,22 @@ def up(args: Sequence[str]) -> int:
 def parse_run_args(name: str, args: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog=f"./dev perf:{name} --runtime k8s")
     parser.add_argument(
-        "--config", default=None, metavar="PRESET",
+        "--config",
+        default=None,
+        metavar="PRESET",
         help="k6 options preset from tests/performance/k6/options/ (default: the job's).",
     )
     parser.add_argument(
-        "--produce", action="append", default=[], metavar="DATASET",
+        "--produce",
+        action="append",
+        default=[],
+        metavar="DATASET",
         help=f"Publish a declared dataset to s3://{BUCKET}/datasets/ (repeatable, or 'all').",
     )
     parser.add_argument(
-        "--base-url", default=None, metavar="URL",
+        "--base-url",
+        default=None,
+        metavar="URL",
         help="Target inside the cluster (default: the template's Service URL).",
     )
     return parser.parse_args(list(args))
@@ -202,7 +224,9 @@ def run_result(workflow: Mapping) -> RunResult:
             if parameter.get("name") == "datasets":
                 datasets.update(parameter.get("value", "").split())
         if node.get("type") == "Pod" and node.get("phase") in ("Failed", "Error"):
-            details.append(f"{node.get('displayName', '?')}: {node.get('message', '')}".rstrip(": "))
+            details.append(
+                f"{node.get('displayName', '?')}: {node.get('message', '')}".rstrip(": ")
+            )
     return RunResult(
         status.get("phase", "Unknown"),
         status.get("message", ""),
@@ -222,7 +246,12 @@ def main_pod(pods: Mapping) -> Optional[str]:
 
 
 # Waiting reasons worth surfacing: the run cannot start until someone acts.
-STUCK_REASONS = ("ErrImagePull", "ImagePullBackOff", "InvalidImageName", "CreateContainerConfigError")
+STUCK_REASONS = (
+    "ErrImagePull",
+    "ImagePullBackOff",
+    "InvalidImageName",
+    "CreateContainerConfigError",
+)
 
 
 def waiting_reason(pods: Mapping) -> Optional[str]:
@@ -236,8 +265,12 @@ def waiting_reason(pods: Mapping) -> Optional[str]:
 
 
 def _phase(run: str) -> str:
-    out = subprocess.run(punch("get", "workflow", run, "-o", "jsonpath={.status.phase}"),
-                         capture_output=True, text=True, check=False)
+    out = subprocess.run(
+        punch("get", "workflow", run, "-o", "jsonpath={.status.phase}"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     return out.stdout.strip()
 
 
@@ -248,7 +281,9 @@ def _follow(name: str, run: str) -> int:
     while pod is None and time.monotonic() < deadline and _phase(run) not in FINISHED:
         listing = subprocess.run(
             punch("get", "pods", "-l", f"workflows.argoproj.io/workflow={run}", "-o", "json"),
-            capture_output=True, text=True, check=False,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if listing.returncode == 0:
             pods = json.loads(listing.stdout)
@@ -264,8 +299,9 @@ def _follow(name: str, run: str) -> int:
     while time.monotonic() < deadline and _phase(run) not in FINISHED:
         time.sleep(POLL_S)
 
-    fetched = subprocess.run(punch("get", "workflow", run, "-o", "json"),
-                             capture_output=True, text=True, check=False)
+    fetched = subprocess.run(
+        punch("get", "workflow", run, "-o", "json"), capture_output=True, text=True, check=False
+    )
     if fetched.returncode != 0:
         fail(f"Could not read {run}: {fetched.stderr.strip()}")
         return 1
@@ -276,7 +312,9 @@ def _follow(name: str, run: str) -> int:
         for entry in result.datasets:
             dataset, _, count = entry.partition("=")
             info(f"Published {count} {dataset} rows to s3://{BUCKET}/datasets/{dataset}.csv")
-        info(f"Evidence: s3://{BUCKET}/runs/{run}/ and kubectl -n {NAMESPACE} get workflow {run} -o yaml")
+        info(
+            f"Evidence: s3://{BUCKET}/runs/{run}/ and kubectl -n {NAMESPACE} get workflow {run} -o yaml"
+        )
         print()
         return 0
     detail = f" — {result.message}" if result.message else ""
@@ -319,7 +357,10 @@ def run_job(name: str, args: Sequence[str]) -> int:
     )
     created = subprocess.run(
         punch("create", "-f", "-", "-o", "jsonpath={.metadata.name}"),
-        input=json.dumps(manifest), capture_output=True, text=True, check=False,
+        input=json.dumps(manifest),
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if created.returncode != 0:
         fail(f"Could not submit {name}: {created.stderr.strip()}")
@@ -330,8 +371,11 @@ def run_job(name: str, args: Sequence[str]) -> int:
     try:
         return _follow(name, run)
     except KeyboardInterrupt:
-        subprocess.run(punch("patch", "workflow", run, "--type", "merge", "-p", STOP_PATCH),
-                       capture_output=True, check=False)
+        subprocess.run(
+            punch("patch", "workflow", run, "--type", "merge", "-p", STOP_PATCH),
+            capture_output=True,
+            check=False,
+        )
         print()
         warn(f"Stopped {run} (spec.shutdown=Stop).")
         return 130

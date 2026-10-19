@@ -78,7 +78,10 @@ ARRIVAL_RATE_EXECUTORS = ("constant-arrival-rate", "ramping-arrival-rate")
 WORKFLOW_REPORTS_DIR = PERF_REPORTS_DIR / "workflow"
 METRIC_KEYS = ("totalRequests", "errorRate", "p90Ms", "checkPassRate", "durationMs")
 OUTCOME_HEADINGS = {
-    "passed": "Passed", "failed": "Failed", "rejected": "Rejected", "planned": "Planned",
+    "passed": "Passed",
+    "failed": "Failed",
+    "rejected": "Rejected",
+    "planned": "Planned",
 }
 RUNNER_WARNING = (
     "> The app and k6 share one GitHub-hosted runner. Use these results for\n"
@@ -103,7 +106,8 @@ def shapes(options_dir: Path = PERF_OPTIONS_DIR) -> Tuple[str, ...]:
 def browser_shapes(options_dir: Path = PERF_OPTIONS_DIR) -> Tuple[str, ...]:
     """Shapes with a `-browser` preset, the only ones a browser step can run."""
     return tuple(
-        shape for shape in shapes(options_dir)[1:]
+        shape
+        for shape in shapes(options_dir)[1:]
         if (options_dir / f"{shape}{BROWSER_SUFFIX}.json").is_file()
     )
 
@@ -122,9 +126,7 @@ def parse_steps(raw: Sequence[str]) -> List[StepRequest]:
     for item in raw:
         job, _, shape = item.partition(":")
         job, shape = job.strip(), shape.strip() or AUTO
-        steps.append(
-            StepRequest(job) if shape == AUTO else StepRequest(job, PRESET, shape)
-        )
+        steps.append(StepRequest(job) if shape == AUTO else StepRequest(job, PRESET, shape))
     return steps
 
 
@@ -219,9 +221,7 @@ def _select_steps(
 ) -> None:
     """Check names, loads, and gaps; fill plan.steps with the non-empty steps."""
     presets = shapes(options_dir)[1:]
-    last = max(
-        (index for index, entry in enumerate(entries) if entry.job != EMPTY), default=-1
-    )
+    last = max((index for index, entry in enumerate(entries) if entry.job != EMPTY), default=-1)
     if last < 0:
         plan.errors.append("no job selected; step 1 needs one")
         return
@@ -240,8 +240,7 @@ def _select_steps(
         job = catalog.jobs.get(name)
         if job is None:
             plan.errors.append(
-                f"step {number}: unknown job {name!r}; "
-                f"known: {', '.join(sorted(catalog.jobs))}"
+                f"step {number}: unknown job {name!r}; " f"known: {', '.join(sorted(catalog.jobs))}"
             )
             continue
         if entry.mode == PRESET and entry.value not in presets:
@@ -349,16 +348,18 @@ def _resolve_configs(catalog: JobCatalog, plan: Plan) -> None:
         if reader is not None:
             preset = reader.config_path.stem if reader.config_path is not None else None
             try:
-                sizing = size_producer(
-                    step.job, reader.name, catalog, reader.config, preset=preset
-                )
+                sizing = size_producer(step.job, reader.name, catalog, reader.config, preset=preset)
             except SizingError as error:
                 plan.warnings.append(
                     f"step {step.number} {step.name}: not sized for step {reader.number} "
                     f"({error}); it runs its default config"
                 )
             else:
-                step.sizing, step.sized_for, step.config = sizing, reader.number, dict(sizing.config)
+                step.sizing, step.sized_for, step.config = (
+                    sizing,
+                    reader.number,
+                    dict(sizing.config),
+                )
                 if step.browser and sizing.vus > MAX_BROWSER_VUS:
                     owner = _load_owner(reader, by_number)
                     plan.errors.append(
@@ -466,9 +467,7 @@ def plan_workflow(
     options_dir: Path = PERF_OPTIONS_DIR,
 ) -> Plan:
     """Validate and size a list of step requests without running it."""
-    plan = Plan(
-        steps=[], requested=[entry.job for entry in entries if entry.job != EMPTY]
-    )
+    plan = Plan(steps=[], requested=[entry.job for entry in entries if entry.job != EMPTY])
     _select_steps(entries, catalog, options_dir, plan)
     if not plan.errors:
         _link_data(catalog, plan)
@@ -776,7 +775,9 @@ def write_evidence(plan: Plan, records: Optional[List[StepRecord]], reports_dir:
         "warnings": plan.warnings,
     }
     reports_dir.mkdir(parents=True, exist_ok=True)
-    (reports_dir / "workflow.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+    (reports_dir / "workflow.json").write_text(
+        json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
+    )
     (reports_dir / "summary.md").write_text(
         render_summary(evidence, runner_warning=os.environ.get("GITHUB_ACTIONS") == "true"),
         encoding="utf-8",
@@ -818,17 +819,21 @@ def run(args: Sequence[str]) -> int:
         description="Run k6 jobs in order; each step's datasets feed the steps after it.",
     )
     parser.add_argument(
-        "steps", nargs="*", metavar="JOB[:SHAPE]",
+        "steps",
+        nargs="*",
+        metavar="JOB[:SHAPE]",
         help=f"A job and its shape ({', '.join(shapes())}; default auto). "
-             f"'{EMPTY}' marks an empty trailing step.",
+        f"'{EMPTY}' marks an empty trailing step.",
     )
     parser.add_argument(
-        "--spec", metavar="PATH",
+        "--spec",
+        metavar="PATH",
         help="Plan and run a spec.json (what perf:dispatch writes) instead of positional "
-             "steps; a relative PATH is read from the repository root.",
+        "steps; a relative PATH is read from the repository root.",
     )
     parser.add_argument(
-        "--plan", action="store_true",
+        "--plan",
+        action="store_true",
         help="Validate and size the workflow, write its summary, and stop before Docker.",
     )
     parsed = parser.parse_args(list(args))

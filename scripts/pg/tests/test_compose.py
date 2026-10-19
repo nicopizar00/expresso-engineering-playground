@@ -41,7 +41,7 @@ class RunBffDevTests(unittest.TestCase):
             run.return_value.returncode = 0
             compose.run_bff_dev(["true"])
         cmd = run.call_args.args[0]
-        tail = cmd[cmd.index("run"):]
+        tail = cmd[cmd.index("run") :]
         self.assertEqual(tail, ["run", "--rm", "--build", "--no-deps", "bff", "true"])
 
 
@@ -51,9 +51,7 @@ class DevOverrideImageTests(unittest.TestCase):
     def test_bff_and_web_dev_stages_have_own_image_tags(self) -> None:
         text = COMPOSE_DEV_FILE.read_text()
         for service in ("bff", "web"):
-            block = re.search(
-                rf"^  {service}:\n((?:    .*\n|\n)+)", text, re.MULTILINE
-            )
+            block = re.search(rf"^  {service}:\n((?:    .*\n|\n)+)", text, re.MULTILINE)
             self.assertIsNotNone(block, service)
             self.assertRegex(block.group(1), rf"image: \S+/{service}:dev")
 

@@ -82,9 +82,9 @@ def needs_sync_request(app: Optional[Mapping]) -> bool:
 
 
 def sync_request(revision: str) -> str:
-    return json.dumps({
-        "operation": {"initiatedBy": {"username": "argocd:up"}, "sync": {"revision": revision}}
-    })
+    return json.dumps(
+        {"operation": {"initiatedBy": {"username": "argocd:up"}, "sync": {"revision": revision}}}
+    )
 
 
 def app_settled(app: Mapping, stale: Optional[str]) -> Optional[bool]:
@@ -105,7 +105,9 @@ def app_settled(app: Mapping, stale: Optional[str]) -> Optional[bool]:
 def _get_app(name: str) -> Optional[Mapping]:
     out = subprocess.run(
         k8s.kubectl("-n", NAMESPACE, "get", "application", name, "-o", "json", namespaced=False),
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     return json.loads(out.stdout) if out.returncode == 0 else None
 
@@ -114,16 +116,31 @@ def _register(name: str, revision: str) -> bool:
     before = _get_app(name)
     stale = operation_marker(before)
     text = (ARGOCD_DIR / "applications" / f"{name}.yaml").read_text(encoding="utf-8")
-    applied = subprocess.run(k8s.kubectl("apply", "-f", "-", namespaced=False),
-                             input=with_revision(text, revision), text=True, check=False)
+    applied = subprocess.run(
+        k8s.kubectl("apply", "-f", "-", namespaced=False),
+        input=with_revision(text, revision),
+        text=True,
+        check=False,
+    )
     if applied.returncode != 0:
         fail(f"Could not create Application {name}")
         return False
     if needs_sync_request(before):
         subprocess.run(
-            k8s.kubectl("-n", NAMESPACE, "patch", "application", name, "--type", "merge",
-                        "-p", sync_request(revision), namespaced=False),
-            capture_output=True, check=False,
+            k8s.kubectl(
+                "-n",
+                NAMESPACE,
+                "patch",
+                "application",
+                name,
+                "--type",
+                "merge",
+                "-p",
+                sync_request(revision),
+                namespaced=False,
+            ),
+            capture_output=True,
+            check=False,
         )
     info(f"Waiting for {name} to sync (up to {APP_TIMEOUT_S // 60} min)...")
     deadline = time.monotonic() + APP_TIMEOUT_S
@@ -140,9 +157,11 @@ def _register(name: str, revision: str) -> bool:
                 break
         time.sleep(POLL_S)
     operation = status.get("operationState", {})
-    fail(f"{name}: sync={status.get('sync', {}).get('status', '?')} "
-         f"health={status.get('health', {}).get('status', '?')} "
-         f"operation={operation.get('phase', 'none')} {operation.get('message', '')}".rstrip())
+    fail(
+        f"{name}: sync={status.get('sync', {}).get('status', '?')} "
+        f"health={status.get('health', {}).get('status', '?')} "
+        f"operation={operation.get('phase', 'none')} {operation.get('message', '')}".rstrip()
+    )
     info(f"Inspect: kubectl --context {k8s.PROFILE} -n {NAMESPACE} get application {name} -o yaml")
     return False
 
@@ -172,7 +191,9 @@ def up(args: Sequence[str]) -> int:
     print()
     pass_("punch-platform and mini-commerce are synced; the PostSync smoke passed")
     info(f"UI: kubectl --context {k8s.PROFILE} -n argocd port-forward svc/argocd-server 8080:443")
-    info(f"Password: kubectl --context {k8s.PROFILE} -n argocd get secret "
-         "argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d")
+    info(
+        f"Password: kubectl --context {k8s.PROFILE} -n argocd get secret "
+        "argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+    )
     print()
     return 0

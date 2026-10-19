@@ -1,5 +1,9 @@
 # Ruff settings for the Python orchestrator (scripts/pg). Ruff's default lint
-# rules plus import sorting, which CI's `ruff check scripts/pg` enforces.
+# rules plus import sorting, which CI's `ruff check scripts/pg` enforces, and
+# the formatter, which CI's `ruff format --check scripts/pg` enforces.
+
+# 100 matches the code as written: about 1% of its lines were longer.
+line-length = 100
 
 [lint]
 extend-select = ["I"]

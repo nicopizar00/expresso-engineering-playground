@@ -78,9 +78,7 @@ def run_bff_dev(args: Sequence[str], *, check: bool = True) -> int:
 def docker_available() -> bool:
     if not shutil.which("docker"):
         return False
-    info = subprocess.run(
-        ["docker", "info"], capture_output=True, text=True, check=False
-    )
+    info = subprocess.run(["docker", "info"], capture_output=True, text=True, check=False)
     return info.returncode == 0
 
 

@@ -46,6 +46,7 @@ def run(name: str, args: Sequence[str]) -> int:
         return 1
     if runtime == "k8s":
         from pg import k8s_perf
+
         return k8s_perf.run_job(name, rest)
     return run_k6(name, rest, default_port=JOBS[name])
 
@@ -55,9 +56,7 @@ def open_report() -> int:
     if not PERF_REPORTS_DIR.exists():
         warn(f"{PERF_REPORTS_DIR} does not exist yet — run ./dev perf:http-purchase first.")
         return 0
-    entries = sorted(
-        e for e in PERF_REPORTS_DIR.iterdir() if not e.name.startswith(".")
-    )
+    entries = sorted(e for e in PERF_REPORTS_DIR.iterdir() if not e.name.startswith("."))
     if not entries:
         warn("No reports found — run ./dev perf:http-purchase first.")
         return 0

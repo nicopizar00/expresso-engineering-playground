@@ -22,8 +22,18 @@ from pg.paths import K8S_DIR, REPO_ROOT  # noqa: E402
 
 SCRIPT = REPO_ROOT / "k8s"
 COMMANDS = (
-    "up", "perf:up", "argocd:up", "run", "verify", "evidence",
-    "s3", "ui", "forward", "status", "down", "help",
+    "up",
+    "perf:up",
+    "argocd:up",
+    "run",
+    "verify",
+    "evidence",
+    "s3",
+    "ui",
+    "forward",
+    "status",
+    "down",
+    "help",
 )
 
 
@@ -64,7 +74,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("usage: ./k8s run <job>", result.stderr)
 
     def test_run_rejects_a_config_path_before_touching_the_cluster(self) -> None:
-        result = _k8s("run", "http-purchase", "--config", "tests/performance/k6/options/1-iteration.json")
+        result = _k8s(
+            "run", "http-purchase", "--config", "tests/performance/k6/options/1-iteration.json"
+        )
         self.assertEqual(result.returncode, 1)
         self.assertIn("preset name", result.stderr)
 
@@ -86,7 +98,9 @@ class OrchestratorParityTests(unittest.TestCase):
     def test_builds_the_same_images_as_the_orchestrator(self) -> None:
         built = set(re.findall(r"^\s*build_image (\S+)", _text(), re.MULTILINE))
         expected = {image.tag for image in k8s.IMAGES}
-        expected |= {image.tag.replace(k8s_perf.REGISTRY, "$REGISTRY") for image in k8s_perf.PERF_IMAGES}
+        expected |= {
+            image.tag.replace(k8s_perf.REGISTRY, "$REGISTRY") for image in k8s_perf.PERF_IMAGES
+        }
         self.assertEqual(built, expected)
 
     def test_web_build_args_match(self) -> None:

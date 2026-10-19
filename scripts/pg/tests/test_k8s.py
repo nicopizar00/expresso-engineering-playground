@@ -45,8 +45,17 @@ class CommandTests(unittest.TestCase):
         image = next(i for i in k8s.IMAGES if i.tag == "mini-commerce/bff-dev:local")
         self.assertEqual(
             k8s.build_cmd(image),
-            ["docker", "build", "-t", image.tag, "-f", "apps/bff/Dockerfile",
-             "--target", "dev", "."],
+            [
+                "docker",
+                "build",
+                "-t",
+                image.tag,
+                "-f",
+                "apps/bff/Dockerfile",
+                "--target",
+                "dev",
+                ".",
+            ],
         )
 
     def test_web_build_bakes_in_cluster_service_names(self) -> None:
@@ -60,9 +69,7 @@ class CommandTests(unittest.TestCase):
             "SSH_AGENT_PID=\nDOCKER_TLS_VERIFY=1\nDOCKER_HOST=tcp://127.0.0.1:57111\n"
             "SSH_AUTH_SOCK=\n"
         )
-        self.assertEqual(
-            env, {"DOCKER_TLS_VERIFY": "1", "DOCKER_HOST": "tcp://127.0.0.1:57111"}
-        )
+        self.assertEqual(env, {"DOCKER_TLS_VERIFY": "1", "DOCKER_HOST": "tcp://127.0.0.1:57111"})
 
 
 def _pod(name, ready, transition, deleting=False):
@@ -71,9 +78,11 @@ def _pod(name, ready, transition, deleting=False):
         meta["deletionTimestamp"] = "2026-10-13T15:20:00Z"
     return {
         "metadata": meta,
-        "status": {"conditions": [
-            {"type": "Ready", "status": ready, "lastTransitionTime": transition},
-        ]},
+        "status": {
+            "conditions": [
+                {"type": "Ready", "status": ready, "lastTransitionTime": transition},
+            ]
+        },
     }
 
 
@@ -81,12 +90,14 @@ class RestartReadinessTests(unittest.TestCase):
     SINCE = datetime(2026, 10, 13, 15, 20, 0, tzinfo=timezone.utc)
 
     def test_stale_ready_from_before_the_start_still_pending(self) -> None:
-        pods = {"items": [
-            _pod("bff", "True", "2026-10-13T15:10:00Z"),
-            _pod("web", "True", "2026-10-13T15:20:31Z"),
-            _pod("postgres", "False", "2026-10-13T15:20:05Z"),
-            _pod("old-bff", "True", "2026-10-13T15:00:00Z", deleting=True),
-        ]}
+        pods = {
+            "items": [
+                _pod("bff", "True", "2026-10-13T15:10:00Z"),
+                _pod("web", "True", "2026-10-13T15:20:31Z"),
+                _pod("postgres", "False", "2026-10-13T15:20:05Z"),
+                _pod("old-bff", "True", "2026-10-13T15:00:00Z", deleting=True),
+            ]
+        }
         self.assertEqual(k8s.pods_not_ready_since(pods, self.SINCE), ["bff", "postgres"])
 
     def test_empty_namespace_is_ready(self) -> None:
@@ -110,10 +121,9 @@ class RestartReadinessTests(unittest.TestCase):
 
 class UpTests(unittest.TestCase):
     def _run_up(self, args):
-        with mock.patch.object(k8s.shutil, "which", return_value="/usr/bin/x"), \
-             mock.patch.object(k8s, "cluster_running", return_value=True), \
-             mock.patch.object(k8s.subprocess, "run") as run, \
-             mock.patch("builtins.print"):
+        with mock.patch.object(k8s.shutil, "which", return_value="/usr/bin/x"), mock.patch.object(
+            k8s, "cluster_running", return_value=True
+        ), mock.patch.object(k8s.subprocess, "run") as run, mock.patch("builtins.print"):
             run.return_value.returncode = 0
             run.return_value.stdout = ""
             rc = k8s.up(args)
@@ -141,19 +151,20 @@ class UpTests(unittest.TestCase):
             self.assertEqual(k8s.up(["--fresh"]), 1)
 
 
-
 class ClusterSizingTests(unittest.TestCase):
     def test_cluster_memory_fits_the_perf_platform(self) -> None:
         self.assertGreaterEqual(k8s.CLUSTER_MEMORY_MB, 4608)
 
     def test_profile_memory_reads_the_named_profile(self) -> None:
-        listing = json.dumps({
-            "invalid": [],
-            "valid": [
-                {"Name": "other", "Config": {"Memory": 8192}},
-                {"Name": "mini-commerce", "Config": {"Memory": 3072}},
-            ],
-        })
+        listing = json.dumps(
+            {
+                "invalid": [],
+                "valid": [
+                    {"Name": "other", "Config": {"Memory": 8192}},
+                    {"Name": "mini-commerce", "Config": {"Memory": 3072}},
+                ],
+            }
+        )
         self.assertEqual(k8s.profile_memory_mb(listing, "mini-commerce"), 3072)
 
     def test_profile_memory_is_none_for_unknown_profile_or_garbage(self) -> None:
@@ -172,7 +183,11 @@ class ServerSideApplyTests(unittest.TestCase):
 
     @mock.patch("pg.k8s.subprocess.run")
     def test_crd_race_waits_for_crds_then_applies_again(self, run) -> None:
-        run.side_effect = [mock.Mock(returncode=1), mock.Mock(returncode=0), mock.Mock(returncode=0)]
+        run.side_effect = [
+            mock.Mock(returncode=1),
+            mock.Mock(returncode=0),
+            mock.Mock(returncode=0),
+        ]
         self.assertTrue(k8s.apply_server_side("kind: X", ("crd.example.io",)))
         self.assertEqual(run.call_count, 3)
         self.assertIn("crd/crd.example.io", run.call_args_list[1].args[0])

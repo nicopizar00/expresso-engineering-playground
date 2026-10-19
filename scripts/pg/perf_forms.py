@@ -58,9 +58,7 @@ def custom_profiles(options_dir: Path = PERF_OPTIONS_DIR) -> List[str]:
     if not root.is_dir():
         return []
     found = sorted(
-        path.relative_to(options_dir).as_posix()
-        for path in root.rglob("*.json")
-        if path.is_file()
+        path.relative_to(options_dir).as_posix() for path in root.rglob("*.json") if path.is_file()
     )
     return [CUSTOM_PREFIX + path for path in found]
 
@@ -76,15 +74,14 @@ def profile_load(label: str, options_dir: Path = PERF_OPTIONS_DIR) -> Optional[T
         if label == known:
             return PRESET, stem
     if label in custom_profiles(options_dir):
-        return CUSTOM, label[len(CUSTOM_PREFIX):]
+        return CUSTOM, label[len(CUSTOM_PREFIX) :]
     return None
 
 
 def standalone(catalog: JobCatalog) -> List[str]:
     """Jobs that need no earlier step: no required dataset."""
     return sorted(
-        name for name, job in catalog.jobs.items()
-        if job.data is None or not job.data.requires
+        name for name, job in catalog.jobs.items() if job.data is None or not job.data.requires
     )
 
 
@@ -179,7 +176,7 @@ def run(args: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="./dev perf:forms",
         description="Derive the GitHub perf forms' option lists from the job catalog "
-                    "and the custom configs.",
+        "and the custom configs.",
     )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--write", action="store_true", help="Rewrite the generated option blocks.")

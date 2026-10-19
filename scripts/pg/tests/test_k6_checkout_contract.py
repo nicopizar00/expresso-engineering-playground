@@ -41,9 +41,7 @@ class K6CheckoutContractTests(unittest.TestCase):
         ok = '{ cartId, orderFor: { type: "user", recipient: username } }'
         self.assertEqual(disallowed_fields(ok), set())
         self.assertEqual(disallowed_fields("{ cartId: cartId, idempotencyKey: k }"), set())
-        self.assertEqual(
-            disallowed_fields('{ cartId: c, recipient: "Ana Perez" }'), {"recipient"}
-        )
+        self.assertEqual(disallowed_fields('{ cartId: c, recipient: "Ana Perez" }'), {"recipient"})
         self.assertEqual(disallowed_fields('{ cartId: c, type: "user" }'), {"type"})
         self.assertEqual(
             disallowed_fields('{ cartId: c, orderFor: { type: "user", name: "Ana" } }'),

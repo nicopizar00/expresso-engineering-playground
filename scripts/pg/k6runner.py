@@ -71,19 +71,27 @@ def _print_metrics(summary_path: Path) -> None:
 def _parse_data_args(job_name: str, args: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog=f"./dev perf:{job_name}")
     parser.add_argument(
-        "--produce", action="append", default=[], metavar="DATASET",
+        "--produce",
+        action="append",
+        default=[],
+        metavar="DATASET",
         help="Write a declared dataset (repeatable, or 'all').",
     )
     parser.add_argument(
-        "--data", action="append", default=[], metavar="DATASET=PATH|default",
+        "--data",
+        action="append",
+        default=[],
+        metavar="DATASET=PATH|default",
         help="Read a dataset from PATH (beneath the job's data directory), or "
-             "'default' to skip an optional dataset and use the scenario's built-in data.",
+        "'default' to skip an optional dataset and use the scenario's built-in data.",
     )
     parser.add_argument(
-        "--config", default=None, metavar="PRESET|PATH",
+        "--config",
+        default=None,
+        metavar="PRESET|PATH",
         help="k6 options JSON for `k6 run --config`: a preset name from "
-             "tests/performance/k6/options/ or a file path (default: the job's "
-             "spec.k6.config).",
+        "tests/performance/k6/options/ or a file path (default: the job's "
+        "spec.k6.config).",
     )
     return parser.parse_args(list(args))
 
@@ -99,9 +107,7 @@ def resolve_config(value: Optional[str]) -> Optional[Path]:
     return path.resolve()
 
 
-def _announce_data(
-    job: K6Job, catalog: JobCatalog, produce: Sequence[str]
-) -> None:
+def _announce_data(job: K6Job, catalog: JobCatalog, produce: Sequence[str]) -> None:
     if job.data is None:
         return
     for product in job.data.produces:
@@ -124,9 +130,7 @@ def run_k6(
     default_port: int = BFF_PORT,
 ) -> int:
     """Load and execute one named, repository-owned k6 job."""
-    exit_code, _result = execute_k6(
-        job_name, args, extra_env=extra_env, default_port=default_port
-    )
+    exit_code, _result = execute_k6(job_name, args, extra_env=extra_env, default_port=default_port)
     return exit_code
 
 
@@ -165,12 +169,13 @@ def execute_k6(
     info(f"Config  : {config.name if config is not None else 'script options'}")
     print()
 
-    if (
-        ("localhost" in base_url or "host.docker.internal" in base_url)
-        and not port_in_use(default_port)
+    if ("localhost" in base_url or "host.docker.internal" in base_url) and not port_in_use(
+        default_port
     ):
         label, start_cmd = _readiness_hint(default_port)
-        warn(f"{label} does not appear to be listening on :{default_port}. Start it with: {start_cmd}")
+        warn(
+            f"{label} does not appear to be listening on :{default_port}. Start it with: {start_cmd}"
+        )
         print()
 
     _announce_data(job, catalog, produce)

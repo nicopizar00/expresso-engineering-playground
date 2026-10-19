@@ -11,7 +11,7 @@ SMOKE = REPO_ROOT / "scripts" / "pg" / "smoke.py"
 class SmokeDocsContractTests(unittest.TestCase):
     def test_smoke_sample_output_matches_the_real_check_count(self) -> None:
         """Docs that show a smoke run must state the count smoke.py actually prints."""
-        total = SMOKE.read_text(encoding="utf-8").count("results.append(_check(")
+        total = len(re.findall(r"results\.append\(\s*_check\(", SMOKE.read_text(encoding="utf-8")))
         for doc in ("README.md", "docs/local-development.md"):
             text = (REPO_ROOT / doc).read_text(encoding="utf-8")
             counts = re.findall(r"All (\d+) smoke checks passed\.", text)

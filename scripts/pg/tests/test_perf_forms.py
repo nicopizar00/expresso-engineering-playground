@@ -54,11 +54,15 @@ def fake_catalog(spec: dict) -> SimpleNamespace:
     """name -> (produces {dataset: [targets]}, requires, optional)."""
     jobs = {}
     for name, (produces, requires, optional) in spec.items():
-        jobs[name] = SimpleNamespace(data=SimpleNamespace(
-            produces=[SimpleNamespace(dataset=d, targets=tuple(t)) for d, t in produces.items()],
-            requires=tuple(requires),
-            optional=tuple(optional),
-        ))
+        jobs[name] = SimpleNamespace(
+            data=SimpleNamespace(
+                produces=[
+                    SimpleNamespace(dataset=d, targets=tuple(t)) for d, t in produces.items()
+                ],
+                requires=tuple(requires),
+                optional=tuple(optional),
+            )
+        )
     return SimpleNamespace(jobs=jobs)
 
 
@@ -75,22 +79,26 @@ class DerivationTests(unittest.TestCase):
                 self.assertEqual(plan_workflow(parse_steps(workflow), CATALOG).errors, [])
 
     def test_paths_are_acyclic_unique_and_bounded(self) -> None:
-        catalog = fake_catalog({
-            "a": ({"x": ["b"], "x2": ["b"]}, [], []),
-            "b": ({"y": ["c"]}, ["x", "x2"], ["z"]),
-            "c": ({"z": ["b", "d"]}, ["y"], []),
-            "d": ({"w": ["e"]}, ["z"], []),
-            "e": ({}, ["w"], []),
-        })
+        catalog = fake_catalog(
+            {
+                "a": ({"x": ["b"], "x2": ["b"]}, [], []),
+                "b": ({"y": ["c"]}, ["x", "x2"], ["z"]),
+                "c": ({"z": ["b", "d"]}, ["y"], []),
+                "d": ({"w": ["e"]}, ["z"], []),
+                "e": ({}, ["w"], []),
+            }
+        )
         self.assertEqual(standalone(catalog), ["a"])
         self.assertEqual(paths(catalog), [("a", "b"), ("a", "b", "c"), ("a", "b", "c", "d")])
 
     def test_a_link_needs_the_target_to_declare_the_dataset(self) -> None:
-        catalog = fake_catalog({
-            "a": ({"x": ["b", "c"]}, [], []),
-            "b": ({}, ["x"], []),
-            "c": ({}, [], []),
-        })
+        catalog = fake_catalog(
+            {
+                "a": ({"x": ["b", "c"]}, [], []),
+                "b": ({}, ["x"], []),
+                "c": ({}, [], []),
+            }
+        )
         self.assertEqual(paths(catalog), [("a", "b")])
 
     def test_workflow_labels_use_an_ascii_arrow(self) -> None:
@@ -121,8 +129,11 @@ class ProfileTests(unittest.TestCase):
 
     def test_custom_profiles_are_every_json_file_beneath_custom_sorted_by_path(self) -> None:
         for relative in (
-            "custom/zeta.json", "custom/nested/alpha.json", "custom/beta.json",
-            "custom/notes.txt", "1-iteration.json",
+            "custom/zeta.json",
+            "custom/nested/alpha.json",
+            "custom/beta.json",
+            "custom/notes.txt",
+            "1-iteration.json",
         ):
             self.write(relative)
         (self.options / "custom" / "folder.json").mkdir()
@@ -134,9 +145,7 @@ class ProfileTests(unittest.TestCase):
                 "Custom: custom/zeta.json",
             ],
         )
-        self.assertEqual(
-            profiles(self.options), [*PRESET_PROFILES, *custom_profiles(self.options)]
-        )
+        self.assertEqual(profiles(self.options), [*PRESET_PROFILES, *custom_profiles(self.options)])
 
     def test_without_a_custom_directory_only_the_presets_are_offered(self) -> None:
         self.write("1-iteration.json")
@@ -191,7 +200,9 @@ class RenderTests(unittest.TestCase):
         rendered = render(self.TEXT, blocks)
         self.assertEqual(
             rendered,
-            self.TEXT.replace("          - stale\n", '          - "a"\n          - "b c"\n').replace(
+            self.TEXT.replace(
+                "          - stale\n", '          - "a"\n          - "b c"\n'
+            ).replace(
                 "          # BEGIN perf:forms profiles\n",
                 '          # BEGIN perf:forms profiles\n          - "1 journey"\n',
             ),

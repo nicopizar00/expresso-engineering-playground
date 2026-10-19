@@ -42,13 +42,16 @@ def _expect(
             expect_status=status,
             cookie_jar=cookie_jar,
         )
+
     return go
 
 
 def _resolve_cart_item_id(cookie_jar: http.cookiejar.CookieJar) -> str:
     try:
         _, payload = request_json(
-            f"{API_BASE}/cart", expect_status=200, cookie_jar=cookie_jar,
+            f"{API_BASE}/cart",
+            expect_status=200,
+            cookie_jar=cookie_jar,
         )
         if isinstance(payload, dict):
             items = payload.get("items") or []
@@ -64,7 +67,9 @@ def _resolve_cart_item_id(cookie_jar: http.cookiejar.CookieJar) -> str:
 def _resolve_cart_id(cookie_jar: http.cookiejar.CookieJar) -> Optional[str]:
     try:
         _, payload = request_json(
-            f"{API_BASE}/cart", expect_status=200, cookie_jar=cookie_jar,
+            f"{API_BASE}/cart",
+            expect_status=200,
+            cookie_jar=cookie_jar,
         )
         if isinstance(payload, dict):
             value = payload.get("cartId")
@@ -88,50 +93,84 @@ def run() -> int:
     jar = http.cookiejar.CookieJar()
 
     results.append(_check("GET  /health", _expect("GET", "/health", 200, cookie_jar=jar)))
-    results.append(_check("GET  /products",
-                          _expect("GET", "/products", 200, cookie_jar=jar)))
-    results.append(_check("GET  /products/prod_espresso",
-                          _expect("GET", "/products/prod_espresso", 200, cookie_jar=jar)))
-    results.append(_check("POST /cart/items",
-                          _expect("POST", "/cart/items", 201,
-                                  body={"productId": "prod_espresso", "quantity": 1},
-                                  cookie_jar=jar)))
-    results.append(_check("POST /cart/items (2nd, rejected — cart occupied)",
-                          _expect("POST", "/cart/items", 409,
-                                  body={"productId": "prod_espresso", "quantity": 1},
-                                  cookie_jar=jar)))
+    results.append(_check("GET  /products", _expect("GET", "/products", 200, cookie_jar=jar)))
+    results.append(
+        _check(
+            "GET  /products/prod_espresso",
+            _expect("GET", "/products/prod_espresso", 200, cookie_jar=jar),
+        )
+    )
+    results.append(
+        _check(
+            "POST /cart/items",
+            _expect(
+                "POST",
+                "/cart/items",
+                201,
+                body={"productId": "prod_espresso", "quantity": 1},
+                cookie_jar=jar,
+            ),
+        )
+    )
+    results.append(
+        _check(
+            "POST /cart/items (2nd, rejected — cart occupied)",
+            _expect(
+                "POST",
+                "/cart/items",
+                409,
+                body={"productId": "prod_espresso", "quantity": 1},
+                cookie_jar=jar,
+            ),
+        )
+    )
     results.append(_check("GET  /cart", _expect("GET", "/cart", 200, cookie_jar=jar)))
 
     item_id = _resolve_cart_item_id(jar)
-    results.append(_check(
-        "PATCH /cart/items/:id (rejected — quantity change not allowed)",
-        _expect("PATCH", f"/cart/items/{item_id}", 409, body={"quantity": 3}, cookie_jar=jar),
-    ))
-    results.append(_check(
-        "DELETE /cart/items/:id (rejected — removal not allowed once selected)",
-        _expect("DELETE", f"/cart/items/{item_id}", 409, cookie_jar=jar),
-    ))
-    results.append(_check(
-        "POST /orders (rejected — customerName not accepted)",
-        _expect("POST", "/orders", 400, body={"customerName": "Smoke Customer"}, cookie_jar=jar),
-    ))
+    results.append(
+        _check(
+            "PATCH /cart/items/:id (rejected — quantity change not allowed)",
+            _expect("PATCH", f"/cart/items/{item_id}", 409, body={"quantity": 3}, cookie_jar=jar),
+        )
+    )
+    results.append(
+        _check(
+            "DELETE /cart/items/:id (rejected — removal not allowed once selected)",
+            _expect("DELETE", f"/cart/items/{item_id}", 409, cookie_jar=jar),
+        )
+    )
+    results.append(
+        _check(
+            "POST /orders (rejected — customerName not accepted)",
+            _expect(
+                "POST", "/orders", 400, body={"customerName": "Smoke Customer"}, cookie_jar=jar
+            ),
+        )
+    )
     cart_id = _resolve_cart_id(jar)
     placed: dict = {}
 
     def checkout() -> None:
         _, payload = request_json(
-            f"{API_BASE}/orders", method="POST", body={"cartId": cart_id},
-            expect_status=201, cookie_jar=jar,
+            f"{API_BASE}/orders",
+            method="POST",
+            body={"cartId": cart_id},
+            expect_status=201,
+            cookie_jar=jar,
         )
         if not isinstance(payload, dict) or "status" in payload:
             raise HttpError("checkout receipt must be an object without status")
         placed["orderId"] = payload.get("orderId")
+
     results.append(_check("POST /orders", checkout))
-    results.append(_check("GET  /orders/ord_demo",
-                          _expect("GET", "/orders/ord_demo", 200, cookie_jar=jar)))
+    results.append(
+        _check("GET  /orders/ord_demo", _expect("GET", "/orders/ord_demo", 200, cookie_jar=jar))
+    )
 
     def order_status() -> None:
-        _, payload = request_json(f"{API_BASE}/orders/ord_demo/status", expect_status=200, cookie_jar=jar)
+        _, payload = request_json(
+            f"{API_BASE}/orders/ord_demo/status", expect_status=200, cookie_jar=jar
+        )
         if not isinstance(payload, dict):
             raise HttpError("Expected an object payload")
         for key in ("orderId", "temperature", "placedAt", "coolsAt", "checkedAt"):
@@ -141,26 +180,40 @@ def run() -> int:
             raise HttpError("order status payload must not carry status")
         if payload["temperature"] not in ("hot", "cold"):
             raise HttpError(f"unexpected temperature: {payload['temperature']!r}")
+
     results.append(_check("GET  /orders/ord_demo/status (typed temperature)", order_status))
 
     def my_orders() -> None:
-        _, payload = request_json(f"{API_BASE}/orders?owner=session", expect_status=200, cookie_jar=jar)
+        _, payload = request_json(
+            f"{API_BASE}/orders?owner=session", expect_status=200, cookie_jar=jar
+        )
         items = payload.get("items") if isinstance(payload, dict) else None
         if not isinstance(items, list):
             raise HttpError("Expected items array")
         ids = [o.get("orderId") for o in items if isinstance(o, dict)]
         if placed.get("orderId") not in ids:
-            raise HttpError(f"placed order {placed.get('orderId')!r} missing from /orders?owner=session")
+            raise HttpError(
+                f"placed order {placed.get('orderId')!r} missing from /orders?owner=session"
+            )
         if "ord_demo" in ids:
             raise HttpError("seed order ord_demo must not belong to a session")
         if any(isinstance(o, dict) and "sessionId" in o for o in items):
             raise HttpError("/orders?owner=session must not expose sessionId")
+
     results.append(_check("GET  /orders?owner=session (session-owned)", my_orders))
-    results.append(_check("GET  /orders?owner=bogus (rejected)",
-                          _expect("GET", "/orders?owner=bogus", 400, cookie_jar=jar)))
+    results.append(
+        _check(
+            "GET  /orders?owner=bogus (rejected)",
+            _expect("GET", "/orders?owner=bogus", 400, cookie_jar=jar),
+        )
+    )
     # Retired route stays retired: no alias, plain 404.
-    results.append(_check("GET  /catalog/products (retired → 404)",
-                          _expect("GET", "/catalog/products", 404, cookie_jar=jar)))
+    results.append(
+        _check(
+            "GET  /catalog/products (retired → 404)",
+            _expect("GET", "/catalog/products", 404, cookie_jar=jar),
+        )
+    )
 
     # Login feature: a fresh user (own cookie jar) registers, orders for
     # themselves, and sees that order as the hot latest in /me/orders.
@@ -171,32 +224,41 @@ def run() -> int:
 
     def register() -> None:
         _, payload = request_json(
-            f"{API_BASE}/auth/register", method="POST",
+            f"{API_BASE}/auth/register",
+            method="POST",
             body={**acct, "password": "smoke-password"},
-            expect_status=201, cookie_jar=acct_jar,
+            expect_status=201,
+            cookie_jar=acct_jar,
         )
         if payload != acct:
             raise HttpError(f"unexpected register payload: {payload!r}")
+
     results.append(_check("POST /auth/register", register))
 
     def me() -> None:
         _, payload = request_json(f"{API_BASE}/me", expect_status=200, cookie_jar=acct_jar)
         if not isinstance(payload, dict) or payload.get("user") != acct:
             raise HttpError(f"/me did not return the new user: {payload!r}")
+
     results.append(_check("GET  /me", me))
 
     def checkout_self() -> None:
         request_json(
-            f"{API_BASE}/cart/items", method="POST",
+            f"{API_BASE}/cart/items",
+            method="POST",
             body={"productId": "prod_espresso", "quantity": 1},
-            expect_status=201, cookie_jar=acct_jar,
+            expect_status=201,
+            cookie_jar=acct_jar,
         )
         _, payload = request_json(
-            f"{API_BASE}/orders", method="POST",
+            f"{API_BASE}/orders",
+            method="POST",
             body={"cartId": _resolve_cart_id(acct_jar), "orderFor": {"type": "self"}},
-            expect_status=201, cookie_jar=acct_jar,
+            expect_status=201,
+            cookie_jar=acct_jar,
         )
         acct_placed["orderId"] = payload.get("orderId") if isinstance(payload, dict) else None
+
     results.append(_check("POST /orders (orderFor self)", checkout_self))
 
     def account_orders() -> None:
@@ -208,10 +270,13 @@ def run() -> int:
             raise HttpError(f"latest order should be hot, got {latest.get('temperature')!r}")
         if latest.get("owner") != {"username": acct["username"]}:
             raise HttpError(f"unexpected owner: {latest.get('owner')!r}")
+
     results.append(_check("GET  /me/orders (latest hot)", account_orders))
 
     def hot_status() -> None:
-        _, payload = request_json(f"{API_BASE}/me/hot-status", expect_status=200, cookie_jar=acct_jar)
+        _, payload = request_json(
+            f"{API_BASE}/me/hot-status", expect_status=200, cookie_jar=acct_jar
+        )
         if not isinstance(payload, dict):
             raise HttpError(f"unexpected hot-status payload: {payload!r}")
         if not isinstance(payload.get("hotCount"), int) or payload["hotCount"] < 1:
@@ -223,12 +288,18 @@ def run() -> int:
         # ISO-8601 strings in the same UTC format compare chronologically.
         if not next_cools > server_time:
             raise HttpError(f"nextCoolsAt {next_cools!r} is not after serverTime {server_time!r}")
+
     results.append(_check("GET  /me/hot-status (hot count)", hot_status))
 
     def viz_data() -> None:
         _, payload = request_json(f"{API_BASE}/visualization", expect_status=200, cookie_jar=jar)
-        if not isinstance(payload, dict) or not isinstance(payload.get("items"), list) or not payload["items"]:
+        if (
+            not isinstance(payload, dict)
+            or not isinstance(payload.get("items"), list)
+            or not payload["items"]
+        ):
             raise HttpError("Expected non-empty items array")
+
     results.append(_check("GET  /visualization", viz_data))
 
     def viz_scene() -> None:
@@ -246,17 +317,23 @@ def run() -> int:
         if not isinstance(scene["recentOrders"], list):
             raise HttpError("scene.recentOrders must be a list")
         aggregates = scene["orderAggregates"]
-        if not isinstance(aggregates, dict) or "totalCount" not in aggregates or "temperatureCounts" not in aggregates:
+        if (
+            not isinstance(aggregates, dict)
+            or "totalCount" not in aggregates
+            or "temperatureCounts" not in aggregates
+        ):
             raise HttpError("scene.orderAggregates malformed")
         # cart key is allowed to be null when itemCount=0
         if "cart" not in scene:
             raise HttpError("scene missing key: cart")
+
     results.append(_check("GET  /visualization (scene shape)", viz_scene))
 
     def sse() -> None:
         ok = read_sse_data_frame(f"{API_BASE}/visualization/events", max_seconds=3.0)
         if not ok:
             raise HttpError("No SSE data frame received")
+
     results.append(_check("GET  /visualization/events (SSE)", sse))
 
     print()

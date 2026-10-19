@@ -18,14 +18,26 @@ from pg.paths import (
 
 def run() -> int:
     header("Local URLs")
-    print(f"  Web app             {green(f'http://localhost:{WEB_PORT}')}  (entry point — links every surface)")
+    print(
+        f"  Web app             {green(f'http://localhost:{WEB_PORT}')}  (entry point — links every surface)"
+    )
     print(f"  BFF / API           {green(f'http://localhost:{BFF_PORT}')}")
     print(f"  Health endpoint     {green(f'http://localhost:{BFF_PORT}/health')}")
-    print(f"  3D Visualizer       {green(f'http://localhost:{VIZ_PORT}')}  (needs 'up viz' or 'up full')")
-    print(f"  Prisma Studio       {green(f'http://localhost:{STUDIO_PORT}')}  (needs 'up admin' or 'up full' — direct DB, no events)")
-    print(f"  Grafana             {green(f'http://localhost:{GRAFANA_PORT}')}  (needs 'up obs' or 'up full')")
-    print(f"  Prometheus          {green(f'http://localhost:{PROMETHEUS_PORT}')}  (needs 'up obs' or 'up full')")
-    print(f"  Tempo (HTTP API)    {green(f'http://localhost:{TEMPO_PORT}')}  (needs 'up obs' or 'up full')")
+    print(
+        f"  3D Visualizer       {green(f'http://localhost:{VIZ_PORT}')}  (needs 'up viz' or 'up full')"
+    )
+    print(
+        f"  Prisma Studio       {green(f'http://localhost:{STUDIO_PORT}')}  (needs 'up admin' or 'up full' — direct DB, no events)"
+    )
+    print(
+        f"  Grafana             {green(f'http://localhost:{GRAFANA_PORT}')}  (needs 'up obs' or 'up full')"
+    )
+    print(
+        f"  Prometheus          {green(f'http://localhost:{PROMETHEUS_PORT}')}  (needs 'up obs' or 'up full')"
+    )
+    print(
+        f"  Tempo (HTTP API)    {green(f'http://localhost:{TEMPO_PORT}')}  (needs 'up obs' or 'up full')"
+    )
     print(f"  OTLP HTTP           {dim('http://localhost:4318')}  (otel-collector)")
     print(f"  OTLP gRPC           {dim('http://localhost:4317')}  (otel-collector)")
     print()

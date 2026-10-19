@@ -44,9 +44,7 @@ class RunK6Tests(unittest.TestCase):
             },
         )
         self.environment_patch.start()
-        self.reports_patch = patch(
-            "pg.k6runner.PERF_REPORTS_DIR", self.root / "reports"
-        )
+        self.reports_patch = patch("pg.k6runner.PERF_REPORTS_DIR", self.root / "reports")
         self.reports_patch.start()
 
     def tearDown(self) -> None:
@@ -129,16 +127,17 @@ class RunK6Tests(unittest.TestCase):
         self.assertFalse(self.fake_args_path.exists())
 
     @patch("pg.k6runner.confirm_docker_run", return_value=True)
-    def test_http_orders_missing_carts_fails_before_docker_and_names_producers(self, _confirm) -> None:
+    def test_http_orders_missing_carts_fails_before_docker_and_names_producers(
+        self, _confirm
+    ) -> None:
         out, err = StringIO(), StringIO()
-        with patch("sys.stdin", StringIO()), patch("sys.stdout", out), patch("sys.stderr", err), \
-             patch("punch.execution._has_data_rows", return_value=False):
+        with patch("sys.stdin", StringIO()), patch("sys.stdout", out), patch(
+            "sys.stderr", err
+        ), patch("punch.execution._has_data_rows", return_value=False):
             rc = run_k6("http-orders", [])
         self.assertEqual(rc, 1)
         self.assertFalse(self.fake_args_path.exists())
-        self.assertIn(
-            "browser-cart, http-cart (--produce carts)", out.getvalue() + err.getvalue()
-        )
+        self.assertIn("browser-cart, http-cart (--produce carts)", out.getvalue() + err.getvalue())
 
     def test_malformed_job_fails_before_docker(self) -> None:
         (self.root / "malformed.yaml").write_text("not: a-job\n", encoding="utf-8")
@@ -164,15 +163,12 @@ class RunK6Tests(unittest.TestCase):
             self.assertEqual(run_k6("http-purchase"), 23)
 
 
-
 class JobRegistryTests(unittest.TestCase):
     def test_registry_matches_the_job_directory(self) -> None:
         from pg.jobs import JOBS
         from pg.paths import PERF_JOBS_DIR
 
-        self.assertEqual(
-            set(JOBS), {p.stem for p in PERF_JOBS_DIR.glob("*.yaml")}
-        )
+        self.assertEqual(set(JOBS), {p.stem for p in PERF_JOBS_DIR.glob("*.yaml")})
 
     def test_browser_jobs_default_to_the_web_port(self) -> None:
         from pg.jobs import JOBS
@@ -201,18 +197,24 @@ class JobRegistryTests(unittest.TestCase):
             with self.subTest(name=name):
                 run_k6_mock.reset_mock()
                 self.assertEqual(perf.run(name, ["--produce", "carts"]), 0)
-                run_k6_mock.assert_called_once_with(
-                    name, ["--produce", "carts"], default_port=port
-                )
+                run_k6_mock.assert_called_once_with(name, ["--produce", "carts"], default_port=port)
 
     @patch("pg.perf.run", return_value=0)
     def test_cli_exposes_exactly_one_perf_command_per_job(self, run_mock) -> None:
         from pg.jobs import JOBS
 
         perf_commands = {
-            c for c in cli.COMMANDS
+            c
+            for c in cli.COMMANDS
             if c.startswith("perf:")
-            and c not in ("perf:workflow", "perf:forms", "perf:dispatch", "perf:open-report", "perf:clean")
+            and c
+            not in (
+                "perf:workflow",
+                "perf:forms",
+                "perf:dispatch",
+                "perf:open-report",
+                "perf:clean",
+            )
         }
         self.assertEqual(perf_commands, {f"perf:{name}" for name in JOBS})
         for name in JOBS:

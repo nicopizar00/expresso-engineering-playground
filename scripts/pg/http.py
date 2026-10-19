@@ -80,7 +80,9 @@ def read_sse_data_frame(url: str, max_seconds: float = 3.0) -> bool:
         path = f"{path}?{parsed.query}"
 
     deadline = _Monotonic.now() + max_seconds
-    conn_cls = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    conn_cls = (
+        http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    )
     conn = conn_cls(host, port, timeout=max_seconds)
     try:
         conn.request(
@@ -125,4 +127,5 @@ class _Monotonic:
     @staticmethod
     def now() -> float:
         import time
+
         return time.monotonic()

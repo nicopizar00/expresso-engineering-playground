@@ -74,11 +74,14 @@ class FormTests(unittest.TestCase):
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
         self.assertEqual(job["uses"], EXECUTE)
-        self.assertEqual(job["with"], {
-            "kind": "job",
-            "selection": expression("inputs.job"),
-            "profile": expression("inputs.profile"),
-        })
+        self.assertEqual(
+            job["with"],
+            {
+                "kind": "job",
+                "selection": expression("inputs.job"),
+                "profile": expression("inputs.profile"),
+            },
+        )
 
     def test_the_workflow_form_has_a_workflow_and_a_target_profile(self) -> None:
         form = load("perf-workflow.yml")
@@ -98,11 +101,14 @@ class FormTests(unittest.TestCase):
         self.assertEqual(form["permissions"], {"contents": "read"})
         job = form["jobs"]["run"]
         self.assertEqual(job["uses"], EXECUTE)
-        self.assertEqual(job["with"], {
-            "kind": "workflow",
-            "selection": expression("inputs.workflow"),
-            "profile": expression("inputs.target-profile"),
-        })
+        self.assertEqual(
+            job["with"],
+            {
+                "kind": "workflow",
+                "selection": expression("inputs.workflow"),
+                "profile": expression("inputs.target-profile"),
+            },
+        )
 
 
 class ExecuteTests(unittest.TestCase):
@@ -139,18 +145,28 @@ class ExecuteTests(unittest.TestCase):
         self.assertEqual(
             self.steps[0], {"uses": "actions/checkout@v4", "with": {"submodules": "recursive"}}
         )
-        self.assertEqual(self.steps[1], {"uses": "actions/setup-python@v5", "with": {
-            "python-version": "3.11", "cache": "pip",
-            "cache-dependency-path": "vendor/punch/requirements.txt",
-        }})
+        self.assertEqual(
+            self.steps[1],
+            {
+                "uses": "actions/setup-python@v5",
+                "with": {
+                    "python-version": "3.11",
+                    "cache": "pip",
+                    "cache-dependency-path": "vendor/punch/requirements.txt",
+                },
+            },
+        )
 
     def test_form_values_reach_the_dispatcher_only_as_environment_data(self) -> None:
         step = self.step("Normalize the form values")
         self.assertEqual(step["run"], "./dev perf:dispatch")
-        self.assertEqual(step["env"], {
-            **{env_name(name): expression(f"inputs.{name}") for name in INPUTS},
-            "PERF_RUNNER_LABEL": "ubuntu-latest",
-        })
+        self.assertEqual(
+            step["env"],
+            {
+                **{env_name(name): expression(f"inputs.{name}") for name in INPUTS},
+                "PERF_RUNNER_LABEL": "ubuntu-latest",
+            },
+        )
         for each in self.steps:
             with self.subTest(step=each.get("name")):
                 self.assertNotIn("${{", each.get("run", ""), "inputs must reach run: through env")
@@ -158,8 +174,12 @@ class ExecuteTests(unittest.TestCase):
 
     def test_the_plan_runs_before_the_stack_and_execution_runs_the_same_spec(self) -> None:
         order = [
-            "Normalize the form values", "Plan the run", "Start the stack",
-            "Build the k6 images", "Let k6 write its reports", "Run the plan",
+            "Normalize the form values",
+            "Plan the run",
+            "Start the stack",
+            "Build the k6 images",
+            "Let k6 write its reports",
+            "Run the plan",
         ]
         indexes = [self.index(name) for name in order]
         self.assertEqual(indexes, sorted(indexes))
@@ -167,9 +187,7 @@ class ExecuteTests(unittest.TestCase):
         self.assertIn(
             './dev perf:workflow --spec "$SPEC"\n', self.step("Run the plan")["run"] + "\n"
         )
-        self.assertEqual(
-            self.job["env"]["SPEC"], "tests/performance/k6/reports/dispatch/spec.json"
-        )
+        self.assertEqual(self.job["env"]["SPEC"], "tests/performance/k6/reports/dispatch/spec.json")
         self.assertIn("compose.performance.yaml build", self.step("Build the k6 images")["run"])
         self.assertEqual(
             self.step("Let k6 write its reports")["run"], "chmod a+w tests/performance/k6/reports"
@@ -184,7 +202,10 @@ class ExecuteTests(unittest.TestCase):
 
     def test_evidence_steps_always_run_and_upload_once(self) -> None:
         order = [
-            "Finalize the dispatch record", "Upload evidence", "Job summary", "Tear down the stack",
+            "Finalize the dispatch record",
+            "Upload evidence",
+            "Job summary",
+            "Tear down the stack",
         ]
         indexes = [self.index(name) for name in order]
         self.assertEqual(indexes, sorted(indexes))
@@ -194,20 +215,26 @@ class ExecuteTests(unittest.TestCase):
         uploads = [s for s in self.steps if s.get("uses", "").startswith("actions/upload-artifact")]
         self.assertEqual(len(uploads), 1)
         self.assertEqual(uploads[0]["uses"], "actions/upload-artifact@v4")
-        self.assertEqual(uploads[0]["with"], {
-            "name": "perf-${{ github.run_id }}-${{ github.run_attempt }}",
-            "path": "tests/performance/k6/reports/",
-            "if-no-files-found": "error",
-        })
+        self.assertEqual(
+            uploads[0]["with"],
+            {
+                "name": "perf-${{ github.run_id }}-${{ github.run_attempt }}",
+                "path": "tests/performance/k6/reports/",
+                "if-no-files-found": "error",
+            },
+        )
         # The selection names the run even when the job failed before perf:dispatch.
         self.assertEqual(
             self.step("Finalize the dispatch record")["env"],
             {"PERF_JOB_STATUS": "${{ job.status }}", "PERF_SELECTION": "${{ inputs.selection }}"},
         )
-        self.assertEqual(self.step("Job summary")["env"], {
-            "PERF_ARTIFACT_URL": "${{ steps.upload.outputs.artifact-url }}",
-            "PERF_ARTIFACT_DIGEST": "${{ steps.upload.outputs.artifact-digest }}",
-        })
+        self.assertEqual(
+            self.step("Job summary")["env"],
+            {
+                "PERF_ARTIFACT_URL": "${{ steps.upload.outputs.artifact-url }}",
+                "PERF_ARTIFACT_DIGEST": "${{ steps.upload.outputs.artifact-digest }}",
+            },
+        )
         self.assertIn("::warning", self.step("Tear down the stack")["run"])
 
 

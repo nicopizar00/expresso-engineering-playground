@@ -109,9 +109,7 @@ def run(args: Sequence[str]) -> int:
     pass_("Schema is up to date")
 
     info("Running prisma db seed...")
-    compose.run_bff_dev(
-        ["pnpm", "--filter", "@mini-commerce/bff", "exec", "prisma", "db", "seed"]
-    )
+    compose.run_bff_dev(["pnpm", "--filter", "@mini-commerce/bff", "exec", "prisma", "db", "seed"])
     pass_("Seed complete")
 
     # 3. BFF + any profiled services for the requested target.
@@ -130,6 +128,7 @@ def run(args: Sequence[str]) -> int:
     if "grafana" in extra:
         # Grafana port is provisioned by pg.paths.GRAFANA_PORT.
         from pg.paths import GRAFANA_PORT
+
         pass_(f"Grafana is running on http://localhost:{GRAFANA_PORT}")
     print()
     info(f"Run {bold('./dev dev')} for hot-reload (docker compose watch)")

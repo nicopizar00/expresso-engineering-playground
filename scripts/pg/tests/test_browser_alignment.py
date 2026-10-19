@@ -60,7 +60,11 @@ class BrowserAlignmentTests(unittest.TestCase):
         """A stale web image without data-product-id must fail a check, not
         silently drop the carts row at 100% checks."""
         src = source("browser-cart")
-        predicate = src[src.index('"cart contains added item"'):src.index("});", src.index('"cart contains added item"'))]
+        predicate = src[
+            src.index('"cart contains added item"') : src.index(
+                "});", src.index('"cart contains added item"')
+            )
+        ]
         self.assertIn("productId", predicate)
 
     def test_browser_catalog_check_can_fail(self) -> None:
@@ -69,17 +73,20 @@ class BrowserAlignmentTests(unittest.TestCase):
         for name in ("browser-cart", "browser-purchase"):
             with self.subTest(name=name):
                 src = source(name)
-                step = src[src.index("// step: catalog: browse"):src.index("// step: cart: add item")]
+                step = src[
+                    src.index("// step: catalog: browse") : src.index("// step: cart: add item")
+                ]
                 self.assertNotRegex(
-                    step, r'await page\.waitForSelector\(\s*\'\[data-testid="product-add-button"\]\'[^;]*\);'
+                    step,
+                    r'await page\.waitForSelector\(\s*\'\[data-testid="product-add-button"\]\'[^;]*\);',
                 )
                 self.assertIn('"catalog has items"', step)
 
     def test_browser_visualizer_check_requires_connected(self) -> None:
-        """"Loading" is not "ok after order"; only the Connected badge is."""
+        """ "Loading" is not "ok after order"; only the Connected badge is."""
         src = source("browser-purchase")
-        check = src[src.index('"visualizer ok after order"'):]
-        check = check[:check.index("});")]
+        check = src[src.index('"visualizer ok after order"') :]
+        check = check[: check.index("});")]
         self.assertIn('"Connected"', check)
         self.assertNotIn('!== "Error"', check)
 
@@ -92,7 +99,7 @@ class BrowserAlignmentTests(unittest.TestCase):
                 self.assertNotIn("productId is left blank", text)
 
     def test_browser_steps_follow_the_http_group_order(self) -> None:
-        for (http, browser) in SHARED:
+        for http, browser in SHARED:
             with self.subTest(browser=browser):
                 groups = re.findall(r'group\("([^"]+)"', source(http))
                 steps = re.findall(r"// step: (.+)$", source(browser), re.MULTILINE)

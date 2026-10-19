@@ -14,123 +14,148 @@ from pg.jobs import JOBS
 # Lazy import command modules so a syntax error in one doesn't break --help.
 def _doctor(_a: Sequence[str]) -> int:
     from pg import doctor
+
     return doctor.run()
 
 
 def _up(args: Sequence[str]) -> int:
     from pg import up
+
     return up.run(args)
 
 
 def _down(_a: Sequence[str]) -> int:
     from pg import down
+
     return down.down()
 
 
 def _reset(_a: Sequence[str]) -> int:
     from pg import down
+
     return down.reset()
 
 
 def _restart(args: Sequence[str]) -> int:
     from pg import down
+
     return down.restart(args)
 
 
 def _dev(_a: Sequence[str]) -> int:
     from pg import dev
+
     return dev.watch()
 
 
 def _dev_host(_a: Sequence[str]) -> int:
     from pg import dev
+
     return dev.host()
 
 
 def _smoke(_a: Sequence[str]) -> int:
     from pg import smoke
+
     return smoke.run()
 
 
 def _seed(_a: Sequence[str]) -> int:
     from pg import seed
+
     return seed.run()
 
 
 def _status(_a: Sequence[str]) -> int:
     from pg import status
+
     return status.run()
 
 
 def _logs(_a: Sequence[str]) -> int:
     from pg import logs
+
     return logs.run()
 
 
 def _open(_a: Sequence[str]) -> int:
     from pg import open_cmd
+
     return open_cmd.run()
 
 
 def _k8s_up(args: Sequence[str]) -> int:
     from pg import k8s
+
     return k8s.up(args)
 
 
 def _k8s_forward(_a: Sequence[str]) -> int:
     from pg import k8s
+
     return k8s.forward()
 
 
 def _k8s_status(_a: Sequence[str]) -> int:
     from pg import k8s
+
     return k8s.status()
 
 
 def _k8s_down(_a: Sequence[str]) -> int:
     from pg import k8s
+
     return k8s.down()
 
 
 def _k8s_perf_up(args: Sequence[str]) -> int:
     from pg import k8s_perf
+
     return k8s_perf.up(args)
 
 
 def _argocd_up(args: Sequence[str]) -> int:
     from pg import argocd
+
     return argocd.up(args)
 
 
 def _perf(name: str) -> Callable[[Sequence[str]], int]:
     def run(args: Sequence[str]) -> int:
         from pg import perf
+
         return perf.run(name, args)
+
     return run
 
 
 def _perf_workflow(args: Sequence[str]) -> int:
     from pg import perf_workflow
+
     return perf_workflow.run(args)
 
 
 def _perf_forms(args: Sequence[str]) -> int:
     from pg import perf_forms
+
     return perf_forms.run(args)
 
 
 def _perf_dispatch(args: Sequence[str]) -> int:
     from pg import perf_dispatch
+
     return perf_dispatch.run(args)
 
 
 def _perf_open_report(_a: Sequence[str]) -> int:
     from pg import perf
+
     return perf.open_report()
 
 
 def _perf_clean(_a: Sequence[str]) -> int:
     from pg import perf
+
     return perf.clean()
 
 
@@ -183,12 +208,22 @@ def _usage() -> None:
     print("Requires: Docker Desktop  |  Python ≥ 3.9 on PATH.")
     print("Performance commands additionally require Punch's pinned dependency:")
     print("  python3 -m pip install -r vendor/punch/requirements.txt")
-    print("Data-producing jobs write their dataset only with --produce <dataset> (e.g. perf:http-cart --produce carts).")
-    print("perf:* take their k6 load shape from --config <preset|path> (e.g. perf:http-purchase --config 5-vu-5m).")
+    print(
+        "Data-producing jobs write their dataset only with --produce <dataset> (e.g. perf:http-cart --produce carts)."
+    )
+    print(
+        "perf:* take their k6 load shape from --config <preset|path> (e.g. perf:http-purchase --config 5-vu-5m)."
+    )
     print("perf:* --runtime k8s runs the job on Argo Workflows (after ./dev k8s:perf:up).")
-    print("perf:workflow <job>[:<shape>] ... runs jobs in order; each step's data feeds the next (e.g. perf:workflow http-cart http-orders:5-vu-5m).")
-    print("perf:workflow --spec <spec.json> runs a spec written by perf:dispatch (the GitHub perf forms' boundary).")
-    print("perf:forms --write|--check derives the perf-job/perf-workflow GitHub form options from the catalog and custom configs.")
+    print(
+        "perf:workflow <job>[:<shape>] ... runs jobs in order; each step's data feeds the next (e.g. perf:workflow http-cart http-orders:5-vu-5m)."
+    )
+    print(
+        "perf:workflow --spec <spec.json> runs a spec written by perf:dispatch (the GitHub perf forms' boundary)."
+    )
+    print(
+        "perf:forms --write|--check derives the perf-job/perf-workflow GitHub form options from the catalog and custom configs."
+    )
     print()
     print(f"Usage: {bold('./dev <command> [args]')}")
     print()

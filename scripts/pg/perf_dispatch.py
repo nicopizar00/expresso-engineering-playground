@@ -205,9 +205,7 @@ def dispatch(
         annotate(errors, [], TITLE)
         return 1
     write_spec(dispatch_dir / "spec.json", steps)
-    browser = any(
-        catalog.jobs[step.job].compose_service == BROWSER_SERVICE for step in steps
-    )
+    browser = any(catalog.jobs[step.job].compose_service == BROWSER_SERVICE for step in steps)
     _output(environ, browser=browser)
     header("Punch dispatch")
     for number, step in enumerate(steps, start=1):
@@ -281,7 +279,9 @@ def _job_summary(
             "`workflow/step-<n>-<job>/`."
         )
     elif status == "failed" and (workflow is None or workflow.get("passed") is None):
-        notes.append(f"The GitHub job stopped at the {record.get('stage')} stage before any step ran.")
+        notes.append(
+            f"The GitHub job stopped at the {record.get('stage')} stage before any step ran."
+        )
     evidence = workflow or {
         "outcome": "rejected",
         "jobs": [_selection(request)],
@@ -346,8 +346,13 @@ def publish(environ: Mapping[str, str], dispatch_dir: Path = DISPATCH_DIR) -> in
         # A run without its evidence is not a passed run.
         if text.startswith("## Passed"):
             heading, _, rest = text.partition("\n")
-            text = "## Failed" + heading[len("## Passed"):] + "\n\n" \
-                + "- The evidence artifact was not uploaded.\n" + rest
+            text = (
+                "## Failed"
+                + heading[len("## Passed") :]
+                + "\n\n"
+                + "- The evidence artifact was not uploaded.\n"
+                + rest
+            )
         text += "- Artifact: not uploaded; the GitHub job log is the only evidence\n"
     target = environ.get("GITHUB_STEP_SUMMARY")
     if target:
@@ -365,12 +370,14 @@ def run(args: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="./dev perf:dispatch",
         description="The GitHub Actions boundary of a Punch run "
-                    "(.github/workflows/_perf-execute.yml).",
+        "(.github/workflows/_perf-execute.yml).",
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--stage", choices=STAGES, help="Record the stage the GitHub job reached.")
     mode.add_argument(
-        "--finalize", action="store_true", help="Set the final status; write the GitHub job summary."
+        "--finalize",
+        action="store_true",
+        help="Set the final status; write the GitHub job summary.",
     )
     mode.add_argument(
         "--publish", action="store_true", help="Append the GitHub job summary and artifact link."

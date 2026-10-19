@@ -25,7 +25,7 @@ class PunchWrapperTests(unittest.TestCase):
             docker_stub.write_text(
                 "#!/bin/sh\n"
                 "printf 'docker' >> \"$PUNCH_TEST_EVENTS\"\n"
-                "for arg in \"$@\"; do printf '\\t%s' \"$arg\" >> \"$PUNCH_TEST_EVENTS\"; done\n"
+                'for arg in "$@"; do printf \'\\t%s\' "$arg" >> "$PUNCH_TEST_EVENTS"; done\n'
                 "printf '\\n' >> \"$PUNCH_TEST_EVENTS\"\n",
                 encoding="utf-8",
             )
@@ -42,10 +42,10 @@ class PunchWrapperTests(unittest.TestCase):
                 "#!/bin/sh\n"
                 'if [ "$1" = "-c" ]; then exit "$PUNCH_TEST_DEP_STATUS"; fi\n'
                 'if [ "$1" = "-m" ] && [ "$2" = "pip" ] && [ "$PUNCH_TEST_DEP_STATUS" != "0" ]; then\n'
-                "    exit \"$PUNCH_TEST_DEP_STATUS\"\n"
+                '    exit "$PUNCH_TEST_DEP_STATUS"\n'
                 "fi\n"
                 "printf 'python3' >> \"$PUNCH_TEST_EVENTS\"\n"
-                "for arg in \"$@\"; do printf '\\t%s' \"$arg\" >> \"$PUNCH_TEST_EVENTS\"; done\n"
+                'for arg in "$@"; do printf \'\\t%s\' "$arg" >> "$PUNCH_TEST_EVENTS"; done\n'
                 "printf '\\n' >> \"$PUNCH_TEST_EVENTS\"\n",
                 encoding="utf-8",
             )
@@ -75,9 +75,7 @@ class PunchWrapperTests(unittest.TestCase):
             finally:
                 os.close(master)
             events = (
-                events_path.read_text(encoding="utf-8").splitlines()
-                if events_path.exists()
-                else []
+                events_path.read_text(encoding="utf-8").splitlines() if events_path.exists() else []
             )
             return process.returncode, events, stderr
 
@@ -93,7 +91,7 @@ class PunchWrapperTests(unittest.TestCase):
                 executable.write_text(
                     "#!/bin/sh\n"
                     f"printf '{command}' >> \"$PUNCH_TEST_EVENTS\"\n"
-                    "for arg in \"$@\"; do printf '\\t%s' \"$arg\" >> \"$PUNCH_TEST_EVENTS\"; done\n"
+                    'for arg in "$@"; do printf \'\\t%s\' "$arg" >> "$PUNCH_TEST_EVENTS"; done\n'
                     "printf '\\n' >> \"$PUNCH_TEST_EVENTS\"\n",
                     encoding="utf-8",
                 )
@@ -124,8 +122,7 @@ class PunchWrapperTests(unittest.TestCase):
         self.assertEqual(
             events,
             [
-                "python3\t-m\tpunch\tmenu\t"
-                f"{REPO_ROOT / 'tests/performance/k6/jobs'}",
+                "python3\t-m\tpunch\tmenu\t" f"{REPO_ROOT / 'tests/performance/k6/jobs'}",
             ],
         )
 
@@ -137,8 +134,7 @@ class PunchWrapperTests(unittest.TestCase):
             [
                 "docker\tcompose\t-f\t"
                 f"{REPO_ROOT / 'infra/docker/compose.performance.yaml'}\tbuild\tk6\tk6-browser",
-                "python3\t-m\tpunch\tmenu\t"
-                f"{REPO_ROOT / 'tests/performance/k6/jobs'}",
+                "python3\t-m\tpunch\tmenu\t" f"{REPO_ROOT / 'tests/performance/k6/jobs'}",
             ],
         )
 

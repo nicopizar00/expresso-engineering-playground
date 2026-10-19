@@ -215,14 +215,19 @@ def cluster_running() -> bool:
 
 def _start_cluster() -> bool:
     info(f"Starting minikube cluster '{PROFILE}'...")
-    rc = _run([
-        "minikube", "start", "-p", PROFILE,
-        "--driver=docker",
-        # minikube >= 1.39 defaults to containerd, which has no docker-env.
-        "--container-runtime=docker",
-        f"--cpus={CLUSTER_CPUS}",
-        f"--memory={CLUSTER_MEMORY_MB}",
-    ])
+    rc = _run(
+        [
+            "minikube",
+            "start",
+            "-p",
+            PROFILE,
+            "--driver=docker",
+            # minikube >= 1.39 defaults to containerd, which has no docker-env.
+            "--container-runtime=docker",
+            f"--cpus={CLUSTER_CPUS}",
+            f"--memory={CLUSTER_MEMORY_MB}",
+        ]
+    )
     return rc == 0
 
 
@@ -279,8 +284,15 @@ def apply_server_side(rendered: str, crds: Sequence[str]) -> bool:
     if _run(cmd, input=rendered, text=True, capture_output=True) == 0:
         return True
     for crd in crds:
-        _run(kubectl("wait", "--for=condition=Established", f"crd/{crd}", "--timeout=120s",
-                     namespaced=False))
+        _run(
+            kubectl(
+                "wait",
+                "--for=condition=Established",
+                f"crd/{crd}",
+                "--timeout=120s",
+                namespaced=False,
+            )
+        )
     if _run(cmd, input=rendered, text=True) != 0:
         fail("kubectl apply --server-side failed")
         return False
@@ -289,8 +301,15 @@ def apply_server_side(rendered: str, crds: Sequence[str]) -> bool:
 
 def wait_rollouts(namespace: str, resources: Sequence[str]) -> bool:
     for resource in resources:
-        cmd = kubectl("-n", namespace, "rollout", "status", resource,
-                      f"--timeout={ROLLOUT_TIMEOUT}", namespaced=False)
+        cmd = kubectl(
+            "-n",
+            namespace,
+            "rollout",
+            "status",
+            resource,
+            f"--timeout={ROLLOUT_TIMEOUT}",
+            namespaced=False,
+        )
         if _run(cmd) != 0:
             fail(f"{namespace}/{resource} did not become ready")
             info(f"Inspect: kubectl --context {PROFILE} -n {namespace} describe {resource}")
@@ -316,9 +335,15 @@ def _warn_if_undersized() -> None:
     )
     memory = profile_memory_mb(listing.stdout, PROFILE) if listing.returncode == 0 else None
     if memory is not None and memory < CLUSTER_MEMORY_MB:
-        warn(f"Cluster '{PROFILE}' has {memory} MB; the perf platform needs {CLUSTER_MEMORY_MB} MB.")
-        print(yellow(f"  Recreate it (destructive: Postgres data and built images): "
-                     f"minikube delete -p {PROFILE}"))
+        warn(
+            f"Cluster '{PROFILE}' has {memory} MB; the perf platform needs {CLUSTER_MEMORY_MB} MB."
+        )
+        print(
+            yellow(
+                f"  Recreate it (destructive: Postgres data and built images): "
+                f"minikube delete -p {PROFILE}"
+            )
+        )
 
 
 def _apply() -> bool:
@@ -335,8 +360,10 @@ def _apply() -> bool:
 def _warn_if_compose_running() -> None:
     running = compose.capture(["ps", "--services", "--filter", "status=running"])
     if (running.stdout or "").strip():
-        warn("Compose stack is running — minikube needs ~3 GB of Docker's RAM "
-             "and k8s:forward needs its ports. Run ./dev down first.")
+        warn(
+            "Compose stack is running — minikube needs ~3 GB of Docker's RAM "
+            "and k8s:forward needs its ports. Run ./dev down first."
+        )
 
 
 def up(args: Sequence[str]) -> int:
@@ -437,8 +464,10 @@ def forward() -> int:
                         return 1
                     if spec not in down:
                         down.add(spec)
-                        warn(f"svc/{svc} unavailable — retrying until its pod is ready "
-                             "(./dev k8s:status)")
+                        warn(
+                            f"svc/{svc} unavailable — retrying until its pod is ready "
+                            "(./dev k8s:status)"
+                        )
                     retry_at[spec] = now + FORWARD_RETRY_S
                 elif now >= retry_at[spec]:
                     del retry_at[spec]

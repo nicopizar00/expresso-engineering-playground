@@ -152,7 +152,9 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(second.produce, ["carts"])
         self.assertEqual(second.sized_for, 3)
         self.assertEqual((third.reads, fourth.reads), ({"carts": 2}, {"carts": 2}))
-        self.assertEqual(result.warnings, ["steps 3 and 4 read carts from step 2; its rows are reused"])
+        self.assertEqual(
+            result.warnings, ["steps 3 and 4 read carts from step 2; its rows are reused"]
+        )
 
     def test_an_optional_dataset_comes_from_the_workflow_or_the_built_in_default(self) -> None:
         [login] = plan("http-auth-login").steps
@@ -218,10 +220,15 @@ class LoadTests(unittest.TestCase):
     def test_the_load_owner_walks_past_an_auto_reader_that_could_not_be_sized(self) -> None:
         # Two scenarios cannot be sized for, so step 2 runs its default config; step 3's
         # load is still the only one a target-only form can change.
-        two = self.custom("two.json", {"scenarios": {
-            "a": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
-            "b": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
-        }})
+        two = self.custom(
+            "two.json",
+            {
+                "scenarios": {
+                    "a": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
+                    "b": {"executor": "shared-iterations", "vus": 1, "iterations": 5},
+                }
+            },
+        )
         result = plan_workflow(
             [
                 StepRequest("browser-cart"),
@@ -238,7 +245,9 @@ class LoadTests(unittest.TestCase):
         self.assertIs(_load_owner(orders, by_number), status)
 
     def test_an_unsafe_or_invalid_custom_config_is_a_plan_error(self) -> None:
-        escape = plan_workflow([StepRequest("http-cart", CUSTOM, "../x.json")], CATALOG, self.options)
+        escape = plan_workflow(
+            [StepRequest("http-cart", CUSTOM, "../x.json")], CATALOG, self.options
+        )
         self.assertEqual(
             escape.errors, ["step 1 http-cart: custom config '../x.json' must not contain '..'"]
         )
@@ -250,23 +259,45 @@ class LoadTests(unittest.TestCase):
         self.assertRegex(not_object.errors[0], r"must be a JSON object$")
 
     def test_a_custom_browser_config_over_the_cap_is_rejected(self) -> None:
-        big = self.custom("big.json", {"scenarios": {"default": {
-            "executor": "shared-iterations", "vus": 6, "iterations": 6,
-            "options": {"browser": {"type": "chromium"}},
-        }}})
+        big = self.custom(
+            "big.json",
+            {
+                "scenarios": {
+                    "default": {
+                        "executor": "shared-iterations",
+                        "vus": 6,
+                        "iterations": 6,
+                        "options": {"browser": {"type": "chromium"}},
+                    }
+                }
+            },
+        )
         result = plan_workflow([StepRequest("browser-cart", CUSTOM, big)], CATALOG, self.options)
         self.assertEqual(
             result.errors,
-            [f"step 1 browser-cart: custom: {big} runs up to 6 browser VUs; "
-             f"the cap is {MAX_BROWSER_VUS}"],
+            [
+                f"step 1 browser-cart: custom: {big} runs up to 6 browser VUs; "
+                f"the cap is {MAX_BROWSER_VUS}"
+            ],
         )
 
     def test_a_ramping_custom_browser_config_over_the_cap_is_rejected_with_its_peak(self) -> None:
-        ramping = self.custom("ramp.json", {"scenarios": {"default": {
-            "executor": "ramping-vus", "startVUs": 1,
-            "stages": [{"duration": "30s", "target": 3}, {"duration": "30s", "target": 8}],
-            "options": {"browser": {"type": "chromium"}},
-        }}})
+        ramping = self.custom(
+            "ramp.json",
+            {
+                "scenarios": {
+                    "default": {
+                        "executor": "ramping-vus",
+                        "startVUs": 1,
+                        "stages": [
+                            {"duration": "30s", "target": 3},
+                            {"duration": "30s", "target": 8},
+                        ],
+                        "options": {"browser": {"type": "chromium"}},
+                    }
+                }
+            },
+        )
         result = plan_workflow(
             [StepRequest("browser-purchase", CUSTOM, ramping)], CATALOG, self.options
         )
@@ -277,29 +308,53 @@ class LoadTests(unittest.TestCase):
         cases = {
             "flat.json": {"vus": 2, "iterations": 4},
             "stages.json": {"stages": [{"duration": "1m", "target": 2}]},
-            "bare.json": {"scenarios": {"default": {
-                "executor": "shared-iterations", "vus": 1, "iterations": 1,
-            }}},
-            "mixed.json": {"scenarios": {
-                "a": {"executor": "shared-iterations", "vus": 1, "iterations": 1,
-                      "options": {"browser": {"type": "chromium"}}},
-                "b": {"executor": "shared-iterations", "vus": 1, "iterations": 1},
-            }},
+            "bare.json": {
+                "scenarios": {
+                    "default": {
+                        "executor": "shared-iterations",
+                        "vus": 1,
+                        "iterations": 1,
+                    }
+                }
+            },
+            "mixed.json": {
+                "scenarios": {
+                    "a": {
+                        "executor": "shared-iterations",
+                        "vus": 1,
+                        "iterations": 1,
+                        "options": {"browser": {"type": "chromium"}},
+                    },
+                    "b": {"executor": "shared-iterations", "vus": 1, "iterations": 1},
+                }
+            },
         }
         for name, config in cases.items():
             with self.subTest(config=name):
                 path = self.custom(name, config)
-                result = plan_workflow([StepRequest("browser-cart", CUSTOM, path)], CATALOG, self.options)
+                result = plan_workflow(
+                    [StepRequest("browser-cart", CUSTOM, path)], CATALOG, self.options
+                )
                 self.assertEqual(
                     result.errors,
-                    [f"step 1 browser-cart: custom: {path} must set options.browser.type on "
-                     "every scenario; see tests/performance/k6/options/1-iteration-browser.json"],
+                    [
+                        f"step 1 browser-cart: custom: {path} must set options.browser.type on "
+                        "every scenario; see tests/performance/k6/options/1-iteration-browser.json"
+                    ],
                 )
 
     def test_a_browser_config_whose_peak_cannot_be_calculated_is_rejected(self) -> None:
-        odd = self.custom("odd.json", {"scenarios": {"default": {
-            "executor": "externally-controlled", "options": {"browser": {"type": "chromium"}},
-        }}})
+        odd = self.custom(
+            "odd.json",
+            {
+                "scenarios": {
+                    "default": {
+                        "executor": "externally-controlled",
+                        "options": {"browser": {"type": "chromium"}},
+                    }
+                }
+            },
+        )
         result = plan_workflow([StepRequest("browser-cart", CUSTOM, odd)], CATALOG, self.options)
         self.assertEqual(len(result.errors), 1)
         self.assertIn("cannot tell how many browser VUs", result.errors[0])
@@ -308,7 +363,9 @@ class LoadTests(unittest.TestCase):
     def test_a_protocol_step_is_never_checked_against_the_browser_cap(self) -> None:
         big = self.custom("big-http.json", {"vus": 50, "duration": "1m"})
         self.assertEqual(
-            plan_workflow([StepRequest("http-purchase", CUSTOM, big)], CATALOG, self.options).errors,
+            plan_workflow(
+                [StepRequest("http-purchase", CUSTOM, big)], CATALOG, self.options
+            ).errors,
             [],
         )
 
@@ -327,17 +384,39 @@ class PeakVusTests(unittest.TestCase):
             ({"scenarios": {"a": {"executor": "shared-iterations", "vus": 2, "iterations": 4}}}, 2),
             ({"scenarios": {"a": {"executor": "per-vu-iterations", "iterations": 4}}}, 1),
             ({"scenarios": {"a": {"executor": "constant-vus", "vus": 4, "duration": "1m"}}}, 4),
-            ({"scenarios": {"a": {
-                "executor": "ramping-vus", "stages": [{"duration": "1m", "target": 0}]
-            }}}, 1),
-            ({"scenarios": {"a": {
-                "executor": "constant-arrival-rate", "preAllocatedVUs": 2, "maxVUs": 7
-            }}}, 7),
+            (
+                {
+                    "scenarios": {
+                        "a": {
+                            "executor": "ramping-vus",
+                            "stages": [{"duration": "1m", "target": 0}],
+                        }
+                    }
+                },
+                1,
+            ),
+            (
+                {
+                    "scenarios": {
+                        "a": {
+                            "executor": "constant-arrival-rate",
+                            "preAllocatedVUs": 2,
+                            "maxVUs": 7,
+                        }
+                    }
+                },
+                7,
+            ),
             ({"scenarios": {"a": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 3}}}, 3),
-            ({"scenarios": {
-                "a": {"executor": "constant-vus", "vus": 2, "duration": "1m"},
-                "b": {"executor": "shared-iterations", "vus": 3, "iterations": 3},
-            }}, 5),
+            (
+                {
+                    "scenarios": {
+                        "a": {"executor": "constant-vus", "vus": 2, "duration": "1m"},
+                        "b": {"executor": "shared-iterations", "vus": 3, "iterations": 3},
+                    }
+                },
+                5,
+            ),
         ]
         for config, expected in cases:
             with self.subTest(config=config):
@@ -424,7 +503,9 @@ class RunTests(unittest.TestCase):
             (0, _result("http-cart", True, {"carts": 1})),
             (0, _result("http-orders", True)),
         ]
-        self.assertEqual(run_workflow(plan("http-cart", "http-orders:5-iterations"), self.reports), 0)
+        self.assertEqual(
+            run_workflow(plan("http-cart", "http-orders:5-iterations"), self.reports), 0
+        )
         evidence = self.evidence()
         self.assertTrue(evidence["passed"])
         self.assertIn(
@@ -445,8 +526,9 @@ class RunTests(unittest.TestCase):
 
     @patch("pg.perf_workflow.execute_k6")
     def test_a_rejected_workflow_exits_one_and_annotates_github_actions(self, execute) -> None:
-        with patch("pg.perf_workflow.WORKFLOW_REPORTS_DIR", self.reports), \
-             patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+        with patch("pg.perf_workflow.WORKFLOW_REPORTS_DIR", self.reports), patch.dict(
+            os.environ, {"GITHUB_ACTIONS": "true"}
+        ):
             self.assertEqual(perf_workflow.run(["http-orders", "http-cart"]), 1)
         execute.assert_not_called()
         self.assertIn(
@@ -456,7 +538,6 @@ class RunTests(unittest.TestCase):
             "## Rejected: http-orders → http-cart",
             (self.reports / "summary.md").read_text(encoding="utf-8"),
         )
-
 
     def summary_writer(self, workflow, summaries: dict):
         """Point each step's k6 summary at a temp file the fake k6 run writes."""
@@ -475,23 +556,35 @@ class RunTests(unittest.TestCase):
     @patch("pg.perf_workflow.execute_k6")
     def test_threshold_results_and_emitted_metrics_reach_the_evidence(self, execute) -> None:
         workflow = plan("http-purchase")
-        execute.side_effect = self.summary_writer(workflow, {"http-purchase": {
-            "passed": False, "totalRequests": 12, "errorRate": 0, "p90Ms": 1200.4,
-            "checkPassRate": 1, "durationMs": 9000,
-            "thresholds": [
-                {"metric": "http_req_duration", "expression": "p(95)<1000", "ok": False},
-                {"metric": "http_req_failed", "expression": "rate<0.01", "ok": True},
-            ],
-            "emittedMetrics": ["checks", "http_req_duration", "http_req_failed", "http_reqs"],
-        }})
+        execute.side_effect = self.summary_writer(
+            workflow,
+            {
+                "http-purchase": {
+                    "passed": False,
+                    "totalRequests": 12,
+                    "errorRate": 0,
+                    "p90Ms": 1200.4,
+                    "checkPassRate": 1,
+                    "durationMs": 9000,
+                    "thresholds": [
+                        {"metric": "http_req_duration", "expression": "p(95)<1000", "ok": False},
+                        {"metric": "http_req_failed", "expression": "rate<0.01", "ok": True},
+                    ],
+                    "emittedMetrics": [
+                        "checks",
+                        "http_req_duration",
+                        "http_req_failed",
+                        "http_reqs",
+                    ],
+                }
+            },
+        )
 
         self.assertEqual(run_workflow(workflow, self.reports), 99)
 
         [step] = self.evidence()["steps"]
         self.assertEqual(step["thresholds"][0]["expression"], "p(95)<1000")
-        self.assertTrue(
-            step["summary"].endswith("step-1-http-purchase/http-purchase-summary.json")
-        )
+        self.assertTrue(step["summary"].endswith("step-1-http-purchase/http-purchase-summary.json"))
         summary = (self.reports / "summary.md").read_text(encoding="utf-8")
         self.assertIn(
             "| 12 | 0.00% | 1200 ms | 100.00% | failed: `http_req_duration` p(95)<1000 |", summary
@@ -502,12 +595,21 @@ class RunTests(unittest.TestCase):
     @patch("pg.perf_workflow.execute_k6")
     def test_metrics_k6_did_not_emit_read_not_emitted_not_zero(self, execute) -> None:
         workflow = plan("browser-cart:1-iteration")
-        execute.side_effect = self.summary_writer(workflow, {"browser-cart": {
-            "passed": True, "totalRequests": 0, "errorRate": 1, "p90Ms": 0,
-            "checkPassRate": 1, "durationMs": 3000,
-            "thresholds": [{"metric": "checks", "expression": "rate>0.95", "ok": True}],
-            "emittedMetrics": ["checks", "iterations"],
-        }})
+        execute.side_effect = self.summary_writer(
+            workflow,
+            {
+                "browser-cart": {
+                    "passed": True,
+                    "totalRequests": 0,
+                    "errorRate": 1,
+                    "p90Ms": 0,
+                    "checkPassRate": 1,
+                    "durationMs": 3000,
+                    "thresholds": [{"metric": "checks", "expression": "rate>0.95", "ok": True}],
+                    "emittedMetrics": ["checks", "iterations"],
+                }
+            },
+        )
         self.assertEqual(run_workflow(workflow, self.reports), 0)
         summary = (self.reports / "summary.md").read_text(encoding="utf-8")
         self.assertIn("| not emitted | not emitted | not emitted | 100.00% | held (1) |", summary)
@@ -520,8 +622,11 @@ class RunTests(unittest.TestCase):
 
     def test_the_runner_warning_appears_only_when_asked(self) -> None:
         evidence = {
-            "outcome": "planned", "jobs": ["http-purchase"], "steps": [],
-            "errors": [], "warnings": [],
+            "outcome": "planned",
+            "jobs": ["http-purchase"],
+            "steps": [],
+            "errors": [],
+            "warnings": [],
         }
         self.assertNotIn(RUNNER_WARNING, render_summary(evidence))
         self.assertIn(RUNNER_WARNING, render_summary(evidence, runner_warning=True))
@@ -575,7 +680,9 @@ class RenamedCommandTests(unittest.TestCase):
 
     def test_workflow_evidence_names_its_jobs(self) -> None:
         with TemporaryDirectory() as temporary:
-            write_evidence(plan_workflow(parse_steps(["http-cart"]), CATALOG), None, Path(temporary))
+            write_evidence(
+                plan_workflow(parse_steps(["http-cart"]), CATALOG), None, Path(temporary)
+            )
             evidence = json.loads((Path(temporary) / "workflow.json").read_text(encoding="utf-8"))
         self.assertEqual(evidence["jobs"], ["http-cart"])
         self.assertNotIn("sequence", evidence)

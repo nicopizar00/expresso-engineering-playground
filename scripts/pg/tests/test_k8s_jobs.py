@@ -100,8 +100,7 @@ class ThinTemplateParityTests(unittest.TestCase):
                             for dataset in requires
                         ),
                         "produces": " ".join(
-                            f"{product.dataset}={','.join(product.columns)}"
-                            for product in produces
+                            f"{product.dataset}={','.join(product.columns)}" for product in produces
                         ),
                         **PASSED_THROUGH,
                     },

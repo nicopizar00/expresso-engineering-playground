@@ -25,7 +25,9 @@ class PerfPlatformContractTests(unittest.TestCase):
         # 4.5 GB minikube they pushed kube-apiserver and Argo CD's application
         # controller (which parses every CRD schema for diffs) into OOM churn.
         resources = yaml.safe_load(
-            (k8s_perf.PERF_DIR / "argo-workflows" / "kustomization.yaml").read_text(encoding="utf-8")
+            (k8s_perf.PERF_DIR / "argo-workflows" / "kustomization.yaml").read_text(
+                encoding="utf-8"
+            )
         )["resources"]
         self.assertIn(
             "https://github.com/argoproj/argo-workflows//manifests/base/crds/minimal?ref=v4.1.5",
@@ -39,11 +41,16 @@ class PerfPlatformContractTests(unittest.TestCase):
 
     def test_argo_workflows_images_are_pinned_to_the_release(self) -> None:
         kustomization = yaml.safe_load(
-            (k8s_perf.PERF_DIR / "argo-workflows" / "kustomization.yaml").read_text(encoding="utf-8")
+            (k8s_perf.PERF_DIR / "argo-workflows" / "kustomization.yaml").read_text(
+                encoding="utf-8"
+            )
         )
         self.assertEqual(
             {i["name"]: i["newTag"] for i in kustomization["images"]},
-            {"quay.io/argoproj/argocli": "v4.1.5", "quay.io/argoproj/workflow-controller": "v4.1.5"},
+            {
+                "quay.io/argoproj/argocli": "v4.1.5",
+                "quay.io/argoproj/workflow-controller": "v4.1.5",
+            },
         )
 
     def test_images_live_in_the_registry_addon(self) -> None:
@@ -66,11 +73,15 @@ class PerfPlatformContractTests(unittest.TestCase):
 
 class RuntimeSplitTests(unittest.TestCase):
     def test_compose_is_the_default(self) -> None:
-        self.assertEqual(perf.split_runtime(["--produce", "carts"]), ("compose", ["--produce", "carts"]))
+        self.assertEqual(
+            perf.split_runtime(["--produce", "carts"]), ("compose", ["--produce", "carts"])
+        )
 
     def test_runtime_flag_in_both_spellings(self) -> None:
-        self.assertEqual(perf.split_runtime(["--runtime", "k8s", "--config", "1-iteration"]),
-                         ("k8s", ["--config", "1-iteration"]))
+        self.assertEqual(
+            perf.split_runtime(["--runtime", "k8s", "--config", "1-iteration"]),
+            ("k8s", ["--config", "1-iteration"]),
+        )
         self.assertEqual(perf.split_runtime(["--runtime=k8s"]), ("k8s", []))
 
     def test_unknown_runtime_is_rejected(self) -> None:
@@ -94,7 +105,11 @@ class RunInputTests(unittest.TestCase):
                 k8s_perf.resolve_preset(value)
 
     def test_extra_env_forwards_set_names_except_base_url(self) -> None:
-        environ = {"BASE_URL": "http://x", "EXPECT_TEMPERATURE": "hot", "ORDER_COOL_DOWN_SECONDS": ""}
+        environ = {
+            "BASE_URL": "http://x",
+            "EXPECT_TEMPERATURE": "hot",
+            "ORDER_COOL_DOWN_SECONDS": "",
+        }
         forward = ("BASE_URL", "EXPECT_TEMPERATURE", "ORDER_COOL_DOWN_SECONDS")
         self.assertEqual(k8s_perf.extra_env(forward, environ), ["EXPECT_TEMPERATURE=hot"])
 
@@ -112,7 +127,9 @@ class WorkflowManifestTests(unittest.TestCase):
         manifest = k8s_perf.workflow_manifest(
             "http-purchase", config=None, produce=(), env_pairs=(), base_url=None
         )
-        self.assertEqual(manifest["metadata"], {"generateName": "http-purchase-", "namespace": "punch"})
+        self.assertEqual(
+            manifest["metadata"], {"generateName": "http-purchase-", "namespace": "punch"}
+        )
         self.assertEqual(manifest["spec"]["workflowTemplateRef"], {"name": "http-purchase"})
         self.assertEqual(manifest["spec"]["arguments"]["parameters"], [])
 
@@ -137,10 +154,15 @@ class WorkflowManifestTests(unittest.TestCase):
 
 class RunResultTests(unittest.TestCase):
     def test_success_collects_dataset_counts_from_nodes(self) -> None:
-        workflow = {"status": {"phase": "Succeeded", "nodes": {
-            "a": {"outputs": {"parameters": [{"name": "datasets", "value": "orders=5"}]}},
-            "b": {},
-        }}}
+        workflow = {
+            "status": {
+                "phase": "Succeeded",
+                "nodes": {
+                    "a": {"outputs": {"parameters": [{"name": "datasets", "value": "orders=5"}]}},
+                    "b": {},
+                },
+            }
+        }
         result = k8s_perf.run_result(workflow)
         self.assertTrue(result.passed)
         self.assertEqual(result.datasets, ("orders=5",))
@@ -154,32 +176,94 @@ class RunResultTests(unittest.TestCase):
         self.assertFalse(k8s_perf.run_result({"status": {"phase": "Error"}}).passed)
 
     def test_failure_details_name_the_failed_pod_nodes(self) -> None:
-        workflow = {"status": {"phase": "Failed", "message": "child 'x' failed", "nodes": {
-            "a": {"type": "Steps", "phase": "Failed", "displayName": "x", "message": "child failed"},
-            "b": {"type": "Pod", "phase": "Error", "displayName": "k6",
-                  "message": "init: Error (exit code 64): s3 unreachable"},
-            "c": {"type": "Pod", "phase": "Succeeded", "displayName": "ok"},
-        }}}
+        workflow = {
+            "status": {
+                "phase": "Failed",
+                "message": "child 'x' failed",
+                "nodes": {
+                    "a": {
+                        "type": "Steps",
+                        "phase": "Failed",
+                        "displayName": "x",
+                        "message": "child failed",
+                    },
+                    "b": {
+                        "type": "Pod",
+                        "phase": "Error",
+                        "displayName": "k6",
+                        "message": "init: Error (exit code 64): s3 unreachable",
+                    },
+                    "c": {"type": "Pod", "phase": "Succeeded", "displayName": "ok"},
+                },
+            }
+        }
         self.assertEqual(
             k8s_perf.run_result(workflow).details,
             ("k6: init: Error (exit code 64): s3 unreachable",),
         )
 
     def test_waiting_reason_reports_image_and_config_errors(self) -> None:
-        pods = {"items": [{"metadata": {"name": "p"}, "status": {"containerStatuses": [
-            {"name": "main", "state": {"waiting": {
-                "reason": "ImagePullBackOff", "message": "Back-off pulling image"}}}]}}]}
+        pods = {
+            "items": [
+                {
+                    "metadata": {"name": "p"},
+                    "status": {
+                        "containerStatuses": [
+                            {
+                                "name": "main",
+                                "state": {
+                                    "waiting": {
+                                        "reason": "ImagePullBackOff",
+                                        "message": "Back-off pulling image",
+                                    }
+                                },
+                            }
+                        ]
+                    },
+                }
+            ]
+        }
         self.assertEqual(k8s_perf.waiting_reason(pods), "ImagePullBackOff: Back-off pulling image")
-        creating = {"items": [{"metadata": {"name": "p"}, "status": {"containerStatuses": [
-            {"name": "main", "state": {"waiting": {"reason": "ContainerCreating"}}}]}}]}
+        creating = {
+            "items": [
+                {
+                    "metadata": {"name": "p"},
+                    "status": {
+                        "containerStatuses": [
+                            {"name": "main", "state": {"waiting": {"reason": "ContainerCreating"}}}
+                        ]
+                    },
+                }
+            ]
+        }
         self.assertIsNone(k8s_perf.waiting_reason(creating))
 
     def test_main_pod_waits_for_the_main_container_to_start(self) -> None:
-        waiting = {"items": [{"metadata": {"name": "p"}, "status": {"containerStatuses": [
-            {"name": "main", "state": {"waiting": {"reason": "ImagePullBackOff"}}}]}}]}
-        running = {"items": [{"metadata": {"name": "p"}, "status": {"containerStatuses": [
-            {"name": "wait", "state": {"running": {}}},
-            {"name": "main", "state": {"running": {}}}]}}]}
+        waiting = {
+            "items": [
+                {
+                    "metadata": {"name": "p"},
+                    "status": {
+                        "containerStatuses": [
+                            {"name": "main", "state": {"waiting": {"reason": "ImagePullBackOff"}}}
+                        ]
+                    },
+                }
+            ]
+        }
+        running = {
+            "items": [
+                {
+                    "metadata": {"name": "p"},
+                    "status": {
+                        "containerStatuses": [
+                            {"name": "wait", "state": {"running": {}}},
+                            {"name": "main", "state": {"running": {}}},
+                        ]
+                    },
+                }
+            ]
+        }
         self.assertIsNone(k8s_perf.main_pod(waiting))
         self.assertEqual(k8s_perf.main_pod(running), "p")
 

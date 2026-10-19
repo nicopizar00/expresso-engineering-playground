@@ -126,8 +126,10 @@ class SpecDocumentTests(unittest.TestCase):
             ("a spec needs 1 to 4 steps", {"version": 2, "steps": []}),
             ("a spec needs 1 to 4 steps", {"version": 2, "steps": [good] * 5}),
             ("exactly job and load", {"version": 2, "steps": [{"job": "x"}]}),
-            ("job must be a non-empty string",
-             {"version": 2, "steps": [{"job": "", "load": {"mode": AUTO}}]}),
+            (
+                "job must be a non-empty string",
+                {"version": 2, "steps": [{"job": "", "load": {"mode": AUTO}}]},
+            ),
             ("load mode must be one of auto, preset, custom", one({"mode": "fast"})),
             ("a preset load takes exactly mode, value", one({"mode": PRESET})),
             ("an auto load takes exactly mode", one({"mode": AUTO, "path": "a.json"})),

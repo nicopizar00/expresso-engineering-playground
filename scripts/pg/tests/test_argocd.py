@@ -26,7 +26,10 @@ class ApplicationManifestTests(unittest.TestCase):
         self.assertEqual({p.stem for p in APPS_DIR.glob("*.yaml")}, set(argocd.APPLICATIONS))
 
     def test_applications_point_at_kustomizations_in_this_repo(self) -> None:
-        expected = {"punch-platform": "infra/k8s/perf", "mini-commerce": "infra/argocd/mini-commerce"}
+        expected = {
+            "punch-platform": "infra/k8s/perf",
+            "mini-commerce": "infra/argocd/mini-commerce",
+        }
         for name, path in expected.items():
             with self.subTest(app=name):
                 source = _app(name)["spec"]["source"]
@@ -60,10 +63,13 @@ class PostSyncSmokeTests(unittest.TestCase):
         )
         self.assertEqual(smoke["kind"], "Workflow")
         self.assertEqual(smoke["metadata"]["namespace"], "punch")
-        self.assertEqual(smoke["metadata"]["annotations"], {
-            "argocd.argoproj.io/hook": "PostSync",
-            "argocd.argoproj.io/hook-delete-policy": "BeforeHookCreation",
-        })
+        self.assertEqual(
+            smoke["metadata"]["annotations"],
+            {
+                "argocd.argoproj.io/hook": "PostSync",
+                "argocd.argoproj.io/hook-delete-policy": "BeforeHookCreation",
+            },
+        )
         self.assertEqual(smoke["spec"]["workflowTemplateRef"], {"name": "http-purchase"})
         [config] = smoke["spec"]["arguments"]["parameters"]
         self.assertEqual(config, {"name": "config", "value": "1-iteration"})
@@ -74,10 +80,12 @@ class PostSyncSmokeTests(unittest.TestCase):
 class SettledTests(unittest.TestCase):
     @staticmethod
     def app(started: str, phase: str, health: str = "Healthy", running: bool = False) -> dict:
-        app = {"status": {
-            "health": {"status": health},
-            "operationState": {"phase": phase, "startedAt": started},
-        }}
+        app = {
+            "status": {
+                "health": {"status": health},
+                "operationState": {"phase": phase, "startedAt": started},
+            }
+        }
         if running:
             app["operation"] = {"sync": {}}
         return app
@@ -102,7 +110,9 @@ class SettledTests(unittest.TestCase):
 
     def test_still_progressing(self) -> None:
         self.assertIsNone(argocd.app_settled(self.app("T2", "Running", running=True), stale="T1"))
-        self.assertIsNone(argocd.app_settled(self.app("T2", "Succeeded", "Progressing"), stale="T1"))
+        self.assertIsNone(
+            argocd.app_settled(self.app("T2", "Succeeded", "Progressing"), stale="T1")
+        )
         self.assertIsNone(argocd.app_settled({}, stale=None))
 
     def test_existing_idle_app_gets_an_explicit_sync_request(self) -> None:

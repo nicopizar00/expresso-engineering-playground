@@ -43,8 +43,7 @@ class K6JobCoverageTests(unittest.TestCase):
             "http-purchase-registered",
         }
         expected_compose_service = {
-            name: ("k6-browser" if name.startswith("browser-") else "k6")
-            for name in expected_names
+            name: ("k6-browser" if name.startswith("browser-") else "k6") for name in expected_names
         }
         # The load shape is never an environment variable: it comes from the
         # k6 config Punch passes as `k6 run --config` (spec.k6.config).
@@ -71,7 +70,10 @@ class K6JobCoverageTests(unittest.TestCase):
         expected_data = {
             "http-cart": {"produces": {"carts": ("http-orders",)}, "requires": ()},
             "browser-cart": {"produces": {"carts": ("http-orders",)}, "requires": ()},
-            "http-orders": {"produces": {"orders": ("http-orders-status",)}, "requires": ("carts",)},
+            "http-orders": {
+                "produces": {"orders": ("http-orders-status",)},
+                "requires": ("carts",),
+            },
             "http-purchase": {"produces": {"orders": ("http-orders-status",)}, "requires": ()},
             "browser-purchase": {"produces": {"orders": ("http-orders-status",)}, "requires": ()},
             "http-orders-status": {"produces": {}, "requires": ("orders",)},
@@ -105,9 +107,7 @@ class K6JobCoverageTests(unittest.TestCase):
             with self.subTest(job=path.stem):
                 document = yaml.safe_load(path.read_text(encoding="utf-8"))
                 self.assertEqual(job.name, path.stem)
-                self.assertEqual(
-                    job.k6_script, f"/scripts/scenarios/{path.stem}/{path.stem}.js"
-                )
+                self.assertEqual(job.k6_script, f"/scripts/scenarios/{path.stem}/{path.stem}.js")
                 self.assertEqual(job.description, expected_description[path.stem])
                 self.assertTrue(3 <= len(job.description.split()) <= 5)
                 scenario_source = (
@@ -119,7 +119,9 @@ class K6JobCoverageTests(unittest.TestCase):
                 self.assertIn(f'"/scripts/reports/{path.stem}-report.html"', scenario_source)
                 self.assertIn(f'suite: "mini-commerce-{path.stem}"', scenario_source)
                 # Script options outrank `k6 run --config`; a shape here would win.
-                self.assertNotRegex(scenario_source, r"\b(scenarios|vus|iterations|duration|stages):")
+                self.assertNotRegex(
+                    scenario_source, r"\b(scenarios|vus|iterations|duration|stages):"
+                )
                 self.assertNotRegex(scenario_source, r"__ENV\.(VUS|ITERATIONS|DURATION)\b")
                 self.assertEqual(job.k6_config, expected_config[path.stem])
                 self.assertEqual(
@@ -153,7 +155,12 @@ class K6JobCoverageTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     job.summary_output.path,
-                    REPO_ROOT / "tests" / "performance" / "k6" / "reports" / f"{path.stem}-summary.json",
+                    REPO_ROOT
+                    / "tests"
+                    / "performance"
+                    / "k6"
+                    / "reports"
+                    / f"{path.stem}-summary.json",
                 )
                 self.assertEqual(
                     document["spec"]["environment"],
@@ -161,9 +168,7 @@ class K6JobCoverageTests(unittest.TestCase):
                 )
 
         scenarios_dir = REPO_ROOT / "tests/performance/k6/scenarios"
-        self.assertEqual(
-            {p.name for p in scenarios_dir.iterdir() if p.is_dir()}, expected_names
-        )
+        self.assertEqual({p.name for p in scenarios_dir.iterdir() if p.is_dir()}, expected_names)
 
 
 class K6OptionsPresetTests(unittest.TestCase):

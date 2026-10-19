@@ -130,13 +130,26 @@ def _env(args: Sequence[str]) -> int:
     # Filter out noisy PATH-style and shell internals the user almost never
     # cares about — they're rarely interesting and clutter the table.
     skip_prefixes = (
-        "PATH", "PWD", "SHLVL", "HOME", "HOSTNAME", "TERM", "LANG", "LC_",
-        "NODE_VERSION", "PNPM_HOME", "YARN_VERSION", "OLDPWD", "_",
+        "PATH",
+        "PWD",
+        "SHLVL",
+        "HOME",
+        "HOSTNAME",
+        "TERM",
+        "LANG",
+        "LC_",
+        "NODE_VERSION",
+        "PNPM_HOME",
+        "YARN_VERSION",
+        "OLDPWD",
+        "_",
     )
     keys = [k for k in keys if not k.startswith(skip_prefixes)]
 
     name_w, container_w, host_w = 32, 40, 40
-    print(f"  {bold(_truncate('KEY', name_w))}  {bold(_truncate('CONTAINER', container_w))}  {bold(_truncate('.env', host_w))}")
+    print(
+        f"  {bold(_truncate('KEY', name_w))}  {bold(_truncate('CONTAINER', container_w))}  {bold(_truncate('.env', host_w))}"
+    )
     diffs = 0
     only_in_container = 0
     only_in_host = 0
@@ -158,9 +171,7 @@ def _env(args: Sequence[str]) -> int:
             line = f"  {dim(_truncate(key, name_w))}  {dim(_truncate(c_disp, container_w))}  {dim(_truncate(h_disp, host_w))}"
         print(line)
     print()
-    summary = (
-        f"  {diffs} differ · {only_in_container} container-only · {only_in_host} .env-only"
-    )
+    summary = f"  {diffs} differ · {only_in_container} container-only · {only_in_host} .env-only"
     print(summary)
     print()
     print(dim("Container-only is normal (compose sets PORT, DATABASE_URL, etc.)."))
@@ -263,9 +274,7 @@ def _generate_traceparent() -> Tuple[str, str]:
 
 def _tempo_ready() -> bool:
     try:
-        with urllib.request.urlopen(
-            f"http://localhost:{TEMPO_PORT}/ready", timeout=2.0
-        ) as resp:
+        with urllib.request.urlopen(f"http://localhost:{TEMPO_PORT}/ready", timeout=2.0) as resp:
             return resp.status == 200
     except (urllib.error.URLError, socket.timeout):
         return False
@@ -418,8 +427,10 @@ def _trace(args: Sequence[str]) -> int:
     trace = _fetch_trace(trace_id, deadline_seconds=10.0)
     if not trace:
         fail("Tempo never returned the trace within 10 s.")
-        info("Spans may take a few seconds to ingest — retry the command, "
-             "or open Grafana → Explore → Tempo → trace ID search.")
+        info(
+            "Spans may take a few seconds to ingest — retry the command, "
+            "or open Grafana → Explore → Tempo → trace ID search."
+        )
         return 1
     _render_spans(trace)
     return 0
@@ -443,8 +454,12 @@ def _usage() -> None:
     print("Subcommands:")
     print(f"  ./dev hack {bold('exec')}  <svc> [-- cmd args...]   Shell into a service container")
     print(f"  ./dev hack {bold('env')}   <svc>                     Diff container env vs .env")
-    print(f"  ./dev hack {bold('sql')}   [--query Q | --file F | --json]   Run psql against postgres")
-    print(f"  ./dev hack {bold('trace')} <METHOD> <path> [--body J]        Curl with traceparent + pull spans from Tempo")
+    print(
+        f"  ./dev hack {bold('sql')}   [--query Q | --file F | --json]   Run psql against postgres"
+    )
+    print(
+        f"  ./dev hack {bold('trace')} <METHOD> <path> [--body J]        Curl with traceparent + pull spans from Tempo"
+    )
     print()
 
 
