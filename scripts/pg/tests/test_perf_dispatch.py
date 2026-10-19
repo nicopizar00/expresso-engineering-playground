@@ -79,6 +79,27 @@ class NormalizeTests(unittest.TestCase):
             ],
         )
 
+    def test_data_sizing_plans_the_same_steps_as_a_local_workflow(self) -> None:
+        cases = {
+            "http-cart -> http-orders": ["http-cart", "http-orders:5-iterations"],
+            STATUS_WORKFLOW: ["http-cart", "http-orders", "http-orders-status:5-iterations"],
+        }
+        for selection, local in cases.items():
+            with self.subTest(selection=selection):
+                steps, errors = normalize(request("workflow", selection, "5 journeys"), CATALOG)
+                self.assertEqual(errors, [])
+                self.assertEqual(steps, parse_steps(local))
+        # Each earlier step is sized for the step after it; only the last runs the workload.
+        plan = plan_workflow(parse_steps(cases[STATUS_WORKFLOW]), CATALOG)
+        self.assertEqual(
+            [step.shape_label() for step in plan.steps],
+            [
+                "auto: sized for step 2 (7 iterations, 1 VU)",
+                "auto: sized for step 3 (6 iterations, 1 VU)",
+                "5 journeys (5-iterations)",
+            ],
+        )
+
     def test_without_data_sizing_every_step_runs_the_workload(self) -> None:
         steps, errors = normalize(
             request("workflow", STATUS_WORKFLOW, "5 journeys", sizing="false"), CATALOG
