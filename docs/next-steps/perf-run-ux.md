@@ -96,17 +96,18 @@ Their artifacts keep the file layout of the `4329fc9` runs, with
 
 ## GitHub Actions design
 
-Use two user-facing manual workflows and one internal reusable workflow. This
+Use two user-facing manual GitHub workflows and one internal reusable GitHub
+workflow. This
 is the smallest design that keeps the simple case simple, prevents invalid
 job order in the form, and shares all execution behavior.
 
-| Workflow            | Trigger             | Responsibility                                                                          |
+| GitHub workflow     | Trigger             | Responsibility                                                                          |
 | ------------------- | ------------------- | --------------------------------------------------------------------------------------- |
 | `perf-job.yml`      | `workflow_dispatch` | Select and run one job that needs no earlier producer                                   |
 | `perf-workflow.yml` | `workflow_dispatch` | Select one complete valid producer/consumer workflow and the profile for its last step  |
 | `_perf-execute.yml` | `workflow_call`     | Normalize and validate form values, run them, summarize them, and upload their evidence |
 
-The current user-facing `perf.yml` is replaced by the first two workflows.
+The current user-facing `perf.yml` is replaced by the first two GitHub workflows.
 The existing CI `perf-smoke` job remains an automatic gate and is not another
 manual form. Reusing `_perf-execute.yml` from CI is a separate decision.
 
@@ -122,11 +123,12 @@ The following constraints were checked against the official documentation on
   `choice` input selects one string; it cannot update another input's options.
   A form may have at most 25 top-level inputs. See
   [workflow dispatch inputs](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onworkflow_dispatchinputs).
-- The workflow file must exist on the default branch before it appears in the
+- The GitHub workflow file must exist on the default branch before it appears in the
   Actions UI. The operator can then select the Git ref to run from the Branch
   dropdown. See
   [manually running a workflow](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
-- A same-repository reusable workflow is called as a job, uses `workflow_call`,
+- A same-repository reusable GitHub workflow is called as a GitHub job, uses
+  `workflow_call`,
   and resolves at the same commit as its caller when referenced with a relative
   path. See
   [reusing workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).
@@ -150,7 +152,7 @@ The workflow form therefore selects an already valid complete workflow.
 
 ### What the forms look like
 
-The single-run form contains two inputs:
+The job form contains two inputs:
 
 ```text
 Run workflow: Punch performance — job
@@ -279,7 +281,7 @@ same document with one step. The workflow
 }
 ```
 
-The reusable workflow declares these as typed `workflow_call` strings. Its
+The reusable GitHub workflow declares these as typed `workflow_call` strings. Its
 first repository command, `./dev perf:dispatch`, writes the attempted inputs
 to `request.json`, validates them, and writes valid normalized input to the
 immutable `spec.json`. It separately initializes `dispatch.json` with run
@@ -298,7 +300,7 @@ producer sizing before Docker starts. It then records the fully resolved k6
 config and data flow for every step. Execution stops on the first failed step
 and marks later steps skipped.
 
-### Reusable workflow contract
+### Reusable GitHub workflow contract
 
 `_perf-execute.yml` has one `ubuntu-latest` job. Keeping planning, Compose,
 k6, reports, and artifact upload in the same job preserves the local files and
@@ -335,7 +337,7 @@ that guarantee.
 
 The artifact contains:
 
-- `request.json`: the three form values received by the reusable workflow;
+- `request.json`: the three form values received by the reusable GitHub workflow;
 - `spec.json`: the immutable normalized specification used by both planning
   and execution;
 - `dispatch.json`: event ref and commit SHA, actor, execution stage, final

@@ -41,7 +41,7 @@ Anchor: `git grep -n "TODO(next-steps/punch-k8s)"`.
 In dependency order. Items 1 to 6 build the target CI design; the guide's
 "Not possible as stated, and the redesign" table holds the reasons.
 
-1. **Workflow-ready templates** (Punch and the thin templates): read
+1. **Templates ready for Punch workflows** (Punch and the thin templates): read
    `inputs.parameters` instead of `workflow.parameters`; declare the dataset
    input and expose the step's outputs; write outputs under `runs/<run>/`
    instead of the shared `datasets/` key.

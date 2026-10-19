@@ -25,7 +25,7 @@ git grep -n "TODO(next-steps/"
 6. **[Observability follow-ups](observability-grafana.md)** — Loki, BFF
    metrics reader, alert rules.
 7. **[Punch on Kubernetes](punch-k8s.md)** — POC shipped (Argo Workflows +
-   Argo CD, local S3/ECR stand-ins); next: workflow-ready templates, then the
+   Argo CD, local S3/ECR stand-ins); next: templates ready for Punch workflows, then the
    `perf-job`/`perf-workflow` GitHub workflows against real AWS.
 8. **[Running Punch jobs and workflows on Expresso](perf-run-ux.md)**: single
    jobs and Punch workflows run locally and from the `perf-job` and

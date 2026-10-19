@@ -252,10 +252,10 @@ stack on one GitHub-hosted runner. Both call `_perf-execute.yml`, which
 validates the form values, plans before Docker, runs that exact plan, and
 uploads one artifact.
 
-| Workflow file    | Title in the Actions tab     | Inputs                 | Runs                                                                      |
-| ---------------- | ---------------------------- | ---------------------- | ------------------------------------------------------------------------- |
-| `perf-job.yml`   | `Punch performance — job` | Job, profile      | One job that requires no dataset                                     |
-| `perf-workflow.yml` | `Punch performance — workflow`  | Workflow, target profile | One workflow: a producer and the consumers that read its data, 2 to 4 steps |
+| GitHub workflow file | Title in the Actions tab       | Inputs                   | Runs                                                                        |
+| -------------------- | ------------------------------ | ------------------------ | --------------------------------------------------------------------------- |
+| `perf-job.yml`       | `Punch performance — job`      | Job, profile             | One job that requires no dataset                                            |
+| `perf-workflow.yml`  | `Punch performance — workflow` | Workflow, target profile | One workflow: a producer and the consumers that read its data, 2 to 4 steps |
 
 The job and workflow lists come from the catalog. A workflow is an acyclic
 path of two to four jobs that starts at a job requiring no dataset,
