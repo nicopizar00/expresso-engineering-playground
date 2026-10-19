@@ -54,8 +54,8 @@ flowchart LR
 2. **Lint + format + typecheck** — `pnpm lint` (ESLint flat config),
    `pnpm format` (Prettier), `pnpm typecheck` (`tsc --noEmit`). No more
    `|| true` escape hatches.
-3. **Python orchestrator** — `ruff check scripts/pg` + `unittest discover`
-   under `scripts/pg/tests/`.
+3. **Python orchestrator** — `ruff check scripts/pg`, `ruff format --check
+   scripts/pg`, and `unittest discover` under `scripts/pg/tests/`.
 4. **Hadolint** — every Dockerfile under `apps/*/Dockerfile` (DL3018 ignored
    on workspace bases).
 5. **Unit + integration** — `pnpm test` (Vitest) and `pnpm test:integration`.

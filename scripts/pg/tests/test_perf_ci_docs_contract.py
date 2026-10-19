@@ -25,6 +25,17 @@ class PerformanceCiAndDocumentationContractTests(unittest.TestCase):
         self.assertRegex(config, r'(?m)^extend-select = \["I"\]$')
         self.assertRegex(config, r'(?m)^known-first-party = \["pg", "punch"\]$')
 
+    def test_python_ci_checks_ruff_formatting_at_line_length_100(self) -> None:
+        ci = yaml.safe_load(
+            (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            {"name": "Format check", "run": "ruff format --check scripts/pg"},
+            ci["jobs"]["python"]["steps"],
+        )
+        config = (REPO_ROOT / "scripts" / "ruff.toml").read_text(encoding="utf-8")
+        self.assertRegex(config, r"(?m)^line-length = 100$")
+
     def test_python_ci_installs_pinned_punch_dependencies(self) -> None:
         """Removing Punch's requirements from Python CI would break YAML loading."""
         ci = yaml.safe_load(

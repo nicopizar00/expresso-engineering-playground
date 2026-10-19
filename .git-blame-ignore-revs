@@ -1,0 +1,5 @@
+# Mechanical reformats that `git blame` skips (GitHub reads this file;
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# style(pg): apply ruff format at line length 100
+5e2a2b3e47b90a19e32d1d61d8246dc67832c82a
