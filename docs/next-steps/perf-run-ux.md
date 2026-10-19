@@ -4,9 +4,9 @@ Status: open. Punch workflows run locally and on demand from GitHub Actions. The
 GitHub Actions design below is implemented and verified on GitHub on
 2026-10-18 (Expresso `4329fc9`, Punch `3e7141f`) and, with the renamed
 `perf-job` and `perf-workflow` forms, on 2026-10-19 (Expresso `634ff6e`, Punch
-`ac7d88e`). The workflow form's data sizing input and the `workload` input
-name are not yet run on GitHub. Local setup and the start page still need
-decisions.
+`ac7d88e`), and, with the `workload` input and the workflow form's data
+sizing switch, on 2026-10-19 (Expresso `aaa58e5`, Punch `9a4b79b`). Local
+setup and the start page still need decisions.
 
 Goal: a person who has never run a Punch job on Expresso picks the right
 entry point, runs one job or a workflow, and reads the result, from one
