@@ -10,7 +10,13 @@ from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
 from pg.ansi import fail, header, info, pass_, warn
-from pg.paths import BFF_PORT, PERF_JOBS_DIR, PERF_OPTIONS_DIR, PERF_REPORTS_DIR, WEB_PORT
+from pg.paths import (
+    BFF_PORT,
+    PERF_JOBS_DIR,
+    PERF_OPTIONS_DIR,
+    PERF_REPORTS_DIR,
+    WEB_PORT,
+)
 from pg.ports import port_in_use
 
 # pg.paths initializes PUNCH_SRC before these public Punch imports.

@@ -59,7 +59,13 @@ from pg.paths import (
 from punch.catalog import CatalogError, JobCatalog, load_catalog
 from punch.execution import DEFAULT_DATA, ExecutionResult
 from punch.job import JobError, K6Job, read_k6_config
-from punch.sizing import SizingError, SizingPlan, rows_needed, size_producer, sizing_evidence
+from punch.sizing import (
+    SizingError,
+    SizingPlan,
+    rows_needed,
+    size_producer,
+    sizing_evidence,
+)
 
 EMPTY = "none"
 BROWSER_SERVICE = "k6-browser"
